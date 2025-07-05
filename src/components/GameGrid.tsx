@@ -1,38 +1,45 @@
 import { cn } from "@/lib/utils";
-
-interface GridCellData {
-  x: number;
-  y: number;
-  discovered: boolean;
-  type: 'unknown' | 'foret' | 'plage';
-}
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { MapCell } from "@/types/game";
+import { Loader2 } from "lucide-react";
 
 interface GameGridProps {
   onCellSelect: (x: number, y: number) => void;
   discoveredGrid: boolean[][];
+  playerPosition: { x: number; y: number };
 }
 
-const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
-  // Générer la grille basée sur les données Supabase
-  const generateGrid = (): GridCellData[][] => {
-    const grid: GridCellData[][] = [];
-    for (let y = 0; y < 7; y++) {
-      const row: GridCellData[] = [];
-      for (let x = 0; x < 7; x++) {
-        let type: 'unknown' | 'foret' | 'plage' = 'unknown';
-        const discovered = discoveredGrid[y] && discoveredGrid[y][x] || false;
-        
-        // Définir les types de terrain fixes
-        if (x === 1 && y === 1) {
-          type = 'foret';
-        } else if (x === 5 && y === 5) {
-          type = 'plage';
-        }
-        
-        row.push({ x, y, discovered, type });
+const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition }: GameGridProps) => {
+  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMapLayout = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
+      if (error) {
+        console.error("Error fetching map layout:", error);
+        setLoading(false);
+      } else {
+        setMapLayout(data as MapCell[]);
+        setLoading(false);
       }
-      grid.push(row);
-    }
+    };
+    fetchMapLayout();
+  }, []);
+
+  const generateGrid = (): (MapCell & { discovered: boolean })[][] => {
+    const grid: (MapCell & { discovered: boolean })[][] = Array(7).fill(null).map(() => []);
+    if (!mapLayout.length) return grid;
+
+    mapLayout.forEach(cell => {
+      if (!grid[cell.y]) grid[cell.y] = [];
+      grid[cell.y][cell.x] = {
+        ...cell,
+        discovered: discoveredGrid?.[cell.y]?.[cell.x] || false,
+      };
+    });
     return grid;
   };
 
@@ -42,7 +49,8 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
     onCellSelect(x, y);
   };
 
-  const getCellContent = (cell: GridCellData) => {
+  const getCellContent = (cell: MapCell & { discovered: boolean }) => {
+    if (!cell) return "?";
     if (!cell.discovered) return "?";
     
     switch (cell.type) {
@@ -51,11 +59,12 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
       case 'plage':
         return "🏖️";
       default:
-        return "?"; // Les cases non définies ne peuvent pas être découvertes
+        return "?";
     }
   };
 
-  const getCellStyle = (cell: GridCellData) => {
+  const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
+    if (!cell) return "bg-gray-400";
     const isDefinedZone = cell.type === 'foret' || cell.type === 'plage';
 
     if (!cell.discovered || !isDefinedZone) {
@@ -72,6 +81,14 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
       <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
@@ -81,11 +98,17 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
               key={`${x}-${y}`}
               onClick={() => handleCellClick(x, y)}
               className={cn(
-                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
+                "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
                 getCellStyle(cell)
               )}
             >
               {getCellContent(cell)}
+              {playerPosition.x === x && playerPosition.y === y && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-ping absolute"></div>
+                  <div className="w-3 h-3 bg-red-500 rounded-full absolute"></div>
+                </div>
+              )}
             </button>
           ))
         )}

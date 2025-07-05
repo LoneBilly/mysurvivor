@@ -21,7 +21,6 @@ const GameInterface = () => {
       return;
     }
     
-    // Vérifier si la case est déjà découverte
     if (gameState.grille_decouverte[y] && gameState.grille_decouverte[y][x]) {
       showSuccess(`Case déjà découverte : ${x}, ${y}`);
       return;
@@ -32,17 +31,14 @@ const GameInterface = () => {
 
   const handleLeaderboard = () => {
     showSuccess("Ouverture du classement");
-    // TODO: Implémenter le leaderboard
   };
 
   const handleOptions = () => {
     showSuccess("Ouverture des options");
-    // TODO: Implémenter les options
   };
 
   const handleInventaire = () => {
     showSuccess("Ouverture de l'inventaire");
-    // TODO: Implémenter l'inventaire
   };
 
   if (loading) {
@@ -84,6 +80,7 @@ const GameInterface = () => {
         <GameGrid 
           onCellSelect={handleCellSelect}
           discoveredGrid={gameState.grille_decouverte}
+          playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
         />
       </main>
       

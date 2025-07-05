@@ -1,21 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameStats } from '@/types/game';
+import { GameState, GameStats } from '@/types/game';
 import { showError, showSuccess } from '@/utils/toast';
-
-interface GameState {
-  id: string;
-  jours_survecus: number;
-  vie: number;
-  faim: number;
-  soif: number;
-  energie: number;
-  grille_decouverte: boolean[][];
-  inventaire: string[];
-  position_x: number;
-  position_y: number;
-}
 
 export const useGameState = () => {
   const { user } = useAuth();
@@ -38,18 +25,7 @@ export const useGameState = () => {
       }
 
       if (data) {
-        setGameState({
-          id: data.id,
-          jours_survecus: data.jours_survecus,
-          vie: data.vie,
-          faim: data.faim,
-          soif: data.soif,
-          energie: data.energie,
-          grille_decouverte: data.grille_decouverte || [],
-          inventaire: data.inventaire || [],
-          position_x: data.position_x,
-          position_y: data.position_y,
-        });
+        setGameState(data as GameState);
       }
     } catch (error) {
       console.error('Erreur lors du chargement de l\'état du jeu:', error);
