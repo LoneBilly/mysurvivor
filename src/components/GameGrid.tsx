@@ -71,23 +71,21 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-gray-100">
-      <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
-        {grid.map((row, y) =>
-          row.map((cell, x) => (
-            <button
-              key={`${x}-${y}`}
-              onClick={() => handleCellClick(x, y)}
-              className={cn(
-                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
-                getCellStyle(cell)
-              )}
-            >
-              {getCellContent(cell)}
-            </button>
-          ))
-        )}
-      </div>
+    <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
+      {grid.map((row, y) =>
+        row.map((cell, x) => (
+          <button
+            key={`${x}-${y}`}
+            onClick={() => handleCellClick(x, y)}
+            className={cn(
+              "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
+              getCellStyle(cell)
+            )}
+          >
+            {getCellContent(cell)}
+          </button>
+        ))
+      )}
     </div>
   );
 };
