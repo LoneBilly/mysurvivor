@@ -40,10 +40,10 @@ const GameInterface = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-600" />
-          <p className="text-gray-600">Chargement du jeu...</p>
+      <div className="h-dvh flex items-center justify-center bg-gray-900">
+        <div className="text-center text-white">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-200" />
+          <p className="text-gray-400">Chargement du jeu...</p>
         </div>
       </div>
     );
@@ -51,9 +51,9 @@ const GameInterface = () => {
 
   if (!gameState) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="h-dvh flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Erreur lors du chargement du jeu</p>
+          <p className="text-gray-400 mb-4">Erreur lors du chargement du jeu</p>
           <button 
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -66,14 +66,14 @@ const GameInterface = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100">
+    <div className="h-dvh flex flex-col bg-gray-900">
       <GameHeader
         joursSurvecus={gameState.jours_survecus}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
       />
       
-      <main className="flex-1 flex items-center justify-center p-4 bg-blue-900">
+      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900">
         <GameGrid 
           onCellSelect={handleCellSelect}
           discoveredGrid={gameState.grille_decouverte}
