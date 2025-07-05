@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { useGame } from '@/hooks/useGame';
+import { useGame } from '@/hooks/useGame'; // Import du hook useGame
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -23,18 +23,8 @@ const GameGrid: React.FC = () => {
     handleSaveGame,
     handleCloseSaveDialog,
     handleRestartGame,
-    handleMove,
-    handleDiscoverCell,
-    handleInteract,
-    handleNextDay,
-    handleUseItem,
-    inventory,
-    currentDay,
-    health,
-    hunger,
-    thirst,
-    energy,
-  } = useGame();
+    handleDiscoverCell, // Utilisation de handleDiscoverCell du hook
+  } = useGame(); // Appel du hook useGame
 
   const getCellContent = (cell: string, x: number, y: number) => {
     if (x === playerX && y === playerY) {
