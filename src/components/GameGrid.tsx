@@ -51,12 +51,14 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
       case 'plage':
         return "🏖️";
       default:
-        return "🌿"; // Terrain normal découvert
+        return "?"; // Les cases non définies ne peuvent pas être découvertes
     }
   };
 
   const getCellStyle = (cell: GridCellData) => {
-    if (!cell.discovered) {
+    const isDefinedZone = cell.type === 'foret' || cell.type === 'plage';
+
+    if (!cell.discovered || !isDefinedZone) {
       return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
     }
     
@@ -66,7 +68,7 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
       case 'plage':
         return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer border-yellow-400";
       default:
-        return "bg-gray-200 hover:bg-gray-100 text-gray-700 cursor-pointer border-gray-400";
+        return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
     }
   };
 

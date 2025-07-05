@@ -4,7 +4,7 @@ import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 
 const GameInterface = () => {
@@ -13,6 +13,13 @@ const GameInterface = () => {
 
   const handleCellSelect = async (x: number, y: number) => {
     if (!gameState) return;
+
+    const isDefinedZone = (x === 1 && y === 1) || (x === 5 && y === 5);
+
+    if (!isDefinedZone) {
+      showError("Rien à découvrir dans cette zone.");
+      return;
+    }
     
     // Vérifier si la case est déjà découverte
     if (gameState.grille_decouverte[y] && gameState.grille_decouverte[y][x]) {
