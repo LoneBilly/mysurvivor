@@ -6,6 +6,18 @@ import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
+import { Cell } from "@/types/game";
+
+// Définition de la carte statique du jeu
+const grid: Cell[][] = [
+  [{type:'forest'},{type:'forest'},{type:'mountain'},{type:'forest'},{type:'forest'},{type:'water'},{type:'forest'}],
+  [{type:'forest'},{type:'start'},{type:'forest'},{type:'empty'},{type:'forest'},{type:'water'},{type:'forest'}],
+  [{type:'water'},{type:'water'},{type:'water'},{type:'empty'},{type:'mountain'},{type:'mountain'},{type:'forest'}],
+  [{type:'forest'},{type:'empty'},{type:'empty'},{type:'empty'},{type:'empty'},{type:'forest'},{type:'forest'}],
+  [{type:'forest'},{type:'mountain'},{type:'empty'},{type:'end'},{type:'empty'},{type:'forest'},{type:'water'}],
+  [{type:'forest'},{type:'forest'},{type:'empty'},{type:'empty'},{type:'forest'},{type:'water'},{type:'water'}],
+  [{type:'forest'},{type:'forest'},{type:'forest'},{type:'forest'},{type:'forest'},{type:'water'},{type:'forest'}],
+];
 
 const GameInterface = () => {
   const { user, signOut } = useAuth();
@@ -14,7 +26,6 @@ const GameInterface = () => {
   const handleCellSelect = async (x: number, y: number) => {
     if (!gameState) return;
     
-    // Vérifier si la case est déjà découverte
     if (gameState.grille_decouverte[y] && gameState.grille_decouverte[y][x]) {
       showSuccess(`Case déjà découverte : ${x}, ${y}`);
       return;
@@ -75,8 +86,10 @@ const GameInterface = () => {
       
       <main className="flex-1 flex items-center justify-center p-4 bg-blue-900">
         <GameGrid 
-          onCellSelect={handleCellSelect}
-          discoveredGrid={gameState.grille_decouverte}
+          grid={grid}
+          discovered={gameState.grille_decouverte}
+          playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
+          onCellClick={handleCellSelect}
         />
       </main>
       

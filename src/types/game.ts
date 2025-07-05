@@ -16,6 +16,10 @@ export interface GameState {
   updated_at: string;
 }
 
+export interface Cell {
+  type: 'mountain' | 'water' | 'forest' | 'start' | 'end' | 'empty';
+}
+
 export interface CellType {
   type: 'unknown' | 'foret' | 'plage' | 'autre';
   discovered: boolean;
