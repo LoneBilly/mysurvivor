@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface GridCellData {
@@ -10,35 +9,34 @@ interface GridCellData {
 
 interface GameGridProps {
   onCellSelect: (x: number, y: number) => void;
+  discoveredGrid: boolean[][];
 }
 
-const GameGrid = ({ onCellSelect }: GameGridProps) => {
-  // Initialisation de la grille 7x7 avec forêt et plage découvertes
-  const [grid, setGrid] = useState<GridCellData[][]>(() => {
-    const initialGrid: GridCellData[][] = [];
+const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
+  // Générer la grille basée sur les données Supabase
+  const generateGrid = (): GridCellData[][] => {
+    const grid: GridCellData[][] = [];
     for (let y = 0; y < 7; y++) {
       const row: GridCellData[] = [];
       for (let x = 0; x < 7; x++) {
         let type: 'unknown' | 'foret' | 'plage' = 'unknown';
-        let discovered = false;
+        const discovered = discoveredGrid[y] && discoveredGrid[y][x] || false;
         
-        // Forêt en position (1,1)
+        // Définir les types de terrain fixes
         if (x === 1 && y === 1) {
           type = 'foret';
-          discovered = true;
-        }
-        // Plage en position (5,5)
-        else if (x === 5 && y === 5) {
+        } else if (x === 5 && y === 5) {
           type = 'plage';
-          discovered = true;
         }
         
         row.push({ x, y, discovered, type });
       }
-      initialGrid.push(row);
+      grid.push(row);
     }
-    return initialGrid;
-  });
+    return grid;
+  };
+
+  const grid = generateGrid();
 
   const handleCellClick = (x: number, y: number) => {
     onCellSelect(x, y);
@@ -53,22 +51,22 @@ const GameGrid = ({ onCellSelect }: GameGridProps) => {
       case 'plage':
         return "🏖️";
       default:
-        return "?";
+        return "🌿"; // Terrain normal découvert
     }
   };
 
   const getCellStyle = (cell: GridCellData) => {
     if (!cell.discovered) {
-      return "bg-gray-300 hover:bg-gray-400 text-gray-600";
+      return "bg-gray-300 hover:bg-gray-400 text-gray-600 cursor-pointer";
     }
     
     switch (cell.type) {
       case 'foret':
-        return "bg-green-200 hover:bg-green-300 text-green-800";
+        return "bg-green-200 hover:bg-green-300 text-green-800 cursor-pointer";
       case 'plage':
-        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800";
+        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer";
       default:
-        return "bg-gray-200 hover:bg-gray-300 text-gray-600";
+        return "bg-green-100 hover:bg-green-200 text-green-700 cursor-pointer";
     }
   };
 
@@ -81,7 +79,7 @@ const GameGrid = ({ onCellSelect }: GameGridProps) => {
               key={`${x}-${y}`}
               onClick={() => handleCellClick(x, y)}
               className={cn(
-                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 border-gray-400 transition-colors cursor-pointer",
+                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 border-gray-400 transition-colors",
                 getCellStyle(cell)
               )}
             >
