@@ -1,7 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Mountain, Waves, Trees, Home, User, Skull, HelpCircle } from 'lucide-react';
-import { Cell } from '@/types/game';
+
+interface Cell {
+  type: 'mountain' | 'water' | 'forest' | 'start' | 'end' | 'empty';
+}
 
 interface GameGridProps {
   grid: Cell[][];
