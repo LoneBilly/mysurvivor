@@ -6,25 +6,22 @@ import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
-import { useGame } from "@/hooks/useGame"; // Import du hook useGame
 
 const GameInterface = () => {
   const { user, signOut } = useAuth();
-  const { gameState, loading: gameStateLoading } = useGameState(); // Renommé pour éviter le conflit
-  const {
-    handleDiscoverCell, // Récupérer handleDiscoverCell du hook useGame
-    handleNextDay, // Récupérer handleNextDay du hook useGame
-    handleMove, // Récupérer handleMove du hook useGame
-    handleInteract, // Récupérer handleInteract du hook useGame
-    handleUseItem, // Récupérer handleUseItem du hook useGame
-    currentDay,
-    health,
-    hunger,
-    thirst,
-    energy,
-    inventory,
-    loading: gameLogicLoading, // Chargement de la logique de jeu
-  } = useGame(); // Appel du hook useGame
+  const { gameState, loading, discoverCell, updateStats } = useGameState();
+
+  const handleCellSelect = async (x: number, y: number) => {
+    if (!gameState) return;
+    
+    // Vérifier si la case est déjà découverte
+    if (gameState.grille_decouverte[y] && gameState.grille_decouverte[y][x]) {
+      showSuccess(`Case déjà découverte : ${x}, ${y}`);
+      return;
+    }
+
+    await discoverCell(x, y);
+  };
 
   const handleLeaderboard = () => {
     showSuccess("Ouverture du classement");
@@ -41,8 +38,7 @@ const GameInterface = () => {
     // TODO: Implémenter l'inventaire
   };
 
-  // Utiliser le chargement combiné
-  if (gameStateLoading || gameLogicLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
@@ -72,21 +68,24 @@ const GameInterface = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
       <GameHeader
-        joursSurvecus={currentDay} // Utiliser currentDay du hook useGame
+        joursSurvecus={gameState.jours_survecus}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
       />
       
       <main className="flex-1 flex flex-col">
-        <GameGrid /> {/* Plus besoin de passer onCellSelect et discoveredGrid */}
+        <GameGrid 
+          onCellSelect={handleCellSelect}
+          discoveredGrid={gameState.grille_decouverte}
+        />
       </main>
       
       <GameFooter
         stats={{
-          vie: health, // Utiliser health du hook useGame
-          faim: hunger, // Utiliser hunger du hook useGame
-          soif: thirst, // Utiliser thirst du hook useGame
-          energie: energy, // Utiliser energy du hook useGame
+          vie: gameState.vie,
+          faim: gameState.faim,
+          soif: gameState.soif,
+          energie: gameState.energie,
         }}
         onInventaire={handleInventaire}
       />
