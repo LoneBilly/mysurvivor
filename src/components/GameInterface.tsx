@@ -66,7 +66,7 @@ const GameInterface = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gray-100">
       <GameHeader
         joursSurvecus={gameState.jours_survecus}
         onLeaderboard={handleLeaderboard}
