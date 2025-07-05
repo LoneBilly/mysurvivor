@@ -6,27 +6,27 @@ import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
+import { MapCell } from "@/types/game";
 
 const GameInterface = () => {
   const { user, signOut } = useAuth();
   const { gameState, loading, discoverCell, updateStats } = useGameState();
 
-  const handleCellSelect = async (x: number, y: number) => {
+  const handleCellSelect = async (x: number, y: number, type: MapCell['type']) => {
     if (!gameState) return;
 
-    const isDefinedZone = (x === 1 && y === 1) || (x === 5 && y === 5);
+    const isDiscovered = gameState.grille_decouverte[y]?.[x];
 
-    if (!isDefinedZone) {
-      showError("Rien à découvrir dans cette zone.");
-      return;
-    }
-    
-    if (gameState.grille_decouverte[y] && gameState.grille_decouverte[y][x]) {
-      showSuccess(`Case déjà découverte : ${x}, ${y}`);
+    if (isDiscovered) {
+      showSuccess("Zone déjà découverte.");
       return;
     }
 
-    await discoverCell(x, y);
+    if (type === 'foret' || type === 'plage') {
+      await discoverCell(x, y);
+    } else {
+      showError("Zone non découverte.");
+    }
   };
 
   const handleLeaderboard = () => {

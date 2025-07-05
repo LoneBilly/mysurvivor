@@ -5,7 +5,7 @@ import { MapCell } from "@/types/game";
 import { Loader2 } from "lucide-react";
 
 interface GameGridProps {
-  onCellSelect: (x: number, y: number) => void;
+  onCellSelect: (x: number, y: number, type: MapCell['type']) => void;
   discoveredGrid: boolean[][];
   playerPosition: { x: number; y: number };
 }
@@ -44,10 +44,6 @@ const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition }: GameGridProp
   };
 
   const grid = generateGrid();
-
-  const handleCellClick = (x: number, y: number) => {
-    onCellSelect(x, y);
-  };
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
     if (!cell) return "?";
@@ -96,7 +92,7 @@ const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition }: GameGridProp
           row.map((cell, x) => (
             <button
               key={`${x}-${y}`}
-              onClick={() => handleCellClick(x, y)}
+              onClick={() => onCellSelect(x, y, cell.type)}
               className={cn(
                 "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
                 getCellStyle(cell)
@@ -105,8 +101,8 @@ const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition }: GameGridProp
               {getCellContent(cell)}
               {playerPosition.x === x && playerPosition.y === y && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-ping absolute"></div>
-                  <div className="w-3 h-3 bg-red-500 rounded-full absolute"></div>
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping absolute"></div>
+                  <div className="w-3 h-3 bg-blue-500 rounded-full absolute"></div>
                 </div>
               )}
             </button>
