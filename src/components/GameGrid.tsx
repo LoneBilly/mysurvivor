@@ -1,4 +1,11 @@
-import { useMemo } from "react";
+import { cn } from "@/lib/utils";
+
+interface GridCellData {
+  x: number;
+  y: number;
+  discovered: boolean;
+  type: 'unknown' | 'foret' | 'plage';
+}
 
 interface GameGridProps {
   onCellSelect: (x: number, y: number) => void;
@@ -6,34 +13,81 @@ interface GameGridProps {
 }
 
 const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
-  const grid = useMemo(() => {
-    return Array(7).fill(null).map((_, y) => 
-      Array(7).fill(null).map((_, x) => ({
-        discovered: discoveredGrid[y]?.[x] || false,
-      }))
-    );
-  }, [discoveredGrid]);
+  // Générer la grille basée sur les données Supabase
+  const generateGrid = (): GridCellData[][] => {
+    const grid: GridCellData[][] = [];
+    for (let y = 0; y < 7; y++) {
+      const row: GridCellData[] = [];
+      for (let x = 0; x < 7; x++) {
+        let type: 'unknown' | 'foret' | 'plage' = 'unknown';
+        const discovered = discoveredGrid[y] && discoveredGrid[y][x] || false;
+        
+        // Définir les types de terrain fixes
+        if (x === 1 && y === 1) {
+          type = 'foret';
+        } else if (x === 5 && y === 5) {
+          type = 'plage';
+        }
+        
+        row.push({ x, y, discovered, type });
+      }
+      grid.push(row);
+    }
+    return grid;
+  };
+
+  const grid = generateGrid();
+
+  const handleCellClick = (x: number, y: number) => {
+    onCellSelect(x, y);
+  };
+
+  const getCellContent = (cell: GridCellData) => {
+    if (!cell.discovered) return "?";
+    
+    switch (cell.type) {
+      case 'foret':
+        return "🌲";
+      case 'plage':
+        return "🏖️";
+      default:
+        return "🌿"; // Terrain normal découvert
+    }
+  };
+
+  const getCellStyle = (cell: GridCellData) => {
+    if (!cell.discovered) {
+      return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
+    }
+    
+    switch (cell.type) {
+      case 'foret':
+        return "bg-green-200 hover:bg-green-300 text-green-800 cursor-pointer border-green-400";
+      case 'plage':
+        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer border-yellow-400";
+      default:
+        return "bg-gray-200 hover:bg-gray-100 text-gray-700 cursor-pointer border-gray-400";
+    }
+  };
 
   return (
-    <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
-      {grid.map((row, y) =>
-        row.map((cell, x) => (
-          <button
-            key={`${x}-${y}`}
-            onClick={() => onCellSelect(x, y)}
-            className={`aspect-square rounded-md transition-colors duration-300 ${
-              cell.discovered
-                ? "bg-green-400 hover:bg-green-500"
-                : "bg-gray-700 hover:bg-gray-600"
-            }`}
-            aria-label={`Case ${x}, ${y}`}
-          >
-            <span className="sr-only">
-              {cell.discovered ? "Découverte" : "Non découverte"}
-            </span>
-          </button>
-        ))
-      )}
+    <div className="flex-1 flex items-center justify-center p-4 bg-gray-100">
+      <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
+        {grid.map((row, y) =>
+          row.map((cell, x) => (
+            <button
+              key={`${x}-${y}`}
+              onClick={() => handleCellClick(x, y)}
+              className={cn(
+                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
+                getCellStyle(cell)
+              )}
+            >
+              {getCellContent(cell)}
+            </button>
+          ))
+        )}
+      </div>
     </div>
   );
 };
