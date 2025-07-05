@@ -71,7 +71,7 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
   };
 
   return (
-    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg w-full h-full max-w-[90vh] max-h-[90vw] aspect-square flex items-center justify-center">
+    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
       <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
         {grid.map((row, y) =>
           row.map((cell, x) => (
