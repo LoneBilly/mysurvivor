@@ -73,7 +73,7 @@ const GameInterface = () => {
         onOptions={handleOptions}
       />
       
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col bg-blue-900">
         <GameGrid 
           onCellSelect={handleCellSelect}
           discoveredGrid={gameState.grille_decouverte}
