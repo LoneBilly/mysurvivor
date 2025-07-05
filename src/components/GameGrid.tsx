@@ -71,7 +71,7 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
   };
 
   return (
-    <div className="max-w-full max-h-full aspect-square grid grid-cols-7 gap-1 md:gap-2">
+    <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
       {grid.map((row, y) =>
         row.map((cell, x) => (
           <button
