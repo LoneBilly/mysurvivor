@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress"; // Import the Progress component
 import { Heart, Utensils, Droplets, Zap, Package } from "lucide-react";
 import { GameStats } from "@/types/game";
 
@@ -17,12 +18,17 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
     label: string; 
     value: number; 
   }) => (
-    <div className="flex items-center space-x-2 p-3 rounded-lg bg-gray-700 border border-gray-600">
-      <Icon className="w-5 h-5 text-gray-300" />
-      <div className="flex flex-col">
-        <span className="text-xs font-medium text-gray-400">{label}</span>
-        <span className="text-sm font-bold text-white">{value}</span>
+    <div className="flex flex-col items-start space-y-1 p-3 rounded-lg bg-gray-700 border border-gray-600 w-full">
+      <div className="flex items-center space-x-2">
+        <Icon className="w-5 h-5 text-gray-300" />
+        <span className="text-sm font-medium text-gray-400">{label}</span>
       </div>
+      <Progress value={value} className="w-full h-2 bg-gray-600" indicatorClassName={
+        value > 70 ? "bg-green-500" : 
+        value > 30 ? "bg-yellow-500" : 
+        "bg-red-500"
+      } />
+      <span className="text-xs font-bold text-white self-end">{value}%</span>
     </div>
   );
 
