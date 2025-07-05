@@ -7,6 +7,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 
+// Définition de la carte statique du jeu
+const gameMap = [
+  [{type: 'forest'}, {type: 'forest'}, {type: 'mountain'}, {type: 'mountain'}, {type: 'mountain'}, {type: 'forest'}, {type: 'forest'}],
+  [{type: 'forest'}, {type: 'water'}, {type: 'water'}, {type: 'water'}, {type: 'forest'}, {type: 'forest'}, {type: 'forest'}],
+  [{type: 'forest'}, {type: 'water'}, {type: 'empty'}, {type: 'empty'}, {type: 'forest'}, {type: 'forest'}, {type: 'forest'}],
+  [{type: 'start'}, {type: 'empty'}, {type: 'empty'}, {type: 'empty'}, {type: 'empty'}, {type: 'forest'}, {type: 'forest'}],
+  [{type: 'forest'}, {type: 'forest'}, {type: 'empty'}, {type: 'empty'}, {type: 'water'}, {type: 'water'}, {type: 'forest'}],
+  [{type: 'forest'}, {type: 'forest'}, {type: 'forest'}, {type: 'forest'}, {type: 'water'}, {type: 'end'}, {type: 'forest'}],
+  [{type: 'forest'}, {type: 'forest'}, {type: 'forest'}, {type: 'forest'}, {type: 'forest'}, {type: 'forest'}, {type: 'forest'}],
+];
+
 const GameInterface = () => {
   const { user, signOut } = useAuth();
   const { gameState, loading, discoverCell, updateStats } = useGameState();
@@ -75,8 +86,10 @@ const GameInterface = () => {
       
       <main className="flex-1 flex items-center justify-center p-4 bg-blue-900">
         <GameGrid 
-          onCellSelect={handleCellSelect}
-          discoveredGrid={gameState.grille_decouverte}
+          grid={gameMap}
+          discovered={gameState.grille_decouverte}
+          playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
+          onCellClick={handleCellSelect}
         />
       </main>
       
