@@ -1,88 +1,83 @@
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Mountain, Waves, Trees, Home, User, Skull, HelpCircle } from 'lucide-react';
 
-interface GridCellData {
-  x: number;
-  y: number;
-  discovered: boolean;
-  type: 'unknown' | 'foret' | 'plage';
+interface Cell {
+  type: 'mountain' | 'water' | 'forest' | 'start' | 'end' | 'empty';
 }
 
 interface GameGridProps {
-  onCellSelect: (x: number, y: number) => void;
-  discoveredGrid: boolean[][];
+  grid: Cell[][];
+  discovered: boolean[][];
+  playerPosition: { x: number; y: number };
+  onCellClick: (x: number, y: number) => void;
 }
 
-const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
-  // Générer la grille basée sur les données Supabase
-  const generateGrid = (): GridCellData[][] => {
-    const grid: GridCellData[][] = [];
-    for (let y = 0; y < 7; y++) {
-      const row: GridCellData[] = [];
-      for (let x = 0; x < 7; x++) {
-        let type: 'unknown' | 'foret' | 'plage' = 'unknown';
-        const discovered = discoveredGrid[y] && discoveredGrid[y][x] || false;
-        
-        // Définir les types de terrain fixes
-        if (x === 1 && y === 1) {
-          type = 'foret';
-        } else if (x === 5 && y === 5) {
-          type = 'plage';
-        }
-        
-        row.push({ x, y, discovered, type });
-      }
-      grid.push(row);
-    }
-    return grid;
-  };
-
-  const grid = generateGrid();
-
-  const handleCellClick = (x: number, y: number) => {
-    onCellSelect(x, y);
-  };
-
-  const getCellContent = (cell: GridCellData) => {
-    if (!cell.discovered) return "?";
-    
+const GameGrid: React.FC<GameGridProps> = ({ grid, discovered, playerPosition, onCellClick }) => {
+  const getCellIcon = (cell: Cell) => {
     switch (cell.type) {
-      case 'foret':
-        return "🌲";
-      case 'plage':
-        return "🏖️";
+      case 'mountain':
+        return <Mountain className="w-6 h-6 md:w-8 md:h-8 text-gray-500" />;
+      case 'water':
+        return <Waves className="w-6 h-6 md:w-8 md:h-8 text-blue-400" />;
+      case 'forest':
+        return <Trees className="w-6 h-6 md:w-8 md:h-8 text-green-600" />;
+      case 'start':
+        return <Home className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" />;
+      case 'end':
+        return <Skull className="w-6 h-6 md:w-8 md:h-8 text-red-600" />;
       default:
-        return "🌿"; // Terrain normal découvert
+        return null;
     }
   };
 
-  const getCellStyle = (cell: GridCellData) => {
-    if (!cell.discovered) {
-      return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
+  const getCellClasses = (cell: Cell, isDiscovered: boolean, x: number, y: number, playerPos: { x: number; y: number }) => {
+    if (x === playerPos.x && y === playerPos.y) {
+      return 'bg-blue-300 ring-2 ring-blue-500';
     }
-    
+    if (!isDiscovered) {
+      return 'bg-gray-700 hover:bg-gray-600 cursor-pointer';
+    }
     switch (cell.type) {
-      case 'foret':
-        return "bg-green-200 hover:bg-green-300 text-green-800 cursor-pointer border-green-400";
-      case 'plage':
-        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer border-yellow-400";
+      case 'mountain':
+        return 'bg-gray-400';
+      case 'water':
+        return 'bg-blue-200';
+      case 'forest':
+        return 'bg-green-300';
+      case 'start':
+        return 'bg-yellow-200';
+      case 'end':
+        return 'bg-red-300';
       default:
-        return "bg-gray-200 hover:bg-gray-100 text-gray-700 cursor-pointer border-gray-400";
+        return 'bg-gray-200';
     }
   };
 
   return (
-    <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
+    <div className="grid grid-cols-7 gap-1 md:gap-2 w-full max-w-xl mx-auto">
       {grid.map((row, y) =>
         row.map((cell, x) => (
           <button
             key={`${x}-${y}`}
-            onClick={() => handleCellClick(x, y)}
-            className={cn(
-              "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
-              getCellStyle(cell)
-            )}
+            onClick={() => onCellClick(x, y)}
+            className={`aspect-square flex items-center justify-center rounded-md transition-all duration-300 ease-in-out
+              ${getCellClasses(cell, discovered[y][x], x, y, playerPosition)}
+            `}
           >
-            {getCellContent(cell)}
+            {x === playerPosition.x && y === playerPosition.y ? (
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              >
+                <User className="w-6 h-6 md:w-8 md:h-8 text-white" />
+              </motion.div>
+            ) : discovered[y][x] ? (
+              getCellIcon(cell)
+            ) : (
+              <HelpCircle className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
+            )}
           </button>
         ))
       )}
