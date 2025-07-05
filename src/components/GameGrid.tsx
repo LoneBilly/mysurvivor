@@ -1,90 +1,36 @@
+import { GameGridCell } from "@/types/game";
 import { cn } from "@/lib/utils";
 
-interface GridCellData {
-  x: number;
-  y: number;
-  discovered: boolean;
-  type: 'unknown' | 'foret' | 'plage';
-}
-
 interface GameGridProps {
-  onCellSelect: (x: number, y: number) => void;
-  discoveredGrid: boolean[][];
+  grid: GameGridCell[][];
+  playerX: number;
+  playerY: number;
 }
 
-const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
-  // Générer la grille basée sur les données Supabase
-  const generateGrid = (): GridCellData[][] => {
-    const grid: GridCellData[][] = [];
-    for (let y = 0; y < 7; y++) {
-      const row: GridCellData[] = [];
-      for (let x = 0; x < 7; x++) {
-        let type: 'unknown' | 'foret' | 'plage' = 'unknown';
-        const discovered = discoveredGrid[y] && discoveredGrid[y][x] || false;
-        
-        // Définir les types de terrain fixes
-        if (x === 1 && y === 1) {
-          type = 'foret';
-        } else if (x === 5 && y === 5) {
-          type = 'plage';
-        }
-        
-        row.push({ x, y, discovered, type });
-      }
-      grid.push(row);
-    }
-    return grid;
-  };
-
-  const grid = generateGrid();
-
-  const handleCellClick = (x: number, y: number) => {
-    onCellSelect(x, y);
-  };
-
-  const getCellContent = (cell: GridCellData) => {
-    if (!cell.discovered) return "?";
-    
-    switch (cell.type) {
-      case 'foret':
-        return "🌲";
-      case 'plage':
-        return "🏖️";
-      default:
-        return "🌿"; // Terrain normal découvert
-    }
-  };
-
-  const getCellStyle = (cell: GridCellData) => {
-    if (!cell.discovered) {
-      return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
-    }
-    
-    switch (cell.type) {
-      case 'foret':
-        return "bg-green-200 hover:bg-green-300 text-green-800 cursor-pointer border-green-400";
-      case 'plage':
-        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer border-yellow-400";
-      default:
-        return "bg-gray-200 hover:bg-gray-100 text-gray-700 cursor-pointer border-gray-400";
-    }
-  };
-
+const GameGrid = ({ grid, playerX, playerY }: GameGridProps) => {
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-gray-100">
+    <div className="flex-1 flex items-center justify-center p-4 bg-blue-950"> {/* Changed background to very dark blue */}
       <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
         {grid.map((row, y) =>
           row.map((cell, x) => (
-            <button
+            <div
               key={`${x}-${y}`}
-              onClick={() => handleCellClick(x, y)}
               className={cn(
-                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
-                getCellStyle(cell)
+                "w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 flex items-center justify-center rounded-sm",
+                cell.decouverte ? "bg-gray-600 border border-gray-500" : "bg-gray-800 border border-gray-700",
+                playerX === x && playerY === y && "bg-yellow-400 border-yellow-300" // Player position
               )}
             >
-              {getCellContent(cell)}
-            </button>
+              {playerX === x && playerY === y ? (
+                <span role="img" aria-label="player" className="text-2xl">
+                  👤
+                </span>
+              ) : cell.decouverte ? (
+                <span className="text-xs text-gray-300">
+                  {cell.type === "start" ? "Départ" : cell.type === "end" ? "Fin" : ""}
+                </span>
+              ) : null}
+            </div>
           ))
         )}
       </div>
