@@ -9,29 +9,29 @@ interface GameHeaderProps {
 
 const GameHeader = ({ joursSurvecus, onLeaderboard, onOptions }: GameHeaderProps) => {
   return (
-    <header className="h-[10vh] bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 flex items-center justify-between shadow-lg">
+    <header className="h-[10vh] bg-gray-800 border-b border-gray-700 text-white px-4 flex items-center justify-between shadow-lg">
       <div className="flex items-center space-x-2">
-        <span className="text-lg md:text-xl font-bold">
+        <span className="text-lg md:text-xl font-bold text-white">
           Jour {joursSurvecus}
         </span>
       </div>
       
       <div className="flex space-x-2">
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           onClick={onLeaderboard}
-          className="flex items-center space-x-1"
+          className="flex items-center space-x-1 bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:text-white"
         >
           <Trophy className="w-4 h-4" />
           <span className="hidden sm:inline">Classement</span>
         </Button>
         
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           onClick={onOptions}
-          className="flex items-center space-x-1"
+          className="flex items-center space-x-1 bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:text-white"
         >
           <Settings className="w-4 h-4" />
           <span className="hidden sm:inline">Options</span>

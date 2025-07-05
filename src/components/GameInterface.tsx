@@ -42,7 +42,7 @@ const GameInterface = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-600" />
           <p className="text-gray-600">Chargement du jeu...</p>
         </div>
       </div>
@@ -56,7 +56,7 @@ const GameInterface = () => {
           <p className="text-gray-600 mb-4">Erreur lors du chargement du jeu</p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
             Recharger
           </button>

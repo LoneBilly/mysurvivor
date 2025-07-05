@@ -16,8 +16,8 @@ const Login = () => {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 to-blue-600 p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md border border-gray-200">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Jeu de Survie</h1>
           <p className="text-gray-600">Connectez-vous pour commencer votre aventure</p>
@@ -31,8 +31,11 @@ const Login = () => {
             variables: {
               default: {
                 colors: {
-                  brand: '#10b981',
-                  brandAccent: '#059669',
+                  brand: '#2563eb',
+                  brandAccent: '#1d4ed8',
+                  inputBackground: '#f8fafc',
+                  inputBorder: '#e2e8f0',
+                  inputBorderFocus: '#2563eb',
                 }
               }
             }

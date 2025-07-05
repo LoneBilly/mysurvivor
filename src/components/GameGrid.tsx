@@ -57,21 +57,21 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
 
   const getCellStyle = (cell: GridCellData) => {
     if (!cell.discovered) {
-      return "bg-gray-300 hover:bg-gray-400 text-gray-600 cursor-pointer";
+      return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
     }
     
     switch (cell.type) {
       case 'foret':
-        return "bg-green-200 hover:bg-green-300 text-green-800 cursor-pointer";
+        return "bg-green-200 hover:bg-green-300 text-green-800 cursor-pointer border-green-400";
       case 'plage':
-        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer";
+        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer border-yellow-400";
       default:
-        return "bg-green-100 hover:bg-green-200 text-green-700 cursor-pointer";
+        return "bg-gray-200 hover:bg-gray-100 text-gray-700 cursor-pointer border-gray-400";
     }
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4">
+    <div className="flex-1 flex items-center justify-center p-4 bg-gray-100">
       <div className="grid grid-cols-7 gap-1 md:gap-2 max-w-md md:max-w-lg lg:max-w-xl">
         {grid.map((row, y) =>
           row.map((cell, x) => (
@@ -79,7 +79,7 @@ const GameGrid = ({ onCellSelect, discoveredGrid }: GameGridProps) => {
               key={`${x}-${y}`}
               onClick={() => handleCellClick(x, y)}
               className={cn(
-                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 border-gray-400 transition-colors",
+                "aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
                 getCellStyle(cell)
               )}
             >
