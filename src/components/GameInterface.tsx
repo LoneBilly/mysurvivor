@@ -6,6 +6,7 @@ import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
+import { GameGridCell } from "@/types/game"; // Import GameGridCell
 
 const GameInterface = () => {
   const { user, signOut } = useAuth();
@@ -65,6 +66,16 @@ const GameInterface = () => {
     );
   }
 
+  // Transform grille_decouverte into GameGridCell[][]
+  const gameGridData: GameGridCell[][] = gameState.grille_decouverte.map((row, y) =>
+    row.map((isDiscovered, x) => ({
+      x,
+      y,
+      type: 'unknown', // Default type, as specific types are not in gameState.grille_decouverte
+      decouverte: isDiscovered,
+    }))
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
       <GameHeader
@@ -75,8 +86,10 @@ const GameInterface = () => {
       
       <main className="flex-1 flex flex-col">
         <GameGrid 
-          onCellSelect={handleCellSelect}
-          discoveredGrid={gameState.grille_decouverte}
+          grid={gameGridData} // Pass the transformed grid
+          playerX={gameState.position_x} // Pass playerX
+          playerY={gameState.position_y} // Pass playerY
+          onCellSelect={handleCellSelect} // Pass the cell select handler
         />
       </main>
       
