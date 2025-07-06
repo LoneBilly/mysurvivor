@@ -32,69 +32,75 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<PlayerState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isNewUser, setIsNewUser] = useState(sessionStorage.getItem('isNewUser') === 'true');
+  const [isNewUser, setIsNewUser] = useState(false);
 
-  const fetchProfile = useCallback(async (user: User) => {
-    try {
-      const { data, error } = await supabase
-        .from('player_states')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-      setProfile(data || null);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+  const fetchProfileForUser = useCallback(async (userToFetch: User) => {
+    const { data, error } = await supabase
+      .from('player_states')
+      .select('*')
+      .eq('id', userToFetch.id)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error("Error fetching profile:", error);
       setProfile(null);
+    } else {
+      setProfile(data || null);
     }
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    const initializeSession = async () => {
+      setLoading(true);
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      const currentUser = initialSession?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        await fetchProfileForUser(currentUser);
+      }
+      setLoading(false);
+    };
+
+    initializeSession();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        const currentUser = session?.user ?? null;
-        setSession(session);
+      async (event, newSession) => {
+        const currentUser = newSession?.user ?? null;
+        setSession(newSession);
         setUser(currentUser);
 
-        if (currentUser) {
-          if (event === 'SIGNED_IN') {
-            const createdAt = new Date(currentUser.created_at).getTime();
-            const lastSignInAt = currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).getTime() : createdAt;
-            if (lastSignInAt - createdAt < 5000) { // 5 second threshold for signup
-              setIsNewUser(true);
-              sessionStorage.setItem('isNewUser', 'true');
-            } else {
-              setIsNewUser(false);
-              sessionStorage.removeItem('isNewUser');
-            }
+        if (event === 'SIGNED_IN' && currentUser) {
+          const createdAt = new Date(currentUser.created_at).getTime();
+          const lastSignInAt = currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).getTime() : createdAt;
+          
+          const isSignup = (lastSignInAt - createdAt) < 5000;
+          setIsNewUser(isSignup);
+          if (isSignup) {
+            sessionStorage.setItem('isNewUser', 'true');
+          } else {
+            sessionStorage.removeItem('isNewUser');
           }
-          await fetchProfile(currentUser);
-        } else {
+          await fetchProfileForUser(currentUser);
+        } else if (event === 'SIGNED_OUT') {
           setProfile(null);
           setIsNewUser(false);
           sessionStorage.removeItem('isNewUser');
         }
-        
-        setLoading(false);
       }
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfileForUser]);
 
   const reloadProfile = useCallback(async () => {
     if (user) {
-      setLoading(true);
-      await fetchProfile(user);
-      setLoading(false);
+      await fetchProfileForUser(user);
     }
-  }, [user, fetchProfile]);
+  }, [user, fetchProfileForUser]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -105,7 +111,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     session,
     profile,
     loading,
-    isNewUser,
+    isNewUser: isNewUser || sessionStorage.getItem('isNewUser') === 'true',
     signOut,
     reloadProfile,
   };
