@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -20,7 +19,6 @@ const profileSchema = z.object({
 
 const CreateProfile = () => {
   const { user, reloadProfile } = useAuth();
-  const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -31,22 +29,31 @@ const CreateProfile = () => {
 
   const onSubmit = async (values: z.infer<typeof profileSchema>) => {
     if (!user) {
-      showError('Utilisateur non trouvé. Veuillez vous reconnecter.');
-      navigate('/login');
+      showError('Erreur d\'authentification. Veuillez vous reconnecter.');
       return;
     }
 
-    const { error } = await supabase
-      .from('player_states')
-      .update({ username: values.username })
-      .eq('id', user.id);
+    try {
+      const { error } = await supabase
+        .from('player_states')
+        .update({ username: values.username })
+        .eq('id', user.id);
 
-    if (error) {
-      showError(error.code === '23505' ? 'Ce pseudo est déjà pris.' : 'Erreur lors de la création du profil.');
-    } else {
-      showSuccess('Profil créé ! Bienvenue !');
+      if (error) {
+        if (error.code === '23505') {
+          showError('Ce pseudo est déjà pris. Veuillez en choisir un autre.');
+        } else {
+          console.error('Erreur lors de la création du profil:', error);
+          showError('Erreur lors de la création du profil. Veuillez réessayer.');
+        }
+        return;
+      }
+
+      showSuccess('Profil créé avec succès ! Bienvenue dans le jeu !');
       await reloadProfile();
-      navigate('/');
+    } catch (error) {
+      console.error('Erreur inattendue:', error);
+      showError('Une erreur inattendue s\'est produite. Veuillez réessayer.');
     }
   };
 
@@ -55,7 +62,9 @@ const CreateProfile = () => {
       <Card className="w-full max-w-md bg-gray-800 border-gray-700 text-white">
         <CardHeader>
           <CardTitle className="text-white">Créez votre profil</CardTitle>
-          <CardDescription className="text-gray-400">Choisissez un pseudo pour commencer votre aventure.</CardDescription>
+          <CardDescription className="text-gray-400">
+            Choisissez un pseudo pour commencer votre aventure de survie.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -71,15 +80,26 @@ const CreateProfile = () => {
                         placeholder="Votre pseudo de survivant" 
                         {...field} 
                         className="bg-gray-700 border-gray-600 text-white focus:ring-blue-500"
+                        disabled={form.formState.isSubmitting}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {form.formState.isSubmitting ? 'Création...' : 'Commencer à jouer'}
+              <Button 
+                type="submit" 
+                className="w-full bg-blue-600 hover:bg-blue-700" 
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Création en cours...
+                  </>
+                ) : (
+                  'Commencer à jouer'
+                )}
               </Button>
             </form>
           </Form>

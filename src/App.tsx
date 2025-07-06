@@ -12,21 +12,24 @@ import IncompleteProfile from "./pages/IncompleteProfile";
 
 const queryClient = new QueryClient();
 
+const LoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-900">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+      <p className="text-white">Chargement...</p>
+    </div>
+  </div>
+);
+
 const AppContent = () => {
   const { user, profile, loading } = useAuth();
 
+  // Afficher l'écran de chargement pendant l'initialisation
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Chargement...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
-  // User is not logged in
+  // Utilisateur non connecté
   if (!user) {
     return (
       <Routes>
@@ -36,18 +39,18 @@ const AppContent = () => {
     );
   }
 
-  // User is logged in, but the profile couldn't be fetched (e.g., trigger failed)
-  if (user && !profile) {
-     return (
+  // Utilisateur connecté mais profil non trouvé (problème de base de données)
+  if (!profile) {
+    return (
       <Routes>
         <Route path="/incomplete-profile" element={<IncompleteProfile />} />
         <Route path="*" element={<Navigate to="/incomplete-profile" replace />} />
       </Routes>
     );
   }
-  
-  // User is logged in, profile exists, but username is not set (new user)
-  if (user && profile && !profile.username) {
+
+  // Utilisateur connecté avec profil mais sans pseudo (nouveau joueur)
+  if (!profile.username) {
     return (
       <Routes>
         <Route path="/create-profile" element={<CreateProfile />} />
@@ -56,7 +59,7 @@ const AppContent = () => {
     );
   }
 
-  // User is authenticated and has a valid profile
+  // Utilisateur authentifié avec profil complet
   return (
     <Routes>
       <Route path="/" element={<Index />} />
