@@ -1,21 +1,18 @@
 export interface UserProfile {
   id: string;
-  username: string | null;
   created_at: string;
-  updated_at: string;
 }
 
 export interface PlayerGameState {
   id: string;
-  jours_survecus: number;
+  username: string | null;
+  spawn_date: string;
   vie: number;
   faim: number;
   soif: number;
   energie: number;
-  position_x: number;
-  position_y: number;
-  base_position_x: number | null;
-  base_position_y: number | null;
+  current_zone_id: number | null;
+  base_zone_id: number | null;
   grille_decouverte: number[];
   wood: number;
   metal: number;

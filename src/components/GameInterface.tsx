@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
@@ -8,10 +8,10 @@ import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
 import OptionsModal from "./OptionsModal";
 import { useGameState } from "@/hooks/useGameState";
-import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
+import { differenceInDays } from 'date-fns';
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -19,7 +19,6 @@ const formatZoneName = (name: string): string => {
 };
 
 const GameInterface = () => {
-  const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
   const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -31,10 +30,14 @@ const GameInterface = () => {
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
 
+  const joursSurvecus = useMemo(() => {
+    if (!gameState?.spawn_date) return 0;
+    return differenceInDays(new Date(), new Date(gameState.spawn_date));
+  }, [gameState?.spawn_date]);
+
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleExploreAction = () => {
-    // Logique d'exploration de la case actuelle
     showSuccess("Exploration en cours...");
     closeModal();
   };
@@ -43,14 +46,13 @@ const GameInterface = () => {
     closeModal();
     if (!gameState) return;
 
-    if (gameState.base_position_x !== null && gameState.base_position_y !== null) {
+    if (gameState.base_zone_id !== null) {
       showError("Vous avez déjà un campement.");
       return;
     }
 
     await saveGameState({
-      base_position_x: gameState.position_x,
-      base_position_y: gameState.position_y,
+      base_zone_id: gameState.current_zone_id,
     });
 
     showSuccess("Votre campement a été installé !");
@@ -68,39 +70,30 @@ const GameInterface = () => {
   const handleCellSelect = async (cell: MapCell) => {
     if (!gameState || !cell) return;
 
-    const { x, y, type, id } = cell;
+    const { type, id } = cell;
     const isDiscovered = gameState.grille_decouverte.includes(id);
-    const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
-    const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
+    const isCurrentPosition = gameState.current_zone_id === id;
+    const isBaseLocation = gameState.base_zone_id === id;
 
-    // D'abord, vérifier si la case est découverte.
     if (!isDiscovered) {
-      // Si non découverte, toujours afficher la même modale.
       setModalState({
         isOpen: true,
         title: "Zone non découverte",
-        description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
-        actions: [
-          { label: "Compris", onClick: closeModal, variant: "default" },
-        ],
+        description: "Vous devez explorer les cases adjacentes pour révéler cette zone.",
+        actions: [{ label: "Compris", onClick: closeModal }],
       });
       return;
     }
 
-    // Maintenant, nous savons que la case est découverte. Vérifier si c'est la position actuelle.
     if (isCurrentPosition) {
       const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [];
-
       if (isBaseLocation) {
         actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
       }
-      
       actions.push({ label: "Explorer", onClick: handleExploreAction, variant: "default" });
-
-      if (gameState.base_position_x === null || gameState.base_position_y === null) {
+      if (gameState.base_zone_id === null) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
       }
-
       setModalState({
         isOpen: true,
         title: formatZoneName(type),
@@ -108,9 +101,7 @@ const GameInterface = () => {
         actions,
       });
     } else {
-      // C'est découvert, mais pas la position actuelle. Proposer de se déplacer.
-      const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
-      const energyCost = distance * 10;
+      const energyCost = 10; // Coût fixe pour se déplacer vers une case adjacente découverte
 
       const handleMoveAction = async () => {
         closeModal();
@@ -120,8 +111,7 @@ const GameInterface = () => {
         }
         
         await saveGameState({
-          position_x: x,
-          position_y: y,
+          current_zone_id: id,
           energie: gameState.energie - energyCost,
         });
 
@@ -131,15 +121,8 @@ const GameInterface = () => {
       setModalState({
         isOpen: true,
         title: `Se déplacer vers ${formatZoneName(type)}`,
-        description: (
-          <>
-            Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}
-            <span className="font-bold text-yellow-400">{energyCost}</span> points d'énergie.
-          </>
-        ),
-        actions: [
-          { label: "Se déplacer", onClick: handleMoveAction, variant: "default" },
-        ],
+        description: `Ce trajet vous coûtera ${energyCost} points d'énergie.`,
+        actions: [{ label: "Se déplacer", onClick: handleMoveAction }],
       });
     }
   };
@@ -151,10 +134,7 @@ const GameInterface = () => {
   if (loading) {
     return (
       <div className="h-dvh flex items-center justify-center bg-gray-900">
-        <div className="text-center text-white">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-200" />
-          <p className="text-gray-400">Chargement du jeu...</p>
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin text-white" />
       </div>
     );
   }
@@ -162,15 +142,7 @@ const GameInterface = () => {
   if (!gameState) {
     return (
       <div className="h-dvh flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <p className="text-gray-400 mb-4">Erreur lors du chargement du jeu</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            Recharger
-          </button>
-        </div>
+        <p className="text-white">Erreur lors du chargement des données du jeu.</p>
       </div>
     );
   }
@@ -178,7 +150,7 @@ const GameInterface = () => {
   return (
     <div className="h-dvh flex flex-col bg-gray-900">
       <GameHeader
-        joursSurvecus={gameState.jours_survecus}
+        joursSurvecus={joursSurvecus}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
         currentView={currentView}
@@ -190,8 +162,8 @@ const GameInterface = () => {
           <GameGrid 
             onCellSelect={handleCellSelect}
             discoveredZoneIds={gameState.grille_decouverte}
-            playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
-            basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
+            currentZoneId={gameState.current_zone_id}
+            baseZoneId={gameState.base_zone_id}
           />
         ) : (
           <div className="relative w-full h-full">

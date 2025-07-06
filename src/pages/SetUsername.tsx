@@ -19,7 +19,6 @@ const SetUsername = () => {
     
     const trimmedUsername = username.trim();
     
-    // Validation côté client
     if (trimmedUsername.length < 3) {
       showError('Le pseudo doit faire au moins 3 caractères.');
       return;
@@ -38,10 +37,8 @@ const SetUsername = () => {
     setLoading(true);
     
     try {
-      console.log('Updating username for user:', user.id);
-      
       const { error } = await supabase
-        .from('profiles')
+        .from('player_states')
         .update({ 
           username: trimmedUsername,
           updated_at: new Date().toISOString()
@@ -58,10 +55,8 @@ const SetUsername = () => {
         return;
       }
 
-      console.log('Username updated successfully');
       showSuccess('Pseudo enregistré ! Bienvenue dans le jeu !');
       
-      // Attendre un peu avant de rafraîchir pour laisser le temps à la base de données
       setTimeout(async () => {
         await refreshData();
       }, 500);
@@ -81,7 +76,7 @@ const SetUsername = () => {
           <CardTitle className="text-white">Choisissez votre pseudo</CardTitle>
           <CardDescription className="text-gray-400">
             Entrez un pseudo pour commencer votre aventure de survie.
-          </CardDescription>
+          </Description>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
