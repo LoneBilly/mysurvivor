@@ -17,8 +17,10 @@ const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isBuilding, setIsBuilding] = useState(false);
+  // Nouvel état pour suivre la dernière cellule construite
+  const [lastBuiltCell, setLastBuiltCell] = useState<{ x: number; y: number } | null>(null);
 
+  // Configuration initiale de la grille
   useEffect(() => {
     const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
       Array.from({ length: GRID_SIZE }, (_, x) => ({
@@ -37,7 +39,7 @@ const BaseInterface = () => {
       { x: center, y: center - 1 }, { x: center, y: center + 1 },
     ];
     adjacentPositions.forEach(pos => {
-      if (newGrid[pos.y] && newGrid[pos.y][pos.x]) {
+      if (newGrid[pos.y]?.[pos.x]) {
         newGrid[pos.y][pos.x].canBuild = true;
       }
     });
@@ -45,7 +47,8 @@ const BaseInterface = () => {
     setGridData(newGrid);
   }, []);
 
-  const centerViewport = (x: number, y: number) => {
+  // Fonction pour centrer la vue sur une cellule
+  const centerViewport = (x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
     
     const viewport = viewportRef.current;
@@ -58,22 +61,30 @@ const BaseInterface = () => {
     viewport.scrollTo({
       left: scrollLeft,
       top: scrollTop,
+      behavior: smooth ? 'smooth' : 'auto',
     });
   };
 
+  // Effet pour le centrage initial (sans animation)
   useEffect(() => {
-    if (gridData && !isInitialized && viewportRef.current) {
+    if (gridData && !isInitialized) {
       const center = Math.floor(GRID_SIZE / 2);
-      // On centre immédiatement sans animation
-      centerViewport(center, center);
+      centerViewport(center, center, false);
       setIsInitialized(true);
     }
   }, [gridData, isInitialized]);
 
+  // Effet pour centrer la vue sur la dernière cellule construite (avec animation)
+  useEffect(() => {
+    if (lastBuiltCell) {
+      centerViewport(lastBuiltCell.x, lastBuiltCell.y);
+    }
+  }, [lastBuiltCell]);
+
+  // Gère le clic sur une cellule
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
 
-    setIsBuilding(true);
     const cell = gridData[y][x];
     if (!cell.canBuild || cell.type !== 'empty') return;
 
@@ -86,17 +97,14 @@ const BaseInterface = () => {
       { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
     ];
     adjacentPositions.forEach(pos => {
-      if (newGrid[pos.y] && newGrid[pos.y][pos.x] && newGrid[pos.y][pos.x].type === 'empty') {
+      if (newGrid[pos.y]?.[pos.x]?.type === 'empty') {
         newGrid[pos.y][pos.x].canBuild = true;
       }
     });
 
+    // Met à jour la grille, PUIS déclenche l'effet de centrage
     setGridData(newGrid);
-    // Aucun délai, le re-centrage se fait immédiatement après la mise à jour
-    setTimeout(() => {
-      centerViewport(x, y);
-      setIsBuilding(false);
-    }, 0);
+    setLastBuiltCell({ x, y });
   };
 
   const getCellContent = (cell: BaseCell) => {
@@ -146,8 +154,7 @@ const BaseInterface = () => {
               onClick={() => handleCellClick(x, y)}
               className={cn(
                 "absolute flex items-center justify-center text-2xl font-bold rounded border transition-colors",
-                getCellStyle(cell),
-                isBuilding && "transition-none"
+                getCellStyle(cell)
               )}
               style={{
                 left: x * (CELL_SIZE_PX + CELL_GAP),
