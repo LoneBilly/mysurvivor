@@ -50,20 +50,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   useEffect(() => {
-    const initializeSession = async () => {
-      setLoading(true);
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      const currentUser = initialSession?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        await fetchProfileForUser(currentUser);
-      }
-      setLoading(false);
-    };
-
-    initializeSession();
+    setLoading(true);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
@@ -71,23 +58,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(newSession);
         setUser(currentUser);
 
-        if (event === 'SIGNED_IN' && currentUser) {
-          const createdAt = new Date(currentUser.created_at).getTime();
-          const lastSignInAt = currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).getTime() : createdAt;
-          
-          const isSignup = (lastSignInAt - createdAt) < 5000;
-          setIsNewUser(isSignup);
-          if (isSignup) {
-            sessionStorage.setItem('isNewUser', 'true');
-          } else {
-            sessionStorage.removeItem('isNewUser');
-          }
+        if (currentUser) {
+          // This block handles both initial load with a session and subsequent sign-ins.
           await fetchProfileForUser(currentUser);
-        } else if (event === 'SIGNED_OUT') {
+
+          if (event === 'SIGNED_IN') {
+            const createdAt = new Date(currentUser.created_at).getTime();
+            const lastSignInAt = currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).getTime() : createdAt;
+            
+            // If last sign-in is very close to creation time, it's likely a new user signup.
+            const isSignup = (lastSignInAt - createdAt) < 5000;
+            setIsNewUser(isSignup);
+            if (isSignup) {
+              sessionStorage.setItem('isNewUser', 'true');
+            } else {
+              sessionStorage.removeItem('isNewUser');
+            }
+          }
+        } else {
+          // This block handles initial load without a session and sign-outs.
           setProfile(null);
           setIsNewUser(false);
           sessionStorage.removeItem('isNewUser');
         }
+        
+        // The loading state is set to false only after the auth state has been fully processed.
+        setLoading(false);
       }
     );
 
