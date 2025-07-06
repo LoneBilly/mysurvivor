@@ -44,14 +44,12 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
 
     if (isOpen) {
       fetchProfile();
-      setNewUsername(''); // Reset input field when modal opens
+      setNewUsername('');
     }
   }, [user, isOpen]);
 
   const handleSave = async () => {
-    if (!user || !newUsername.trim()) {
-      return;
-    }
+    if (!user || !newUsername.trim()) return;
     
     setLoading(true);
     const { error } = await supabase
