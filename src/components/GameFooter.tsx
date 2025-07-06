@@ -19,24 +19,28 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
     value: number; 
   }) => (
     <div className="flex flex-col items-start space-y-1 p-3 rounded-lg bg-gray-700 border border-gray-600 w-full">
-      <div className="flex items-center justify-between w-full mb-1"> {/* Adjusted for label and value on same line */}
+      <div className="flex items-center justify-between w-full mb-1">
         <div className="flex items-center space-x-2">
           <Icon className="w-5 h-5 text-gray-300" />
           <span className="text-sm font-medium text-gray-400">{label}</span>
         </div>
-        <span className="text-sm font-bold text-white">{value}/100</span> {/* Changed to X/100 format */}
+        <span className="text-sm font-bold text-white">{value}/100</span>
       </div>
-      <Progress value={value} className="w-full h-2 bg-gray-600" indicatorClassName={
-        value > 70 ? "bg-green-500" : 
-        value > 30 ? "bg-yellow-500" : 
-        "bg-red-500"
-      } />
+      <Progress 
+        value={value} 
+        className="w-full h-2 bg-gray-600" 
+        indicatorClassName={
+          label === 'Vie' ? 'bg-red-500' :
+          label === 'Faim' ? 'bg-orange-500' :
+          label === 'Soif' ? 'bg-blue-500' :
+          'bg-yellow-500'
+        } 
+      />
     </div>
   );
 
   return (
     <footer className="bg-gray-800 border-t border-gray-700 text-white p-4">
-      {/* Layout mobile : 2x2 pour les stats + inventaire pleine largeur */}
       <div className="md:hidden">
         <div className="grid grid-cols-2 gap-2 mb-3">
           <StatItem
@@ -70,7 +74,6 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
         </Button>
       </div>
 
-      {/* Layout desktop : stats prennent toute la largeur avec séparation pour l'inventaire */}
       <div className="hidden md:flex items-center">
         <div className="flex-1 grid grid-cols-4 gap-4">
           <StatItem
@@ -95,7 +98,6 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
           />
         </div>
         
-        {/* Séparateur vertical */}
         <div className="w-px h-12 bg-gray-600 mx-6"></div>
         
         <Button
