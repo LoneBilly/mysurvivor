@@ -27,6 +27,23 @@ const GameInterface = () => {
     closeModal();
   };
 
+  const handleBuildBase = async () => {
+    closeModal();
+    if (!gameState) return;
+
+    if (gameState.base_position_x !== null && gameState.base_position_y !== null) {
+      showError("Vous avez déjà un campement.");
+      return;
+    }
+
+    await saveGameState({
+      base_position_x: gameState.position_x,
+      base_position_y: gameState.position_y,
+    });
+
+    showSuccess("Votre campement a été installé !");
+  };
+
   const handleCellSelect = async (x: number, y: number, type: MapCell['type']) => {
     if (!gameState) return;
 
@@ -34,14 +51,21 @@ const GameInterface = () => {
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
 
     if (isCurrentPosition) {
+      const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [
+        { label: "Explorer", onClick: handleExploreAction, variant: "default" },
+      ];
+
+      if (gameState.base_position_x === null || gameState.base_position_y === null) {
+        actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
+      }
+      
+      actions.push({ label: "Annuler", onClick: closeModal, variant: "secondary" });
+
       setModalState({
         isOpen: true,
-        title: `Explorer la zone actuelle`,
-        description: "Voulez-vous passer du temps à explorer cette zone pour trouver des ressources ? Cela consommera de l'énergie.",
-        actions: [
-          { label: "Explorer", onClick: handleExploreAction, variant: "default" },
-          { label: "Annuler", onClick: closeModal, variant: "secondary" },
-        ],
+        title: `Zone Actuelle (${x}, ${y})`,
+        description: "Que souhaitez-vous faire ici ?",
+        actions,
       });
     } else if (isDiscovered) {
       const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
@@ -133,6 +157,7 @@ const GameInterface = () => {
           onCellSelect={handleCellSelect}
           discoveredGrid={gameState.grille_decouverte}
           playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
+          basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
         />
       </main>
       

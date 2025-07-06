@@ -17,6 +17,8 @@ export interface GameState {
   inventaire: string[];
   position_x: number;
   position_y: number;
+  base_position_x: number | null;
+  base_position_y: number | null;
   created_at: string;
   updated_at: string;
 }

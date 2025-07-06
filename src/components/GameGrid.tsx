@@ -2,15 +2,16 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCell } from "@/types/game";
-import { Loader2 } from "lucide-react";
+import { Loader2, Home } from "lucide-react";
 
 interface GameGridProps {
   onCellSelect: (x: number, y: number, type: MapCell['type']) => void;
   discoveredGrid: boolean[][];
   playerPosition: { x: number; y: number };
+  basePosition: { x: number; y: number } | null;
 }
 
-const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition }: GameGridProps) => {
+const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition, basePosition }: GameGridProps) => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,6 +105,9 @@ const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition }: GameGridProp
                   <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500 animate-ping"></div>
                   <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500"></div>
                 </>
+              )}
+              {basePosition && basePosition.x === x && basePosition.y === y && (
+                <Home className="absolute bottom-1 left-1 h-4 w-4 text-indigo-600" />
               )}
             </button>
           ))
