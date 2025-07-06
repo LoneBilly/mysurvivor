@@ -12,7 +12,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
-import { Button } from "@/components/ui/button";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";

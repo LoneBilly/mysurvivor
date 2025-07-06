@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { PlayerGameState } from '@/types/auth';
 import { showError } from '@/utils/toast';
 
 export const useGameState = () => {
-  const { user, gameState, refreshData, loading } = useAuth();
-  const [localGameState, setLocalGameState] = useState<PlayerGameState | null>(gameState);
+  const { user, userData, refreshData, loading } = useAuth();
+  const [localUserData, setLocalUserData] = useState(userData);
 
   useEffect(() => {
-    setLocalGameState(gameState);
-  }, [gameState]);
+    setLocalUserData(userData);
+  }, [userData]);
 
-  const saveGameState = async (updates: Partial<PlayerGameState>) => {
-    if (!user || !localGameState) return;
+  const saveGameState = async (updates: any) => {
+    if (!user || !localUserData) return;
 
     try {
       const updatesWithTimestamp = {
@@ -35,12 +34,12 @@ export const useGameState = () => {
     }
   };
 
-  const updateStats = async (newStats: Partial<PlayerGameState>) => {
+  const updateStats = async (newStats: any) => {
     await saveGameState(newStats);
   };
 
   return {
-    gameState: localGameState,
+    gameState: localUserData,
     loading,
     saveGameState,
     updateStats,

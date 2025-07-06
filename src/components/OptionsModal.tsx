@@ -20,40 +20,22 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user } = useAuth();
-  const [currentUsername, setCurrentUsername] = useState('');
+  const { user, userData, signOut } = useAuth();
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (user) {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('player_states')
-          .select('username')
-          .eq('id', user.id)
-          .single();
-        
-        if (data) {
-          setCurrentUsername(data.username || '');
-        }
-        setLoading(false);
-      }
-    };
-
-    if (isOpen) {
-      fetchProfile();
+    if (isOpen && userData) {
       setNewUsername('');
     }
-  }, [user, isOpen]);
+  }, [isOpen, userData]);
 
   const handleSave = async () => {
     if (!user || !newUsername.trim()) return;
     
     setLoading(true);
     const { error } = await supabase
-      .from('player_states')
+      .from('profiles')
       .update({ username: newUsername.trim() })
       .eq('id', user.id);
     setLoading(false);
@@ -62,7 +44,6 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
       showError(error.message);
     } else {
       showSuccess('Pseudo mis à jour !');
-      setCurrentUsername(newUsername.trim());
       setNewUsername('');
     }
   };
@@ -95,7 +76,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
               <Label htmlFor="username">Nouveau pseudo</Label>
               <Input
                 id="username"
-                placeholder={currentUsername || "Votre pseudo actuel"}
+                placeholder={userData?.username || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 className="bg-gray-700 border-gray-600 text-white"

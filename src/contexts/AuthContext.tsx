@@ -1,13 +1,31 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { UserProfile, PlayerGameState } from '@/types/auth';
+
+interface UserData {
+  id: string;
+  username: string | null;
+  jours_survecus: number;
+  vie: number;
+  faim: number;
+  soif: number;
+  energie: number;
+  position_x: number;
+  position_y: number;
+  base_position_x: number | null;
+  base_position_y: number | null;
+  grille_decouverte: number[];
+  wood: number;
+  metal: number;
+  components: number;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: UserProfile | null;
-  gameState: PlayerGameState | null;
+  userData: UserData | null;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshData: () => Promise<void>;
@@ -30,49 +48,69 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [gameState, setGameState] = useState<PlayerGameState | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = async (userId: string): Promise<UserData | null> => {
     try {
-      // Récupérer le profil
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (profileError) {
-        console.error('Erreur profil:', profileError);
-        return { profile: null, gameState: null };
-      }
-
-      // Récupérer l'état du jeu
-      const { data: gameData, error: gameError } = await supabase
+      console.log('Fetching user data for:', userId);
+      
+      // Récupérer les données combinées avec une jointure
+      const { data, error } = await supabase
         .from('player_states')
-        .select('*')
+        .select(`
+          *,
+          profiles!inner(username)
+        `)
         .eq('id', userId)
         .single();
 
-      if (gameError) {
-        console.error('Erreur état du jeu:', gameError);
-        return { profile: profileData, gameState: null };
+      if (error) {
+        console.error('Erreur lors de la récupération des données:', error);
+        return null;
       }
 
-      return { profile: profileData, gameState: gameData };
+      if (!data) {
+        console.error('Aucune donnée trouvée pour l\'utilisateur:', userId);
+        return null;
+      }
+
+      console.log('Données récupérées:', data);
+
+      // Construire l'objet UserData
+      const userData: UserData = {
+        id: data.id,
+        username: data.profiles?.username || null,
+        jours_survecus: data.jours_survecus,
+        vie: data.vie,
+        faim: data.faim,
+        soif: data.soif,
+        energie: data.energie,
+        position_x: data.position_x,
+        position_y: data.position_y,
+        base_position_x: data.base_position_x,
+        base_position_y: data.base_position_y,
+        grille_decouverte: Array.isArray(data.grille_decouverte) ? data.grille_decouverte : [],
+        wood: data.wood,
+        metal: data.metal,
+        components: data.components,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      };
+
+      return userData;
     } catch (error) {
-      console.error('Erreur lors de la récupération des données:', error);
-      return { profile: null, gameState: null };
+      console.error('Erreur inattendue lors de la récupération des données:', error);
+      return null;
     }
   };
 
   const refreshData = async () => {
     if (!user) return;
     
-    const { profile: newProfile, gameState: newGameState } = await fetchUserData(user.id);
-    setProfile(newProfile);
-    setGameState(newGameState);
+    console.log('Refreshing data for user:', user.id);
+    const newUserData = await fetchUserData(user.id);
+    setUserData(newUserData);
   };
 
   useEffect(() => {
@@ -80,6 +118,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth...');
+        
         // Récupérer la session actuelle
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -88,36 +128,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (mounted) {
             setUser(null);
             setSession(null);
-            setProfile(null);
-            setGameState(null);
+            setUserData(null);
             setLoading(false);
           }
           return;
         }
 
         if (session?.user && mounted) {
+          console.log('Session trouvée pour:', session.user.id);
           setUser(session.user);
           setSession(session);
           
           // Récupérer les données utilisateur
-          const { profile, gameState } = await fetchUserData(session.user.id);
+          const newUserData = await fetchUserData(session.user.id);
           if (mounted) {
-            setProfile(profile);
-            setGameState(gameState);
+            setUserData(newUserData);
           }
         } else if (mounted) {
+          console.log('Aucune session trouvée');
           setUser(null);
           setSession(null);
-          setProfile(null);
-          setGameState(null);
+          setUserData(null);
         }
       } catch (error) {
         console.error('Erreur initialisation auth:', error);
         if (mounted) {
           setUser(null);
           setSession(null);
-          setProfile(null);
-          setGameState(null);
+          setUserData(null);
         }
       } finally {
         if (mounted) {
@@ -131,15 +169,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth event:', event);
+        console.log('Auth event:', event, session?.user?.id);
         
         if (!mounted) return;
 
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setSession(null);
-          setProfile(null);
-          setGameState(null);
+          setUserData(null);
           setLoading(false);
           return;
         }
@@ -150,18 +187,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           if (event === 'SIGNED_IN') {
             setLoading(true);
-            const { profile, gameState } = await fetchUserData(session.user.id);
+            const newUserData = await fetchUserData(session.user.id);
             if (mounted) {
-              setProfile(profile);
-              setGameState(gameState);
+              setUserData(newUserData);
               setLoading(false);
             }
           }
         } else {
           setUser(null);
           setSession(null);
-          setProfile(null);
-          setGameState(null);
+          setUserData(null);
           setLoading(false);
         }
       }
@@ -188,8 +223,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value = {
     user,
     session,
-    profile,
-    gameState,
+    userData,
     loading,
     signOut,
     refreshData,

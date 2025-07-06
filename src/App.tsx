@@ -21,7 +21,9 @@ const LoadingScreen = () => (
 );
 
 const AppContent = () => {
-  const { user, profile, gameState, loading } = useAuth();
+  const { user, userData, loading } = useAuth();
+
+  console.log('AppContent render:', { user: !!user, userData: !!userData, loading });
 
   if (loading) {
     return <LoadingScreen />;
@@ -37,17 +39,29 @@ const AppContent = () => {
     );
   }
 
-  // Connecté mais pas de profil ou d'état de jeu (problème technique)
-  if (!profile || !gameState) {
+  // Connecté mais pas de données utilisateur (problème technique)
+  if (!userData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center text-white">
-          <p className="mb-4">Erreur de chargement des données</p>
+          <p className="mb-4">Erreur de chargement des données utilisateur</p>
+          <p className="text-sm text-gray-400 mb-4">
+            Il semble que votre profil n'ait pas été créé correctement.
+          </p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2"
           >
             Recharger
+          </button>
+          <button 
+            onClick={() => {
+              // Forcer la déconnexion pour permettre une nouvelle inscription
+              window.location.href = '/login';
+            }}
+            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          >
+            Retour à la connexion
           </button>
         </div>
       </div>
@@ -55,7 +69,7 @@ const AppContent = () => {
   }
 
   // Connecté mais pas de pseudo
-  if (!profile.username) {
+  if (!userData.username) {
     return (
       <Routes>
         <Route path="/set-username" element={<SetUsername />} />

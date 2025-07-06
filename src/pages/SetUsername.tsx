@@ -38,6 +38,8 @@ const SetUsername = () => {
     setLoading(true);
     
     try {
+      console.log('Updating username for user:', user.id);
+      
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -47,17 +49,23 @@ const SetUsername = () => {
         .eq('id', user.id);
 
       if (error) {
+        console.error('Error updating username:', error);
         if (error.code === '23505') {
           showError('Ce pseudo est déjà pris. Veuillez en choisir un autre.');
         } else {
-          console.error('Erreur lors de la mise à jour du pseudo:', error);
           showError('Erreur lors de la sauvegarde. Veuillez réessayer.');
         }
         return;
       }
 
+      console.log('Username updated successfully');
       showSuccess('Pseudo enregistré ! Bienvenue dans le jeu !');
-      await refreshData();
+      
+      // Attendre un peu avant de rafraîchir pour laisser le temps à la base de données
+      setTimeout(async () => {
+        await refreshData();
+      }, 500);
+      
     } catch (error) {
       console.error('Erreur inattendue:', error);
       showError('Une erreur inattendue s\'est produite.');
