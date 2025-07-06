@@ -45,18 +45,25 @@ const BaseInterface = () => {
     setGridData(newGrid);
   }, []);
 
-  // Étape 2: Centrer la vue sur le feu de camp après le rendu initial
+  // Étape 2: Centrer la vue sur le feu de camp après le rendu initial (une seule fois)
   useEffect(() => {
-    if (gridData && viewportRef.current) {
+    if (viewportRef.current && gridData) { // Ensure gridData is available before attempting to scroll
       const viewport = viewportRef.current;
-      const centerPx = Math.floor(GRID_SIZE / 2) * CELL_SIZE_PX;
+      const center = Math.floor(GRID_SIZE / 2);
+      const centerPx = center * CELL_SIZE_PX;
       
       const scrollLeft = centerPx - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
       const scrollTop = centerPx - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
 
-      viewport.scrollTo({ left: scrollLeft, top: scrollTop });
+      // Use a timeout to ensure the grid has rendered and has its dimensions
+      // before attempting to scroll.
+      const timeoutId = setTimeout(() => {
+        viewport.scrollTo({ left: scrollLeft, top: scrollTop });
+      }, 0); 
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [gridData]);
+  }, [gridData]); // Dependency on gridData to ensure it runs after grid is populated
 
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
