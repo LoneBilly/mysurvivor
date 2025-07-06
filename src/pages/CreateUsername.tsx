@@ -17,8 +17,16 @@ const CreateUsername = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !username.trim()) {
+    const trimmedUsername = username.trim();
+
+    if (!user || !trimmedUsername) {
       showError("Le pseudo ne peut pas être vide.");
+      return;
+    }
+
+    const usernameRegex = /^[a-zA-Z0-9_]{3,15}$/;
+    if (!usernameRegex.test(trimmedUsername)) {
+      showError("Le pseudo doit contenir 3 à 15 caractères (lettres, chiffres, _).");
       return;
     }
 
@@ -26,7 +34,7 @@ const CreateUsername = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ username: username.trim() })
+        .update({ username: trimmedUsername })
         .eq('id', user.id)
         .select()
         .single();
@@ -35,7 +43,7 @@ const CreateUsername = () => {
         if (error.code === '23505') { // Erreur de violation de contrainte unique
           showError("Ce pseudo est déjà pris. Veuillez en choisir un autre.");
         } else {
-          throw error; // Lancer les autres erreurs de la base de données
+          throw error;
         }
       } else {
         await refreshProfile();
@@ -69,6 +77,8 @@ const CreateUsername = () => {
                 placeholder="Votre nom dans le jeu..."
                 required
                 className="text-base"
+                pattern="^[a-zA-Z0-9_]{3,15}$"
+                title="3 à 15 caractères (lettres, chiffres, _)."
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading || !username.trim()}>
