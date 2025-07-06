@@ -41,8 +41,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     if (error && error.code !== 'PGRST116') {
       console.error("Error fetching profile:", error);
+      setProfile(null);
+    } else {
+      setProfile(data as PlayerState | null);
     }
-    setProfile(data as PlayerState | null);
   }, []);
 
   const reloadProfile = useCallback(async () => {
@@ -52,31 +54,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    setLoading(true); // For initial load and sign-in
+    setLoading(true);
+
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      setSession(session);
+      setUser(currentUser);
+
+      if (currentUser) {
+        await fetchProfile(currentUser.id);
+      }
+      setLoading(false);
+    };
+
+    getInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        try {
-          if (event === 'SIGNED_IN') {
-            setLoading(true);
-          }
+        const currentUser = session?.user ?? null;
+        setSession(session);
+        setUser(currentUser);
 
-          const currentUser = session?.user ?? null;
-          setSession(session);
-          setUser(currentUser);
-
-          if (currentUser) {
-            await fetchProfile(currentUser.id);
-          } else {
-            setProfile(null);
-          }
-        } finally {
-          setLoading(false);
+        if (event === 'SIGNED_IN' && currentUser) {
+          await fetchProfile(currentUser.id);
+        } else if (event === 'SIGNED_OUT') {
+          setProfile(null);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const signOut = async () => {
