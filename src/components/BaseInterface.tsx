@@ -9,16 +9,15 @@ interface BaseCell {
   canBuild?: boolean;
 }
 
-const GRID_SIZE = 100; // La taille de notre grille finie
-const CELL_SIZE_PX = 60; // Taille de chaque cellule en pixels pour le style
-const CELL_GAP = 4; // Espacement entre les cellules
+const GRID_SIZE = 100;
+const CELL_SIZE_PX = 60;
+const CELL_GAP = 4;
 
 const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const initialScrollPerformed = useRef(false); // Référence pour suivre le scroll initial
+  const initialScrollPerformed = useRef(false);
 
-  // Générer la grille une seule fois
   useEffect(() => {
     const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
       Array.from({ length: GRID_SIZE }, (_, x) => ({
@@ -45,18 +44,28 @@ const BaseInterface = () => {
     setGridData(newGrid);
   }, []);
 
-  // Centrer la vue sur le feu de camp (une seule fois)
-  useEffect(() => {
-    if (gridData && !initialScrollPerformed.current && viewportRef.current) {
-      const viewport = viewportRef.current;
-      const center = Math.floor(GRID_SIZE / 2);
-      const centerPx = center * (CELL_SIZE_PX + CELL_GAP);
-      
-      const scrollLeft = centerPx - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
-      const scrollTop = centerPx - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
+  const centerViewport = (x: number, y: number) => {
+    if (!viewportRef.current) return;
+    
+    const viewport = viewportRef.current;
+    const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+    const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+    
+    const scrollLeft = cellCenterX - viewport.clientWidth / 2;
+    const scrollTop = cellCenterY - viewport.clientHeight / 2;
 
-      viewport.scrollTo({ left: scrollLeft, top: scrollTop });
-      initialScrollPerformed.current = true; // Marquer le scroll comme effectué
+    viewport.scrollTo({
+      left: scrollLeft,
+      top: scrollTop,
+      behavior: 'smooth'
+    });
+  };
+
+  useEffect(() => {
+    if (gridData && !initialScrollPerformed.current) {
+      const center = Math.floor(GRID_SIZE / 2);
+      centerViewport(center, center);
+      initialScrollPerformed.current = true;
     }
   }, [gridData]);
 
@@ -81,19 +90,7 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
-
-    // Centrer la vue sur la nouvelle fondation
-    const viewport = viewportRef.current;
-    if (viewport) {
-      const scrollLeft = x * (CELL_SIZE_PX + CELL_GAP) - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
-      const scrollTop = y * (CELL_SIZE_PX + CELL_GAP) - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
-
-      viewport.scrollTo({
-        left: scrollLeft,
-        top: scrollTop,
-        behavior: 'smooth',
-      });
-    }
+    centerViewport(x, y);
   };
 
   const getCellContent = (cell: BaseCell) => {
