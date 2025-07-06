@@ -13,7 +13,7 @@ import IncompleteProfile from "./pages/IncompleteProfile";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { user, profile, loading, isNewUser } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -26,6 +26,7 @@ const AppContent = () => {
     );
   }
 
+  // User is not logged in
   if (!user) {
     return (
       <Routes>
@@ -35,8 +36,18 @@ const AppContent = () => {
     );
   }
 
-  // Case 1: New user who needs to create a profile.
-  if (isNewUser && (!profile || !profile.username)) {
+  // User is logged in, but the profile couldn't be fetched (e.g., trigger failed)
+  if (user && !profile) {
+     return (
+      <Routes>
+        <Route path="/incomplete-profile" element={<IncompleteProfile />} />
+        <Route path="*" element={<Navigate to="/incomplete-profile" replace />} />
+      </Routes>
+    );
+  }
+  
+  // User is logged in, profile exists, but username is not set (new user)
+  if (user && profile && !profile.username) {
     return (
       <Routes>
         <Route path="/create-profile" element={<CreateProfile />} />
@@ -45,17 +56,7 @@ const AppContent = () => {
     );
   }
 
-  // Case 2: Existing user with incomplete profile. This is an error state.
-  if ((!profile || !profile.username) && !isNewUser) {
-    return (
-      <Routes>
-        <Route path="/incomplete-profile" element={<IncompleteProfile />} />
-        <Route path="*" element={<Navigate to="/incomplete-profile" replace />} />
-      </Routes>
-    );
-  }
-
-  // Case 3: User is authenticated and has a valid profile.
+  // User is authenticated and has a valid profile
   return (
     <Routes>
       <Route path="/" element={<Index />} />

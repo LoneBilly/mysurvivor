@@ -8,7 +8,6 @@ interface AuthContextType {
   session: Session | null;
   profile: PlayerState | null;
   loading: boolean;
-  isNewUser: boolean;
   signOut: () => Promise<void>;
   reloadProfile: () => Promise<void>;
 }
@@ -32,7 +31,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<PlayerState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isNewUser, setIsNewUser] = useState(false);
 
   const fetchProfileForUser = useCallback(async (userToFetch: User) => {
     const { data, error } = await supabase
@@ -43,46 +41,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     if (error && error.code !== 'PGRST116') {
       console.error("Error fetching profile:", error);
-      setProfile(null);
-    } else {
-      setProfile(data || null);
+      return null;
     }
+    return data || null;
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        const currentUser = newSession?.user ?? null;
-        setSession(newSession);
+      async (_event, session) => {
+        setLoading(true);
+        const currentUser = session?.user ?? null;
+        
         setUser(currentUser);
+        setSession(session);
 
         if (currentUser) {
-          // This block handles both initial load with a session and subsequent sign-ins.
-          await fetchProfileForUser(currentUser);
-
-          if (event === 'SIGNED_IN') {
-            const createdAt = new Date(currentUser.created_at).getTime();
-            const lastSignInAt = currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).getTime() : createdAt;
-            
-            // If last sign-in is very close to creation time, it's likely a new user signup.
-            const isSignup = (lastSignInAt - createdAt) < 5000;
-            setIsNewUser(isSignup);
-            if (isSignup) {
-              sessionStorage.setItem('isNewUser', 'true');
-            } else {
-              sessionStorage.removeItem('isNewUser');
-            }
-          }
+          const userProfile = await fetchProfileForUser(currentUser);
+          setProfile(userProfile);
         } else {
-          // This block handles initial load without a session and sign-outs.
           setProfile(null);
-          setIsNewUser(false);
-          sessionStorage.removeItem('isNewUser');
         }
         
-        // The loading state is set to false only after the auth state has been fully processed.
         setLoading(false);
       }
     );
@@ -94,7 +73,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const reloadProfile = useCallback(async () => {
     if (user) {
-      await fetchProfileForUser(user);
+      setLoading(true);
+      const userProfile = await fetchProfileForUser(user);
+      setProfile(userProfile);
+      setLoading(false);
     }
   }, [user, fetchProfileForUser]);
 
@@ -107,7 +89,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     session,
     profile,
     loading,
-    isNewUser: isNewUser || sessionStorage.getItem('isNewUser') === 'true',
     signOut,
     reloadProfile,
   };
