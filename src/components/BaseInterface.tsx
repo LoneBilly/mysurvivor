@@ -15,8 +15,8 @@ const CELL_GAP = 4;
 
 const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const initialScrollPerformed = useRef(false);
 
   useEffect(() => {
     const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
@@ -42,18 +42,6 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
-    
-    // Positionnement initial avant le premier rendu
-    if (viewportRef.current) {
-      const viewport = viewportRef.current;
-      const cellCenterX = center * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      const cellCenterY = center * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      
-      viewport.scrollLeft = cellCenterX - viewport.clientWidth / 2;
-      viewport.scrollTop = cellCenterY - viewport.clientHeight / 2;
-    }
-    
-    setIsInitialized(true);
   }, []);
 
   const centerViewport = (x: number, y: number) => {
@@ -63,12 +51,29 @@ const BaseInterface = () => {
     const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     
+    // Calcul du scroll en prenant en compte la position actuelle
+    const scrollLeft = cellCenterX - viewport.clientWidth / 2;
+    const scrollTop = cellCenterY - viewport.clientHeight / 2;
+
+    // Vérification des limites
+    const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
+    const maxScrollTop = viewport.scrollHeight - viewport.clientHeight;
+
     viewport.scrollTo({
-      left: cellCenterX - viewport.clientWidth / 2,
-      top: cellCenterY - viewport.clientHeight / 2,
+      left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
+      top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
       behavior: 'smooth'
     });
   };
+
+  useEffect(() => {
+    if (gridData && !initialScrollPerformed.current && viewportRef.current) {
+      const center = Math.floor(GRID_SIZE / 2);
+      // On attend que le DOM soit complètement chargé
+      setTimeout(() => centerViewport(center, center), 100);
+      initialScrollPerformed.current = true;
+    }
+  }, [gridData]);
 
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
@@ -91,7 +96,7 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
-    centerViewport(x, y);
+    setTimeout(() => centerViewport(x, y), 100);
   };
 
   const getCellContent = (cell: BaseCell) => {
@@ -112,7 +117,7 @@ const BaseInterface = () => {
     }
   };
 
-  if (!gridData || !isInitialized) {
+  if (!gridData) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white">
         <Loader2 className="w-8 h-8 animate-spin mb-4" />
@@ -125,7 +130,6 @@ const BaseInterface = () => {
     <div
       ref={viewportRef}
       className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
-      style={{ opacity: isInitialized ? 1 : 0 }} // Fade in une fois initialisé
     >
       <div
         className="relative"
