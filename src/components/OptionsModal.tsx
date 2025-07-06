@@ -26,7 +26,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
 
   useEffect(() => {
     if (isOpen) {
-      setNewUsername(''); // Reset input field when modal opens
+      setNewUsername('');
     }
   }, [isOpen]);
 
@@ -36,15 +36,25 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
     }
     
     setLoading(true);
-    const { error } = await supabase
+    const { error: profileError } = await supabase
       .from('profiles')
       .update({ username: newUsername.trim() })
       .eq('id', user.id);
 
-    if (error) {
-      showError(error.message);
+    if (profileError) {
+      showError(profileError.message);
       setLoading(false);
     } else {
+      // Déclenche la mise à jour du classement
+      const { error: gameStateError } = await supabase
+        .from('game_states')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+
+      if (gameStateError) {
+        console.error("Erreur lors du déclenchement de la mise à jour du classement:", gameStateError);
+      }
+
       showSuccess('Pseudo mis à jour !');
       await refreshProfile();
       setLoading(false);

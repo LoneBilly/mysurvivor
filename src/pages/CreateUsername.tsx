@@ -32,20 +32,30 @@ const CreateUsername = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ username: trimmedUsername })
         .eq('id', user.id)
         .select()
         .single();
 
-      if (error) {
-        if (error.code === '23505') { // Erreur de violation de contrainte unique
+      if (profileError) {
+        if (profileError.code === '23505') {
           showError("Ce pseudo est déjà pris. Veuillez en choisir un autre.");
         } else {
-          throw error;
+          throw profileError;
         }
       } else {
+        // Déclenche la mise à jour du classement
+        const { error: gameStateError } = await supabase
+          .from('game_states')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
+
+        if (gameStateError) {
+          console.error("Erreur lors du déclenchement de la mise à jour du classement:", gameStateError);
+        }
+
         await refreshProfile();
         showSuccess("Bienvenue dans le jeu !");
         navigate('/');

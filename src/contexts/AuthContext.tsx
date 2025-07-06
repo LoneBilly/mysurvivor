@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Profile {
   username: string | null;
-  // Ajoutez d'autres champs de profil si nécessaire
 }
 
 interface AuthContextType {
@@ -48,8 +47,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    setLoading(true);
-
     const getSessionAndProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -71,6 +68,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        setLoading(true);
         setSession(session);
         const currentUser = session?.user ?? null;
         setUser(currentUser);
