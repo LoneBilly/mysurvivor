@@ -64,37 +64,47 @@ const BaseInterface = () => {
     const cell = gridData[y][x];
     if (!cell.canBuild || cell.type !== 'empty') return;
 
-    // Créer une copie profonde pour la mise à jour de l'état
     const newGrid = gridData.map(row => row.map(c => ({ ...c })));
 
-    // Mettre à jour la cellule cliquée
     newGrid[y][x].type = 'foundation';
     newGrid[y][x].canBuild = false;
 
-    // Activer les voisins
     const adjacentPositions = [
       { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
     ];
     adjacentPositions.forEach(pos => {
-      if (newGrid[pos.y] && newGrid[pos.y][pos.x] && newGrid[pos.y][pos.x].type === 'empty') {
+      if (newGrid[pos.y]?.[pos.x]?.type === 'empty') {
         newGrid[pos.y][pos.x].canBuild = true;
       }
     });
 
     setGridData(newGrid);
+
+    // Recentrer la vue sur la nouvelle fondation
+    if (viewportRef.current) {
+      const viewport = viewportRef.current;
+      const scrollLeft = x * CELL_SIZE_PX - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
+      const scrollTop = y * CELL_SIZE_PX - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
+
+      viewport.scrollTo({
+        left: scrollLeft,
+        top: scrollTop,
+        behavior: 'smooth',
+      });
+    }
   };
 
   const getCellContent = (cell: BaseCell) => {
     if (cell.type === 'campfire') return "🔥";
-    if (cell.type === 'foundation') return "🏗️";
+    if (cell.type === 'foundation') return ""; // Plus d'emoji pour la fondation
     if (cell.canBuild) return <Plus className="w-6 h-6 text-gray-400" />;
     return "";
   };
 
   const getCellStyle = (cell: BaseCell) => {
     switch (cell.type) {
-      case 'campfire': return "bg-orange-200/10 border-orange-400/30 text-orange-800";
-      case 'foundation': return "bg-stone-200/10 border-stone-400/30 text-stone-800";
+      case 'campfire': return "bg-orange-200/10 border-orange-400/30";
+      case 'foundation': return "bg-stone-700 border-stone-600"; // Nouveau style pour la fondation
       case 'empty':
         if (cell.canBuild) return "bg-gray-700/50 border-gray-600 hover:bg-gray-600/50 cursor-pointer border-dashed";
         return "bg-gray-800/50 border-gray-700/20";
@@ -114,7 +124,7 @@ const BaseInterface = () => {
   return (
     <div
       ref={viewportRef}
-      className="w-full h-full overflow-auto bg-gray-900"
+      className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
     >
       <div
         className="relative"
