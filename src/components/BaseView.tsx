@@ -12,7 +12,10 @@ const BaseView = ({ onExit }: BaseViewProps) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 rounded-lg p-4 text-white">
       <h2 className="text-2xl font-bold mb-4">Mon Campement</h2>
-      <div className="w-full max-w-md aspect-square grid gap-1" style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}>
+      <div
+        className="flex-1 max-w-full aspect-square grid gap-1"
+        style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}
+      >
         {Array.from({ length: gridSize * gridSize }).map((_, index) => {
           const x = index % gridSize;
           const y = Math.floor(index / gridSize);
