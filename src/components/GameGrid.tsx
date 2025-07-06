@@ -80,14 +80,14 @@ const GameGrid = ({ onCellSelect, discoveredZoneIds, playerPosition, basePositio
 
   if (loading) {
     return (
-      <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
+      <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg w-full max-h-full aspect-square flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-white" />
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
+    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg w-full max-h-full aspect-square flex items-center justify-center">
       <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
         {grid.map((row, y) =>
           row.map((cell, x) => (
