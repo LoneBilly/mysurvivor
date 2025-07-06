@@ -8,7 +8,7 @@ import BaseHeader from "./BaseHeader";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
 import { Button } from "@/components/ui/button";
 
@@ -170,6 +170,8 @@ const GameInterface = () => {
         joursSurvecus={gameState.jours_survecus}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
+        currentView={currentView}
+        onBackToMap={handleBackToMap}
       />
       
       <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0">
@@ -182,17 +184,6 @@ const GameInterface = () => {
           />
         ) : (
           <div className="relative w-full h-full">
-            <div className="absolute top-4 left-4 z-20">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBackToMap}
-                className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white bg-gray-800/80 backdrop-blur-sm"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Retour à la carte</span>
-              </Button>
-            </div>
             <BaseHeader
               resources={{
                 wood: gameState.wood,
