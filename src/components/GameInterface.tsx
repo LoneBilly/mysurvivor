@@ -14,6 +14,11 @@ import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
 import { Button } from "@/components/ui/button";
 
+const formatZoneName = (name: string): string => {
+  if (!name) return "Zone Inconnue";
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
 const GameInterface = () => {
   const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
@@ -83,7 +88,7 @@ const GameInterface = () => {
 
       setModalState({
         isOpen: true,
-        title: `Zone Actuelle (${x}, ${y})`,
+        title: formatZoneName(type),
         description: "Que souhaitez-vous faire ici ?",
         actions,
       });
@@ -109,7 +114,7 @@ const GameInterface = () => {
 
       setModalState({
         isOpen: true,
-        title: `Se déplacer vers cette zone`,
+        title: `Se déplacer vers ${formatZoneName(type)}`,
         description: (
           <>
             Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}

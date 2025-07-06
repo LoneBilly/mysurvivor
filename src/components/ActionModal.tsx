@@ -33,10 +33,10 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
           )}
         </DialogHeader>
         {actions.length > 0 && (
-          <DialogFooter className="mt-4">
-            <div className="flex flex-wrap justify-end gap-2">
+          <DialogFooter className="mt-4 sm:justify-center">
+            <div className="flex w-full flex-col sm:flex-row gap-2">
               {actions.map((action, index) => (
-                <Button key={index} onClick={action.onClick} variant={action.variant || "default"}>
+                <Button key={index} onClick={action.onClick} variant={action.variant || "default"} className="flex-1">
                   {action.label}
                 </Button>
               ))}
