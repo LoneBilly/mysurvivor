@@ -171,16 +171,32 @@ const GameInterface = () => {
         onOptions={handleOptions}
       />
       
-      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0">
-        {currentView === 'map' ? (
+      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0 relative">
+        <div className="w-full h-full flex items-center justify-center" style={{ display: currentView === 'map' ? 'flex' : 'none' }}>
           <GameGrid 
             onCellSelect={handleCellSelect}
             discoveredGrid={gameState.grille_decouverte}
             playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
             basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
           />
-        ) : (
+        </div>
+        <div className="w-full h-full" style={{ display: currentView === 'base' ? 'block' : 'none' }}>
           <BaseInterface />
+        </div>
+
+        {/* Bouton de retour pour la base */}
+        {currentView === 'base' && (
+          <div className="absolute top-4 left-4 z-10">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToMap}
+              className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white bg-gray-800/80 backdrop-blur-sm"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Retour à la carte</span>
+            </Button>
+          </div>
         )}
       </main>
       
@@ -193,21 +209,6 @@ const GameInterface = () => {
         }}
         onInventaire={handleInventaire}
       />
-
-      {/* Bouton de retour pour la base */}
-      {currentView === 'base' && (
-        <div className="absolute top-4 left-4 z-10">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackToMap}
-            className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white bg-gray-800/80 backdrop-blur-sm"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Retour à la carte</span>
-          </Button>
-        </div>
-      )}
 
       <ActionModal
         isOpen={modalState.isOpen}
