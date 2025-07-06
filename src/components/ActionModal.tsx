@@ -13,30 +13,34 @@ interface ActionModalProps {
   onClose: () => void;
   title: string;
   description: React.ReactNode;
-  actions?: {
+  actions: {
     label: string;
     onClick: () => void;
-    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+    variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null;
   }[];
 }
 
 const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
+      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
         <DialogHeader>
           <DialogTitle className="text-white">{title}</DialogTitle>
-          <DialogDescription className="text-gray-400">
-            {description}
-          </DialogDescription>
+          {description && (
+            <DialogDescription className="text-gray-400">
+              {description}
+            </DialogDescription>
+          )}
         </DialogHeader>
-        {actions && actions.length > 0 && (
-          <DialogFooter>
-            {actions.map((action, index) => (
-              <Button key={index} onClick={action.onClick} variant={action.variant || "default"}>
-                {action.label}
-              </Button>
-            ))}
+        {actions.length > 0 && (
+          <DialogFooter className="mt-4">
+            <div className="flex flex-wrap justify-end gap-2">
+              {actions.map((action, index) => (
+                <Button key={index} onClick={action.onClick} variant={action.variant || "default"}>
+                  {action.label}
+                </Button>
+              ))}
+            </div>
           </DialogFooter>
         )}
       </DialogContent>

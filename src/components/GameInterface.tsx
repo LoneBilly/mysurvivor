@@ -69,19 +69,17 @@ const GameInterface = () => {
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
     if (isCurrentPosition) {
-      const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [
-        { label: "Explorer", onClick: handleExploreAction, variant: "default" },
-      ];
+      const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [];
 
       if (isBaseLocation && gameState.base_position_x !== null) {
-        actions.unshift({ label: "Entrer dans la base", onClick: handleEnterBase, variant: "default" });
+        actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
       }
+      
+      actions.push({ label: "Explorer", onClick: handleExploreAction, variant: "default" });
 
       if (gameState.base_position_x === null || gameState.base_position_y === null) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
       }
-      
-      actions.push({ label: "Annuler", onClick: closeModal, variant: "secondary" });
 
       setModalState({
         isOpen: true,
@@ -120,7 +118,6 @@ const GameInterface = () => {
         ),
         actions: [
           { label: "Se déplacer", onClick: handleMoveAction, variant: "default" },
-          { label: "Annuler", onClick: closeModal, variant: "secondary" },
         ],
       });
     } else {
