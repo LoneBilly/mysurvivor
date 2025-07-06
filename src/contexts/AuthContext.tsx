@@ -69,16 +69,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session);
+        // Lorsqu'un utilisateur se connecte, passer en mode chargement immédiatement.
+        // Cela empêche le routeur de prendre des décisions avant que le profil ne soit récupéré.
+        if (event === 'SIGNED_IN') {
+          setLoading(true);
+        }
+
         const currentUser = session?.user ?? null;
+        setSession(session);
         setUser(currentUser);
 
         if (event === 'SIGNED_IN' && currentUser) {
-          setLoading(true);
           await fetchProfile(currentUser.id);
           setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           setProfile(null);
+          // S'assurer que le chargement est terminé lors de la déconnexion.
+          setLoading(false);
         }
       }
     );
