@@ -73,10 +73,25 @@ const GameInterface = () => {
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
+    // D'abord, vérifier si la case est découverte.
+    if (!isDiscovered) {
+      // Si non découverte, toujours afficher la même modale.
+      setModalState({
+        isOpen: true,
+        title: "Zone non découverte",
+        description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
+        actions: [
+          { label: "Compris", onClick: closeModal, variant: "default" },
+        ],
+      });
+      return;
+    }
+
+    // Maintenant, nous savons que la case est découverte. Vérifier si c'est la position actuelle.
     if (isCurrentPosition) {
       const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [];
 
-      if (isBaseLocation && gameState.base_position_x !== null) {
+      if (isBaseLocation) {
         actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
       }
       
@@ -92,7 +107,8 @@ const GameInterface = () => {
         description: "Que souhaitez-vous faire ici ?",
         actions,
       });
-    } else if (isDiscovered) {
+    } else {
+      // C'est découvert, mais pas la position actuelle. Proposer de se déplacer.
       const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
       const energyCost = distance * 10;
 
@@ -123,15 +139,6 @@ const GameInterface = () => {
         ),
         actions: [
           { label: "Se déplacer", onClick: handleMoveAction, variant: "default" },
-        ],
-      });
-    } else {
-      setModalState({
-        isOpen: true,
-        title: "Zone non découverte",
-        description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
-        actions: [
-          { label: "Compris", onClick: closeModal, variant: "default" },
         ],
       });
     }
