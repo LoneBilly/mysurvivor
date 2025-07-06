@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { showError, showSuccess } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 
-const SetUsername = () => {
+function SetUsername() {
   const { user, refreshData } = useAuth();
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
@@ -117,6 +117,6 @@ const SetUsername = () => {
       </Card>
     </div>
   );
-};
+}
 
 export default SetUsername;
