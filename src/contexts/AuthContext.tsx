@@ -48,37 +48,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    const fetchSessionAndProfile = async () => {
+    setLoading(true);
+
+    const getSessionAndProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
 
-      if (session?.user) {
+      if (currentUser) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('username')
-          .eq('id', session.user.id)
+          .eq('id', currentUser.id)
           .single();
         setProfile(profileData);
       }
       setLoading(false);
     };
 
-    fetchSessionAndProfile();
+    getSessionAndProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
 
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (currentUser) {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('username')
-            .eq('id', session.user.id)
+            .eq('id', currentUser.id)
             .single();
           setProfile(profileData);
-        } else if (event === 'SIGNED_OUT') {
+        } else {
           setProfile(null);
         }
         setLoading(false);
@@ -86,7 +90,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     return () => subscription.unsubscribe();
-  }, [user]);
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
