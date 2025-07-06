@@ -20,7 +20,7 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user, userData, signOut } = useAuth();
+  const { user, userData, signOut, refreshData } = useAuth();
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -35,7 +35,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
     
     setLoading(true);
     const { error } = await supabase
-      .from('profiles')
+      .from('player_states') // Correction: on met à jour player_states
       .update({ username: newUsername.trim() })
       .eq('id', user.id);
     setLoading(false);
@@ -45,19 +45,16 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
     } else {
       showSuccess('Pseudo mis à jour !');
       setNewUsername('');
+      await refreshData(); // Rafraîchir les données pour voir le changement
     }
   };
 
   const handleLogout = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signOut();
+    await signOut();
     setLoading(false);
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess('Déconnexion réussie.');
-      onClose();
-    }
+    showSuccess('Déconnexion réussie.');
+    onClose();
   };
 
   return (
