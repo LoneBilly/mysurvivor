@@ -5,11 +5,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -64,7 +64,8 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
       showError(error.message);
     } else {
       showSuccess('Pseudo mis à jour !');
-      onClose();
+      setCurrentUsername(newUsername.trim());
+      setNewUsername('');
     }
   };
 
@@ -89,27 +90,32 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
             Gérez les paramètres de votre compte et du jeu.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Pseudo</Label>
-            <Input
-              id="username"
-              placeholder={currentUsername}
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white"
-              disabled={loading}
-            />
+        <div className="space-y-6 py-2">
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-200">Changer de pseudo</h4>
+            <div className="space-y-2">
+              <Label htmlFor="username">Nouveau pseudo</Label>
+              <Input
+                id="username"
+                placeholder={currentUsername || "Votre pseudo actuel"}
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                className="bg-gray-700 border-gray-600 text-white"
+                disabled={loading}
+              />
+            </div>
+            <Button onClick={handleSave} disabled={loading || !newUsername.trim()} className="w-full">
+              {loading ? 'Sauvegarde...' : 'Sauvegarder le pseudo'}
+            </Button>
+          </div>
+          <Separator className="bg-gray-700" />
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-200">Compte</h4>
+            <Button onClick={handleLogout} variant="destructive" disabled={loading} className="w-full">
+              Déconnexion
+            </Button>
           </div>
         </div>
-        <DialogFooter className="sm:justify-between">
-          <Button onClick={handleLogout} variant="destructive" disabled={loading}>
-            Déconnexion
-          </Button>
-          <Button onClick={handleSave} disabled={loading || !newUsername.trim()}>
-            {loading ? 'Sauvegarde...' : 'Sauvegarder'}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

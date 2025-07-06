@@ -40,7 +40,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <Toaster />
-        <Sonner />
+        <Sonner position="top-center" />
         <AppContent />
       </AuthProvider>
     </TooltipProvider>
