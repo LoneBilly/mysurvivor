@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
+import ActionModal from "./ActionModal";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
@@ -9,8 +10,21 @@ import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
 
 const GameInterface = () => {
-  const { user, signOut } = useAuth();
-  const { gameState, loading, discoverCell, updateStats } = useGameState();
+  const { user } = useAuth();
+  const { gameState, loading, discoverCell } = useGameState();
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: React.ReactNode;
+    actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[];
+  }>({ isOpen: false, title: "", description: "", actions: [] });
+
+  const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
+
+  const handleExploreAction = () => {
+    showSuccess("Exploration en cours...");
+    closeModal();
+  };
 
   const handleCellSelect = async (x: number, y: number, type: MapCell['type']) => {
     if (!gameState) return;
@@ -18,28 +32,30 @@ const GameInterface = () => {
     const isDiscovered = gameState.grille_decouverte[y]?.[x];
 
     if (isDiscovered) {
-      showSuccess("Zone déjà découverte.");
-      return;
-    }
-
-    if (type === 'foret' || type === 'plage') {
-      await discoverCell(x, y);
+      setModalState({
+        isOpen: true,
+        title: `Explorer la ${type === 'foret' ? 'Forêt' : 'Plage'}`,
+        description: "Voulez-vous passer du temps à explorer cette zone pour trouver des ressources ?",
+        actions: [
+          { label: "Explorer", onClick: handleExploreAction, variant: "default" },
+          { label: "Annuler", onClick: closeModal, variant: "secondary" },
+        ],
+      });
     } else {
-      showError("Zone non découverte.");
+      setModalState({
+        isOpen: true,
+        title: "Zone non découverte",
+        description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
+        actions: [
+          { label: "Compris", onClick: closeModal, variant: "default" },
+        ],
+      });
     }
   };
 
-  const handleLeaderboard = () => {
-    showSuccess("Ouverture du classement");
-  };
-
-  const handleOptions = () => {
-    showSuccess("Ouverture des options");
-  };
-
-  const handleInventaire = () => {
-    showSuccess("Ouverture de l'inventaire");
-  };
+  const handleLeaderboard = () => showSuccess("Ouverture du classement");
+  const handleOptions = () => showSuccess("Ouverture des options");
+  const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
 
   if (loading) {
     return (
@@ -92,6 +108,14 @@ const GameInterface = () => {
           energie: gameState.energie,
         }}
         onInventaire={handleInventaire}
+      />
+
+      <ActionModal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        title={modalState.title}
+        description={modalState.description}
+        actions={modalState.actions}
       />
     </div>
   );
