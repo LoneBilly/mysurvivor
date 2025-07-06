@@ -21,7 +21,7 @@ export interface GameState {
   wood: number;
   metal: number;
   components: number;
-  inventaire: any[]; // Peut être plus spécifique si vous connaissez la structure
+  inventaire: any[];
   created_at: string;
   updated_at: string;
 }
