@@ -1,36 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameState, GameStats } from '@/types/game';
+import { GameState } from '@/types/game';
 import { showError, showSuccess } from '@/utils/toast';
 
 export const useGameState = () => {
-  const { user } = useAuth();
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, profile, loading, reloadProfile } = useAuth();
+  const [gameState, setGameState] = useState<GameState | null>(profile);
 
-  const loadGameState = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('player_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        setGameState(data as GameState);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement de l\'état du jeu:', error);
-      showError('Erreur lors du chargement du jeu');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    setGameState(profile);
+  }, [profile]);
 
   const saveGameState = async (updates: Partial<GameState>) => {
     if (!user || !gameState) return;
@@ -48,7 +28,7 @@ export const useGameState = () => {
 
       if (error) throw error;
 
-      setGameState(prev => prev ? { ...prev, ...updates } : null);
+      await reloadProfile();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
       showError('Erreur lors de la sauvegarde');
@@ -66,15 +46,9 @@ export const useGameState = () => {
     }
   };
 
-  const updateStats = async (newStats: Partial<GameStats>) => {
+  const updateStats = async (newStats: Partial<GameState>) => {
     await saveGameState(newStats);
   };
-
-  useEffect(() => {
-    if (user) {
-      loadGameState();
-    }
-  }, [user]);
 
   return {
     gameState,
@@ -82,6 +56,6 @@ export const useGameState = () => {
     saveGameState,
     discoverCell,
     updateStats,
-    reload: loadGameState,
+    reload: reloadProfile,
   };
 };
