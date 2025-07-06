@@ -15,9 +15,8 @@ const CELL_SIZE_PX = 60; // Taille de chaque cellule en pixels pour le style
 const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const initialScrollPerformed = useRef(false); // Nouvelle référence pour suivre le scroll initial
 
-  // Étape 1: Générer la grille 100x100 une seule fois
+  // Étape 1: Générer la grille 100x100 une seule fois et centrer la vue initiale
   useEffect(() => {
     const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
       Array.from({ length: GRID_SIZE }, (_, x) => ({
@@ -44,31 +43,23 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
-  }, []);
 
-  // Étape 2: Centrer la vue sur le feu de camp après le rendu initial (une seule fois)
-  useEffect(() => {
-    if (initialScrollPerformed.current) {
-      return; // Si le scroll initial a déjà été effectué, ne rien faire
-    }
+    // Centrer la vue sur le feu de camp après le rendu initial
+    // Utiliser un timeout pour s'assurer que la grille est rendue et a ses dimensions
+    const timeoutId = setTimeout(() => {
+      if (viewportRef.current) {
+        const viewport = viewportRef.current;
+        const centerPx = center * CELL_SIZE_PX;
+        
+        const scrollLeft = centerPx - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
+        const scrollTop = centerPx - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
 
-    if (viewportRef.current && gridData) {
-      const viewport = viewportRef.current;
-      const center = Math.floor(GRID_SIZE / 2);
-      const centerPx = center * CELL_SIZE_PX;
-      
-      const scrollLeft = centerPx - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
-      const scrollTop = centerPx - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
-
-      // Utiliser un timeout pour s'assurer que la grille est rendue et a ses dimensions
-      const timeoutId = setTimeout(() => {
         viewport.scrollTo({ left: scrollLeft, top: scrollTop });
-        initialScrollPerformed.current = true; // Marquer le scroll initial comme effectué
-      }, 0); 
+      }
+    }, 0); 
 
-      return () => clearTimeout(timeoutId);
-    }
-  }, [gridData]); // Dépend de gridData pour s'assurer qu'il s'exécute après que gridData soit peuplé pour la première fois
+    return () => clearTimeout(timeoutId);
+  }, []); // Ce useEffect ne s'exécute qu'une seule fois au montage du composant
 
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
