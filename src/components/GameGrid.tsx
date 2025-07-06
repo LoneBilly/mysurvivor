@@ -79,7 +79,7 @@ const GameGrid = ({ onCellSelect, discoveredZoneIds, playerPosition, basePositio
   };
 
   return (
-    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg flex items-center justify-center w-full h-full aspect-square">
+    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg flex items-center justify-center h-[calc(100%-20px)] max-w-[calc(100%-20px)] aspect-square">
       {loading ? (
         <div className="flex items-center justify-center w-full h-full">
           <Loader2 className="w-8 h-8 animate-spin text-white" />
