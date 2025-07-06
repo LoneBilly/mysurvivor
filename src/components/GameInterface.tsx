@@ -3,6 +3,7 @@ import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
 import ActionModal from "./ActionModal";
+import BaseView from "./BaseView";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
@@ -12,6 +13,7 @@ import { MapCell } from "@/types/game";
 const GameInterface = () => {
   const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
+  const [isInBase, setIsInBase] = useState(false);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -22,7 +24,6 @@ const GameInterface = () => {
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleExploreAction = () => {
-    // Logique d'exploration de la case actuelle
     showSuccess("Exploration en cours...");
     closeModal();
   };
@@ -55,8 +56,18 @@ const GameInterface = () => {
         { label: "Explorer", onClick: handleExploreAction, variant: "default" },
       ];
 
-      if (gameState.base_position_x === null || gameState.base_position_y === null) {
+      const hasBase = gameState.base_position_x !== null;
+      const isAtBase = hasBase && gameState.base_position_x === x && gameState.base_position_y === y;
+
+      if (!hasBase) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
+      }
+
+      if (isAtBase) {
+        actions.push({ label: "Entrer dans la base", onClick: () => {
+          setIsInBase(true);
+          closeModal();
+        }, variant: "default" });
       }
       
       actions.push({ label: "Annuler", onClick: closeModal, variant: "secondary" });
@@ -153,12 +164,16 @@ const GameInterface = () => {
       />
       
       <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0">
-        <GameGrid 
-          onCellSelect={handleCellSelect}
-          discoveredGrid={gameState.grille_decouverte}
-          playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
-          basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
-        />
+        {isInBase ? (
+          <BaseView onExit={() => setIsInBase(false)} />
+        ) : (
+          <GameGrid 
+            onCellSelect={handleCellSelect}
+            discoveredGrid={gameState.grille_decouverte}
+            playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
+            basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
+          />
+        )}
       </main>
       
       <GameFooter
