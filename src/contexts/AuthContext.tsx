@@ -72,14 +72,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Set loading to true when sign-in starts to prevent routing issues
+        if (event === 'SIGNED_IN') {
+          setLoading(true);
+        }
+
         const currentUser = session?.user ?? null;
         setSession(session);
         setUser(currentUser);
 
-        if (event === 'SIGNED_IN' && currentUser) {
+        if (currentUser) {
           await fetchProfile(currentUser.id);
-        } else if (event === 'SIGNED_OUT') {
+        } else {
           setProfile(null);
+        }
+        
+        // Once profile is fetched (or cleared), set loading to false
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          setLoading(false);
         }
       }
     );
