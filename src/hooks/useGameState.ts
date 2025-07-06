@@ -1,48 +1,91 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { showError } from '@/utils/toast';
+import { GameState, GameStats } from '@/types/game';
+import { showError, showSuccess } from '@/utils/toast';
 
 export const useGameState = () => {
-  const { user, userData, refreshData, loading } = useAuth();
-  const [localUserData, setLocalUserData] = useState(userData);
+  const { user } = useAuth();
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setLocalUserData(userData);
-  }, [userData]);
-
-  const saveGameState = async (updates: any) => {
-    if (!user || !localUserData) return;
+  // Charger l'état du jeu
+  const loadGameState = async () => {
+    if (!user) return;
 
     try {
-      const updatesWithTimestamp = {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      };
+      const { data, error } = await supabase
+        .from('game_states')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setGameState(data as GameState);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'état du jeu:', error);
+      showError('Erreur lors du chargement du jeu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sauvegarder l'état du jeu
+  const saveGameState = async (updates: Partial<GameState>) => {
+    if (!user || !gameState) return;
+
+    try {
       const { error } = await supabase
-        .from('player_states')
-        .update(updatesWithTimestamp)
-        .eq('id', user.id);
+        .from('game_states')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
-      await refreshData();
+      setGameState(prev => prev ? { ...prev, ...updates } : null);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
       showError('Erreur lors de la sauvegarde');
     }
   };
 
-  const updateStats = async (newStats: any) => {
+  // Découvrir une case
+  const discoverCell = async (x: number, y: number) => {
+    if (!gameState) return;
+
+    const newGrid = [...gameState.grille_decouverte];
+    if (newGrid[y] && newGrid[y][x] !== undefined) {
+      newGrid[y][x] = true;
+      await saveGameState({ grille_decouverte: newGrid });
+      showSuccess(`Case (${x}, ${y}) découverte !`);
+    }
+  };
+
+  // Mettre à jour les stats
+  const updateStats = async (newStats: Partial<GameStats>) => {
     await saveGameState(newStats);
   };
 
+  useEffect(() => {
+    if (user) {
+      loadGameState();
+    }
+  }, [user]);
+
   return {
-    gameState: localUserData,
+    gameState,
     loading,
     saveGameState,
+    discoverCell,
     updateStats,
-    reload: refreshData,
+    reload: loadGameState,
   };
 };

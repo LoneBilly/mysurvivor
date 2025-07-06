@@ -20,22 +20,42 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user, userData, signOut, refreshData } = useAuth();
+  const { user } = useAuth();
+  const [currentUsername, setCurrentUsername] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen && userData) {
-      setNewUsername('');
+    const fetchProfile = async () => {
+      if (user) {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+        
+        if (data) {
+          setCurrentUsername(data.username || '');
+        }
+        setLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchProfile();
+      setNewUsername(''); // Reset input field when modal opens
     }
-  }, [isOpen, userData]);
+  }, [user, isOpen]);
 
   const handleSave = async () => {
-    if (!user || !newUsername.trim()) return;
+    if (!user || !newUsername.trim()) {
+      return;
+    }
     
     setLoading(true);
     const { error } = await supabase
-      .from('player_states') // Correction: on met à jour player_states
+      .from('profiles')
       .update({ username: newUsername.trim() })
       .eq('id', user.id);
     setLoading(false);
@@ -44,17 +64,21 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
       showError(error.message);
     } else {
       showSuccess('Pseudo mis à jour !');
+      setCurrentUsername(newUsername.trim());
       setNewUsername('');
-      await refreshData(); // Rafraîchir les données pour voir le changement
     }
   };
 
   const handleLogout = async () => {
     setLoading(true);
-    await signOut();
+    const { error } = await supabase.auth.signOut();
     setLoading(false);
-    showSuccess('Déconnexion réussie.');
-    onClose();
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess('Déconnexion réussie.');
+      onClose();
+    }
   };
 
   return (
@@ -73,7 +97,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
               <Label htmlFor="username">Nouveau pseudo</Label>
               <Input
                 id="username"
-                placeholder={userData?.username || "Votre pseudo actuel"}
+                placeholder={currentUsername || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 className="bg-gray-700 border-gray-600 text-white"
