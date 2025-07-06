@@ -15,6 +15,7 @@ const CELL_SIZE_PX = 60; // Taille de chaque cellule en pixels pour le style
 const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const initialScrollPerformed = useRef(false); // Nouvelle référence pour suivre le scroll initial
 
   // Étape 1: Générer la grille 100x100 une seule fois
   useEffect(() => {
@@ -47,7 +48,11 @@ const BaseInterface = () => {
 
   // Étape 2: Centrer la vue sur le feu de camp après le rendu initial (une seule fois)
   useEffect(() => {
-    if (viewportRef.current && gridData) { // Ensure gridData is available before attempting to scroll
+    if (initialScrollPerformed.current) {
+      return; // Si le scroll initial a déjà été effectué, ne rien faire
+    }
+
+    if (viewportRef.current && gridData) {
       const viewport = viewportRef.current;
       const center = Math.floor(GRID_SIZE / 2);
       const centerPx = center * CELL_SIZE_PX;
@@ -55,15 +60,15 @@ const BaseInterface = () => {
       const scrollLeft = centerPx - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
       const scrollTop = centerPx - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
 
-      // Use a timeout to ensure the grid has rendered and has its dimensions
-      // before attempting to scroll.
+      // Utiliser un timeout pour s'assurer que la grille est rendue et a ses dimensions
       const timeoutId = setTimeout(() => {
         viewport.scrollTo({ left: scrollLeft, top: scrollTop });
+        initialScrollPerformed.current = true; // Marquer le scroll initial comme effectué
       }, 0); 
 
       return () => clearTimeout(timeoutId);
     }
-  }, [gridData]); // Dependency on gridData to ensure it runs after grid is populated
+  }, [gridData]); // Dépend de gridData pour s'assurer qu'il s'exécute après que gridData soit peuplé pour la première fois
 
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
