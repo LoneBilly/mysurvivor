@@ -51,20 +51,26 @@ const BaseInterface = () => {
     const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     
+    // Calcul du scroll en prenant en compte la position actuelle
     const scrollLeft = cellCenterX - viewport.clientWidth / 2;
     const scrollTop = cellCenterY - viewport.clientHeight / 2;
 
+    // Vérification des limites
+    const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
+    const maxScrollTop = viewport.scrollHeight - viewport.clientHeight;
+
     viewport.scrollTo({
-      left: scrollLeft,
-      top: scrollTop,
+      left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
+      top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
       behavior: 'smooth'
     });
   };
 
   useEffect(() => {
-    if (gridData && !initialScrollPerformed.current) {
+    if (gridData && !initialScrollPerformed.current && viewportRef.current) {
       const center = Math.floor(GRID_SIZE / 2);
-      centerViewport(center, center);
+      // On attend que le DOM soit complètement chargé
+      setTimeout(() => centerViewport(center, center), 100);
       initialScrollPerformed.current = true;
     }
   }, [gridData]);
@@ -90,7 +96,7 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
-    centerViewport(x, y);
+    setTimeout(() => centerViewport(x, y), 100);
   };
 
   const getCellContent = (cell: BaseCell) => {
