@@ -17,27 +17,30 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
     icon: any; 
     label: string; 
     value: number; 
-  }) => (
-    <div className="flex flex-col items-start space-y-1 p-3 rounded-lg bg-gray-700 border border-gray-600 w-full">
-      <div className="flex items-center justify-between w-full mb-1">
-        <div className="flex items-center space-x-2">
-          <Icon className="w-5 h-5 text-gray-300" />
-          <span className="text-sm font-medium text-gray-400">{label}</span>
+  }) => {
+    // Déterminer la couleur en fonction du label
+    const colorClass = 
+      label === 'Vie' ? 'bg-red-500' :
+      label === 'Faim' ? 'bg-orange-500' :
+      label === 'Soif' ? 'bg-blue-500' :
+      'bg-yellow-500';
+
+    return (
+      <div className="flex flex-col items-start space-y-1 p-3 rounded-lg bg-gray-700 border border-gray-600 w-full">
+        <div className="flex items-center justify-between w-full mb-1">
+          <div className="flex items-center space-x-2">
+            <Icon className="w-5 h-5 text-gray-300" />
+            <span className="text-sm font-medium text-gray-400">{label}</span>
+          </div>
+          <span className="text-sm font-bold text-white">{value}/100</span>
         </div>
-        <span className="text-sm font-bold text-white">{value}/100</span>
+        <Progress 
+          value={value} 
+          className={`w-full h-2 bg-gray-600 [&>div]:${colorClass}`}
+        />
       </div>
-      <Progress 
-        value={value} 
-        className="w-full h-2 bg-gray-600" 
-        indicatorClassName={
-          label === 'Vie' ? 'bg-red-500' :
-          label === 'Faim' ? 'bg-orange-500' :
-          label === 'Soif' ? 'bg-blue-500' :
-          'bg-yellow-500'
-        } 
-      />
-    </div>
-  );
+    );
+  };
 
   return (
     <footer className="bg-gray-800 border-t border-gray-700 text-white p-4">
