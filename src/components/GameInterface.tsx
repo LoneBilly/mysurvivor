@@ -3,6 +3,7 @@ import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
 import ActionModal from "./ActionModal";
+import BaseInterface from "./BaseInterface";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
@@ -12,6 +13,7 @@ import { MapCell } from "@/types/game";
 const GameInterface = () => {
   const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
+  const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -44,17 +46,33 @@ const GameInterface = () => {
     showSuccess("Votre campement a été installé !");
   };
 
+  const handleEnterBase = () => {
+    closeModal();
+    setCurrentView('base');
+  };
+
+  const handleBackToMap = () => {
+    setCurrentView('map');
+  };
+
   const handleCellSelect = async (x: number, y: number, type: MapCell['type']) => {
     if (!gameState) return;
 
     const isDiscovered = gameState.grille_decouverte[y]?.[x];
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
+    const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
     if (isCurrentPosition) {
       const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [
         { label: "Explorer", onClick: handleExploreAction, variant: "default" },
       ];
 
+      // Si c'est l'emplacement de la base et qu'elle existe
+      if (isBaseLocation && gameState.base_position_x !== null) {
+        actions.unshift({ label: "Entrer dans la base", onClick: handleEnterBase, variant: "default" });
+      }
+
+      // Si pas de base encore construite
       if (gameState.base_position_x === null || gameState.base_position_y === null) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
       }
@@ -144,6 +162,12 @@ const GameInterface = () => {
     );
   }
 
+  // Afficher l'interface de la base si c'est la vue actuelle
+  if (currentView === 'base') {
+    return <BaseInterface onBack={handleBackToMap} />;
+  }
+
+  // Afficher l'interface de la carte par défaut
   return (
     <div className="h-dvh flex flex-col bg-gray-900">
       <GameHeader
