@@ -49,20 +49,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setLoading(true);
-        const currentUser = session?.user ?? null;
-        
-        setUser(currentUser);
-        setSession(session);
+        try {
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          setSession(session);
 
-        if (currentUser) {
-          const userProfile = await fetchProfileForUser(currentUser);
-          setProfile(userProfile);
-        } else {
+          if (currentUser) {
+            const userProfile = await fetchProfileForUser(currentUser);
+            setProfile(userProfile);
+          } else {
+            setProfile(null);
+          }
+        } catch (e) {
+          console.error("An unexpected error occurred in onAuthStateChange:", e);
           setProfile(null);
+        } finally {
+          // This block is guaranteed to run, solving the infinite loading issue.
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
@@ -74,9 +78,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const reloadProfile = useCallback(async () => {
     if (user) {
       setLoading(true);
-      const userProfile = await fetchProfileForUser(user);
-      setProfile(userProfile);
-      setLoading(false);
+      try {
+        const userProfile = await fetchProfileForUser(user);
+        setProfile(userProfile);
+      } finally {
+        setLoading(false);
+      }
     }
   }, [user, fetchProfileForUser]);
 
