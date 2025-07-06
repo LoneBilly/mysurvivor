@@ -100,10 +100,10 @@ const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition }: GameGridProp
             >
               {getCellContent(cell)}
               {playerPosition.x === x && playerPosition.y === y && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping absolute"></div>
-                  <div className="w-3 h-3 bg-blue-500 rounded-full absolute"></div>
-                </div>
+                <>
+                  <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500 animate-ping"></div>
+                  <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500"></div>
+                </>
               )}
             </button>
           ))
