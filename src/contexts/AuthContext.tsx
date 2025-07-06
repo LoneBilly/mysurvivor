@@ -55,12 +55,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       console.log('Fetching user data for:', userId);
       
-      // Récupérer les données combinées avec une jointure
+      // Utilisation d'une jointure gauche (plus souple)
       const { data, error } = await supabase
         .from('player_states')
         .select(`
           *,
-          profiles!inner(username)
+          profiles(username)
         `)
         .eq('id', userId)
         .single();
@@ -77,10 +77,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       console.log('Données récupérées:', data);
 
-      // Construire l'objet UserData
+      // La structure de 'data' est maintenant { ...player_states, profiles: { username: '...' } | null }
+      const profileData = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+
       const userData: UserData = {
         id: data.id,
-        username: data.profiles?.username || null,
+        username: profileData?.username || null,
         jours_survecus: data.jours_survecus,
         vie: data.vie,
         faim: data.faim,
@@ -120,7 +122,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         console.log('Initializing auth...');
         
-        // Récupérer la session actuelle
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -139,7 +140,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setUser(session.user);
           setSession(session);
           
-          // Récupérer les données utilisateur
           const newUserData = await fetchUserData(session.user.id);
           if (mounted) {
             setUserData(newUserData);
@@ -166,7 +166,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     initializeAuth();
 
-    // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth event:', event, session?.user?.id);
@@ -185,7 +184,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setUser(session.user);
           setSession(session);
           
-          if (event === 'SIGNED_IN') {
+          if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
             setLoading(true);
             const newUserData = await fetchUserData(session.user.id);
             if (mounted) {
@@ -232,6 +231,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
-    </AuthContext.Provider>
+    </Auth-Context.Provider>
   );
 };
