@@ -193,7 +193,6 @@ const GameInterface = () => {
             discoveredZoneIds={gameState.grille_decouverte}
             playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
             basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
-            className="my-2.5" // Ajout de la marge verticale ici
           />
         ) : (
           <div className="relative w-full h-full">

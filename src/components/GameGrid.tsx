@@ -9,10 +9,9 @@ interface GameGridProps {
   discoveredZoneIds: number[];
   playerPosition: { x: number; y: number };
   basePosition: { x: number; y: number } | null;
-  className?: string; // Ajout de la prop className
 }
 
-const GameGrid = ({ onCellSelect, discoveredZoneIds, playerPosition, basePosition, className }: GameGridProps) => {
+const GameGrid = ({ onCellSelect, discoveredZoneIds, playerPosition, basePosition }: GameGridProps) => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,7 +79,7 @@ const GameGrid = ({ onCellSelect, discoveredZoneIds, playerPosition, basePositio
   };
 
   return (
-    <div className={cn("bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg flex items-center justify-center w-full h-full aspect-square", className)}>
+    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg flex items-center justify-center h-[calc(100%-20px)] max-w-[calc(100%-20px)] aspect-square">
       {loading ? (
         <div className="flex items-center justify-center w-full h-full">
           <Loader2 className="w-8 h-8 animate-spin text-white" />
