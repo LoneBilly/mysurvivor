@@ -2,17 +2,11 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Profile {
-  username: string | null;
-}
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,57 +26,21 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshProfile = async () => {
-    if (user) {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single();
-      setProfile(profileData);
-    }
-  };
-
   useEffect(() => {
-    const getSessionAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    // Récupérer la session actuelle
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', currentUser.id)
-          .single();
-        setProfile(profileData);
-      }
+      setUser(session?.user ?? null);
       setLoading(false);
-    };
+    });
 
-    getSessionAndProfile();
-
+    // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setLoading(true);
+      async (event, session) => {
         setSession(session);
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', currentUser.id)
-            .single();
-          setProfile(profileData);
-        } else {
-          setProfile(null);
-        }
+        setUser(session?.user ?? null);
         setLoading(false);
       }
     );
@@ -97,10 +55,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value = {
     user,
     session,
-    profile,
     loading,
     signOut,
-    refreshProfile,
   };
 
   return (

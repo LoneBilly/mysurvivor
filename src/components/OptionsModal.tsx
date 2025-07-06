@@ -20,15 +20,33 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user } = useAuth();
+  const [currentUsername, setCurrentUsername] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const fetchProfile = async () => {
+      if (user) {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+        
+        if (data) {
+          setCurrentUsername(data.username || '');
+        }
+        setLoading(false);
+      }
+    };
+
     if (isOpen) {
-      setNewUsername('');
+      fetchProfile();
+      setNewUsername(''); // Reset input field when modal opens
     }
-  }, [isOpen]);
+  }, [user, isOpen]);
 
   const handleSave = async () => {
     if (!user || !newUsername.trim()) {
@@ -36,29 +54,18 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
     }
     
     setLoading(true);
-    const { error: profileError } = await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ username: newUsername.trim() })
       .eq('id', user.id);
+    setLoading(false);
 
-    if (profileError) {
-      showError(profileError.message);
-      setLoading(false);
+    if (error) {
+      showError(error.message);
     } else {
-      // Déclenche la mise à jour du classement
-      const { error: gameStateError } = await supabase
-        .from('game_states')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('user_id', user.id);
-
-      if (gameStateError) {
-        console.error("Erreur lors du déclenchement de la mise à jour du classement:", gameStateError);
-      }
-
       showSuccess('Pseudo mis à jour !');
-      await refreshProfile();
-      setLoading(false);
-      onClose();
+      setCurrentUsername(newUsername.trim());
+      setNewUsername('');
     }
   };
 
@@ -90,7 +97,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
               <Label htmlFor="username">Nouveau pseudo</Label>
               <Input
                 id="username"
-                placeholder={profile?.username || "Votre pseudo actuel"}
+                placeholder={currentUsername || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 className="bg-gray-700 border-gray-600 text-white"
