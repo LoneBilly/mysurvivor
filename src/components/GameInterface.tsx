@@ -11,7 +11,7 @@ import { MapCell } from "@/types/game";
 
 const GameInterface = () => {
   const { user } = useAuth();
-  const { gameState, loading, discoverCell } = useGameState();
+  const { gameState, loading, saveGameState } = useGameState();
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -22,6 +22,7 @@ const GameInterface = () => {
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleExploreAction = () => {
+    // Logique d'exploration de la case actuelle
     showSuccess("Exploration en cours...");
     closeModal();
   };
@@ -30,14 +31,49 @@ const GameInterface = () => {
     if (!gameState) return;
 
     const isDiscovered = gameState.grille_decouverte[y]?.[x];
+    const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
 
-    if (isDiscovered) {
+    if (isCurrentPosition) {
       setModalState({
         isOpen: true,
-        title: `Explorer la ${type === 'foret' ? 'Forêt' : 'Plage'}`,
-        description: "Voulez-vous passer du temps à explorer cette zone pour trouver des ressources ?",
+        title: `Explorer la zone actuelle`,
+        description: "Voulez-vous passer du temps à explorer cette zone pour trouver des ressources ? Cela consommera de l'énergie.",
         actions: [
           { label: "Explorer", onClick: handleExploreAction, variant: "default" },
+          { label: "Annuler", onClick: closeModal, variant: "secondary" },
+        ],
+      });
+    } else if (isDiscovered) {
+      const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
+      const energyCost = distance * 10;
+
+      const handleMoveAction = async () => {
+        closeModal();
+        if (!gameState || gameState.energie < energyCost) {
+          showError("Pas assez d'énergie pour vous déplacer.");
+          return;
+        }
+        
+        await saveGameState({
+          position_x: x,
+          position_y: y,
+          energie: gameState.energie - energyCost,
+        });
+
+        showSuccess(`Déplacement réussi !`);
+      };
+
+      setModalState({
+        isOpen: true,
+        title: `Se déplacer vers cette zone`,
+        description: (
+          <>
+            Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}
+            <span className="font-bold text-yellow-400">{energyCost}</span> points d'énergie.
+          </>
+        ),
+        actions: [
+          { label: "Se déplacer", onClick: handleMoveAction, variant: "default" },
           { label: "Annuler", onClick: closeModal, variant: "secondary" },
         ],
       });
