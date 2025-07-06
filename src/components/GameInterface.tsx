@@ -5,6 +5,7 @@ import GameFooter from "./GameFooter";
 import ActionModal from "./ActionModal";
 import BaseInterface from "./BaseInterface";
 import BaseHeader from "./BaseHeader";
+import LeaderboardModal from "./LeaderboardModal";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
@@ -16,6 +17,7 @@ const GameInterface = () => {
   const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
   const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -133,7 +135,7 @@ const GameInterface = () => {
     }
   };
 
-  const handleLeaderboard = () => showSuccess("Ouverture du classement");
+  const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => showSuccess("Ouverture des options");
   const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
 
@@ -212,6 +214,11 @@ const GameInterface = () => {
         title={modalState.title}
         description={modalState.description}
         actions={modalState.actions}
+      />
+
+      <LeaderboardModal 
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
       />
     </div>
   );
