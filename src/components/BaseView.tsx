@@ -12,22 +12,31 @@ const BaseView = ({ onExit }: BaseViewProps) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 rounded-lg p-4 text-white">
       <h2 className="text-2xl font-bold mb-4">Mon Campement</h2>
-      <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}>
-        {Array.from({ length: gridSize * gridSize }).map((_, index) => {
-          const x = index % gridSize;
-          const y = Math.floor(index / gridSize);
-          const isCenter = x === center && y === center;
+      
+      <div className="w-full flex-1 flex items-center justify-center min-h-0">
+        <div className="aspect-square h-full max-w-full p-1 rounded-lg">
+          <div 
+            className="grid h-full w-full gap-1" 
+            style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}
+          >
+            {Array.from({ length: gridSize * gridSize }).map((_, index) => {
+              const x = index % gridSize;
+              const y = Math.floor(index / gridSize);
+              const isCenter = x === center && y === center;
 
-          return (
-            <div
-              key={index}
-              className="aspect-square w-10 h-10 bg-gray-700 rounded flex items-center justify-center"
-            >
-              {isCenter && <Flame className="text-orange-500 w-6 h-6" />}
-            </div>
-          );
-        })}
+              return (
+                <div
+                  key={index}
+                  className="aspect-square bg-gray-700 rounded flex items-center justify-center"
+                >
+                  {isCenter && <Flame className="text-orange-500 w-3/4 h-3/4" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
       <Button onClick={onExit} className="mt-6 bg-blue-600 hover:bg-blue-700">
         Sortir du campement
       </Button>
