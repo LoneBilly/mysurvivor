@@ -8,11 +8,12 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import CreateProfile from "./pages/CreateProfile";
+import IncompleteProfile from "./pages/IncompleteProfile";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isNewUser } = useAuth();
 
   if (loading) {
     return (
@@ -25,20 +26,42 @@ const AppContent = () => {
     );
   }
 
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // Case 1: New user who needs to create a profile.
+  if (isNewUser && (!profile || !profile.username)) {
+    return (
+      <Routes>
+        <Route path="/create-profile" element={<CreateProfile />} />
+        <Route path="*" element={<Navigate to="/create-profile" replace />} />
+      </Routes>
+    );
+  }
+
+  // Case 2: Existing user with incomplete profile. This is an error state.
+  if ((!profile || !profile.username) && !isNewUser) {
+    return (
+      <Routes>
+        <Route path="/incomplete-profile" element={<IncompleteProfile />} />
+        <Route path="*" element={<Navigate to="/incomplete-profile" replace />} />
+      </Routes>
+    );
+  }
+
+  // Case 3: User is authenticated and has a valid profile.
   return (
     <Routes>
-      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
-      
-      <Route 
-        path="/create-profile" 
-        element={user ? (profile && !profile.username ? <CreateProfile /> : <Navigate to="/" replace />) : <Navigate to="/login" replace />} 
-      />
-      
-      <Route 
-        path="/" 
-        element={user ? (profile && profile.username ? <Index /> : <Navigate to="/create-profile" replace />) : <Navigate to="/login" replace />} 
-      />
-      
+      <Route path="/" element={<Index />} />
+      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/create-profile" element={<Navigate to="/" replace />} />
+      <Route path="/incomplete-profile" element={<Navigate to="/" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

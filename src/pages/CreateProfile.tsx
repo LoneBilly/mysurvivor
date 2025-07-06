@@ -45,6 +45,7 @@ const CreateProfile = () => {
       showError(error.code === '23505' ? 'Ce pseudo est déjà pris.' : 'Erreur lors de la création du profil.');
     } else {
       showSuccess('Profil créé ! Bienvenue !');
+      sessionStorage.removeItem('isNewUser');
       await reloadProfile();
       navigate('/');
     }
