@@ -7,8 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
-import CreateProfile from "./pages/CreateProfile";
-import IncompleteProfile from "./pages/IncompleteProfile";
+import SetUsername from "./pages/SetUsername";
 
 const queryClient = new QueryClient();
 
@@ -22,14 +21,13 @@ const LoadingScreen = () => (
 );
 
 const AppContent = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, gameState, loading } = useAuth();
 
-  // Afficher l'écran de chargement pendant l'initialisation
   if (loading) {
     return <LoadingScreen />;
   }
 
-  // Utilisateur non connecté
+  // Pas connecté
   if (!user) {
     return (
       <Routes>
@@ -39,33 +37,37 @@ const AppContent = () => {
     );
   }
 
-  // Utilisateur connecté mais profil non trouvé (problème de base de données)
-  if (!profile) {
+  // Connecté mais pas de profil ou d'état de jeu (problème technique)
+  if (!profile || !gameState) {
     return (
-      <Routes>
-        <Route path="/incomplete-profile" element={<IncompleteProfile />} />
-        <Route path="*" element={<Navigate to="/incomplete-profile" replace />} />
-      </Routes>
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center text-white">
+          <p className="mb-4">Erreur de chargement des données</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Recharger
+          </button>
+        </div>
+      </div>
     );
   }
 
-  // Utilisateur connecté avec profil mais sans pseudo (nouveau joueur)
+  // Connecté mais pas de pseudo
   if (!profile.username) {
     return (
       <Routes>
-        <Route path="/create-profile" element={<CreateProfile />} />
-        <Route path="*" element={<Navigate to="/create-profile" replace />} />
+        <Route path="/set-username" element={<SetUsername />} />
+        <Route path="*" element={<Navigate to="/set-username" replace />} />
       </Routes>
     );
   }
 
-  // Utilisateur authentifié avec profil complet
+  // Tout est OK, accès au jeu
   return (
     <Routes>
       <Route path="/" element={<Index />} />
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/create-profile" element={<Navigate to="/" replace />} />
-      <Route path="/incomplete-profile" element={<Navigate to="/" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

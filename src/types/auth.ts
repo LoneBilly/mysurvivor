@@ -1,11 +1,11 @@
-export interface GameStats {
-  vie: number;
-  faim: number;
-  soif: number;
-  energie: number;
+export interface UserProfile {
+  id: string;
+  username: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface PlayerState {
+export interface PlayerGameState {
   id: string;
   jours_survecus: number;
   vie: number;
@@ -22,18 +22,4 @@ export interface PlayerState {
   components: number;
   created_at: string;
   updated_at: string;
-}
-
-export interface MapCell {
-  id: number;
-  x: number;
-  y: number;
-  type: 'foret' | 'plage' | 'unknown';
-}
-
-export interface InventoryItem {
-  id: number;
-  player_id: string;
-  item_name: string;
-  quantity: number;
 }

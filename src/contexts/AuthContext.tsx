@@ -1,15 +1,16 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { PlayerState } from '@/types/game';
+import { UserProfile, PlayerGameState } from '@/types/auth';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: PlayerState | null;
+  profile: UserProfile | null;
+  gameState: PlayerGameState | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  reloadProfile: () => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,126 +30,155 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<PlayerState | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [gameState, setGameState] = useState<PlayerGameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
 
-  const fetchProfile = useCallback(async (userId: string): Promise<PlayerState | null> => {
+  const fetchUserData = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Récupérer le profil
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Erreur profil:', profileError);
+        return { profile: null, gameState: null };
+      }
+
+      // Récupérer l'état du jeu
+      const { data: gameData, error: gameError } = await supabase
         .from('player_states')
         .select('*')
         .eq('id', userId)
         .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Pas de profil trouvé
-          return null;
-        }
-        console.error("Erreur lors de la récupération du profil:", error);
-        return null;
-      }
-      
-      return data;
-    } catch (error) {
-      console.error("Erreur inattendue lors de la récupération du profil:", error);
-      return null;
-    }
-  }, []);
 
-  const initializeAuth = useCallback(async () => {
-    try {
-      // Récupérer la session actuelle
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error("Erreur lors de la récupération de la session:", error);
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        return;
+      if (gameError) {
+        console.error('Erreur état du jeu:', gameError);
+        return { profile: profileData, gameState: null };
       }
 
-      if (session?.user) {
-        setUser(session.user);
-        setSession(session);
-        
-        // Récupérer le profil
-        const userProfile = await fetchProfile(session.user.id);
-        setProfile(userProfile);
-      } else {
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-      }
+      return { profile: profileData, gameState: gameData };
     } catch (error) {
-      console.error("Erreur lors de l'initialisation de l'auth:", error);
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-    } finally {
-      setLoading(false);
-      setInitialized(true);
+      console.error('Erreur lors de la récupération des données:', error);
+      return { profile: null, gameState: null };
     }
-  }, [fetchProfile]);
+  };
+
+  const refreshData = async () => {
+    if (!user) return;
+    
+    const { profile: newProfile, gameState: newGameState } = await fetchUserData(user.id);
+    setProfile(newProfile);
+    setGameState(newGameState);
+  };
 
   useEffect(() => {
-    // Initialiser l'authentification au montage
-    initializeAuth();
+    let mounted = true;
 
-    // Écouter les changements d'état d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
+    const initializeAuth = async () => {
+      try {
+        // Récupérer la session actuelle
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        try {
-          if (session?.user) {
-            setUser(session.user);
-            setSession(session);
-            
-            // Récupérer le profil seulement si c'est un nouvel utilisateur ou une connexion
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              const userProfile = await fetchProfile(session.user.id);
-              setProfile(userProfile);
-            }
-          } else {
+        if (error) {
+          console.error('Erreur session:', error);
+          if (mounted) {
             setUser(null);
             setSession(null);
             setProfile(null);
-          }
-        } catch (error) {
-          console.error("Erreur dans onAuthStateChange:", error);
-        } finally {
-          if (initialized) {
+            setGameState(null);
             setLoading(false);
           }
+          return;
+        }
+
+        if (session?.user && mounted) {
+          setUser(session.user);
+          setSession(session);
+          
+          // Récupérer les données utilisateur
+          const { profile, gameState } = await fetchUserData(session.user.id);
+          if (mounted) {
+            setProfile(profile);
+            setGameState(gameState);
+          }
+        } else if (mounted) {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setGameState(null);
+        }
+      } catch (error) {
+        console.error('Erreur initialisation auth:', error);
+        if (mounted) {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setGameState(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    // Écouter les changements d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event);
+        
+        if (!mounted) return;
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setGameState(null);
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          setUser(session.user);
+          setSession(session);
+          
+          if (event === 'SIGNED_IN') {
+            setLoading(true);
+            const { profile, gameState } = await fetchUserData(session.user.id);
+            if (mounted) {
+              setProfile(profile);
+              setGameState(gameState);
+              setLoading(false);
+            }
+          }
+        } else {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setGameState(null);
+          setLoading(false);
         }
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, [initializeAuth, fetchProfile, initialized]);
-
-  const reloadProfile = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const userProfile = await fetchProfile(user.id);
-      setProfile(userProfile);
-    } catch (error) {
-      console.error("Erreur lors du rechargement du profil:", error);
-    }
-  }, [user, fetchProfile]);
+  }, []);
 
   const signOut = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error("Erreur lors de la déconnexion:", error);
+        console.error('Erreur déconnexion:', error);
       }
     } finally {
       setLoading(false);
@@ -159,9 +189,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     profile,
+    gameState,
     loading,
     signOut,
-    reloadProfile,
+    refreshData,
   };
 
   return (
