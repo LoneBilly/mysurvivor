@@ -2,9 +2,15 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface Profile {
+  username: string | null;
+  // Ajoutez d'autres champs de profil si nécessaire
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -26,21 +32,43 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Récupérer la session actuelle
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const fetchSessionAndProfile = async () => {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
-    });
 
-    // Écouter les changements d'authentification
+      if (session?.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', session.user.id)
+          .single();
+        setProfile(profileData);
+      }
+      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', session.user.id)
+            .single();
+          setProfile(profileData);
+        } else if (event === 'SIGNED_OUT') {
+          setProfile(null);
+        }
         setLoading(false);
       }
     );
@@ -55,6 +83,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value = {
     user,
     session,
+    profile,
     loading,
     signOut,
   };
