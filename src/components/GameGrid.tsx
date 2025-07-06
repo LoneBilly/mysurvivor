@@ -78,42 +78,40 @@ const GameGrid = ({ onCellSelect, discoveredZoneIds, playerPosition, basePositio
     }
   };
 
-  if (loading) {
-    return (
-      <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg w-full max-h-full aspect-square flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-white" />
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg w-full max-h-full aspect-square flex items-center justify-center">
-      <div className="grid grid-cols-7 grid-rows-7 gap-1 md:gap-2 w-full h-full">
-        {grid.map((row, y) =>
-          row.map((cell, x) => (
-            <button
-              key={`${x}-${y}`}
-              onClick={() => cell && onCellSelect(cell)}
-              disabled={!cell}
-              className={cn(
-                "relative w-full h-full flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
-                getCellStyle(cell)
-              )}
-            >
-              {getCellContent(cell)}
-              {playerPosition.x === x && playerPosition.y === y && (
-                <>
-                  <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500 animate-ping"></div>
-                  <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500"></div>
-                </>
-              )}
-              {basePosition && basePosition.x === x && basePosition.y === y && (
-                <Home className="absolute bottom-1 left-1 h-4 w-4 text-indigo-600" />
-              )}
-            </button>
-          ))
-        )}
-      </div>
+    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg max-w-full max-h-full aspect-square flex items-center justify-center">
+      {loading ? (
+        <div className="flex items-center justify-center w-full h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-white" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-7 grid-rows-7 gap-1 md:gap-2 w-full h-full">
+          {grid.map((row, y) =>
+            row.map((cell, x) => (
+              <button
+                key={`${x}-${y}`}
+                onClick={() => cell && onCellSelect(cell)}
+                disabled={!cell}
+                className={cn(
+                  "relative w-full h-full flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
+                  getCellStyle(cell)
+                )}
+              >
+                {getCellContent(cell)}
+                {playerPosition.x === x && playerPosition.y === y && (
+                  <>
+                    <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500 animate-ping"></div>
+                    <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500"></div>
+                  </>
+                )}
+                {basePosition && basePosition.x === x && basePosition.y === y && (
+                  <Home className="absolute bottom-1 left-1 h-4 w-4 text-indigo-600" />
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 };
