@@ -6,6 +6,7 @@ import ActionModal from "./ActionModal";
 import BaseInterface from "./BaseInterface";
 import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
+import OptionsModal from "./OptionsModal";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
@@ -18,6 +19,7 @@ const GameInterface = () => {
   const { gameState, loading, saveGameState } = useGameState();
   const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -71,12 +73,10 @@ const GameInterface = () => {
         { label: "Explorer", onClick: handleExploreAction, variant: "default" },
       ];
 
-      // Si c'est l'emplacement de la base et qu'elle existe
       if (isBaseLocation && gameState.base_position_x !== null) {
         actions.unshift({ label: "Entrer dans la base", onClick: handleEnterBase, variant: "default" });
       }
 
-      // Si pas de base encore construite
       if (gameState.base_position_x === null || gameState.base_position_y === null) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
       }
@@ -136,7 +136,7 @@ const GameInterface = () => {
   };
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
-  const handleOptions = () => showSuccess("Ouverture des options");
+  const handleOptions = () => setIsOptionsOpen(true);
   const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
 
   if (loading) {
@@ -219,6 +219,11 @@ const GameInterface = () => {
       <LeaderboardModal 
         isOpen={isLeaderboardOpen}
         onClose={() => setIsLeaderboardOpen(false)}
+      />
+
+      <OptionsModal
+        isOpen={isOptionsOpen}
+        onClose={() => setIsOptionsOpen(false)}
       />
     </div>
   );
