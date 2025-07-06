@@ -30,20 +30,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<PlayerState | null>(null);
-  const [loading, setLoading] = useState(true); // Represents initial loading only
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('player_states')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') {
-      console.error("Error fetching profile:", error);
+    setProfileLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('player_states')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching profile:", error);
+        setProfile(null);
+      } else {
+        setProfile(data as PlayerState | null);
+      }
+    } catch (e) {
+      console.error("Exception fetching profile:", e);
       setProfile(null);
-    } else {
-      setProfile(data as PlayerState | null);
+    } finally {
+      setProfileLoading(false);
     }
   }, []);
 
@@ -64,7 +73,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         await fetchProfile(currentUser.id);
       }
       
-      setLoading(false); // Initial load is complete
+      setInitialLoading(false);
     };
 
     getInitialSessionAndProfile();
@@ -96,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     profile,
-    loading,
+    loading: initialLoading || profileLoading,
     signOut,
     reloadProfile,
   };
