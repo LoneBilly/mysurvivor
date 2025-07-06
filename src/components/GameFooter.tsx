@@ -1,114 +1,60 @@
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Heart, Utensils, Droplets, Zap, Package } from "lucide-react";
-import { GameStats } from "@/types/game";
+import { Heart, Soup, Droplet, Zap } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
-interface GameFooterProps {
-  stats: GameStats;
-  onInventaire: () => void;
+interface StatBarProps {
+  value: number;
+  icon: React.ReactNode;
+  label: string;
 }
 
-const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
-  const StatItem = ({ 
-    icon: Icon, 
-    label, 
-    value 
-  }: { 
-    icon: any; 
-    label: string; 
-    value: number; 
-  }) => (
-    <div className="flex flex-col items-start space-y-1 p-3 rounded-lg bg-gray-700 border border-gray-600 w-full">
-      <div className="flex items-center justify-between w-full mb-1"> {/* Adjusted for label and value on same line */}
-        <div className="flex items-center space-x-2">
-          <Icon className="w-5 h-5 text-gray-300" />
-          <span className="text-sm font-medium text-gray-400">{label}</span>
-        </div>
-        <span className="text-sm font-bold text-white">{value}/100</span> {/* Changed to X/100 format */}
-      </div>
-      <Progress value={value} className="w-full h-2 bg-gray-600" indicatorClassName={
-        value > 70 ? "bg-green-500" : 
-        value > 30 ? "bg-yellow-500" : 
-        "bg-red-500"
-      } />
-    </div>
-  );
+const StatBar = ({ value, icon, label }: StatBarProps) => {
+  const getIndicatorColor = (val: number) => {
+    if (val > 75) return 'bg-blue-500';
+    if (val > 50) return 'bg-yellow-500';
+    if (val > 25) return 'bg-orange-500';
+    return 'bg-red-500';
+  };
 
   return (
-    <footer className="bg-gray-800 border-t border-gray-700 text-white p-4">
-      {/* Layout mobile : 2x2 pour les stats + inventaire pleine largeur */}
-      <div className="md:hidden">
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <StatItem
-            icon={Heart}
-            label="Vie"
-            value={stats.vie}
-          />
-          <StatItem
-            icon={Utensils}
-            label="Faim"
-            value={stats.faim}
-          />
-          <StatItem
-            icon={Droplets}
-            label="Soif"
-            value={stats.soif}
-          />
-          <StatItem
-            icon={Zap}
-            label="Énergie"
-            value={stats.energie}
-          />
-        </div>
-        <Button
-          onClick={onInventaire}
-          className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 border-blue-500"
-          variant="default"
-        >
-          <Package className="w-5 h-5" />
-          <span>Inventaire</span>
-        </Button>
+    <div className="flex-1 flex flex-col items-center px-2">
+      <div className="flex items-center gap-2 mb-1">
+        {icon}
+        <span className="text-white font-bold text-sm md:text-base">{label}</span>
       </div>
-
-      {/* Layout desktop : stats prennent toute la largeur avec séparation pour l'inventaire */}
-      <div className="hidden md:flex items-center">
-        <div className="flex-1 grid grid-cols-4 gap-4">
-          <StatItem
-            icon={Heart}
-            label="Vie"
-            value={stats.vie}
-          />
-          <StatItem
-            icon={Utensils}
-            label="Faim"
-            value={stats.faim}
-          />
-          <StatItem
-            icon={Droplets}
-            label="Soif"
-            value={stats.soif}
-          />
-          <StatItem
-            icon={Zap}
-            label="Énergie"
-            value={stats.energie}
-          />
-        </div>
-        
-        {/* Séparateur vertical */}
-        <div className="w-px h-12 bg-gray-600 mx-6"></div>
-        
-        <Button
-          onClick={onInventaire}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 border-blue-500 px-6"
-          variant="default"
-        >
-          <Package className="w-5 h-5" />
-          <span>Inventaire</span>
-        </Button>
+      <div className="w-full">
+        <Progress 
+          value={value} 
+          className="h-2 bg-gray-600" 
+          indicatorClassName={getIndicatorColor(value)}
+        />
       </div>
-    </footer>
+      <span className="text-white text-sm mt-1">{value}%</span>
+    </div>
   );
 };
 
-export default GameFooter;
+interface GameFooterProps {
+  gameState: {
+    vie: number;
+    faim: number;
+    soif: number;
+    energie: number;
+  } | null;
+}
+
+export default function GameFooter({ gameState }: GameFooterProps) {
+  if (!gameState) {
+    return null;
+  }
+
+  return (
+    <footer className="fixed bottom-0 left-0 w-full bg-gray-800 p-2 z-50">
+      <div className="container mx-auto flex justify-around items-start">
+        <StatBar value={gameState.vie} icon={<Heart className="text-red-400 h-5 w-5" />} label="Vie" />
+        <StatBar value={gameState.faim} icon={<Soup className="text-orange-400 h-5 w-5" />} label="Faim" />
+        <StatBar value={gameState.soif} icon={<Droplet className="text-blue-400 h-5 w-5" />} label="Soif" />
+        <StatBar value={gameState.energie} icon={<Zap className="text-yellow-400 h-5 w-5" />} label="Énergie" />
+      </div>
+    </footer>
+  );
+}
