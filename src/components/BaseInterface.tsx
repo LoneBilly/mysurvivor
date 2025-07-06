@@ -92,10 +92,11 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
+    // Aucun délai, le re-centrage se fait immédiatement après la mise à jour
     setTimeout(() => {
       centerViewport(x, y);
       setIsBuilding(false);
-    }, 10);
+    }, 0);
   };
 
   const getCellContent = (cell: BaseCell) => {
@@ -146,7 +147,7 @@ const BaseInterface = () => {
               className={cn(
                 "absolute flex items-center justify-center text-2xl font-bold rounded border transition-colors",
                 getCellStyle(cell),
-                isBuilding && "transition-none" // Désactiver les transitions pendant la construction
+                isBuilding && "transition-none"
               )}
               style={{
                 left: x * (CELL_SIZE_PX + CELL_GAP),
