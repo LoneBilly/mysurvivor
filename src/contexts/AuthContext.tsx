@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<PlayerState | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Represents initial loading only
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -54,42 +54,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    setLoading(true);
-
-    const getInitialSession = async () => {
+    const getInitialSessionAndProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
       setSession(session);
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
         await fetchProfile(currentUser.id);
       }
-      setLoading(false);
+      
+      setLoading(false); // Initial load is complete
     };
 
-    getInitialSession();
+    getInitialSessionAndProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Set loading to true when sign-in starts to prevent routing issues
-        if (event === 'SIGNED_IN') {
-          setLoading(true);
-        }
-
         const currentUser = session?.user ?? null;
         setSession(session);
         setUser(currentUser);
 
-        if (currentUser) {
+        if (event === 'SIGNED_IN' && currentUser) {
           await fetchProfile(currentUser.id);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
           setProfile(null);
-        }
-        
-        // Once profile is fetched (or cleared), set loading to false
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          setLoading(false);
         }
       }
     );
