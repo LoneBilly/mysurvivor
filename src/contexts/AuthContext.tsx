@@ -52,25 +52,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        await fetchProfile(currentUser.id);
-      }
-      setLoading(false);
-    };
-
-    initializeAuth();
+    setLoading(true); // For initial load and sign-in
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Lorsqu'un utilisateur se connecte, passer en mode chargement immédiatement.
-        // Cela empêche le routeur de prendre des décisions avant que le profil ne soit récupéré.
         if (event === 'SIGNED_IN') {
           setLoading(true);
         }
@@ -79,14 +64,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(currentUser);
 
-        if (event === 'SIGNED_IN' && currentUser) {
+        if (currentUser) {
           await fetchProfile(currentUser.id);
-          setLoading(false);
-        } else if (event === 'SIGNED_OUT') {
+        } else {
           setProfile(null);
-          // S'assurer que le chargement est terminé lors de la déconnexion.
-          setLoading(false);
         }
+        
+        setLoading(false);
       }
     );
 
