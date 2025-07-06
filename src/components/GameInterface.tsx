@@ -7,8 +7,9 @@ import BaseInterface from "./BaseInterface";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { MapCell } from "@/types/game";
+import { Button } from "@/components/ui/button";
 
 const GameInterface = () => {
   const { user } = useAuth();
@@ -162,12 +163,6 @@ const GameInterface = () => {
     );
   }
 
-  // Afficher l'interface de la base si c'est la vue actuelle
-  if (currentView === 'base') {
-    return <BaseInterface onBack={handleBackToMap} />;
-  }
-
-  // Afficher l'interface de la carte par défaut
   return (
     <div className="h-dvh flex flex-col bg-gray-900">
       <GameHeader
@@ -177,12 +172,16 @@ const GameInterface = () => {
       />
       
       <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0">
-        <GameGrid 
-          onCellSelect={handleCellSelect}
-          discoveredGrid={gameState.grille_decouverte}
-          playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
-          basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
-        />
+        {currentView === 'map' ? (
+          <GameGrid 
+            onCellSelect={handleCellSelect}
+            discoveredGrid={gameState.grille_decouverte}
+            playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
+            basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
+          />
+        ) : (
+          <BaseInterface />
+        )}
       </main>
       
       <GameFooter
@@ -194,6 +193,21 @@ const GameInterface = () => {
         }}
         onInventaire={handleInventaire}
       />
+
+      {/* Bouton de retour pour la base */}
+      {currentView === 'base' && (
+        <div className="absolute top-4 left-4 z-10">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToMap}
+            className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white bg-gray-800/80 backdrop-blur-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Retour à la carte</span>
+          </Button>
+        </div>
+      )}
 
       <ActionModal
         isOpen={modalState.isOpen}

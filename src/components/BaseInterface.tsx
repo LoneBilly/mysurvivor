@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BaseCell {
@@ -10,11 +9,7 @@ interface BaseCell {
   canBuild?: boolean;
 }
 
-interface BaseInterfaceProps {
-  onBack: () => void;
-}
-
-const BaseInterface = ({ onBack }: BaseInterfaceProps) => {
+const BaseInterface = () => {
   const [baseGrid, setBaseGrid] = useState<Map<string, BaseCell>>(new Map());
   const [viewOffset, setViewOffset] = useState({ x: 0, y: 0 });
   
@@ -22,24 +17,25 @@ const BaseInterface = ({ onBack }: BaseInterfaceProps) => {
   const GRID_SIZE = 7;
   const CENTER = Math.floor(GRID_SIZE / 2);
 
-  // Initialiser la base avec le feu de camp au centre
+  // Initialiser la base avec le feu de camp au centre de la vue
   useEffect(() => {
     const initialGrid = new Map<string, BaseCell>();
     
-    // Ajouter le feu de camp au centre
-    const campfireKey = `${CENTER},${CENTER}`;
+    // Le feu de camp est à la position (0, 0) dans le système de coordonnées de la base
+    // mais affiché au centre de la grille visible
+    const campfireKey = `0,0`;
     initialGrid.set(campfireKey, {
-      x: CENTER,
-      y: CENTER,
+      x: 0,
+      y: 0,
       type: 'campfire'
     });
 
     // Ajouter les cases adjacentes avec possibilité de construire
     const adjacentPositions = [
-      { x: CENTER - 1, y: CENTER },
-      { x: CENTER + 1, y: CENTER },
-      { x: CENTER, y: CENTER - 1 },
-      { x: CENTER, y: CENTER + 1 },
+      { x: -1, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: -1 },
+      { x: 0, y: 1 },
     ];
 
     adjacentPositions.forEach(pos => {
@@ -73,6 +69,12 @@ const BaseInterface = ({ onBack }: BaseInterfaceProps) => {
       type: 'foundation'
     });
 
+    // Retirer la possibilité de construire sur cette case
+    const currentCell = newGrid.get(foundationKey);
+    if (currentCell) {
+      currentCell.canBuild = false;
+    }
+
     // Ajouter les cases adjacentes avec possibilité de construire
     const adjacentPositions = [
       { x: x - 1, y },
@@ -85,8 +87,8 @@ const BaseInterface = ({ onBack }: BaseInterfaceProps) => {
       const key = getCellKey(pos.x, pos.y);
       const existingCell = newGrid.get(key);
       
-      // Si la case n'existe pas ou est vide, la marquer comme constructible
-      if (!existingCell || existingCell.type === 'empty') {
+      // Si la case n'existe pas ou est vide sans structure, la marquer comme constructible
+      if (!existingCell || (existingCell.type === 'empty' && existingCell.type !== 'campfire' && existingCell.type !== 'foundation')) {
         newGrid.set(key, {
           x: pos.x,
           y: pos.y,
@@ -122,9 +124,9 @@ const BaseInterface = ({ onBack }: BaseInterfaceProps) => {
         if (cell.canBuild) {
           return "bg-gray-100 border-gray-300 hover:bg-gray-200 cursor-pointer border-dashed";
         }
-        return "bg-gray-50 border-gray-200";
+        return "bg-gray-600 border-gray-500"; // Cases vides non constructibles (grille infinie)
       default:
-        return "bg-gray-50 border-gray-200";
+        return "bg-gray-600 border-gray-500";
     }
   };
 
@@ -135,63 +137,55 @@ const BaseInterface = ({ onBack }: BaseInterfaceProps) => {
     }
   };
 
+  // Gérer le déplacement de la vue avec les flèches du clavier
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowUp':
+          setViewOffset(prev => ({ ...prev, y: prev.y - 1 }));
+          break;
+        case 'ArrowDown':
+          setViewOffset(prev => ({ ...prev, y: prev.y + 1 }));
+          break;
+        case 'ArrowLeft':
+          setViewOffset(prev => ({ ...prev, x: prev.x - 1 }));
+          break;
+        case 'ArrowRight':
+          setViewOffset(prev => ({ ...prev, x: prev.x + 1 }));
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   return (
-    <div className="h-full flex flex-col bg-gray-900">
-      {/* Header de la base */}
-      <header className="h-[10vh] bg-gray-800 border-b border-gray-700 text-white px-4 flex items-center justify-between shadow-lg">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Retour à la carte</span>
-        </Button>
-        
-        <div className="flex items-center space-x-2">
-          <span className="text-lg md:text-xl font-bold text-white">
-            Ma Base
-          </span>
-        </div>
-        
-        <div className="w-24"></div> {/* Spacer pour centrer le titre */}
-      </header>
-
-      {/* Grille de la base */}
-      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0">
-        <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
-          <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
-            {Array.from({ length: GRID_SIZE }, (_, y) =>
-              Array.from({ length: GRID_SIZE }, (_, x) => {
-                const cell = getCell(x + viewOffset.x, y + viewOffset.y);
-                return (
-                  <button
-                    key={`${x}-${y}`}
-                    onClick={() => handleCellClick(x + viewOffset.x, y + viewOffset.y)}
-                    className={cn(
-                      "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
-                      getCellStyle(cell)
-                    )}
-                    disabled={!cell.canBuild || cell.type !== 'empty'}
-                  >
-                    {getCellContent(cell)}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </main>
-
-      {/* Footer avec informations de la base */}
-      <footer className="bg-gray-800 border-t border-gray-700 text-white p-4">
-        <div className="text-center">
-          <p className="text-gray-400 text-sm">
-            Cliquez sur les <Plus className="inline w-4 h-4 mx-1" /> pour ajouter des fondations
-          </p>
-        </div>
-      </footer>
+    <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
+      <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
+        {Array.from({ length: GRID_SIZE }, (_, row) =>
+          Array.from({ length: GRID_SIZE }, (_, col) => {
+            // Calculer les coordonnées réelles dans la grille infinie
+            const realX = col - CENTER + viewOffset.x;
+            const realY = row - CENTER + viewOffset.y;
+            const cell = getCell(realX, realY);
+            
+            return (
+              <button
+                key={`${col}-${row}`}
+                onClick={() => handleCellClick(realX, realY)}
+                className={cn(
+                  "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
+                  getCellStyle(cell)
+                )}
+                disabled={!cell.canBuild || cell.type !== 'empty'}
+              >
+                {getCellContent(cell)}
+              </button>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };
