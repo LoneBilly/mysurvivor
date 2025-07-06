@@ -10,7 +10,7 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 
 const CreateUsername = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,12 +31,13 @@ const CreateUsername = () => {
 
       if (error) throw error;
 
+      await refreshProfile();
       showSuccess("Bienvenue dans le jeu !");
-      // Forcer un rechargement pour que le contexte d'authentification se mette à jour
-      window.location.href = '/';
+      navigate('/');
 
     } catch (error: any) {
       showError(error.message || "Une erreur est survenue.");
+    } finally {
       setLoading(false);
     }
   };
