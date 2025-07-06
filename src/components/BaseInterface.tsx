@@ -17,6 +17,7 @@ const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
 
   useEffect(() => {
     const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
@@ -72,6 +73,7 @@ const BaseInterface = () => {
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
 
+    setIsBuilding(true);
     const cell = gridData[y][x];
     if (!cell.canBuild || cell.type !== 'empty') return;
 
@@ -90,7 +92,10 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
-    setTimeout(() => centerViewport(x, y), 10);
+    setTimeout(() => {
+      centerViewport(x, y);
+      setIsBuilding(false);
+    }, 10);
   };
 
   const getCellContent = (cell: BaseCell) => {
@@ -124,7 +129,7 @@ const BaseInterface = () => {
     <div
       ref={viewportRef}
       className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
-      style={{ opacity: isInitialized ? 1 : 0 }} // Cache pendant l'initialisation
+      style={{ opacity: isInitialized ? 1 : 0 }}
     >
       <div
         className="relative"
@@ -140,7 +145,8 @@ const BaseInterface = () => {
               onClick={() => handleCellClick(x, y)}
               className={cn(
                 "absolute flex items-center justify-center text-2xl font-bold rounded border transition-colors",
-                getCellStyle(cell)
+                getCellStyle(cell),
+                isBuilding && "transition-none" // Désactiver les transitions pendant la construction
               )}
               style={{
                 left: x * (CELL_SIZE_PX + CELL_GAP),
