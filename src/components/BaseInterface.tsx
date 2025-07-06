@@ -11,6 +11,7 @@ interface BaseCell {
 
 const GRID_SIZE = 100; // La taille de notre grille finie
 const CELL_SIZE_PX = 60; // Taille de chaque cellule en pixels pour le style
+const CELL_GAP = 4; // Espacement entre les cellules
 
 const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
@@ -49,7 +50,7 @@ const BaseInterface = () => {
     if (gridData && !initialScrollPerformed.current && viewportRef.current) {
       const viewport = viewportRef.current;
       const center = Math.floor(GRID_SIZE / 2);
-      const centerPx = center * CELL_SIZE_PX;
+      const centerPx = center * (CELL_SIZE_PX + CELL_GAP);
       
       const scrollLeft = centerPx - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
       const scrollTop = centerPx - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
@@ -84,8 +85,8 @@ const BaseInterface = () => {
     // Centrer la vue sur la nouvelle fondation
     const viewport = viewportRef.current;
     if (viewport) {
-      const scrollLeft = x * CELL_SIZE_PX - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
-      const scrollTop = y * CELL_SIZE_PX - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
+      const scrollLeft = x * (CELL_SIZE_PX + CELL_GAP) - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
+      const scrollTop = y * (CELL_SIZE_PX + CELL_GAP) - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
 
       viewport.scrollTo({
         left: scrollLeft,
@@ -130,8 +131,8 @@ const BaseInterface = () => {
       <div
         className="relative"
         style={{
-          width: GRID_SIZE * CELL_SIZE_PX,
-          height: GRID_SIZE * CELL_SIZE_PX,
+          width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
+          height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
         }}
       >
         {gridData.map((row, y) =>
@@ -144,8 +145,8 @@ const BaseInterface = () => {
                 getCellStyle(cell)
               )}
               style={{
-                left: x * CELL_SIZE_PX,
-                top: y * CELL_SIZE_PX,
+                left: x * (CELL_SIZE_PX + CELL_GAP),
+                top: y * (CELL_SIZE_PX + CELL_GAP),
                 width: CELL_SIZE_PX,
                 height: CELL_SIZE_PX,
               }}
