@@ -15,9 +15,9 @@ const CELL_SIZE_PX = 60; // Taille de chaque cellule en pixels pour le style
 const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const initialScrollPerformed = useRef(false); // Nouvelle référence pour suivre le scroll initial
+  const initialScrollPerformed = useRef(false); // Référence pour suivre le scroll initial
 
-  // Étape 1: Générer la grille 100x100 une seule fois
+  // Générer la grille une seule fois
   useEffect(() => {
     const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
       Array.from({ length: GRID_SIZE }, (_, x) => ({
@@ -28,11 +28,9 @@ const BaseInterface = () => {
       }))
     );
 
-    // Placer le feu de camp au centre
     const center = Math.floor(GRID_SIZE / 2);
     newGrid[center][center].type = 'campfire';
 
-    // Activer les cases adjacentes pour la construction
     const adjacentPositions = [
       { x: center - 1, y: center }, { x: center + 1, y: center },
       { x: center, y: center - 1 }, { x: center, y: center + 1 },
@@ -46,13 +44,9 @@ const BaseInterface = () => {
     setGridData(newGrid);
   }, []);
 
-  // Étape 2: Centrer la vue sur le feu de camp après le rendu initial (une seule fois)
+  // Centrer la vue sur le feu de camp (une seule fois)
   useEffect(() => {
-    if (initialScrollPerformed.current) {
-      return; // Si le scroll initial a déjà été effectué, ne rien faire
-    }
-
-    if (viewportRef.current && gridData) {
+    if (gridData && !initialScrollPerformed.current && viewportRef.current) {
       const viewport = viewportRef.current;
       const center = Math.floor(GRID_SIZE / 2);
       const centerPx = center * CELL_SIZE_PX;
@@ -60,15 +54,10 @@ const BaseInterface = () => {
       const scrollLeft = centerPx - viewport.offsetWidth / 2 + CELL_SIZE_PX / 2;
       const scrollTop = centerPx - viewport.offsetHeight / 2 + CELL_SIZE_PX / 2;
 
-      // Utiliser un timeout pour s'assurer que la grille est rendue et a ses dimensions
-      const timeoutId = setTimeout(() => {
-        viewport.scrollTo({ left: scrollLeft, top: scrollTop });
-        initialScrollPerformed.current = true; // Marquer le scroll initial comme effectué
-      }, 0); 
-
-      return () => clearTimeout(timeoutId);
+      viewport.scrollTo({ left: scrollLeft, top: scrollTop });
+      initialScrollPerformed.current = true; // Marquer le scroll comme effectué
     }
-  }, [gridData]); // Dépend de gridData pour s'assurer qu'il s'exécute après que gridData soit peuplé pour la première fois
+  }, [gridData]);
 
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
@@ -108,7 +97,7 @@ const BaseInterface = () => {
 
   const getCellContent = (cell: BaseCell) => {
     if (cell.type === 'campfire') return "🔥";
-    if (cell.type === 'foundation') return ""; // Pas d'emoji pour la fondation
+    if (cell.type === 'foundation') return "";
     if (cell.canBuild) return <Plus className="w-6 h-6 text-gray-400" />;
     return "";
   };
@@ -116,7 +105,7 @@ const BaseInterface = () => {
   const getCellStyle = (cell: BaseCell) => {
     switch (cell.type) {
       case 'campfire': return "bg-orange-200/10 border-orange-400/30";
-      case 'foundation': return "bg-gray-600 border-gray-500"; // Nouveau style pour la fondation
+      case 'foundation': return "bg-gray-600 border-gray-500";
       case 'empty':
         if (cell.canBuild) return "bg-gray-700/50 border-gray-600 hover:bg-gray-600/50 cursor-pointer border-dashed";
         return "bg-gray-800/50 border-gray-700/20";
