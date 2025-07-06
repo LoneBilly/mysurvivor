@@ -15,59 +15,37 @@ const BaseInterface = () => {
 
   // State for panning
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
   const [currentTransform, setCurrentTransform] = useState({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Size of the rendered grid
   const RENDER_GRID_SIZE = 15;
   const RENDER_CENTER = Math.floor(RENDER_GRID_SIZE / 2);
 
-  // Initialiser la base avec le feu de camp au centre
   useEffect(() => {
     const initialGrid = new Map<string, BaseCell>();
-    const campfireKey = `0,0`;
-    initialGrid.set(campfireKey, { x: 0, y: 0, type: 'campfire' });
-
-    const adjacentPositions = [
-      { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 },
-    ];
-
+    initialGrid.set("0,0", { x: 0, y: 0, type: 'campfire' });
+    const adjacentPositions = [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 }];
     adjacentPositions.forEach(pos => {
-      const key = `${pos.x},${pos.y}`;
-      initialGrid.set(key, { ...pos, type: 'empty', canBuild: true });
+      initialGrid.set(`${pos.x},${pos.y}`, { ...pos, type: 'empty', canBuild: true });
     });
-
     setBaseGrid(initialGrid);
   }, []);
 
   const getCellKey = (x: number, y: number) => `${x},${y}`;
-
-  const getCell = (x: number, y: number): BaseCell => {
-    const key = getCellKey(x, y);
-    return baseGrid.get(key) || { x, y, type: 'empty', canBuild: false };
-  };
+  const getCell = (x: number, y: number): BaseCell => baseGrid.get(getCellKey(x, y)) || { x, y, type: 'empty', canBuild: false };
 
   const addFoundation = (x: number, y: number) => {
     const newGrid = new Map(baseGrid);
-    const foundationKey = getCellKey(x, y);
-    newGrid.set(foundationKey, { x, y, type: 'foundation' });
-
-    const currentCell = newGrid.get(foundationKey);
-    if (currentCell) currentCell.canBuild = false;
-
-    const adjacentPositions = [
-      { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
-    ];
-
+    newGrid.set(getCellKey(x, y), { x, y, type: 'foundation' });
+    const adjacentPositions = [{ x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 }];
     adjacentPositions.forEach(pos => {
       const key = getCellKey(pos.x, pos.y);
-      const existingCell = newGrid.get(key);
-      if (!existingCell || existingCell.type === 'empty') {
+      if (!newGrid.has(key)) {
         newGrid.set(key, { ...pos, type: 'empty', canBuild: true });
       }
     });
-
     setBaseGrid(newGrid);
   };
 
@@ -89,76 +67,64 @@ const BaseInterface = () => {
     }
   };
 
-  const handleCellClick = (x: number, y: number, e: React.MouseEvent) => {
-    // Ne pas construire si on était en train de faire du panning
-    if (isDragging) return;
-    
-    e.stopPropagation();
-    const cell = getCell(x, y);
-    if (cell.canBuild && cell.type === 'empty') {
-      addFoundation(x, y);
-    }
-  };
-
-  // Panning handlers avec gestion globale des événements
-  useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
-      
-      setCurrentTransform({ x: deltaX, y: deltaY });
-    };
-
-    const handleGlobalMouseUp = () => {
-      if (!isDragging) return;
-      
-      setIsDragging(false);
-      document.body.style.cursor = '';
-      
-      // Calculer le déplacement en cellules
-      if (viewportRef.current) {
-        const rect = viewportRef.current.getBoundingClientRect();
-        const cellSize = Math.min(rect.width, rect.height) / RENDER_GRID_SIZE;
-        
-        const deltaXCells = Math.round(currentTransform.x / cellSize);
-        const deltaYCells = Math.round(currentTransform.y / cellSize);
-        
-        // Mettre à jour la position de la vue
-        setViewOffset(prev => ({
-          x: prev.x - deltaXCells,
-          y: prev.y - deltaYCells
-        }));
-      }
-      
-      // Réinitialiser la transformation
-      setCurrentTransform({ x: 0, y: 0 });
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-      document.body.style.cursor = 'grabbing';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [isDragging, dragStart, currentTransform]);
-
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-    setCurrentTransform({ x: 0, y: 0 });
+    setIsPanning(false);
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
   };
 
-  // Keyboard navigation
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const dx = e.clientX - dragStartPos.current.x;
+      const dy = e.clientY - dragStartPos.current.y;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        if (!isPanning) {
+          setIsPanning(true);
+          if (viewportRef.current) viewportRef.current.style.cursor = 'grabbing';
+        }
+        setCurrentTransform({ x: dx, y: dy });
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isDragging, isPanning]);
+
+  useEffect(() => {
+    const handleMouseUp = (e: MouseEvent) => {
+      if (!isDragging) return;
+      if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
+
+      if (isPanning) {
+        if (viewportRef.current) {
+          const rect = viewportRef.current.getBoundingClientRect();
+          const cellSize = Math.min(rect.width, rect.height) / RENDER_GRID_SIZE;
+          const deltaXCells = Math.round(currentTransform.x / cellSize);
+          const deltaYCells = Math.round(currentTransform.y / cellSize);
+          setViewOffset(prev => ({ x: prev.x - deltaXCells, y: prev.y - deltaYCells }));
+        }
+      } else {
+        const target = e.target as HTMLElement;
+        const cellButton = target.closest('button[data-cell-pos]');
+        if (cellButton) {
+          const [x, y] = cellButton.getAttribute('data-cell-pos')!.split(',').map(Number);
+          const cell = getCell(x, y);
+          if (cell.canBuild && cell.type === 'empty') addFoundation(x, y);
+        }
+      }
+      setIsDragging(false);
+      setIsPanning(false);
+      setCurrentTransform({ x: 0, y: 0 });
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [isDragging, isPanning, currentTransform]);
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (isDragging) return;
       const keyMap: { [key: string]: { x: number, y: number } } = {
         ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 },
         ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
@@ -170,13 +136,13 @@ const BaseInterface = () => {
     };
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isDragging]);
+  }, []);
 
   return (
     <div
       ref={viewportRef}
       className="bg-gray-900 w-full h-full flex items-center justify-center overflow-hidden relative select-none"
-      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      style={{ cursor: 'grab' }}
       onMouseDown={handleMouseDown}
     >
       <div
@@ -196,27 +162,20 @@ const BaseInterface = () => {
           const realX = col - RENDER_CENTER + viewOffset.x;
           const realY = row - RENDER_CENTER + viewOffset.y;
           const cell = getCell(realX, realY);
-          
           return (
             <button
               key={`${realX}-${realY}`}
-              onClick={(e) => handleCellClick(realX, realY, e)}
+              data-cell-pos={`${realX},${realY}`}
               className={cn(
                 "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
                 getCellStyle(cell),
-                isDragging && "pointer-events-none"
+                isPanning && "pointer-events-none"
               )}
-              disabled={!cell.canBuild || cell.type !== 'empty' || isDragging}
             >
               {getCellContent(cell)}
             </button>
           );
         })}
-      </div>
-      
-      {/* Indicateur de position pour debug */}
-      <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white p-2 rounded text-sm">
-        Position: ({viewOffset.x}, {viewOffset.y})
       </div>
     </div>
   );
