@@ -27,16 +27,25 @@ const CreateUsername = () => {
       const { error } = await supabase
         .from('profiles')
         .update({ username: username.trim() })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select()
+        .single();
 
-      if (error) throw error;
-
-      await refreshProfile();
-      showSuccess("Bienvenue dans le jeu !");
-      navigate('/');
+      if (error) {
+        if (error.code === '23505') { // Erreur de violation de contrainte unique
+          showError("Ce pseudo est déjà pris. Veuillez en choisir un autre.");
+        } else {
+          throw error; // Lancer les autres erreurs de la base de données
+        }
+      } else {
+        await refreshProfile();
+        showSuccess("Bienvenue dans le jeu !");
+        navigate('/');
+      }
 
     } catch (error: any) {
-      showError(error.message || "Une erreur est survenue.");
+      console.error("Erreur détaillée lors de la soumission du pseudo:", error);
+      showError(error.message || "Une erreur réseau ou inattendue est survenue.");
     } finally {
       setLoading(false);
     }
