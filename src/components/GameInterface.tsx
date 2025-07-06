@@ -4,6 +4,7 @@ import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
 import ActionModal from "./ActionModal";
 import BaseInterface from "./BaseInterface";
+import BaseHeader from "./BaseHeader";
 import { useGameState } from "@/hooks/useGameState";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
@@ -180,7 +181,27 @@ const GameInterface = () => {
             basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
           />
         ) : (
-          <BaseInterface />
+          <div className="relative w-full h-full">
+            <div className="absolute top-4 left-4 z-20">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToMap}
+                className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white bg-gray-800/80 backdrop-blur-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Retour à la carte</span>
+              </Button>
+            </div>
+            <BaseHeader
+              resources={{
+                wood: gameState.wood,
+                metal: gameState.metal,
+                components: gameState.components,
+              }}
+            />
+            <BaseInterface />
+          </div>
         )}
       </main>
       
@@ -193,21 +214,6 @@ const GameInterface = () => {
         }}
         onInventaire={handleInventaire}
       />
-
-      {/* Bouton de retour pour la base */}
-      {currentView === 'base' && (
-        <div className="absolute top-4 left-4 z-10">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackToMap}
-            className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white bg-gray-800/80 backdrop-blur-sm"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Retour à la carte</span>
-          </Button>
-        </div>
-      )}
 
       <ActionModal
         isOpen={modalState.isOpen}

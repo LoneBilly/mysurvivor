@@ -21,6 +21,9 @@ export interface GameState {
   base_position_y: number | null;
   created_at: string;
   updated_at: string;
+  wood: number;
+  metal: number;
+  components: number;
 }
 
 export interface MapCell {
