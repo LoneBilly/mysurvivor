@@ -15,11 +15,11 @@ const BaseInterface = () => {
 
   // State for panning
   const [isDragging, setIsDragging] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [currentTransform, setCurrentTransform] = useState({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Size of the rendered grid (larger than viewport for smooth panning)
+  // Size of the rendered grid
   const RENDER_GRID_SIZE = 15;
   const RENDER_CENTER = Math.floor(RENDER_GRID_SIZE / 2);
 
@@ -89,45 +89,70 @@ const BaseInterface = () => {
     }
   };
 
-  const handleCellClick = (x: number, y: number) => {
+  const handleCellClick = (x: number, y: number, e: React.MouseEvent) => {
+    // Ne pas construire si on était en train de faire du panning
+    if (isDragging) return;
+    
+    e.stopPropagation();
     const cell = getCell(x, y);
     if (cell.canBuild && cell.type === 'empty') {
       addFoundation(x, y);
     }
   };
 
-  // Panning handlers
+  // Panning handlers avec gestion globale des événements
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      setCurrentTransform({ x: deltaX, y: deltaY });
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (!isDragging) return;
+      
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      
+      // Calculer le déplacement en cellules
+      if (viewportRef.current) {
+        const rect = viewportRef.current.getBoundingClientRect();
+        const cellSize = Math.min(rect.width, rect.height) / RENDER_GRID_SIZE;
+        
+        const deltaXCells = Math.round(currentTransform.x / cellSize);
+        const deltaYCells = Math.round(currentTransform.y / cellSize);
+        
+        // Mettre à jour la position de la vue
+        setViewOffset(prev => ({
+          x: prev.x - deltaXCells,
+          y: prev.y - deltaYCells
+        }));
+      }
+      
+      // Réinitialiser la transformation
+      setCurrentTransform({ x: 0, y: 0 });
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.body.style.cursor = 'grabbing';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, dragStart, currentTransform]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
-    setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
-    if (viewportRef.current) viewportRef.current.style.cursor = 'grabbing';
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    setPanOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
-  };
-
-  const handleMouseUp = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
-
-    if (!viewportRef.current) return;
-    const { width } = viewportRef.current.getBoundingClientRect();
-    const cellWidth = (width * 1.5) / RENDER_GRID_SIZE;
-
-    const dxCells = Math.round(panOffset.x / cellWidth);
-    const dyCells = Math.round(panOffset.y / cellWidth);
-
-    setViewOffset(prev => ({ x: prev.x - dxCells, y: prev.y - dyCells }));
-    setPanOffset({ x: 0, y: 0 });
-  };
-
-  const handleMouseLeave = () => {
-    if (isDragging) handleMouseUp();
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setCurrentTransform({ x: 0, y: 0 });
   };
 
   // Keyboard navigation
@@ -139,6 +164,7 @@ const BaseInterface = () => {
         ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
       };
       if (keyMap[e.key]) {
+        e.preventDefault();
         setViewOffset(prev => ({ x: prev.x + keyMap[e.key].x, y: prev.y + keyMap[e.key].y }));
       }
     };
@@ -149,44 +175,48 @@ const BaseInterface = () => {
   return (
     <div
       ref={viewportRef}
-      className="bg-gray-900 w-full h-full flex items-center justify-center overflow-hidden relative cursor-grab select-none"
+      className="bg-gray-900 w-full h-full flex items-center justify-center overflow-hidden relative select-none"
+      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
     >
       <div
         className="grid gap-1 md:gap-2"
         style={{
           gridTemplateColumns: `repeat(${RENDER_GRID_SIZE}, 1fr)`,
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
-          width: '150%',
-          height: '150%',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+          gridTemplateRows: `repeat(${RENDER_GRID_SIZE}, 1fr)`,
+          transform: `translate(${currentTransform.x}px, ${currentTransform.y}px)`,
+          width: '90%',
+          height: '90%',
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
         }}
       >
-        {Array.from({ length: RENDER_GRID_SIZE }, (_, row) =>
-          Array.from({ length: RENDER_GRID_SIZE }, (_, col) => {
-            const realX = col - RENDER_CENTER + viewOffset.x;
-            const realY = row - RENDER_CENTER + viewOffset.y;
-            const cell = getCell(realX, realY);
-            
-            return (
-              <button
-                key={`${realX}-${realY}`}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={() => handleCellClick(realX, realY)}
-                className={cn(
-                  "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2",
-                  getCellStyle(cell)
-                )}
-                disabled={!cell.canBuild || cell.type !== 'empty'}
-              >
-                {getCellContent(cell)}
-              </button>
-            );
-          })
-        )}
+        {Array.from({ length: RENDER_GRID_SIZE * RENDER_GRID_SIZE }, (_, index) => {
+          const row = Math.floor(index / RENDER_GRID_SIZE);
+          const col = index % RENDER_GRID_SIZE;
+          const realX = col - RENDER_CENTER + viewOffset.x;
+          const realY = row - RENDER_CENTER + viewOffset.y;
+          const cell = getCell(realX, realY);
+          
+          return (
+            <button
+              key={`${realX}-${realY}`}
+              onClick={(e) => handleCellClick(realX, realY, e)}
+              className={cn(
+                "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
+                getCellStyle(cell),
+                isDragging && "pointer-events-none"
+              )}
+              disabled={!cell.canBuild || cell.type !== 'empty' || isDragging}
+            >
+              {getCellContent(cell)}
+            </button>
+          );
+        })}
+      </div>
+      
+      {/* Indicateur de position pour debug */}
+      <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white p-2 rounded text-sm">
+        Position: ({viewOffset.x}, {viewOffset.y})
       </div>
     </div>
   );
