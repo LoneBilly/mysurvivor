@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Leaderboard from '@/components/Leaderboard';
 
 const Login = () => {
   const { user } = useAuth();
@@ -17,7 +16,7 @@ const Login = () => {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row items-center justify-center bg-gray-100 p-4 gap-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-xl p-8 w-full border border-gray-200">
           <div className="text-center mb-8">
@@ -63,9 +62,6 @@ const Login = () => {
             }}
           />
         </div>
-      </div>
-      <div className="w-full max-w-md lg:max-w-lg">
-        <Leaderboard />
       </div>
     </div>
   );

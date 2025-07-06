@@ -20,33 +20,15 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user } = useAuth();
-  const [currentUsername, setCurrentUsername] = useState('');
+  const { user, profile, refreshProfile } = useAuth();
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (user) {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .single();
-        
-        if (data) {
-          setCurrentUsername(data.username || '');
-        }
-        setLoading(false);
-      }
-    };
-
     if (isOpen) {
-      fetchProfile();
       setNewUsername(''); // Reset input field when modal opens
     }
-  }, [user, isOpen]);
+  }, [isOpen]);
 
   const handleSave = async () => {
     if (!user || !newUsername.trim()) {
@@ -58,14 +40,15 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
       .from('profiles')
       .update({ username: newUsername.trim() })
       .eq('id', user.id);
-    setLoading(false);
 
     if (error) {
       showError(error.message);
+      setLoading(false);
     } else {
       showSuccess('Pseudo mis à jour !');
-      setCurrentUsername(newUsername.trim());
-      setNewUsername('');
+      await refreshProfile();
+      setLoading(false);
+      onClose();
     }
   };
 
@@ -97,7 +80,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
               <Label htmlFor="username">Nouveau pseudo</Label>
               <Input
                 id="username"
-                placeholder={currentUsername || "Votre pseudo actuel"}
+                placeholder={profile?.username || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 className="bg-gray-700 border-gray-600 text-white"
