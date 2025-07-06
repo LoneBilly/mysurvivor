@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2 } from 'lucide-react';
-import { showError, showSuccess } from '@/utils/toast';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface OptionsModalProps {
   isOpen: boolean;
@@ -14,117 +20,94 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user, signOut } = useAuth();
-  const [username, setUsername] = useState('');
-  const [canChangeUsername, setCanChangeUsername] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const [currentUsername, setCurrentUsername] = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen && user) {
-      setLoading(true);
-      const fetchProfile = async () => {
+    const fetchProfile = async () => {
+      if (user) {
+        setLoading(true);
         const { data, error } = await supabase
           .from('profiles')
-          .select('username, username_changed_at')
+          .select('username')
           .eq('id', user.id)
           .single();
-
-        if (error) {
-          showError("Erreur lors du chargement du profil.");
-          console.error(error);
-        } else if (data) {
-          setUsername(data.username || '');
-          setCanChangeUsername(data.username_changed_at === null);
+        
+        if (data) {
+          setCurrentUsername(data.username || '');
         }
         setLoading(false);
-      };
-      fetchProfile();
-    }
-  }, [isOpen, user]);
+      }
+    };
 
-  const handleSaveUsername = async () => {
-    if (!user || !username.trim()) {
-      showError("Le pseudo ne peut pas être vide.");
+    if (isOpen) {
+      fetchProfile();
+      setNewUsername(''); // Reset input field when modal opens
+    }
+  }, [user, isOpen]);
+
+  const handleSave = async () => {
+    if (!user || !newUsername.trim()) {
       return;
     }
-    setSaving(true);
-    try {
-      // Mettre à jour la table des profils
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ 
-          username: username.trim(),
-          username_changed_at: new Date().toISOString() 
-        })
-        .eq('id', user.id);
+    
+    setLoading(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ username: newUsername.trim() })
+      .eq('id', user.id);
+    setLoading(false);
 
-      if (profileError) throw profileError;
-
-      // Mettre à jour la table du classement
-      const { error: leaderboardError } = await supabase
-        .from('leaderboard')
-        .update({ username: username.trim() })
-        .eq('player_id', user.id);
-      
-      if (leaderboardError) {
-        console.warn("Impossible de mettre à jour le classement immédiatement:", leaderboardError);
-      }
-
-      showSuccess("Pseudo mis à jour !");
-      setCanChangeUsername(false);
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess('Pseudo mis à jour !');
       onClose();
-    } catch (error) {
-      showError("Erreur lors de la mise à jour du pseudo.");
-      console.error(error);
-    } finally {
-      setSaving(false);
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    onClose();
-    showSuccess("Vous avez été déconnecté.");
+  const handleLogout = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signOut();
+    setLoading(false);
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess('Déconnexion réussie.');
+      onClose();
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
         <DialogHeader>
-          <DialogTitle className="text-white">Options</DialogTitle>
-          <DialogDescription className="text-gray-400">
-            Gérez les paramètres de votre compte.
+          <DialogTitle>Options</DialogTitle>
+          <DialogDescription>
+            Gérez les paramètres de votre compte et du jeu.
           </DialogDescription>
         </DialogHeader>
-        {loading ? (
-          <div className="flex justify-center items-center h-24">
-            <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="username">Pseudo</Label>
+            <Input
+              id="username"
+              placeholder={currentUsername}
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              className="bg-gray-700 border-gray-600 text-white"
+              disabled={loading}
+            />
           </div>
-        ) : (
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Pseudo</Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={!canChangeUsername || saving}
-              />
-              {!canChangeUsername && (
-                <p className="text-xs text-gray-500">
-                  Vous ne pouvez changer votre pseudo qu'une seule fois.
-                </p>
-              )}
-            </div>
-            <Button onClick={handleSaveUsername} disabled={!canChangeUsername || saving} className="w-full">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sauvegarder le pseudo"}
-            </Button>
-          </div>
-        )}
-        <DialogFooter className="sm:justify-start border-t border-gray-700 pt-4 mt-4">
-          <Button onClick={handleSignOut} variant="destructive">
-            Se déconnecter
+        </div>
+        <DialogFooter className="sm:justify-between">
+          <Button onClick={handleLogout} variant="destructive" disabled={loading}>
+            Déconnexion
+          </Button>
+          <Button onClick={handleSave} disabled={loading || !newUsername.trim()}>
+            {loading ? 'Sauvegarde...' : 'Sauvegarder'}
           </Button>
         </DialogFooter>
       </DialogContent>
