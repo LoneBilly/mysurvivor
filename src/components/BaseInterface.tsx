@@ -16,7 +16,7 @@ const CELL_GAP = 4;
 const BaseInterface = () => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const initialScrollPerformed = useRef(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
@@ -51,29 +51,23 @@ const BaseInterface = () => {
     const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     
-    // Calcul du scroll en prenant en compte la position actuelle
     const scrollLeft = cellCenterX - viewport.clientWidth / 2;
     const scrollTop = cellCenterY - viewport.clientHeight / 2;
 
-    // Vérification des limites
-    const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
-    const maxScrollTop = viewport.scrollHeight - viewport.clientHeight;
-
     viewport.scrollTo({
-      left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
-      top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
-      behavior: 'smooth'
+      left: scrollLeft,
+      top: scrollTop,
     });
   };
 
   useEffect(() => {
-    if (gridData && !initialScrollPerformed.current && viewportRef.current) {
+    if (gridData && !isInitialized && viewportRef.current) {
       const center = Math.floor(GRID_SIZE / 2);
-      // On attend que le DOM soit complètement chargé
-      setTimeout(() => centerViewport(center, center), 100);
-      initialScrollPerformed.current = true;
+      // On centre immédiatement sans animation
+      centerViewport(center, center);
+      setIsInitialized(true);
     }
-  }, [gridData]);
+  }, [gridData, isInitialized]);
 
   const handleCellClick = (x: number, y: number) => {
     if (!gridData) return;
@@ -96,7 +90,7 @@ const BaseInterface = () => {
     });
 
     setGridData(newGrid);
-    setTimeout(() => centerViewport(x, y), 100);
+    setTimeout(() => centerViewport(x, y), 10);
   };
 
   const getCellContent = (cell: BaseCell) => {
@@ -130,6 +124,7 @@ const BaseInterface = () => {
     <div
       ref={viewportRef}
       className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
+      style={{ opacity: isInitialized ? 1 : 0 }} // Cache pendant l'initialisation
     >
       <div
         className="relative"
