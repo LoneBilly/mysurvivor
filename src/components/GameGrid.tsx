@@ -5,13 +5,13 @@ import { MapCell } from "@/types/game";
 import { Loader2, Home } from "lucide-react";
 
 interface GameGridProps {
-  onCellSelect: (x: number, y: number, type: MapCell['type']) => void;
-  discoveredGrid: boolean[][];
+  onCellSelect: (cell: MapCell) => void;
+  discoveredZoneIds: number[];
   playerPosition: { x: number; y: number };
   basePosition: { x: number; y: number } | null;
 }
 
-const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition, basePosition }: GameGridProps) => {
+const GameGrid = ({ onCellSelect, discoveredZoneIds, playerPosition, basePosition }: GameGridProps) => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +38,7 @@ const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition, basePosition }
       if (!grid[cell.y]) grid[cell.y] = [];
       grid[cell.y][cell.x] = {
         ...cell,
-        discovered: discoveredGrid?.[cell.y]?.[cell.x] || false,
+        discovered: discoveredZoneIds.includes(cell.id),
       };
     });
     return grid;
@@ -93,7 +93,8 @@ const GameGrid = ({ onCellSelect, discoveredGrid, playerPosition, basePosition }
           row.map((cell, x) => (
             <button
               key={`${x}-${y}`}
-              onClick={() => onCellSelect(x, y, cell.type)}
+              onClick={() => cell && onCellSelect(cell)}
+              disabled={!cell}
               className={cn(
                 "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
                 getCellStyle(cell)

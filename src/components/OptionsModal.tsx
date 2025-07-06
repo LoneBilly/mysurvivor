@@ -30,7 +30,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
       if (user) {
         setLoading(true);
         const { data, error } = await supabase
-          .from('player_profiles')
+          .from('player_states')
           .select('username')
           .eq('id', user.id)
           .single();
@@ -53,7 +53,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
     
     setLoading(true);
     const { error } = await supabase
-      .from('player_profiles')
+      .from('player_states')
       .update({ username: newUsername.trim() })
       .eq('id', user.id);
     setLoading(false);

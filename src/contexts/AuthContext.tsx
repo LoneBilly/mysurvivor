@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { GameState } from '@/types/game';
+import { PlayerState } from '@/types/game';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: GameState | null;
+  profile: PlayerState | null;
   loading: boolean;
   signOut: () => Promise<void>;
   reloadProfile: () => Promise<void>;
@@ -29,12 +29,12 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<GameState | null>(null);
+  const [profile, setProfile] = useState<PlayerState | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
-      .from('player_profiles')
+      .from('player_states')
       .select('*')
       .eq('id', userId)
       .single();
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (error && error.code !== 'PGRST116') {
       console.error("Error fetching profile:", error);
     }
-    setProfile(data as GameState | null);
+    setProfile(data as PlayerState | null);
   }, []);
 
   const reloadProfile = useCallback(async () => {

@@ -37,7 +37,7 @@ const CreateProfile = () => {
     }
 
     const { error } = await supabase
-      .from('player_profiles')
+      .from('player_states')
       .update({ username: values.username })
       .eq('id', user.id);
 

@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameState } from '@/types/game';
-import { showError, showSuccess } from '@/utils/toast';
+import { PlayerState } from '@/types/game';
+import { showError } from '@/utils/toast';
 
 export const useGameState = () => {
   const { user, profile, loading, reloadProfile } = useAuth();
-  const [gameState, setGameState] = useState<GameState | null>(profile);
+  const [gameState, setGameState] = useState<PlayerState | null>(profile);
 
   useEffect(() => {
     setGameState(profile);
   }, [profile]);
 
-  const saveGameState = async (updates: Partial<GameState>) => {
+  const saveGameState = async (updates: Partial<PlayerState>) => {
     if (!user || !gameState) return;
 
     try {
@@ -22,7 +22,7 @@ export const useGameState = () => {
       };
 
       const { error } = await supabase
-        .from('player_profiles')
+        .from('player_states')
         .update(updatesWithTimestamp)
         .eq('id', user.id);
 
@@ -35,18 +35,7 @@ export const useGameState = () => {
     }
   };
 
-  const discoverCell = async (x: number, y: number) => {
-    if (!gameState) return;
-
-    const newGrid = [...gameState.grille_decouverte];
-    if (newGrid[y] && newGrid[y][x] !== undefined) {
-      newGrid[y][x] = true;
-      await saveGameState({ grille_decouverte: newGrid });
-      showSuccess(`Case (${x}, ${y}) découverte !`);
-    }
-  };
-
-  const updateStats = async (newStats: Partial<GameState>) => {
+  const updateStats = async (newStats: Partial<PlayerState>) => {
     await saveGameState(newStats);
   };
 
@@ -54,7 +43,6 @@ export const useGameState = () => {
     gameState,
     loading,
     saveGameState,
-    discoverCell,
     updateStats,
     reload: reloadProfile,
   };

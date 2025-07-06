@@ -5,7 +5,7 @@ export interface GameStats {
   energie: number;
 }
 
-export interface GameState {
+export interface PlayerState {
   id: string;
   username: string | null;
   jours_survecus: number;
@@ -17,17 +17,24 @@ export interface GameState {
   position_y: number;
   base_position_x: number | null;
   base_position_y: number | null;
-  grille_decouverte: boolean[][];
+  grille_decouverte: number[];
   wood: number;
   metal: number;
   components: number;
-  inventaire: any[];
   created_at: string;
   updated_at: string;
 }
 
 export interface MapCell {
+  id: number;
   x: number;
   y: number;
   type: 'foret' | 'plage' | 'unknown';
+}
+
+export interface InventoryItem {
+  id: number;
+  player_id: string;
+  item_name: string;
+  quantity: number;
 }
