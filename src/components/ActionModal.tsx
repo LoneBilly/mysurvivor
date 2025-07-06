@@ -1,51 +1,34 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface ActionModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  description: React.ReactNode;
   actions: {
     label: string;
     onClick: () => void;
-    variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null;
+    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   }[];
 }
 
-const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
+export function ActionModal({ isOpen, onClose, title, actions }: ActionModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-white">{title}</DialogTitle>
-          {description && (
-            <DialogDescription className="text-gray-400">
-              {description}
-            </DialogDescription>
-          )}
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        {actions.length > 0 && (
-          <DialogFooter className="mt-4 sm:justify-center">
-            <div className="flex w-full flex-col sm:flex-row gap-2">
-              {actions.map((action, index) => (
-                <Button key={index} onClick={action.onClick} variant={action.variant || "default"} className="flex-1">
-                  {action.label}
-                </Button>
-              ))}
-            </div>
-          </DialogFooter>
-        )}
+        <DialogFooter className="mt-4 sm:justify-center">
+          <div className="flex w-full flex-col sm:flex-row gap-2">
+            {actions.reverse().map((action, index) => (
+              <Button key={index} onClick={action.onClick} variant={action.variant || "default"} className="flex-1">
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-};
-
-export default ActionModal;
+}
