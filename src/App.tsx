@@ -3,7 +3,7 @@ import Index from './pages/Index';
 import Login from './pages/Login';
 import CreateProfile from './pages/CreateProfile';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Toaster as SonnerToaster } from '@/components/ui/sonner';
+import { Toaster } from './components/ui/toaster';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -39,7 +39,7 @@ function App() {
             }
           />
         </Routes>
-        <SonnerToaster />
+        <Toaster />
       </AuthProvider>
     </Router>
   );
