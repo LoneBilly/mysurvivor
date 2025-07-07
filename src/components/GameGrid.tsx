@@ -2,7 +2,11 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCell } from "@/types/game";
-import { Loader2, Tent } from "lucide-react";
+import { 
+  Loader2, Tent, TreePine, Waves, Pickaxe, Mountain, Factory, Hospital, Shield, Home, ShoppingCart, 
+  HelpCircle, Building2, Car, Church, Library, PiggyBank, RollerCoaster, Scissors, Skull, Syringe, 
+  Warehouse, TramFront, Wheat, Fuel, Music, Landmark 
+} from "lucide-react";
 
 interface GameGridProps {
   onCellSelect: (cell: MapCell) => void;
@@ -10,6 +14,40 @@ interface GameGridProps {
   playerPosition: { x: number; y: number };
   basePosition: { x: number; y: number } | null;
 }
+
+const iconMap: { [key: string]: React.ElementType } = {
+  'foret': TreePine,
+  'plage': Waves,
+  'Rivière': Waves,
+  'Mine': Pickaxe,
+  'Grotte': Mountain,
+  'Zone industrielle': Factory,
+  'Hôpital': Hospital,
+  'Base militaire': Shield,
+  'Quartier résidentiel': Home,
+  'Supermarché': ShoppingCart,
+  'Camp de survivants': Tent,
+  'Parking souterrain': Car,
+  'Entrepôt portuaire': Warehouse,
+  'Musée': Landmark,
+  'Métro': TramFront,
+  'Ferme': Wheat,
+  'Station-service': Fuel,
+  'Bibliothèque': Library,
+  'Commissariat de police': Shield,
+  'Bunker': Shield,
+  'Pharmacie': Syringe,
+  'Église': Church,
+  'Magasin de vêtements': Scissors,
+  'Ruine': Skull,
+  'Boite de nuit': Music,
+  'Usine désaffectée': Factory,
+  'Banque': PiggyBank,
+  'Abattoir': Skull,
+  "Parc d'attraction": RollerCoaster,
+  'Concession automobile': Car,
+  'default': Building2,
+};
 
 const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition }: GameGridProps) => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
@@ -49,32 +87,38 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   const grid = generateGrid();
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
-    if (!cell || cell.type === 'unknown') return "";
-    if (!cell.discovered) return "?";
-    return cell.icon || "";
+    if (!cell || cell.type === 'unknown') return null;
+    if (!cell.discovered) return <HelpCircle className="w-1/2 h-1/2" />;
+    
+    const Icon = iconMap[cell.type] || iconMap['default'];
+    return <Icon className="w-1/2 h-1/2" />;
   };
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') {
-      return "bg-gray-900 border-gray-800 cursor-default";
+      return "bg-black/50 border-transparent cursor-default";
     }
 
     if (!cell.discovered) {
-      return "bg-[#384152] hover:bg-[#4c5564] text-gray-300 cursor-pointer border-gray-700";
+      return "bg-gray-800/80 border-gray-700/50 text-gray-400 hover:border-sky-500 hover:bg-gray-800 cursor-pointer";
     }
     
-    const urbanStyle = "bg-slate-200 hover:bg-slate-300 text-slate-800 cursor-pointer border-slate-400";
-    
+    let typeStyle;
+
     switch (cell.type) {
       case 'foret':
-        return "bg-green-200 hover:bg-green-300 text-green-800 cursor-pointer border-green-400";
+        typeStyle = "border-green-700/50 text-green-300 bg-green-900/30 hover:bg-green-900/60";
+        break;
       case 'plage':
-        return "bg-yellow-200 hover:bg-yellow-300 text-yellow-800 cursor-pointer border-yellow-400";
+        typeStyle = "border-yellow-700/50 text-yellow-300 bg-yellow-900/30 hover:bg-yellow-900/60";
+        break;
       case 'Rivière':
-        return "bg-blue-200 hover:bg-blue-300 text-blue-800 cursor-pointer border-blue-400";
+        typeStyle = "border-blue-700/50 text-blue-300 bg-blue-900/30 hover:bg-blue-900/60";
+        break;
       case 'Mine':
       case 'Grotte':
-        return "bg-stone-300 hover:bg-stone-400 text-stone-800 cursor-pointer border-stone-500";
+        typeStyle = "border-stone-600/50 text-stone-300 bg-stone-800/30 hover:bg-stone-800/60";
+        break;
       
       case 'Parking souterrain':
       case 'Entrepôt portuaire':
@@ -101,11 +145,13 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
       case "Parc d'attraction":
       case 'Concession automobile':
       case 'Supermarché':
-        return urbanStyle;
+        typeStyle = "border-slate-600/50 text-slate-300 bg-slate-800/30 hover:bg-slate-800/60";
+        break;
 
       default:
-        return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
+        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:bg-gray-900/60";
     }
+    return cn(typeStyle, "cursor-pointer");
   };
 
   if (loading) {
@@ -117,8 +163,8 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   }
 
   return (
-    <div className="bg-[#4c5564] p-2 md:p-3 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
-      <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
+    <div className="bg-gray-900/50 p-2 md:p-3 rounded-xl shadow-2xl h-full aspect-square flex items-center justify-center border border-gray-700/50 bg-[radial-gradient(theme(colors.gray.800)_1px,transparent_1px)] [background-size:20px_20px]">
+      <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full">
         {grid.map((row, y) =>
           row.map((cell, x) => (
             <button
@@ -126,21 +172,18 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
               onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
               disabled={!cell || cell.type === 'unknown'}
               className={cn(
-                "relative aspect-square flex items-center justify-center font-bold rounded border transition-colors",
-                getCellStyle(cell),
-                cell && !cell.discovered ? "text-base" : "text-lg md:text-xl"
+                "relative aspect-square flex items-center justify-center font-bold rounded-md border-2 transition-all duration-200",
+                getCellStyle(cell)
               )}
             >
               {getCellContent(cell)}
               {playerPosition.x === x && playerPosition.y === y && (
-                <>
-                  <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500 animate-ping"></div>
-                  <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-500"></div>
-                </>
+                <div className="absolute inset-0 border-2 border-sky-400 rounded-md animate-pulse shadow-[0_0_10px_theme(colors.sky.400)] pointer-events-none"></div>
               )}
               {basePosition && basePosition.x === x && basePosition.y === y && (
-                <Tent className="absolute top-0.5 left-0.5 h-3 w-3 text-black" />
-                
+                <div className="absolute inset-0 border-2 border-amber-400 rounded-md pointer-events-none">
+                  <Tent className="absolute top-0.5 left-0.5 h-4 w-4 text-amber-400" />
+                </div>
               )}
             </button>
           ))
