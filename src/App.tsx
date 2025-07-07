@@ -39,7 +39,7 @@ function App() {
             }
           />
         </Routes>
-        <Toaster position="top-center" richColors closeButton />
+        <Toaster position="top-center" />
       </AuthProvider>
     </Router>
   );
