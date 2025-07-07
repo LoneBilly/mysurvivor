@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Search } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -13,52 +13,57 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const [spawnChances, setSpawnChances] = useState<Map<number, number>>(new Map());
   const [initialZoneItems, setInitialZoneItems] = useState<ZoneItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const debouncedSpawnChances = useDebounce(spawnChances, 1000);
+  const debouncedSpawnChances = useDebounce(spawnChances, 1500);
   const isInitialMount = useRef(true);
 
   const handleSave = useCallback(async () => {
-    setSaveStatus('saving');
+    setIsSaving(true);
     const itemsToUpsert: ZoneItem[] = [];
     const itemIdsToDelete: number[] = [];
+    const newInitialItemsState: ZoneItem[] = [];
 
     const initialChances = new Map(initialZoneItems.map(i => [i.item_id, i.spawn_chance]));
+    const allItemIds = new Set([...initialChances.keys(), ...spawnChances.keys()]);
 
-    spawnChances.forEach((chance, itemId) => {
-      if (chance > 0 && chance !== initialChances.get(itemId)) {
-        itemsToUpsert.push({ zone_id: zone.id, item_id: itemId, spawn_chance: chance });
+    allItemIds.forEach(itemId => {
+      const initialChance = initialChances.get(itemId);
+      const currentChance = spawnChances.get(itemId);
+
+      if (currentChance !== undefined && currentChance > 0) {
+        if (currentChance !== initialChance) {
+          itemsToUpsert.push({ zone_id: zone.id, item_id: itemId, spawn_chance: currentChance });
+        }
+        newInitialItemsState.push({ zone_id: zone.id, item_id: itemId, spawn_chance: currentChance });
+      } else {
+        if (initialChance !== undefined) {
+          itemIdsToDelete.push(itemId);
+        }
       }
     });
 
-    initialZoneItems.forEach(initialItem => {
-      const currentChance = spawnChances.get(initialItem.item_id);
-      if (currentChance === undefined || currentChance === 0) {
-        itemIdsToDelete.push(initialItem.item_id);
-      }
-    });
+    if (itemsToUpsert.length === 0 && itemIdsToDelete.length === 0) {
+      setIsSaving(false);
+      return;
+    }
 
     try {
       const promises = [];
       if (itemsToUpsert.length > 0) promises.push(supabase.from('zone_items').upsert(itemsToUpsert));
       if (itemIdsToDelete.length > 0) promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
       
-      if (promises.length === 0) {
-        setSaveStatus('idle');
-        return;
-      }
-
       const results = await Promise.all(promises);
-      results.forEach(res => { if (res.error) throw res.error; });
+      for (const res of results) { if (res.error) throw res.error; }
 
-      const { data: newZoneItems } = await supabase.from('zone_items').select('*').eq('zone_id', zone.id);
-      setInitialZoneItems(newZoneItems || []);
-      setSaveStatus('saved');
+      setInitialZoneItems(newInitialItemsState);
+      showSuccess("Probabilités sauvegardées.");
     } catch (error: any) {
-      showError("Erreur de sauvegarde.");
+      showError("Erreur de sauvegarde des probabilités.");
       console.error(error);
-      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
     }
   }, [zone.id, spawnChances, initialZoneItems]);
 
@@ -101,13 +106,6 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     handleSave();
   }, [debouncedSpawnChances, handleSave]);
 
-  useEffect(() => {
-    if (saveStatus === 'saved' || saveStatus === 'error') {
-      const timer = setTimeout(() => setSaveStatus('idle'), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [saveStatus]);
-
   const handleChanceChange = (itemId: number, chance: string) => {
     const newChances = new Map(spawnChances);
     const value = parseInt(chance, 10);
@@ -123,15 +121,6 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const renderSaveStatus = () => {
-    switch (saveStatus) {
-      case 'saving': return <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Sauvegarde...</div>;
-      case 'saved': return <div className="flex items-center gap-2 text-green-400"><CheckCircle className="w-4 h-4" />Enregistré</div>;
-      case 'error': return <div className="flex items-center gap-2 text-red-400"><XCircle className="w-4 h-4" />Erreur</div>;
-      default: return <div className="h-6"></div>;
-    }
-  };
-
   return (
     <Card className="w-full max-w-2xl mx-auto bg-gray-800/50 border-gray-700 text-white">
       <CardHeader>
@@ -143,7 +132,9 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
               <CardDescription className="text-gray-400">Modifiez les probabilités d'apparition des objets (0-100%).</CardDescription>
             </div>
           </div>
-          <div className="text-sm text-gray-400">{renderSaveStatus()}</div>
+          <div className="text-sm text-gray-400 h-6">
+            {isSaving && <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Sauvegarde...</div>}
+          </div>
         </div>
         <div className="relative mt-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -171,7 +162,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                     min="0" max="100"
                     value={spawnChances.get(item.id) || ''}
                     onChange={(e) => handleChanceChange(item.id, e.target.value)}
-                    className="w-24 bg-gray-800 border-gray-600 text-white text-right"
+                    className="w-24 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />
                   <span className="text-gray-400">%</span>
