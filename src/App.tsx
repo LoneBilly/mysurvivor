@@ -4,7 +4,6 @@ import Login from './pages/Login';
 import CreateProfile from './pages/CreateProfile';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -40,17 +39,7 @@ function App() {
             }
           />
         </Routes>
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            onClick: () => {
-              toast.dismiss();
-            },
-            style: {
-              cursor: 'pointer',
-            },
-          }}
-        />
+        <Toaster position="top-center" />
       </AuthProvider>
     </Router>
   );
