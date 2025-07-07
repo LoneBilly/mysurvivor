@@ -49,7 +49,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   const grid = generateGrid();
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
-    if (!cell) return "?";
+    if (!cell || cell.type === 'unknown') return "";
     if (!cell.discovered) return "?";
     
     switch (cell.type) {
@@ -89,7 +89,9 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   };
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
-    if (!cell) return "bg-gray-400";
+    if (!cell || cell.type === 'unknown') {
+      return "bg-gray-900 border-gray-800 cursor-default";
+    }
 
     if (!cell.discovered) {
       return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
@@ -155,7 +157,8 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
           row.map((cell, x) => (
             <button
               key={`${x}-${y}`}
-              onClick={() => cell && onCellSelect(cell)}
+              onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
+              disabled={!cell || cell.type === 'unknown'}
               className={cn(
                 "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
                 getCellStyle(cell)
