@@ -24,6 +24,7 @@ export interface GameState {
   wood: number;
   metal: number;
   components: number;
+  spawn_date: string;
 }
 
 export interface MapCell {

@@ -179,6 +179,7 @@ const GameInterface = () => {
     <div className="h-dvh flex flex-col bg-gray-900">
       <GameHeader
         joursSurvecus={gameState.jours_survecus}
+        spawnDate={gameState.spawn_date}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
         currentView={currentView}
