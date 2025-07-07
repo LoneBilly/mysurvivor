@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCell } from "@/types/game";
-import { Loader2, Home } from "lucide-react";
+import { Loader2, Tent } from "lucide-react";
 
 interface GameGridProps {
   onCellSelect: (cell: MapCell) => void;
@@ -138,7 +138,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
                 </>
               )}
               {basePosition && basePosition.x === x && basePosition.y === y && (
-                <Home className="absolute bottom-1 left-1 h-4 w-4 text-indigo-600" />
+                <Tent className="absolute top-1 left-1 h-4 w-4 text-indigo-600" />
               )}
             </button>
           ))
