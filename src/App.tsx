@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Index from './pages/Index';
 import Login from './pages/Login';
 import CreateProfile from './pages/CreateProfile';
-import { AuthProvider, useAuth } from './components/AuthProvider';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
