@@ -1,18 +1,26 @@
 import { MapCell } from "@/types/game";
 import { cn } from "@/lib/utils";
 import * as LucideIcons from "lucide-react";
+import { useState } from "react";
 
 interface DraggableMapCellProps {
   cell: MapCell;
   onDrop: (draggedCell: MapCell, targetCell: MapCell) => void;
+  onSelect: (cell: MapCell) => void;
 }
 
-const DraggableMapCell = ({ cell, onDrop }: DraggableMapCellProps) => {
+const DraggableMapCell = ({ cell, onDrop, onSelect }: DraggableMapCellProps) => {
+  const [isDragging, setIsDragging] = useState(false);
   const isUnknown = cell.type === 'unknown';
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    setIsDragging(true);
     e.dataTransfer.setData("application/json", JSON.stringify(cell));
     e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -28,14 +36,23 @@ const DraggableMapCell = ({ cell, onDrop }: DraggableMapCellProps) => {
     }
   };
 
+  const handleClick = () => {
+    // Pour éviter de déclencher le clic à la fin d'un glisser-déposer
+    if (!isDragging) {
+      onSelect(cell);
+    }
+  };
+
   const IconComponent = !isUnknown && cell.icon ? (LucideIcons as any)[cell.icon] : null;
 
   return (
     <div
       draggable
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      onClick={handleClick}
       className={cn(
         "relative aspect-square flex flex-col items-center justify-center p-1 text-center font-bold rounded-md border-2 transition-all duration-200 w-full h-full cursor-grab active:cursor-grabbing",
         isUnknown 
