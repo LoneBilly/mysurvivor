@@ -12,23 +12,25 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
   const StatItem = ({ 
     icon: Icon, 
     label, 
-    value,
-    indicatorColorClass // Ajout de la prop pour la couleur de l'indicateur
+    value 
   }: { 
     icon: any; 
     label: string; 
     value: number; 
-    indicatorColorClass: string; // Type de la nouvelle prop
   }) => (
     <div className="flex flex-col items-start space-y-1 p-3 rounded-lg bg-gray-700 border border-gray-600 w-full">
-      <div className="flex items-center justify-between w-full mb-1">
+      <div className="flex items-center justify-between w-full mb-1"> {/* Adjusted for label and value on same line */}
         <div className="flex items-center space-x-2">
           <Icon className="w-5 h-5 text-gray-300" />
           <span className="text-sm font-medium text-gray-400">{label}</span>
         </div>
-        <span className="text-sm font-bold text-white">{value}/100</span>
+        <span className="text-sm font-bold text-white">{value}/100</span> {/* Changed to X/100 format */}
       </div>
-      <Progress value={value} className="w-full h-2 bg-gray-600" indicatorClassName={indicatorColorClass} />
+      <Progress value={value} className="w-full h-2 bg-gray-600" indicatorClassName={
+        value > 70 ? "bg-green-500" : 
+        value > 30 ? "bg-yellow-500" : 
+        "bg-red-500"
+      } />
     </div>
   );
 
@@ -41,25 +43,21 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
             icon={Heart}
             label="Vie"
             value={stats.vie}
-            indicatorColorClass="bg-red-500" // Rouge pour la vie
           />
           <StatItem
             icon={Utensils}
             label="Faim"
             value={stats.faim}
-            indicatorColorClass="bg-orange-500" // Orange pour la faim
           />
           <StatItem
             icon={Droplets}
             label="Soif"
             value={stats.soif}
-            indicatorColorClass="bg-blue-500" // Bleu pour la soif
           />
           <StatItem
             icon={Zap}
             label="Énergie"
             value={stats.energie}
-            indicatorColorClass="bg-yellow-500" // Jaune pour l'énergie
           />
         </div>
         <Button
@@ -79,25 +77,21 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
             icon={Heart}
             label="Vie"
             value={stats.vie}
-            indicatorColorClass="bg-red-500" // Rouge pour la vie
           />
           <StatItem
             icon={Utensils}
             label="Faim"
             value={stats.faim}
-            indicatorColorClass="bg-orange-500" // Orange pour la faim
           />
           <StatItem
             icon={Droplets}
             label="Soif"
             value={stats.soif}
-            indicatorColorClass="bg-blue-500" // Bleu pour la soif
           />
           <StatItem
             icon={Zap}
             label="Énergie"
             value={stats.energie}
-            indicatorColorClass="bg-yellow-500" // Jaune pour l'énergie
           />
         </div>
         
