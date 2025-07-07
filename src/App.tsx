@@ -39,7 +39,7 @@ function App() {
             }
           />
         </Routes>
-        <Toaster />
+        <Toaster position="top-center" />
       </AuthProvider>
     </Router>
   );
