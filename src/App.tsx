@@ -43,8 +43,12 @@ function App() {
         <Toaster
           position="top-center"
           toastOptions={{
-            onClick: () => {
-              toast.dismiss();
+            onClick: (event) => {
+              const toastElement = event.currentTarget;
+              const toastId = toastElement.dataset.toastId;
+              if (toastId) {
+                toast.dismiss(toastId);
+              }
             },
             style: {
               cursor: 'pointer',
