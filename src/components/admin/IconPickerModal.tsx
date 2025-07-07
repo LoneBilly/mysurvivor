@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface IconPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentIcon: string | null; // Permettre null
+  currentIcon: string | null;
   onSelectIcon: (iconName: string) => void;
 }
 
@@ -69,7 +69,7 @@ const IconPickerModal = ({ isOpen, onClose, currentIcon, onSelectIcon }: IconPic
                     className={cn(
                       "flex flex-col items-center justify-center p-2 h-auto w-auto aspect-square rounded-md",
                       "hover:bg-gray-700/70 text-gray-300",
-                      currentIcon === iconName ? "bg-blue-600 hover:bg-blue-700 text-white" : ""
+                      currentIcon === iconName && "bg-blue-600 hover:bg-blue-700 text-white"
                     )}
                   >
                     <IconComponent className="w-6 h-6 mb-1" />
