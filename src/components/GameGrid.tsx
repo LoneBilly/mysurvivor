@@ -117,7 +117,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   }
 
   return (
-    <div className="bg-[#4c5564] p-4 md:p-6 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
+    <div className="bg-[#4c5564] p-2 md:p-3 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
       <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
         {grid.map((row, y) =>
           row.map((cell, x) => (
@@ -126,7 +126,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
               onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
               disabled={!cell || cell.type === 'unknown'}
               className={cn(
-                "relative aspect-square flex items-center justify-center font-bold rounded border-2 transition-colors",
+                "relative aspect-square flex items-center justify-center font-bold rounded border transition-colors",
                 getCellStyle(cell),
                 cell && !cell.discovered ? "text-base" : "text-lg md:text-xl"
               )}
