@@ -128,7 +128,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
       ]);
 
       if (itemsRes.error) throw itemsRes.error;
-      if (zoneItemsRes.error) throw zoneItemsRes.error;
+      if (zoneItemsRes.error) throw itemsRes.error;
 
       const sortedItems = (itemsRes.data || []).sort((a, b) => a.name.localeCompare(b.name));
       setItems(sortedItems);
@@ -176,7 +176,10 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const CurrentIconComponent = zoneIcon ? (LucideIcons as any)[zoneIcon] : LucideIcons.Map;
+  // Correction ici : Vérifie si zoneIcon est une chaîne valide et existe dans LucideIcons
+  const CurrentIconComponent = zoneIcon && typeof zoneIcon === 'string' && (LucideIcons as any)[zoneIcon]
+    ? (LucideIcons as any)[zoneIcon]
+    : LucideIcons.Map; // Icône par défaut si l'icône de la zone est invalide ou nulle
 
   return (
     <Card className="w-full max-w-2xl mx-auto bg-gray-800/50 border-gray-700 text-white">
