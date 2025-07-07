@@ -178,11 +178,16 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
             >
               {getCellContent(cell)}
               {playerPosition.x === x && playerPosition.y === y && (
-                <div className="absolute inset-0 border-2 border-sky-400 rounded-md animate-pulse shadow-[0_0_10px_theme(colors.sky.400)] pointer-events-none"></div>
+                <>
+                  <div className="absolute inset-0 border-2 border-sky-400 rounded-md pointer-events-none"></div>
+                  <div className="absolute top-1.5 left-1.5 w-2.5 h-2.5">
+                    <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
+                    <div className="w-full h-full rounded-full bg-sky-400 relative"></div>
+                  </div>
+                </>
               )}
               {basePosition && basePosition.x === x && basePosition.y === y && (
                 <div className="absolute inset-0 border-2 border-amber-400 rounded-md pointer-events-none">
-                  <Tent className="absolute top-0.5 left-0.5 h-4 w-4 text-amber-400" />
                 </div>
               )}
             </button>
