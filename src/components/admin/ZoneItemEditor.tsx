@@ -2,24 +2,21 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Loader2, ArrowLeft, Search } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
-import { useDebounce } from '@/hooks/useDebounce';
 
 const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [spawnChances, setSpawnChances] = useState<Map<number, number>>(new Map());
   const initialZoneItemsRef = useRef<ZoneItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const debouncedSpawnChances = useDebounce(spawnChances, 1500);
-  const isInitialMount = useRef(true);
+  const [zoneName, setZoneName] = useState(zone.type);
+  const initialZoneNameRef = useRef(zone.type);
 
-  const handleSave = useCallback(async () => {
+  const handleSaveProbabilities = useCallback(async () => {
     const initialChances = new Map(initialZoneItemsRef.current.map(i => [i.item_id, i.spawn_chance]));
     const currentChances = new Map<number, number>();
     for (const [key, value] of spawnChances.entries()) {
@@ -38,11 +35,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
       }
     }
 
-    if (areMapsEqual) {
-      return;
-    }
-
-    setIsSaving(true);
+    if (areMapsEqual) return;
 
     const itemsToUpsert: ZoneItem[] = [];
     const itemIdsToDelete: number[] = [];
@@ -61,12 +54,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
 
     try {
       const promises = [];
-      if (itemsToUpsert.length > 0) {
-        promises.push(supabase.from('zone_items').upsert(itemsToUpsert, { onConflict: 'zone_id,item_id' }));
-      }
-      if (itemIdsToDelete.length > 0) {
-        promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
-      }
+      if (itemsToUpsert.length > 0) promises.push(supabase.from('zone_items').upsert(itemsToUpsert, { onConflict: 'zone_id,item_id' }));
+      if (itemIdsToDelete.length > 0) promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
       
       if (promises.length > 0) {
         const results = await Promise.all(promises);
@@ -75,18 +64,27 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
       }
 
       initialZoneItemsRef.current = Array.from(currentChances.entries()).map(([itemId, chance]) => ({
-        zone_id: zone.id,
-        item_id: itemId,
-        spawn_chance: chance
+        zone_id: zone.id, item_id: itemId, spawn_chance: chance
       }));
-
     } catch (error: any) {
       showError("Erreur de sauvegarde des probabilités.");
       console.error(error);
-    } finally {
-      setIsSaving(false);
     }
   }, [zone.id, spawnChances]);
+
+  const handleZoneNameSave = async () => {
+    if (zoneName === initialZoneNameRef.current) return;
+
+    const { error } = await supabase.from('map_layout').update({ type: zoneName }).eq('id', zone.id);
+
+    if (error) {
+      showError("Erreur de mise à jour du nom.");
+      setZoneName(initialZoneNameRef.current);
+    } else {
+      showSuccess("Nom de la zone mis à jour.");
+      initialZoneNameRef.current = zoneName;
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -108,7 +106,6 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         const chancesMap = new Map<number, number>();
         initialData.forEach(zi => chancesMap.set(zi.item_id, zi.spawn_chance));
         setSpawnChances(chancesMap);
-
       } catch (error: any) {
         showError("Erreur de chargement.");
         console.error(error);
@@ -118,14 +115,6 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     };
     fetchData();
   }, [zone.id]);
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    handleSave();
-  }, [debouncedSpawnChances, handleSave]);
 
   const handleChanceChange = (itemId: number, chance: string) => {
     const newChances = new Map(spawnChances);
@@ -149,12 +138,17 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
           <div className="flex items-center gap-4">
             <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
             <div>
-              <CardTitle className="text-2xl">Édition de la zone : {zone.type}</CardTitle>
-              <CardDescription className="text-gray-400">Modifiez les probabilités d'apparition des objets (0-100%).</CardDescription>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl text-gray-400">Zone :</span>
+                <Input
+                  value={zoneName}
+                  onChange={(e) => setZoneName(e.target.value)}
+                  onBlur={handleZoneNameSave}
+                  className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto"
+                />
+              </div>
+              <CardDescription className="text-gray-400 mt-1">Modifiez les probabilités d'apparition des objets (0-100%).</CardDescription>
             </div>
-          </div>
-          <div className="text-sm text-gray-400 h-6">
-            {isSaving && <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Sauvegarde...</div>}
           </div>
         </div>
         <div className="relative mt-4">
@@ -183,6 +177,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                     min="0" max="100"
                     value={spawnChances.get(item.id) || ''}
                     onChange={(e) => handleChanceChange(item.id, e.target.value)}
+                    onBlur={handleSaveProbabilities}
                     className="w-24 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />

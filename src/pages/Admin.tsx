@@ -12,7 +12,6 @@ const Admin = () => {
   const navigate = useNavigate();
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [selectedZone, setSelectedZone] = useState<MapCell | null>(null);
 
   const fetchMapLayout = useCallback(async () => {
@@ -35,9 +34,7 @@ const Admin = () => {
 
   const handleMapUpdate = async (newLayout: MapCell[], changedCells: MapCell[]) => {
     setMapLayout(newLayout);
-    if (isSaving) return;
 
-    setIsSaving(true);
     const changesToSave = changedCells.map(cell => ({ id: cell.id, x: cell.x, y: cell.y }));
     
     const { error } = await supabase.rpc('update_map_layout_positions', { changes: changesToSave });
@@ -48,7 +45,6 @@ const Admin = () => {
     } else {
       showSuccess("Carte sauvegardée !");
     }
-    setIsSaving(false);
   };
 
   const handleZoneSelect = (zone: MapCell) => setSelectedZone(zone);
@@ -67,7 +63,7 @@ const Admin = () => {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Panneau d'Administration</h1>
+              <h1 className="text-3xl font-bold">Panel Admin</h1>
               <p className="text-gray-400 mt-1">Gérez la carte et les objets du jeu.</p>
             </div>
           </div>
