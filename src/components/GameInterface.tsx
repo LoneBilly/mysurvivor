@@ -132,7 +132,7 @@ const GameInterface = () => {
 
       setModalState({
         isOpen: true,
-        title: `Se déplacer vers ${formatZoneName(type)}`,
+        title: formatZoneName(type),
         description: (
           <>
             Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}

@@ -167,7 +167,8 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
         <div
           className="pointer-events-none fixed z-50 rounded-md bg-gray-800 border border-gray-700 px-3 py-1.5 text-sm text-gray-200 shadow-lg"
           style={{
-            transform: `translate(${tooltip.x + 10}px, ${tooltip.y + 10}px)`,
+            left: `${tooltip.x + 15}px`,
+            top: `${tooltip.y + 15}px`,
           }}
         >
           {tooltip.content}
