@@ -5,21 +5,14 @@ import * as LucideIcons from "lucide-react";
 interface DraggableMapCellProps {
   cell: MapCell;
   onDrop: (draggedCell: MapCell, targetCell: MapCell) => void;
-  onClick: () => void;
 }
 
-const DraggableMapCell = ({ cell, onDrop, onClick }: DraggableMapCellProps) => {
+const DraggableMapCell = ({ cell, onDrop }: DraggableMapCellProps) => {
   const isUnknown = cell.type === 'unknown';
-  let isDragging = false;
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    isDragging = true;
     e.dataTransfer.setData("application/json", JSON.stringify(cell));
     e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragEnd = () => {
-    isDragging = false;
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -35,29 +28,18 @@ const DraggableMapCell = ({ cell, onDrop, onClick }: DraggableMapCellProps) => {
     }
   };
 
-  const handleClick = () => {
-    // Pour éviter de déclencher le clic à la fin d'un glisser-déposer
-    setTimeout(() => {
-      if (!isDragging) {
-        onClick();
-      }
-    }, 0);
-  };
-
   const IconComponent = !isUnknown && cell.icon ? (LucideIcons as any)[cell.icon] : null;
 
   return (
     <div
       draggable
       onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      onClick={handleClick}
       className={cn(
-        "relative aspect-square flex flex-col items-center justify-center p-1 text-center font-bold rounded-md border-2 transition-all duration-200 w-full h-full cursor-pointer",
+        "relative aspect-square flex flex-col items-center justify-center p-1 text-center font-bold rounded-md border-2 transition-all duration-200 w-full h-full cursor-grab active:cursor-grabbing",
         isUnknown 
-          ? "bg-gray-800/20 border-gray-700/30"
+          ? "bg-gray-800/20 border-gray-700/30 hover:border-sky-500/50"
           : "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:border-sky-500"
       )}
     >
@@ -71,3 +53,6 @@ const DraggableMapCell = ({ cell, onDrop, onClick }: DraggableMapCellProps) => {
       </span>
     </div>
   );
+};
+
+export default DraggableMapCell;

@@ -34,11 +34,3 @@ export interface MapCell {
   type: string; // Type est maintenant plus générique
   icon: string | null;
 }
-
-export interface Item {
-  id: number;
-  name: string;
-  description: string | null;
-  type: string;
-  stackable: boolean;
-}
