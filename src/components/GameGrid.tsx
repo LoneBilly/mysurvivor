@@ -76,16 +76,22 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     }
 
     if (!cell.discovered) {
-      return "bg-gray-800/80 border-gray-700/50 text-gray-400 hover:border-sky-500 hover:bg-gray-800 cursor-pointer";
+      return cn(
+        "bg-gray-800/80 border-gray-700/50 text-gray-400 cursor-pointer",
+        !isMobile && "hover:border-sky-500 hover:bg-gray-800"
+      );
     }
     
     let typeStyle;
-
     switch (cell.type) {
       default:
-        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:bg-gray-900/60 hover:border-sky-500";
+        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30";
     }
-    return cn(typeStyle, "cursor-pointer");
+    return cn(
+      typeStyle,
+      "cursor-pointer",
+      !isMobile && "hover:bg-gray-900/60 hover:border-sky-500"
+    );
   };
 
   const formatZoneName = (name: string): string => {
@@ -137,8 +143,8 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
               return (
                 <Tooltip key={`${x}-${y}`}>
                   <TooltipTrigger asChild>{cellButton}</TooltipTrigger>
-                  <TooltipContent>
-                    <p>{formatZoneName(cell.type)}</p>
+                  <TooltipContent className="pointer-events-none">
+                    <p>{cell.discovered ? formatZoneName(cell.type) : "Zone non découverte"}</p>
                   </TooltipContent>
                 </Tooltip>
               );
