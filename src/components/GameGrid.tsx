@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MapCell } from "@/types/game";
 import { 
   Loader2, Tent, TreePine, Waves, Pickaxe, Mountain, Factory, Hospital, Shield, Home, ShoppingCart, 
-  HelpCircle, Building2, Car, Church, Library, PiggyBank, RollerCoaster, Scissors, Skull, Syringe, 
+  Building2, Car, Church, Library, PiggyBank, RollerCoaster, Scissors, Skull, Syringe, 
   Warehouse, TramFront, Wheat, Fuel, Music, Landmark 
 } from "lucide-react";
 
@@ -88,7 +88,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') return null;
-    if (!cell.discovered) return <HelpCircle className="w-1/2 h-1/2" />;
+    if (!cell.discovered) return <span className="text-3xl font-light text-gray-400">?</span>;
     
     const Icon = iconMap[cell.type] || iconMap['default'];
     return <Icon className="w-1/2 h-1/2" />;
@@ -180,7 +180,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
               {playerPosition.x === x && playerPosition.y === y && (
                 <>
                   <div className="absolute inset-0 border-2 border-sky-400 rounded-md pointer-events-none"></div>
-                  <div className="absolute top-1.5 left-1.5 w-2.5 h-2.5">
+                  <div className="absolute top-1 right-1 w-2 h-2">
                     <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
                     <div className="w-full h-full rounded-full bg-sky-400 relative"></div>
                   </div>
