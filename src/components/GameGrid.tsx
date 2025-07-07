@@ -4,6 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { MapCell } from "@/types/game";
 import { Loader2, Lock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface GameGridProps {
   onCellSelect: (cell: MapCell) => void;
@@ -15,6 +22,7 @@ interface GameGridProps {
 const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition }: GameGridProps) => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchMapLayout = async () => {
@@ -74,12 +82,15 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     let typeStyle;
 
     switch (cell.type) {
-      
-
       default:
-        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:bg-gray-900/60";
+        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:bg-gray-900/60 hover:border-sky-500";
     }
     return cn(typeStyle, "cursor-pointer");
+  };
+
+  const formatZoneName = (name: string): string => {
+    if (!name) return "Zone Inconnue";
+    return name.charAt(0).toUpperCase() + name.slice(1);
   };
 
   if (loading) {
@@ -91,35 +102,51 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   }
 
   return (
-    <div className="bg-gray-900/50 p-2 md:p-3 rounded-xl shadow-2xl h-full aspect-square flex items-center justify-center border border-gray-700/50 bg-[radial-gradient(theme(colors.gray.800)_1px,transparent_1px)] [background-size:20px_20px]">
-      <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full">
-        {grid.map((row, y) =>
-          row.map((cell, x) => (
-            <button
-              key={`${x}-${y}`}
-              onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
-              disabled={!cell || cell.type === 'unknown'}
-              className={cn(
-                "relative aspect-square flex items-center justify-center font-bold rounded-md border-2 transition-all duration-200",
-                getCellStyle(cell)
-              )}
-            >
-              {getCellContent(cell)}
-              {playerPosition.x === x && playerPosition.y === y && (
-                <div className="absolute top-1 right-1 w-2 h-2">
-                  <div className="w-full h-full rounded-full bg-blue-400 animate-ping absolute"></div>
-                  <div className="w-full h-full rounded-full bg-blue-500 relative"></div>
-                </div>
-              )}
-              {basePosition && basePosition.x === x && basePosition.y === y && (
-                <div className="absolute inset-0 border-2 border-amber-400 rounded-md pointer-events-none">
-                </div>
-              )}
-            </button>
-          ))
-        )}
+    <TooltipProvider delayDuration={100}>
+      <div className="bg-gray-900/50 p-2 md:p-3 rounded-xl shadow-2xl h-full aspect-square flex items-center justify-center border border-gray-700/50 bg-[radial-gradient(theme(colors.gray.800)_1px,transparent_1px)] [background-size:20px_20px]">
+        <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full">
+          {grid.map((row, y) =>
+            row.map((cell, x) => {
+              const cellButton = (
+                <button
+                  onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
+                  disabled={!cell || cell.type === 'unknown'}
+                  className={cn(
+                    "relative aspect-square flex items-center justify-center font-bold rounded-md border-2 transition-all duration-200 w-full h-full",
+                    getCellStyle(cell)
+                  )}
+                >
+                  {getCellContent(cell)}
+                  {playerPosition.x === x && playerPosition.y === y && (
+                    <div className="absolute top-1 right-1 w-2 h-2">
+                      <div className="w-full h-full rounded-full bg-blue-400 animate-ping absolute"></div>
+                      <div className="w-full h-full rounded-full bg-blue-500 relative"></div>
+                    </div>
+                  )}
+                  {basePosition && basePosition.x === x && basePosition.y === y && (
+                    <div className="absolute inset-0 border-2 border-amber-400 rounded-md pointer-events-none">
+                    </div>
+                  )}
+                </button>
+              );
+
+              if (isMobile || !cell || cell.type === 'unknown') {
+                return <div key={`${x}-${y}`}>{cellButton}</div>;
+              }
+
+              return (
+                <Tooltip key={`${x}-${y}`}>
+                  <TooltipTrigger asChild>{cellButton}</TooltipTrigger>
+                  <TooltipContent>
+                    <p>{formatZoneName(cell.type)}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
