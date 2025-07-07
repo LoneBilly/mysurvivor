@@ -44,22 +44,20 @@ const Admin = () => {
     if (pendingChanges.size === 0) return;
 
     setIsSaving(true);
-    const changesToSave = Array.from(pendingChanges.entries());
-
-    const updatePromises = changesToSave.map(([id, coords]) =>
-      supabase
-        .from('map_layout')
-        .update({ x: coords.x, y: coords.y })
-        .eq('id', id)
-    );
-
-    const results = await Promise.all(updatePromises);
     
-    const failedUpdates = results.filter(res => res.error);
+    const changesToSave = Array.from(pendingChanges.entries()).map(([id, coords]) => ({
+      id: id,
+      x: coords.x,
+      y: coords.y,
+    }));
 
-    if (failedUpdates.length > 0) {
-      showError(`Erreur lors de la sauvegarde de ${failedUpdates.length} zones.`);
-      console.error("Failed updates:", failedUpdates.map(f => f.error));
+    const { error } = await supabase.rpc('update_map_layout_positions', {
+      changes: changesToSave,
+    });
+
+    if (error) {
+      showError(`Erreur lors de la sauvegarde de la carte.`);
+      console.error("Failed to save map layout:", error);
     } else {
       showSuccess("La carte a été mise à jour avec succès !");
       setPendingChanges(new Map());
