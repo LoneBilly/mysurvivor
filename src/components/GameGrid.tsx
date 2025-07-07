@@ -105,7 +105,12 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     
     let typeStyle;
 
-    
+    switch (cell.type) {
+      
+
+      default:
+        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:bg-gray-900/60";
+    }
     return cn(typeStyle, "cursor-pointer");
   };
 
