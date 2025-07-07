@@ -13,7 +13,7 @@ export interface GameState {
   faim: number;
   soif: number;
   energie: number;
-  grille_decouverte: boolean[][];
+  zones_decouvertes: number[];
   inventaire: string[]; // L'inventaire n'est pas encore complètement implémenté
   position_x: number;
   position_y: number;
@@ -28,6 +28,7 @@ export interface GameState {
 }
 
 export interface MapCell {
+  id: number;
   x: number;
   y: number;
   type: 'foret' | 'plage' | 'unknown';

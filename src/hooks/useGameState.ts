@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { GameState, GameStats } from '@/types/game';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 
 export const useGameState = () => {
   const { user } = useAuth();
@@ -40,7 +40,7 @@ export const useGameState = () => {
           position_y: current_zone.y,
           base_position_x: base_zone?.x ?? null,
           base_position_y: base_zone?.y ?? null,
-          grille_decouverte: data.grille_decouverte || [],
+          zones_decouvertes: data.zones_decouvertes || [],
           inventaire: [],
         };
         setGameState(transformedState);
@@ -98,17 +98,6 @@ export const useGameState = () => {
     }
   };
   
-  const discoverCell = async (x: number, y: number) => {
-    if (!gameState) return;
-
-    const newGrid = gameState.grille_decouverte.map(row => [...row]);
-    if (newGrid[y] && newGrid[y][x] !== undefined) {
-      newGrid[y][x] = true;
-      await saveGameState({ grille_decouverte: newGrid });
-      showSuccess(`Case (${x}, ${y}) découverte !`);
-    }
-  };
-
   const updateStats = async (newStats: Partial<GameStats>) => {
     await saveGameState(newStats);
   };
@@ -123,7 +112,6 @@ export const useGameState = () => {
     gameState,
     loading,
     saveGameState,
-    discoverCell,
     updateStats,
     reload: loadGameState,
   };

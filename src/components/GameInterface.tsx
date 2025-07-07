@@ -66,10 +66,12 @@ const GameInterface = () => {
     setCurrentView('map');
   };
 
-  const handleCellSelect = async (x: number, y: number, type: MapCell['type']) => {
+  const handleCellSelect = async (cell: MapCell) => {
     if (!gameState) return;
 
-    const isDiscovered = gameState.grille_decouverte[y]?.[x];
+    const { x, y, type, id } = cell;
+
+    const isDiscovered = gameState.zones_decouvertes.includes(id);
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
@@ -190,7 +192,7 @@ const GameInterface = () => {
         {currentView === 'map' ? (
           <GameGrid 
             onCellSelect={handleCellSelect}
-            discoveredGrid={gameState.grille_decouverte}
+            discoveredZones={gameState.zones_decouvertes}
             playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
             basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
           />
