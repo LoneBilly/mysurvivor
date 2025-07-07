@@ -26,17 +26,35 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
 
   useEffect(() => {
     const fetchMapLayout = async () => {
-      setLoading(true);
       const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
       if (error) {
         console.error("Error fetching map layout:", error);
-        setLoading(false);
       } else {
         setMapLayout(data as MapCell[]);
-        setLoading(false);
       }
+      setLoading(false);
     };
+
+    // Fetch initial data
     fetchMapLayout();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('map-layout-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'map_layout' },
+        () => {
+          // When a change is detected, re-fetch the map.
+          fetchMapLayout();
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on component unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const generateGrid = (): (MapCell & { discovered: boolean })[][] => {
