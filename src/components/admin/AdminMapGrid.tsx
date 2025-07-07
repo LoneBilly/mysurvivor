@@ -4,9 +4,10 @@ import DraggableMapCell from "./DraggableMapCell";
 interface AdminMapGridProps {
   mapLayout: MapCell[];
   onMapUpdate: (newLayout: MapCell[], changedCells: MapCell[]) => void;
+  onCellClick: (cell: MapCell) => void;
 }
 
-const AdminMapGrid = ({ mapLayout, onMapUpdate }: AdminMapGridProps) => {
+const AdminMapGrid = ({ mapLayout, onMapUpdate, onCellClick }: AdminMapGridProps) => {
   const handleDrop = (draggedCell: MapCell, targetCell: MapCell) => {
     if (draggedCell.id === targetCell.id) return;
 
@@ -45,7 +46,12 @@ const AdminMapGrid = ({ mapLayout, onMapUpdate }: AdminMapGridProps) => {
         {grid.map((row, y) =>
           row.map((cell, x) =>
             cell ? (
-              <DraggableMapCell key={cell.id} cell={cell} onDrop={handleDrop} />
+              <DraggableMapCell 
+                key={cell.id} 
+                cell={cell} 
+                onDrop={handleDrop} 
+                onClick={() => onCellClick(cell)}
+              />
             ) : (
               <div key={`${x}-${y}`} className="aspect-square rounded-md" />
             )
