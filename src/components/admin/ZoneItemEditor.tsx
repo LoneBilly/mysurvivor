@@ -2,19 +2,28 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Search } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, ArrowLeft, Search, Plus } from 'lucide-react';
+import * as LucideIcons from "lucide-react";
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
+import IconPickerModal from './IconPickerModal';
+import ItemFormModal from './ItemFormModal';
 
 const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [spawnChances, setSpawnChances] = useState<Map<number, number>>(new Map());
   const initialZoneItemsRef = useRef<ZoneItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [zoneName, setZoneName] = useState(zone.type);
   const initialZoneNameRef = useRef(zone.type);
+  const [zoneIcon, setZoneIcon] = useState(zone.icon);
+  const initialZoneIconRef = useRef(zone.icon);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [isItemFormModalOpen, setIsItemFormModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
 
   const handleSaveProbabilities = useCallback(async () => {
     const initialChances = new Map(initialZoneItemsRef.current.map(i => [i.item_id, i.spawn_chance]));
@@ -35,7 +44,9 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
       }
     }
 
-    if (areMapsEqual) return;
+    if (areMapsEqual) {
+      return;
+    }
 
     const itemsToUpsert: ZoneItem[] = [];
     const itemIdsToDelete: number[] = [];
@@ -54,8 +65,12 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
 
     try {
       const promises = [];
-      if (itemsToUpsert.length > 0) promises.push(supabase.from('zone_items').upsert(itemsToUpsert, { onConflict: 'zone_id,item_id' }));
-      if (itemIdsToDelete.length > 0) promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
+      if (itemsToUpsert.length > 0) {
+        promises.push(supabase.from('zone_items').upsert(itemsToUpsert, { onConflict: 'zone_id,item_id' }));
+      }
+      if (itemIdsToDelete.length > 0) {
+        promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
+      }
       
       if (promises.length > 0) {
         const results = await Promise.all(promises);
@@ -64,8 +79,11 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
       }
 
       initialZoneItemsRef.current = Array.from(currentChances.entries()).map(([itemId, chance]) => ({
-        zone_id: zone.id, item_id: itemId, spawn_chance: chance
+        zone_id: zone.id,
+        item_id: itemId,
+        spawn_chance: chance
       }));
+
     } catch (error: any) {
       showError("Erreur de sauvegarde des probabilités.");
       console.error(error);
@@ -86,35 +104,52 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [itemsRes, zoneItemsRes] = await Promise.all([
-          supabase.from('items').select('*'),
-          supabase.from('zone_items').select('*').eq('zone_id', zone.id)
-        ]);
+  const handleZoneIconSave = async (iconName: string) => {
+    if (iconName === initialZoneIconRef.current) return;
 
-        if (itemsRes.error) throw itemsRes.error;
-        if (zoneItemsRes.error) throw zoneItemsRes.error;
+    const { error } = await supabase.from('map_layout').update({ icon: iconName }).eq('id', zone.id);
 
-        const sortedItems = (itemsRes.data || []).sort((a, b) => a.name.localeCompare(b.name));
-        setItems(sortedItems);
-        
-        const initialData = zoneItemsRes.data || [];
-        initialZoneItemsRef.current = initialData;
-        const chancesMap = new Map<number, number>();
-        initialData.forEach(zi => chancesMap.set(zi.item_id, zi.spawn_chance));
-        setSpawnChances(chancesMap);
-      } catch (error: any) {
-        showError("Erreur de chargement.");
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    if (error) {
+      showError("Erreur de mise à jour de l'icône.");
+      setZoneIcon(initialZoneIconRef.current);
+    } else {
+      showSuccess("Icône de la zone mise à jour.");
+      setZoneIcon(iconName);
+      initialZoneIconRef.current = iconName;
+    }
+  };
+
+  const fetchItemsAndZoneItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [itemsRes, zoneItemsRes] = await Promise.all([
+        supabase.from('items').select('*'),
+        supabase.from('zone_items').select('*').eq('zone_id', zone.id)
+      ]);
+
+      if (itemsRes.error) throw itemsRes.error;
+      if (zoneItemsRes.error) throw zoneItemsRes.error;
+
+      const sortedItems = (itemsRes.data || []).sort((a, b) => a.name.localeCompare(b.name));
+      setItems(sortedItems);
+      
+      const initialData = zoneItemsRes.data || [];
+      initialZoneItemsRef.current = initialData;
+      const chancesMap = new Map<number, number>();
+      initialData.forEach(zi => chancesMap.set(zi.item_id, zi.spawn_chance));
+      setSpawnChances(chancesMap);
+
+    } catch (error: any) {
+      showError("Erreur de chargement.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }, [zone.id]);
+
+  useEffect(() => {
+    fetchItemsAndZoneItems();
+  }, [zone.id, fetchItemsAndZoneItems]);
 
   const handleChanceChange = (itemId: number, chance: string) => {
     const newChances = new Map(spawnChances);
@@ -127,9 +162,21 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     setSpawnChances(newChances);
   };
 
+  const handleEditItem = (itemToEdit: Item) => {
+    setEditingItem(itemToEdit);
+    setIsItemFormModalOpen(true);
+  };
+
+  const handleCreateItem = () => {
+    setEditingItem(null);
+    setIsItemFormModalOpen(true);
+  };
+
   const filteredItems = items.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const CurrentIconComponent = zoneIcon ? (LucideIcons as any)[zoneIcon] : LucideIcons.Map;
 
   return (
     <Card className="w-full max-w-2xl mx-auto bg-gray-800/50 border-gray-700 text-white">
@@ -139,7 +186,9 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
             <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl text-gray-400">Zone :</span>
+                <Button variant="ghost" size="icon" onClick={() => setIsIconPickerOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
+                  {CurrentIconComponent && <CurrentIconComponent className="w-6 h-6" />}
+                </Button>
                 <Input
                   value={zoneName}
                   onChange={(e) => setZoneName(e.target.value)}
@@ -147,11 +196,10 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                   className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto"
                 />
               </div>
-              <CardDescription className="text-gray-400 mt-1">Modifiez les probabilités d'apparition des objets (0-100%).</CardDescription>
             </div>
           </div>
         </div>
-        <div className="relative mt-4">
+        <div className="relative mt-4 flex items-center gap-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             type="text"
@@ -160,6 +208,9 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-gray-900/50 border-gray-600 pl-10"
           />
+          <Button onClick={handleCreateItem} variant="outline" size="icon" className="bg-gray-700 border-gray-600 hover:bg-gray-600">
+            <Plus className="w-4 h-4" />
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -169,7 +220,9 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
           <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-2">
             {filteredItems.map(item => (
               <div key={item.id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded-md">
-                <label htmlFor={`item-${item.id}`} className="text-base">{item.name}</label>
+                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400">
+                  {item.name}
+                </Button>
                 <div className="flex items-center gap-2">
                   <Input
                     id={`item-${item.id}`}
@@ -188,6 +241,20 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
           </div>
         )}
       </CardContent>
+
+      <IconPickerModal
+        isOpen={isIconPickerOpen}
+        onClose={() => setIsIconPickerOpen(false)}
+        currentIcon={zoneIcon}
+        onSelectIcon={handleZoneIconSave}
+      />
+
+      <ItemFormModal
+        isOpen={isItemFormModalOpen}
+        onClose={() => setIsItemFormModalOpen(false)}
+        item={editingItem}
+        onSave={fetchItemsAndZoneItems}
+      />
     </Card>
   );
 };
