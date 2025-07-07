@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import AdminMapGrid from "@/components/admin/AdminMapGrid";
@@ -9,15 +9,32 @@ import { Loader2, Save } from "lucide-react";
 
 const Admin = () => {
   const navigate = useNavigate();
-  const [pendingChanges, setPendingChanges] = useState<Map<number, MapCell>>(new Map());
+  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingChanges, setPendingChanges] = useState<Map<number, { x: number; y: number }>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
-  const [mapVersion, setMapVersion] = useState(0);
 
-  const handleMapUpdate = (changedCells: MapCell[]) => {
+  useEffect(() => {
+    const fetchMapLayout = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
+      if (error) {
+        console.error("Error fetching map layout:", error);
+        showError("Impossible de charger la carte.");
+      } else {
+        setMapLayout(data as MapCell[]);
+      }
+      setLoading(false);
+    };
+    fetchMapLayout();
+  }, []);
+
+  const handleMapUpdate = (newLayout: MapCell[], changedCells: MapCell[]) => {
+    setMapLayout(newLayout); // Met à jour l'affichage immédiatement
     setPendingChanges(prev => {
       const newChanges = new Map(prev);
       changedCells.forEach(cell => {
-        newChanges.set(cell.id, cell);
+        newChanges.set(cell.id, { x: cell.x, y: cell.y });
       });
       return newChanges;
     });
@@ -27,13 +44,13 @@ const Admin = () => {
     if (pendingChanges.size === 0) return;
 
     setIsSaving(true);
-    const changesToSave = Array.from(pendingChanges.values());
+    const changesToSave = Array.from(pendingChanges.entries());
 
-    const updatePromises = changesToSave.map(cell =>
+    const updatePromises = changesToSave.map(([id, coords]) =>
       supabase
         .from('map_layout')
-        .update({ x: cell.x, y: cell.y })
-        .eq('id', cell.id)
+        .update({ x: coords.x, y: coords.y })
+        .eq('id', id)
     );
 
     const results = await Promise.all(updatePromises);
@@ -46,7 +63,6 @@ const Admin = () => {
     } else {
       showSuccess("La carte a été mise à jour avec succès !");
       setPendingChanges(new Map());
-      setMapVersion(v => v + 1); // Force le re-rendu du composant grille
     }
 
     setIsSaving(false);
@@ -75,7 +91,13 @@ const Admin = () => {
           </div>
         </div>
         
-        <AdminMapGrid onMapUpdate={handleMapUpdate} key={mapVersion} />
+        {loading ? (
+          <div className="bg-gray-800 p-2 rounded-lg shadow-lg h-[500px] w-full flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-white" />
+          </div>
+        ) : (
+          <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} />
+        )}
 
       </div>
     </div>
