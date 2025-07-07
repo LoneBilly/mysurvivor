@@ -178,13 +178,10 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
             >
               {getCellContent(cell)}
               {playerPosition.x === x && playerPosition.y === y && (
-                <>
-                  <div className="absolute inset-0 border-2 border-sky-400 rounded-md pointer-events-none"></div>
-                  <div className="absolute top-1 right-1 w-2 h-2">
-                    <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
-                    <div className="w-full h-full rounded-full bg-sky-400 relative"></div>
-                  </div>
-                </>
+                <div className="absolute top-1 right-1 w-2 h-2">
+                  <div className="w-full h-full rounded-full bg-blue-400 animate-ping absolute"></div>
+                  <div className="w-full h-full rounded-full bg-blue-500 relative"></div>
+                </div>
               )}
               {basePosition && basePosition.x === x && basePosition.y === y && (
                 <div className="absolute inset-0 border-2 border-amber-400 rounded-md pointer-events-none">
