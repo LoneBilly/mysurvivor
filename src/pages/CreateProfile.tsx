@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from "@/components/ui/use-toast"
+import { showSuccess, showError } from '@/utils/toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 const CreateProfile = () => {
@@ -12,7 +12,6 @@ const CreateProfile = () => {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -24,19 +23,11 @@ const CreateProfile = () => {
   const handleCreateProfile = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast({
-        title: "Erreur",
-        description: "Utilisateur non authentifié.",
-        variant: "destructive",
-      });
+      showError("Utilisateur non authentifié.");
       return;
     }
     if (username.length < 3) {
-      toast({
-        title: "Pseudonyme trop court",
-        description: "Votre pseudonyme doit contenir au moins 3 caractères.",
-        variant: "destructive",
-      });
+      showError("Votre pseudonyme doit contenir au moins 3 caractères.");
       return;
     }
 
@@ -48,17 +39,10 @@ const CreateProfile = () => {
       .eq('id', user.id);
 
     if (error) {
-      toast({
-        title: "Erreur",
-        description: "Ce pseudonyme est peut-être déjà pris. Veuillez en choisir un autre.",
-        variant: "destructive",
-      });
+      showError("Ce pseudonyme est peut-être déjà pris. Veuillez en choisir un autre.");
       console.error('Error updating profile:', error);
     } else {
-      toast({
-        title: "Profil créé !",
-        description: "Votre pseudonyme a été enregistré. Bienvenue !",
-      });
+      showSuccess("Votre pseudonyme a été enregistré. Bienvenue !");
       // The AuthProvider will detect the change and redirect to '/'
       // but we can force it for better UX
       navigate('/');
