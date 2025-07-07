@@ -11,6 +11,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const [pendingChanges, setPendingChanges] = useState<Map<number, MapCell>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
+  const [mapVersion, setMapVersion] = useState(0);
 
   const handleMapUpdate = (changedCells: MapCell[]) => {
     setPendingChanges(prev => {
@@ -45,6 +46,7 @@ const Admin = () => {
     } else {
       showSuccess("La carte a été mise à jour avec succès !");
       setPendingChanges(new Map());
+      setMapVersion(v => v + 1); // Force le re-rendu du composant grille
     }
 
     setIsSaving(false);
@@ -73,7 +75,7 @@ const Admin = () => {
           </div>
         </div>
         
-        <AdminMapGrid onMapUpdate={handleMapUpdate} />
+        <AdminMapGrid onMapUpdate={handleMapUpdate} key={mapVersion} />
 
       </div>
     </div>

@@ -76,7 +76,7 @@ const AdminMapGrid = ({ onMapUpdate }: AdminMapGridProps) => {
       <div className="grid grid-cols-7 gap-1.5 w-full">
         {grid.map((row, y) =>
           row.map((cell, x) =>
-            cell ? (
+            (cell && cell.type !== 'unknown') ? (
               <DraggableMapCell key={cell.id} cell={cell} onDrop={handleDrop} />
             ) : (
               <div key={`${x}-${y}`} className="aspect-square bg-gray-800/20 rounded-md" />
