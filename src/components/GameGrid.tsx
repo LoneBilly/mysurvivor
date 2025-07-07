@@ -2,11 +2,8 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCell } from "@/types/game";
-import { 
-  Loader2, Tent, TreePine, Waves, Pickaxe, Mountain, Factory, Hospital, Shield, Home, ShoppingCart, 
-  Building2, Car, Church, Library, PiggyBank, RollerCoaster, Scissors, Skull, Syringe, 
-  Warehouse, TramFront, Wheat, Fuel, Music, Landmark 
-} from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 
 interface GameGridProps {
   onCellSelect: (cell: MapCell) => void;
@@ -14,40 +11,6 @@ interface GameGridProps {
   playerPosition: { x: number; y: number };
   basePosition: { x: number; y: number } | null;
 }
-
-const iconMap: { [key: string]: React.ElementType } = {
-  'foret': TreePine,
-  'plage': Waves,
-  'Rivière': Waves,
-  'Mine': Pickaxe,
-  'Grotte': Mountain,
-  'Zone industrielle': Factory,
-  'Hôpital': Hospital,
-  'Base militaire': Shield,
-  'Quartier résidentiel': Home,
-  'Supermarché': ShoppingCart,
-  'Camp de survivants': Tent,
-  'Parking souterrain': Car,
-  'Entrepôt portuaire': Warehouse,
-  'Musée': Landmark,
-  'Métro': TramFront,
-  'Ferme': Wheat,
-  'Station-service': Fuel,
-  'Bibliothèque': Library,
-  'Commissariat de police': Shield,
-  'Bunker': Shield,
-  'Pharmacie': Syringe,
-  'Église': Church,
-  'Magasin de vêtements': Scissors,
-  'Ruine': Skull,
-  'Boite de nuit': Music,
-  'Usine désaffectée': Factory,
-  'Banque': PiggyBank,
-  'Abattoir': Skull,
-  "Parc d'attraction": RollerCoaster,
-  'Concession automobile': Car,
-  'default': Building2,
-};
 
 const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition }: GameGridProps) => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
@@ -88,10 +51,15 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') return null;
-    if (!cell.discovered) return <span className="text-3xl font-light text-gray-400">?</span>;
+    if (!cell.discovered) return <Lock className="w-1/2 h-1/2 text-gray-500" />;
     
-    const Icon = iconMap[cell.type] || iconMap['default'];
-    return <Icon className="w-1/2 h-1/2" />;
+    const IconComponent = cell.icon ? (LucideIcons as any)[cell.icon] : LucideIcons.Building2;
+    
+    if (!IconComponent) {
+      return <LucideIcons.Building2 className="w-1/2 h-1/2" />;
+    }
+
+    return <IconComponent className="w-1/2 h-1/2" />;
   };
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
