@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { useNavigate } from 'react-router-dom';
 
 interface OptionsModalProps {
   isOpen: boolean;
@@ -20,7 +21,8 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const navigate = useNavigate();
   const [currentUsername, setCurrentUsername] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
@@ -81,6 +83,11 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
     }
   };
 
+  const handleGoToAdmin = () => {
+    navigate('/admin');
+    onClose();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
@@ -111,6 +118,14 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
           <Separator className="bg-gray-700" />
           <div className="space-y-4">
             <h4 className="font-medium text-gray-200">Compte</h4>
+            {role === 'admin' && (
+              <>
+                <Button onClick={handleGoToAdmin} variant="secondary" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                  Panel d'Administration
+                </Button>
+                <Separator className="bg-gray-700" />
+              </>
+            )}
             <Button onClick={handleLogout} variant="destructive" disabled={loading} className="w-full">
               Déconnexion
             </Button>
