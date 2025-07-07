@@ -60,7 +60,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     }
 
     if (!cell.discovered) {
-      return "bg-gray-400 hover:bg-gray-300 text-gray-700 cursor-pointer border-gray-500";
+      return "bg-[#384152] hover:bg-[#4c5564] text-gray-300 cursor-pointer border-gray-700";
     }
     
     const urbanStyle = "bg-slate-200 hover:bg-slate-300 text-slate-800 cursor-pointer border-slate-400";
@@ -117,7 +117,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   }
 
   return (
-    <div className="bg-gray-800 p-4 md:p-6 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
+    <div className="bg-[#4c5564] p-4 md:p-6 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
       <div className="grid grid-cols-7 gap-1 md:gap-2 w-full h-full">
         {grid.map((row, y) =>
           row.map((cell, x) => (
@@ -126,8 +126,9 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
               onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
               disabled={!cell || cell.type === 'unknown'}
               className={cn(
-                "relative aspect-square flex items-center justify-center text-lg md:text-xl font-bold rounded border-2 transition-colors",
-                getCellStyle(cell)
+                "relative aspect-square flex items-center justify-center font-bold rounded border-2 transition-colors",
+                getCellStyle(cell),
+                cell && !cell.discovered ? "text-base" : "text-lg md:text-xl"
               )}
             >
               {getCellContent(cell)}
