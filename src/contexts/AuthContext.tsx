@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  role: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -28,6 +29,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,7 +38,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (session?.user) {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('username')
+          .select('username, role')
           .eq('id', session.user.id)
           .single();
 
@@ -44,12 +46,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           console.error('Error fetching profile:', error);
         }
 
-        if (profile && profile.username === null && location.pathname !== '/create-profile') {
-          navigate('/create-profile');
-        } 
-        else if (profile && profile.username !== null && location.pathname === '/create-profile') {
-          navigate('/');
+        if (profile) {
+          setRole(profile.role);
+          if (profile.username === null && location.pathname !== '/create-profile') {
+            navigate('/create-profile');
+          } else if (profile.username !== null && location.pathname === '/create-profile') {
+            navigate('/');
+          }
         }
+      } else {
+        setRole(null);
       }
       setLoading(false);
     };
@@ -80,6 +86,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     loading,
+    role,
     signOut,
   };
 
