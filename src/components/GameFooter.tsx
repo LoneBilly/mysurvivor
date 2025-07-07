@@ -12,11 +12,13 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
   const StatItem = ({ 
     icon: Icon, 
     label, 
-    value 
+    value,
+    colorClassName
   }: { 
     icon: any; 
     label: string; 
-    value: number; 
+    value: number;
+    colorClassName: string;
   }) => (
     <div className="flex flex-col items-start space-y-1 p-3 rounded-lg bg-gray-700 border border-gray-600 w-full">
       <div className="flex items-center justify-between w-full mb-1"> {/* Adjusted for label and value on same line */}
@@ -26,11 +28,7 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
         </div>
         <span className="text-sm font-bold text-white">{value}/100</span> {/* Changed to X/100 format */}
       </div>
-      <Progress value={value} className="w-full h-2 bg-gray-600" indicatorClassName={
-        value > 70 ? "bg-green-500" : 
-        value > 30 ? "bg-yellow-500" : 
-        "bg-red-500"
-      } />
+      <Progress value={value} className="w-full h-2 bg-gray-600" indicatorClassName={colorClassName} />
     </div>
   );
 
@@ -43,21 +41,25 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
             icon={Heart}
             label="Vie"
             value={stats.vie}
+            colorClassName="bg-red-500"
           />
           <StatItem
             icon={Utensils}
             label="Faim"
             value={stats.faim}
+            colorClassName="bg-orange-500"
           />
           <StatItem
             icon={Droplets}
             label="Soif"
             value={stats.soif}
+            colorClassName="bg-blue-500"
           />
           <StatItem
             icon={Zap}
             label="Énergie"
             value={stats.energie}
+            colorClassName="bg-yellow-500"
           />
         </div>
         <Button
@@ -77,21 +79,25 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
             icon={Heart}
             label="Vie"
             value={stats.vie}
+            colorClassName="bg-red-500"
           />
           <StatItem
             icon={Utensils}
             label="Faim"
             value={stats.faim}
+            colorClassName="bg-orange-500"
           />
           <StatItem
             icon={Droplets}
             label="Soif"
             value={stats.soif}
+            colorClassName="bg-blue-500"
           />
           <StatItem
             icon={Zap}
             label="Énergie"
             value={stats.energie}
+            colorClassName="bg-yellow-500"
           />
         </div>
         
