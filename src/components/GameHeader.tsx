@@ -1,67 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { Heart, Zap, Droplet, Utensils } from 'lucide-react';
+import { Trophy, Settings, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface GameHeaderProps {
-  vie: number;
-  energie: number;
-  soif: number;
-  faim: number;
   joursSurvecus: number;
-  spawnDate: string;
+  onLeaderboard: () => void;
+  onOptions: () => void;
+  currentView: 'map' | 'base';
+  onBackToMap: () => void;
 }
 
-const GameHeader: React.FC<GameHeaderProps> = ({ vie, energie, soif, faim, joursSurvecus, spawnDate }) => {
-  const [hoursSinceSpawn, setHoursSinceSpawn] = useState(0);
-
-  useEffect(() => {
-    if (spawnDate) {
-      const calculateTime = () => {
-        const spawnDateTime = new Date(spawnDate);
-        const now = new Date();
-        const diffInMs = now.getTime() - spawnDateTime.getTime();
-        const hours = Math.floor(diffInMs / (1000 * 60 * 60));
-        setHoursSinceSpawn(hours);
-      };
-
-      calculateTime();
-      const intervalId = setInterval(calculateTime, 60000); // Mise à jour toutes les minutes
-
-      return () => clearInterval(intervalId);
-    }
-  }, [spawnDate]);
-
+const GameHeader = ({ joursSurvecus, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
   return (
-    <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center">
-          <Heart className="text-red-500 mr-2" />
-          <span>{vie}</span>
-        </div>
-        <div className="flex items-center">
-          <Zap className="text-yellow-500 mr-2" />
-          <span>{energie}</span>
-        </div>
-        <div className="flex items-center">
-          <Droplet className="text-blue-500 mr-2" />
-          <span>{soif}</span>
-        </div>
-        <div className="flex items-center">
-          <Utensils className="text-orange-500 mr-2" />
-          <span>{faim}</span>
-        </div>
+    <header className="flex items-center justify-between p-4 bg-gray-800/50 backdrop-blur-sm text-white border-b border-gray-700/50 h-[73px]">
+      <div className="flex-1 flex justify-start">
+        {currentView === 'map' ? (
+          <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-gray-700">
+            <Trophy className="w-5 h-5" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            onClick={onBackToMap}
+            className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white p-2 sm:px-3"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="hidden sm:inline">Retour</span>
+          </Button>
+        )}
       </div>
       <div className="flex-none text-center px-4">
-        <p className="text-lg">
-          Jours survécus: <span className="text-green-500 font-bold">{joursSurvecus}</span>
-        </p>
-        <p className="text-sm text-gray-400 mt-1">
-          Temps de jeu : {hoursSinceSpawn}h
-        </p>
+        <p className="text-sm text-gray-400">Jour</p>
+        <p className="text-2xl font-bold">{joursSurvecus}</p>
       </div>
-      <div>
-        {/* Espace réservé pour d'autres éléments */}
+      <div className="flex-1 flex justify-end">
+        <Button variant="ghost" size="icon" onClick={onOptions} className="hover:bg-gray-700">
+          <Settings className="w-5 h-5" />
+        </Button>
       </div>
-    </div>
+    </header>
   );
 };
 
