@@ -18,8 +18,8 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -39,9 +39,9 @@ function App() {
             }
           />
         </Routes>
-      </Router>
-      <Toaster />
-    </AuthProvider>
+        <Toaster />
+      </AuthProvider>
+    </Router>
   );
 }
 
