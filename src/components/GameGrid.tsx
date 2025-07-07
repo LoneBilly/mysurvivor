@@ -138,7 +138,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
                 </>
               )}
               {basePosition && basePosition.x === x && basePosition.y === y && (
-                <Tent className="absolute top-0.5 left-0 h-3 w-3 text-indigo-600" />
+                <Tent className="absolute top-0.5 left-0.5 h-3 w-3 text-indigo-600" />
               )}
             </button>
           ))
