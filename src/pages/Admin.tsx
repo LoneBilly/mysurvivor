@@ -63,9 +63,8 @@ const Admin = () => {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8 gap-4">
           <div className="flex items-center gap-4">
-            <Button onClick={() => navigate('/')} variant="outline" className="bg-gray-800 border-gray-700 hover:bg-gray-700">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour au jeu
+            <Button onClick={() => navigate('/')} variant="outline" size="icon" className="bg-gray-800 border-gray-700 hover:bg-gray-700">
+              <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
               <h1 className="text-3xl font-bold">Panneau d'Administration</h1>

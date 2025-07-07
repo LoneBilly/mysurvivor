@@ -21,43 +21,38 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
-    const itemsToUpsert: ZoneItem[] = [];
-    const itemIdsToDelete: number[] = [];
-    const newInitialItemsState: ZoneItem[] = [];
 
-    const initialChances = new Map(initialZoneItems.map(i => [i.item_id, i.spawn_chance]));
-    const allItemIds = new Set([...initialChances.keys(), ...spawnChances.keys()]);
+    const itemsToUpsert: ZoneItem[] = Array.from(spawnChances.entries())
+      .filter(([, chance]) => chance > 0)
+      .map(([itemId, chance]) => ({ zone_id: zone.id, item_id: itemId, spawn_chance: chance }));
 
-    allItemIds.forEach(itemId => {
-      const initialChance = initialChances.get(itemId);
-      const currentChance = spawnChances.get(itemId);
-
-      if (currentChance !== undefined && currentChance > 0) {
-        if (currentChance !== initialChance) {
-          itemsToUpsert.push({ zone_id: zone.id, item_id: itemId, spawn_chance: currentChance });
-        }
-        newInitialItemsState.push({ zone_id: zone.id, item_id: itemId, spawn_chance: currentChance });
-      } else {
-        if (initialChance !== undefined) {
-          itemIdsToDelete.push(itemId);
-        }
-      }
-    });
+    const currentItemIdsWithChance = new Set(itemsToUpsert.map(i => i.item_id));
+    const itemIdsToDelete: number[] = initialZoneItems
+      .filter(item => !currentItemIdsWithChance.has(item.item_id))
+      .map(item => item.item_id);
 
     if (itemsToUpsert.length === 0 && itemIdsToDelete.length === 0) {
-      setIsSaving(false);
-      return;
+      const changesMade = initialZoneItems.length > 0;
+      if (!changesMade) {
+        setIsSaving(false);
+        return;
+      }
     }
 
     try {
       const promises = [];
-      if (itemsToUpsert.length > 0) promises.push(supabase.from('zone_items').upsert(itemsToUpsert));
-      if (itemIdsToDelete.length > 0) promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
+      if (itemsToUpsert.length > 0) {
+        promises.push(supabase.from('zone_items').upsert(itemsToUpsert, { onConflict: 'zone_id,item_id' }));
+      }
+      if (itemIdsToDelete.length > 0) {
+        promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
+      }
       
       const results = await Promise.all(promises);
       for (const res of results) { if (res.error) throw res.error; }
 
-      setInitialZoneItems(newInitialItemsState);
+      const { data: newZoneItems } = await supabase.from('zone_items').select('*').eq('zone_id', zone.id);
+      setInitialZoneItems(newZoneItems || []);
       showSuccess("Probabilités sauvegardées.");
     } catch (error: any) {
       showError("Erreur de sauvegarde des probabilités.");
