@@ -11,7 +11,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [spawnChances, setSpawnChances] = useState<Map<number, number>>(new Map());
-  const [initialZoneItems, setInitialZoneItems] = useState<ZoneItem[]>([]);
+  const initialZoneItemsRef = useRef<ZoneItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,22 +20,42 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const isInitialMount = useRef(true);
 
   const handleSave = useCallback(async () => {
+    const initialChances = new Map(initialZoneItemsRef.current.map(i => [i.item_id, i.spawn_chance]));
+    const currentChances = new Map<number, number>();
+    for (const [key, value] of spawnChances.entries()) {
+      if (value > 0) {
+        currentChances.set(key, value);
+      }
+    }
+
+    let areMapsEqual = initialChances.size === currentChances.size;
+    if (areMapsEqual) {
+      for (const [key, value] of initialChances.entries()) {
+        if (currentChances.get(key) !== value) {
+          areMapsEqual = false;
+          break;
+        }
+      }
+    }
+
+    if (areMapsEqual) {
+      return;
+    }
+
     setIsSaving(true);
 
-    const itemsToUpsert: ZoneItem[] = Array.from(spawnChances.entries())
-      .filter(([, chance]) => chance > 0)
-      .map(([itemId, chance]) => ({ zone_id: zone.id, item_id: itemId, spawn_chance: chance }));
+    const itemsToUpsert: ZoneItem[] = [];
+    const itemIdsToDelete: number[] = [];
 
-    const currentItemIdsWithChance = new Set(itemsToUpsert.map(i => i.item_id));
-    const itemIdsToDelete: number[] = initialZoneItems
-      .filter(item => !currentItemIdsWithChance.has(item.item_id))
-      .map(item => item.item_id);
+    for (const [itemId, chance] of currentChances.entries()) {
+      if (initialChances.get(itemId) !== chance) {
+        itemsToUpsert.push({ zone_id: zone.id, item_id: itemId, spawn_chance: chance });
+      }
+    }
 
-    if (itemsToUpsert.length === 0 && itemIdsToDelete.length === 0) {
-      const changesMade = initialZoneItems.length > 0;
-      if (!changesMade) {
-        setIsSaving(false);
-        return;
+    for (const [itemId] of initialChances.entries()) {
+      if (!currentChances.has(itemId)) {
+        itemIdsToDelete.push(itemId);
       }
     }
 
@@ -48,19 +68,25 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
       }
       
-      const results = await Promise.all(promises);
-      for (const res of results) { if (res.error) throw res.error; }
+      if (promises.length > 0) {
+        const results = await Promise.all(promises);
+        for (const res of results) { if (res.error) throw res.error; }
+        showSuccess("Probabilités sauvegardées.");
+      }
 
-      const { data: newZoneItems } = await supabase.from('zone_items').select('*').eq('zone_id', zone.id);
-      setInitialZoneItems(newZoneItems || []);
-      showSuccess("Probabilités sauvegardées.");
+      initialZoneItemsRef.current = Array.from(currentChances.entries()).map(([itemId, chance]) => ({
+        zone_id: zone.id,
+        item_id: itemId,
+        spawn_chance: chance
+      }));
+
     } catch (error: any) {
       showError("Erreur de sauvegarde des probabilités.");
       console.error(error);
     } finally {
       setIsSaving(false);
     }
-  }, [zone.id, spawnChances, initialZoneItems]);
+  }, [zone.id, spawnChances]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -78,7 +104,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         setItems(sortedItems);
         
         const initialData = zoneItemsRes.data || [];
-        setInitialZoneItems(initialData);
+        initialZoneItemsRef.current = initialData;
         const chancesMap = new Map<number, number>();
         initialData.forEach(zi => chancesMap.set(zi.item_id, zi.spawn_chance));
         setSpawnChances(chancesMap);
