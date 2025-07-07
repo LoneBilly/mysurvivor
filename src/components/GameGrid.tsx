@@ -51,41 +51,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') return "";
     if (!cell.discovered) return "?";
-    
-    switch (cell.type) {
-      case 'foret': return "🌲";
-      case 'plage': return "🏖️";
-      case 'Parking souterrain': return "🅿️";
-      case 'Entrepôt portuaire': return "⚓";
-      case 'Musée': return "🏛️";
-      case 'Zone industrielle': return "🏭";
-      case 'Camp de survivants': return "🏕️";
-      case 'Mine': return "⛏️";
-      case 'Hôpital': return "🏥";
-      case 'Métro': return "🚇";
-      case 'Grotte': return "🦇";
-      case 'Ferme': return "🚜";
-      case 'Station-service': return "⛽";
-      case 'Base militaire': return "🎖️";
-      case 'Quartier résidentiel': return "🏘️";
-      case 'Bibliothèque': return "📚";
-      case 'Commissariat de police': return "🚓";
-      case 'Bunker': return "🛡️";
-      case 'Pharmacie': return "💊";
-      case 'Rivière': return "💧";
-      case 'Église': return "⛪";
-      case 'Magasin de vêtements': return "👕";
-      case 'Ruine': return "🏚️";
-      case 'Boite de nuit': return "💃";
-      case 'Usine désaffectée': return "🏭";
-      case 'Banque': return "🏦";
-      case 'Abattoir': return "🔪";
-      case "Parc d'attraction": return "🎡";
-      case 'Concession automobile': return "🚗";
-      case 'Supermarché': return "🛒";
-      default:
-        return "?";
-    }
+    return cell.icon || "";
   };
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {

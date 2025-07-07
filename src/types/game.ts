@@ -31,5 +31,6 @@ export interface MapCell {
   id: number;
   x: number;
   y: number;
-  type: 'foret' | 'plage' | 'unknown' | 'Parking souterrain' | 'Entrepôt portuaire' | 'Musée' | 'Zone industrielle' | 'Camp de survivants' | 'Mine' | 'Hôpital' | 'Métro' | 'Grotte' | 'Ferme' | 'Station-service' | 'Base militaire' | 'Quartier résidentiel' | 'Bibliothèque' | 'Commissariat de police' | 'Bunker' | 'Pharmacie' | 'Rivière' | 'Église' | 'Magasin de vêtements' | 'Ruine' | 'Boite de nuit' | 'Usine désaffectée' | 'Banque' | 'Abattoir' | "Parc d'attraction" | 'Concession automobile' | 'Supermarché';
+  type: string; // Type est maintenant plus générique
+  icon: string | null;
 }
