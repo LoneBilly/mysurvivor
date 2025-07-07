@@ -105,52 +105,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     
     let typeStyle;
 
-    switch (cell.type) {
-      case 'foret':
-        typeStyle = "border-green-700/50 text-green-300 bg-green-900/30 hover:bg-green-900/60";
-        break;
-      case 'plage':
-        typeStyle = "border-yellow-700/50 text-yellow-300 bg-yellow-900/30 hover:bg-yellow-900/60";
-        break;
-      case 'Rivière':
-        typeStyle = "border-blue-700/50 text-blue-300 bg-blue-900/30 hover:bg-blue-900/60";
-        break;
-      case 'Mine':
-      case 'Grotte':
-        typeStyle = "border-stone-600/50 text-stone-300 bg-stone-800/30 hover:bg-stone-800/60";
-        break;
-      
-      case 'Parking souterrain':
-      case 'Entrepôt portuaire':
-      case 'Musée':
-      case 'Zone industrielle':
-      case 'Camp de survivants':
-      case 'Hôpital':
-      case 'Métro':
-      case 'Ferme':
-      case 'Station-service':
-      case 'Base militaire':
-      case 'Quartier résidentiel':
-      case 'Bibliothèque':
-      case 'Commissariat de police':
-      case 'Bunker':
-      case 'Pharmacie':
-      case 'Église':
-      case 'Magasin de vêtements':
-      case 'Ruine':
-      case 'Boite de nuit':
-      case 'Usine désaffectée':
-      case 'Banque':
-      case 'Abattoir':
-      case "Parc d'attraction":
-      case 'Concession automobile':
-      case 'Supermarché':
-        typeStyle = "border-slate-600/50 text-slate-300 bg-slate-800/30 hover:bg-slate-800/60";
-        break;
-
-      default:
-        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:bg-gray-900/60";
-    }
+    
     return cn(typeStyle, "cursor-pointer");
   };
 
