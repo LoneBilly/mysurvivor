@@ -111,5 +111,11 @@
 
   body {
     @apply bg-background text-foreground;
+    touch-action: manipulation; /* Empêche le zoom par double-tap */
+  }
+
+  /* Empêche le zoom automatique d'iOS sur les champs de saisie */
+  input, textarea, select {
+    font-size: 16px !important;
   }
 }
