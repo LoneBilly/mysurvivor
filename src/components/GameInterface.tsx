@@ -13,7 +13,6 @@ import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -43,34 +42,19 @@ const GameInterface = () => {
 
   const handleBuildBase = async () => {
     closeModal();
-    if (!gameState || !user) return;
+    if (!gameState) return;
 
     if (gameState.base_position_x !== null && gameState.base_position_y !== null) {
       showError("Vous avez déjà un campement.");
       return;
     }
 
-    // Sauvegarde de la position de la base
     await saveGameState({
       base_position_x: gameState.position_x,
       base_position_y: gameState.position_y,
     });
 
-    // Création du feu de camp initial dans la table base_constructions
-    const center = Math.floor(100 / 2); // 100 est le GRID_SIZE dans BaseInterface
-    const { error } = await supabase.from('base_constructions').insert({
-      player_id: user.id,
-      x: center,
-      y: center,
-      type: 'campfire'
-    });
-
-    if (error) {
-      showError("Erreur lors de la création du feu de camp initial.");
-      console.error("Campfire creation error:", error);
-    } else {
-      showSuccess("Votre campement a été installé !");
-    }
+    showSuccess("Votre campement a été installé !");
   };
 
   const handleEnterBase = () => {

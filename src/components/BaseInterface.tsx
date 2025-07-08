@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
 
 interface BaseCell {
   x: number;
@@ -17,71 +14,38 @@ const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
 const BaseInterface = () => {
-  const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  // Nouvel état pour suivre la dernière cellule construite
   const [lastBuiltCell, setLastBuiltCell] = useState<{ x: number; y: number } | null>(null);
 
-  // Chargement de la base depuis la BDD
+  // Configuration initiale de la grille
   useEffect(() => {
-    const loadBase = async () => {
-      if (!user) return;
+    const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
+      Array.from({ length: GRID_SIZE }, (_, x) => ({
+        x,
+        y,
+        type: 'empty',
+        canBuild: false,
+      }))
+    );
 
-      const { data: constructions, error } = await supabase
-        .from('base_constructions')
-        .select('x, y, type')
-        .eq('player_id', user.id);
+    const center = Math.floor(GRID_SIZE / 2);
+    newGrid[center][center].type = 'campfire';
 
-      if (error) {
-        showError("Impossible de charger votre base.");
-        console.error("Base loading error:", error);
-        return;
+    const adjacentPositions = [
+      { x: center - 1, y: center }, { x: center + 1, y: center },
+      { x: center, y: center - 1 }, { x: center, y: center + 1 },
+    ];
+    adjacentPositions.forEach(pos => {
+      if (newGrid[pos.y]?.[pos.x]) {
+        newGrid[pos.y][pos.x].canBuild = true;
       }
+    });
 
-      const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-        Array.from({ length: GRID_SIZE }, (_, x) => ({
-          x, y, type: 'empty', canBuild: false,
-        }))
-      );
-
-      const structurePositions: { x: number, y: number }[] = [];
-      const centerOfBase = { x: -1, y: -1 };
-
-      constructions.forEach(c => {
-        if (newGrid[c.y]?.[c.x]) {
-          newGrid[c.y][c.x].type = c.type as 'campfire' | 'foundation';
-          structurePositions.push({ x: c.x, y: c.y });
-          if (c.type === 'campfire') {
-            centerOfBase.x = c.x;
-            centerOfBase.y = c.y;
-          }
-        }
-      });
-
-      structurePositions.forEach(pos => {
-        const adjacent = [
-          { x: pos.x - 1, y: pos.y }, { x: pos.x + 1, y: pos.y },
-          { x: pos.x, y: pos.y - 1 }, { x: pos.x, y: pos.y + 1 },
-        ];
-        adjacent.forEach(adj => {
-          if (newGrid[adj.y]?.[adj.x]?.type === 'empty') {
-            newGrid[adj.y][adj.x].canBuild = true;
-          }
-        });
-      });
-
-      setGridData(newGrid);
-      
-      // Centrer la vue sur le feu de camp au chargement
-      if (centerOfBase.x !== -1 && !isInitialized) {
-        centerViewport(centerOfBase.x, centerOfBase.y, false);
-        setIsInitialized(true);
-      }
-    };
-
-    loadBase();
-  }, [user, isInitialized]);
+    setGridData(newGrid);
+  }, []);
 
   // Fonction pour centrer la vue sur une cellule
   const centerViewport = (x: number, y: number, smooth: boolean = true) => {
@@ -101,6 +65,15 @@ const BaseInterface = () => {
     });
   };
 
+  // Effet pour le centrage initial (sans animation)
+  useEffect(() => {
+    if (gridData && !isInitialized) {
+      const center = Math.floor(GRID_SIZE / 2);
+      centerViewport(center, center, false);
+      setIsInitialized(true);
+    }
+  }, [gridData, isInitialized]);
+
   // Effet pour centrer la vue sur la dernière cellule construite (avec animation)
   useEffect(() => {
     if (lastBuiltCell) {
@@ -108,17 +81,15 @@ const BaseInterface = () => {
     }
   }, [lastBuiltCell]);
 
-  // Gère le clic sur une cellule pour construire
-  const handleCellClick = async (x: number, y: number) => {
-    if (!gridData || !user) return;
+  // Gère le clic sur une cellule
+  const handleCellClick = (x: number, y: number) => {
+    if (!gridData) return;
 
     const cell = gridData[y][x];
     if (!cell.canBuild || cell.type !== 'empty') return;
 
-    const originalGridData = JSON.parse(JSON.stringify(gridData)); // Deep copy for rollback
-
-    // Optimistic UI update
     const newGrid = gridData.map(row => row.map(c => ({ ...c })));
+
     newGrid[y][x].type = 'foundation';
     newGrid[y][x].canBuild = false;
 
@@ -131,24 +102,9 @@ const BaseInterface = () => {
       }
     });
 
+    // Met à jour la grille, PUIS déclenche l'effet de centrage
     setGridData(newGrid);
     setLastBuiltCell({ x, y });
-
-    // Save to database
-    const { error } = await supabase.from('base_constructions').insert({
-      player_id: user.id,
-      x,
-      y,
-      type: 'foundation'
-    });
-
-    if (error) {
-      showError("La construction a échoué. Veuillez réessayer.");
-      console.error("Construction error:", error);
-      // Rollback UI on error
-      setGridData(originalGridData);
-      setLastBuiltCell(null);
-    }
   };
 
   const getCellContent = (cell: BaseCell) => {
@@ -173,7 +129,7 @@ const BaseInterface = () => {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white">
         <Loader2 className="w-8 h-8 animate-spin mb-4" />
-        <p>Chargement de votre base...</p>
+        <p>Génération de la base...</p>
       </div>
     );
   }
@@ -182,7 +138,7 @@ const BaseInterface = () => {
     <div
       ref={viewportRef}
       className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
-      style={{ opacity: isInitialized ? 1 : 0, transition: 'opacity 0.5s ease-in-out' }}
+      style={{ opacity: isInitialized ? 1 : 0 }}
     >
       <div
         className="relative"
