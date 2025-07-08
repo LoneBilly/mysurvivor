@@ -103,23 +103,8 @@ const BaseInterface = () => {
 
     const finalGrid = updateCanBuild(newGrid);
     setGridData(finalGrid);
-    
-    if (campPos) {
-        setCampfirePosition(campPos);
-        setTimeout(() => {
-          centerViewport(campPos!.x, campPos!.y, false);
-          setIsInitialized(true);
-        }, 0);
-    } else {
-        const fallbackX = Math.floor(GRID_SIZE / 2);
-        const fallbackY = Math.floor(GRID_SIZE / 2);
-        setCampfirePosition({x: fallbackX, y: fallbackY});
-        setTimeout(() => {
-            centerViewport(fallbackX, fallbackY, false);
-            setIsInitialized(true);
-        }, 0);
-        console.warn("Aucun feu de camp trouvé, centrage par défaut.");
-    }
+    setCampfirePosition(campPos); // Set campfire position here
+    setIsInitialized(true); // Set initialized here
   }, [user]);
 
   useEffect(() => {
@@ -142,6 +127,13 @@ const BaseInterface = () => {
       behavior: smooth ? 'smooth' : 'auto',
     });
   };
+
+  // New useEffect to center viewport once initialized and campfire position is known
+  useEffect(() => {
+    if (isInitialized && campfirePosition && viewportRef.current) {
+      centerViewport(campfirePosition.x, campfirePosition.y, false);
+    }
+  }, [isInitialized, campfirePosition]);
 
   useEffect(() => {
     if (lastBuiltCell) {
