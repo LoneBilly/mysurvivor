@@ -40,6 +40,11 @@ const Login = () => {
                     inputBorderFocus: '#2563eb',
                   }
                 }
+              },
+              style: {
+                input: {
+                  fontSize: '16px',
+                },
               }
             }}
             theme="light"

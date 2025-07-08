@@ -112,4 +112,10 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Fix for iOS zoom on input focus */
+  input,
+  textarea {
+    font-size: 16px !important;
+  }
 }
