@@ -7,7 +7,7 @@ const CELL_SIZE_PX = 40;
 const CELL_GAP = 4;
 const ENTRANCE_X = 25;
 const ENTRANCE_Y = 50;
-const ORBIT_RADIUS_PX = 40; // Rayon de l'orbite de l'indicateur
+const ORBIT_RADIUS_PX = 40;
 
 interface ExplorationGridProps {
   playerPosition: { x: number; y: number } | null;
@@ -16,47 +16,54 @@ interface ExplorationGridProps {
 
 const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
+  const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
+  const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
 
-  const updateIndicator = useCallback(() => {
+  const updateIndicators = useCallback(() => {
     if (!viewportRef.current || !playerPosition) {
-      setIndicator({ visible: false, angle: 0, x: 0, y: 0 });
+      setExitIndicator({ visible: false, angle: 0, x: 0, y: 0 });
+      setPlayerIndicator({ visible: false, angle: 0 });
       return;
     }
 
     const viewport = viewportRef.current;
     const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewport;
 
-    const exitPixelX = ENTRANCE_X * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const exitPixelY = ENTRANCE_Y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-
-    const isExitVisible =
-      exitPixelX >= scrollLeft &&
-      exitPixelX <= scrollLeft + clientWidth &&
-      exitPixelY >= scrollTop &&
-      exitPixelY <= scrollTop + clientHeight;
-
-    if (isExitVisible) {
-      setIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
-      return;
-    }
-
     const playerPixelX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const playerPixelY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
 
-    const playerScreenX = playerPixelX - scrollLeft;
-    const playerScreenY = playerPixelY - scrollTop;
+    // Exit indicator (orbits player)
+    const exitPixelX = ENTRANCE_X * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+    const exitPixelY = ENTRANCE_Y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+    const isExitVisible = exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight;
+    
+    if (isExitVisible) {
+      setExitIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
+    } else {
+      const playerScreenX = playerPixelX - scrollLeft;
+      const playerScreenY = playerPixelY - scrollTop;
+      const dx = exitPixelX - playerPixelX;
+      const dy = exitPixelY - playerPixelY;
+      const angleRad = Math.atan2(dy, dx);
+      const angleDeg = angleRad * (180 / Math.PI);
+      setExitIndicator({ visible: true, angle: angleDeg, x: playerScreenX, y: playerScreenY });
+    }
 
-    const dx = exitPixelX - playerPixelX;
-    const dy = exitPixelY - playerPixelY;
-
-    const angleRad = Math.atan2(dy, dx);
-    const angleDeg = angleRad * (180 / Math.PI);
-
-    setIndicator({ visible: true, angle: angleDeg, x: playerScreenX, y: playerScreenY });
+    // Player indicator (orbits screen center)
+    const isPlayerVisible = playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight;
+    if (isPlayerVisible) {
+      setPlayerIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
+    } else {
+      const viewportCenterX = scrollLeft + clientWidth / 2;
+      const viewportCenterY = scrollTop + clientHeight / 2;
+      const dx = playerPixelX - viewportCenterX;
+      const dy = playerPixelY - viewportCenterY;
+      const angleRad = Math.atan2(dy, dx);
+      const angleDeg = angleRad * (180 / Math.PI);
+      setPlayerIndicator({ visible: true, angle: angleDeg });
+    }
   }, [playerPosition]);
 
-  // Centre la caméra une seule fois à l'entrée
   useLayoutEffect(() => {
     if (viewportRef.current && playerPosition) {
       const viewport = viewportRef.current;
@@ -66,27 +73,21 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
       const scrollLeft = cellCenterX - viewport.clientWidth / 2;
       const scrollTop = cellCenterY - viewport.clientHeight / 2;
 
-      viewport.scrollTo({
-        left: scrollLeft,
-        top: scrollTop,
-        behavior: 'auto',
-      });
-      
-      setTimeout(updateIndicator, 100);
+      viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'auto' });
+      setTimeout(updateIndicators, 100);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Met à jour l'indicateur si le joueur bouge
   useEffect(() => {
-    updateIndicator();
-  }, [playerPosition, updateIndicator]);
+    updateIndicators();
+  }, [playerPosition, updateIndicators]);
 
   return (
     <div className="relative w-full h-full">
       <div
         ref={viewportRef}
-        onScroll={updateIndicator}
+        onScroll={updateIndicators}
         className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
       >
         <div
@@ -141,13 +142,26 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
           )}
         </div>
       </div>
+      {/* Exit Indicator */}
       <div
         className="absolute z-20 text-amber-400 transition-opacity pointer-events-none"
         style={{
-          opacity: indicator.visible ? 1 : 0,
-          top: `${indicator.y}px`,
-          left: `${indicator.x}px`,
-          transform: `translate(-50%, -50%) rotate(${indicator.angle}deg) translate(${ORBIT_RADIUS_PX}px)`,
+          opacity: exitIndicator.visible ? 1 : 0,
+          top: `${exitIndicator.y}px`,
+          left: `${exitIndicator.x}px`,
+          transform: `translate(-50%, -50%) rotate(${exitIndicator.angle}deg) translate(${ORBIT_RADIUS_PX}px)`,
+        }}
+      >
+        <ArrowRight className="w-6 h-6" />
+      </div>
+      {/* Player Indicator */}
+      <div
+        className="absolute z-20 text-blue-400 transition-opacity pointer-events-none"
+        style={{
+          opacity: playerIndicator.visible ? 1 : 0,
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(100px, calc(min(45vh, 45vw) - 30px), 400px))`,
         }}
       >
         <ArrowRight className="w-6 h-6" />

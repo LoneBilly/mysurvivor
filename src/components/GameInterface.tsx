@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
 import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
+import { supabase } from "@/integrations/supabase/client";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -36,6 +37,27 @@ const GameInterface = () => {
     description: React.ReactNode;
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
+
+  useEffect(() => {
+    if (gameState && !loading) {
+      if (gameState.exploration_x !== null && gameState.exploration_y !== null) {
+        const fetchCurrentZoneInfo = async () => {
+          const { data: zoneData } = await supabase
+            .from('map_layout')
+            .select('type, icon')
+            .eq('x', gameState.position_x)
+            .eq('y', gameState.position_y)
+            .single();
+          
+          if (zoneData) {
+            setExplorationZone({ name: formatZoneName(zoneData.type), icon: zoneData.icon });
+            setCurrentView('exploration');
+          }
+        };
+        fetchCurrentZoneInfo();
+      }
+    }
+  }, [gameState, loading]);
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
