@@ -25,7 +25,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email)
+  // Correct ✅
+const { data, error } = await supabaseAdmin.auth.admin.lookupUserByEmail(email)
 
     // If there's an error, but it's not 'User not found', it's a real issue.
     if (error && error.message !== 'User not found') {
