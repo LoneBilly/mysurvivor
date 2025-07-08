@@ -103,8 +103,8 @@ const BaseInterface = () => {
 
     const finalGrid = updateCanBuild(newGrid);
     setGridData(finalGrid);
-    setCampfirePosition(campPos); // Set campfire position here
-    setIsInitialized(true); // Set initialized here
+    setCampfirePosition(campPos); 
+    setIsInitialized(true); // Set initialized to true after all data is processed
   }, [user]);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ const BaseInterface = () => {
     });
   };
 
-  // New useEffect to center viewport once initialized and campfire position is known
+  // This useEffect will now correctly trigger centering once isInitialized and campfirePosition are set
   useEffect(() => {
     if (isInitialized && campfirePosition && viewportRef.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
