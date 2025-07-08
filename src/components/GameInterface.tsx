@@ -157,10 +157,14 @@ const GameInterface = () => {
   const handleExplorationCellClick = async (x: number, y: number) => {
     if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;
 
-    const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
-    const playerIsOnEntrance = gameState.exploration_x === ENTRANCE_X && gameState.exploration_y === ENTRANCE_Y;
+    const clickedCellIsEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
+    const playerX = gameState.exploration_x;
+    const playerY = gameState.exploration_y;
 
-    if (isEntrance && playerIsOnEntrance) {
+    const playerIsOnEntrance = playerX === ENTRANCE_X && playerY === ENTRANCE_Y;
+    const playerIsAdjacentToEntrance = Math.abs(playerX - ENTRANCE_X) + Math.abs(playerY - ENTRANCE_Y) === 1;
+
+    if (clickedCellIsEntrance && (playerIsOnEntrance || playerIsAdjacentToEntrance)) {
       setModalState({
         isOpen: true,
         title: "Quitter la zone d'exploration ?",
@@ -173,7 +177,7 @@ const GameInterface = () => {
       return;
     }
 
-    const distance = Math.abs(gameState.exploration_x - x) + Math.abs(gameState.exploration_y - y);
+    const distance = Math.abs(playerX - x) + Math.abs(playerY - y);
     if (distance === 1) {
       if (gameState.energie < 1) {
         showError("Pas assez d'énergie pour vous déplacer.");
