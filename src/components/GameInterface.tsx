@@ -23,6 +23,41 @@ const formatZoneName = (name: string): string => {
 
 const ENTRANCE_X = 25;
 const ENTRANCE_Y = 50;
+const GRID_SIZE = 51;
+
+const findPathBFS = (start: {x: number, y: number}, end: {x: number, y: number}): {x: number, y: number}[] | null => {
+    const queue: {pos: {x: number, y: number}, path: {x: number, y: number}[]}[] = [{pos: start, path: [start]}];
+    const visited = new Set<string>([`${start.x},${start.y}`]);
+
+    while (queue.length > 0) {
+        const { pos, path } = queue.shift()!;
+
+        if (pos.x === end.x && pos.y === end.y) {
+            return path;
+        }
+
+        const neighbors = [
+            { x: pos.x + 1, y: pos.y },
+            { x: pos.x - 1, y: pos.y },
+            { x: pos.x, y: pos.y + 1 },
+            { x: pos.x, y: pos.y - 1 },
+        ];
+
+        for (const neighbor of neighbors) {
+            const key = `${neighbor.x},${neighbor.y}`;
+            if (
+                neighbor.x >= 0 && neighbor.x < GRID_SIZE &&
+                neighbor.y >= 0 && neighbor.y < GRID_SIZE &&
+                !visited.has(key)
+            ) {
+                visited.add(key);
+                const newPath = [...path, neighbor];
+                queue.push({ pos: neighbor, path: newPath });
+            }
+        }
+    }
+    return null;
+};
 
 const GameInterface = () => {
   const { user } = useAuth();
@@ -31,6 +66,7 @@ const GameInterface = () => {
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
+  const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -176,13 +212,34 @@ const GameInterface = () => {
     }
   };
 
+  const handleExplorationCellHover = (x: number, y: number) => {
+    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
+      setExplorationPath(null);
+      return;
+    }
+
+    const startPos = { x: gameState.exploration_x, y: gameState.exploration_y };
+    const endPos = { x, y };
+
+    if (startPos.x === endPos.x && startPos.y === endPos.y) {
+      setExplorationPath(null);
+      return;
+    }
+
+    const path = findPathBFS(startPos, endPos);
+    if (path && path.length - 1 <= gameState.energie) {
+      setExplorationPath(path);
+    } else {
+      setExplorationPath(null);
+    }
+  };
+
   const handleExplorationCellClick = async (x: number, y: number) => {
     if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;
 
     const clickedCellIsEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
     const playerX = gameState.exploration_x;
     const playerY = gameState.exploration_y;
-
     const playerIsOnEntrance = playerX === ENTRANCE_X && playerY === ENTRANCE_Y;
     const playerIsAdjacentToEntrance = Math.abs(playerX - ENTRANCE_X) + Math.abs(playerY - ENTRANCE_Y) === 1;
 
@@ -199,17 +256,19 @@ const GameInterface = () => {
       return;
     }
 
-    const distance = Math.abs(playerX - x) + Math.abs(playerY - y);
-    if (distance === 1) {
-      if (gameState.energie < 1) {
-        showError("Pas assez d'énergie pour vous déplacer.");
-        return;
+    if (explorationPath) {
+      const targetCell = explorationPath[explorationPath.length - 1];
+      if (targetCell.x === x && targetCell.y === y) {
+        const cost = explorationPath.length - 1;
+        if (cost > 0 && gameState.energie >= cost) {
+          await saveGameState({
+            exploration_x: targetCell.x,
+            exploration_y: targetCell.y,
+            energie: gameState.energie - cost,
+          });
+          setExplorationPath(null);
+        }
       }
-      await saveGameState({
-        exploration_x: x,
-        exploration_y: y,
-        energie: gameState.energie - 1,
-      });
     }
   };
 
@@ -264,7 +323,7 @@ const GameInterface = () => {
         onBackToMap={handleBackToMap}
       />
       
-      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0">
+      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0 overflow-hidden">
         {currentView === 'map' ? (
           <GameGrid 
             onCellSelect={handleCellSelect}
@@ -298,6 +357,8 @@ const GameInterface = () => {
                 : null
               }
               onCellClick={handleExplorationCellClick}
+              onCellHover={handleExplorationCellHover}
+              path={explorationPath}
             />
           </div>
         )}

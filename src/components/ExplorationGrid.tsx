@@ -12,9 +12,11 @@ const ORBIT_RADIUS_PX = 40;
 interface ExplorationGridProps {
   playerPosition: { x: number; y: number } | null;
   onCellClick: (x: number, y: number) => void;
+  onCellHover: (x: number, y: number) => void;
+  path: { x: number; y: number }[] | null;
 }
 
-const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) => {
+const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
@@ -32,7 +34,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
     const playerPixelX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const playerPixelY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
 
-    // Exit indicator (orbits player)
     const exitPixelX = ENTRANCE_X * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const exitPixelY = ENTRANCE_Y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const isExitVisible = exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight;
@@ -49,7 +50,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
       setExitIndicator({ visible: true, angle: angleDeg, x: playerScreenX, y: playerScreenY });
     }
 
-    // Player indicator (orbits screen center)
     const isPlayerVisible = playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight;
     if (isPlayerVisible) {
       setPlayerIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
@@ -76,7 +76,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
       viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'auto' });
       setTimeout(updateIndicators, 100);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -84,7 +83,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
   }, [playerPosition, updateIndicators]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
       <div
         ref={viewportRef}
         onScroll={updateIndicators}
@@ -101,8 +100,10 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
             Array.from({ length: GRID_SIZE }).map((_, x) => {
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
               const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
-              const isAdjacent = playerPosition && Math.abs(playerPosition.x - x) + Math.abs(playerPosition.y - y) === 1;
               
+              const isPath = path?.some(p => p.x === x && p.y === y);
+              const isTarget = path && path[path.length - 1].x === x && path[path.length - 1].y === y;
+
               const canClickEntrance = isEntrance && playerPosition && (
                 isPlayerOnCell || 
                 (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1)
@@ -111,14 +112,16 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
               return (
                 <button
                   key={`${x}-${y}`}
+                  onMouseEnter={() => onCellHover(x, y)}
                   onClick={() => onCellClick(x, y)}
-                  disabled={!isAdjacent && !canClickEntrance}
+                  disabled={!isTarget && !canClickEntrance && !isPlayerOnCell}
                   className={cn(
-                    "absolute flex items-center justify-center rounded border transition-colors",
+                    "absolute flex items-center justify-center rounded border transition-all duration-100",
                     isEntrance 
                       ? "bg-gray-900/70 border-gray-700" 
                       : "bg-gray-800/50 border-gray-700/20",
-                    isAdjacent && "border-dashed border-gray-500 hover:bg-gray-700/50 cursor-pointer",
+                    isPath && "bg-blue-500/20 border-blue-400/30",
+                    isTarget && "bg-blue-500/40 border-blue-400/50 cursor-pointer",
                     canClickEntrance && "cursor-pointer hover:bg-gray-800/70"
                   )}
                   style={{
@@ -161,7 +164,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) 
           opacity: playerIndicator.visible ? 1 : 0,
           top: '50%',
           left: '50%',
-          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(100px, calc(min(45vh, 45vw) - 30px), 400px))`,
+          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(50px, calc(min(35vh, 35vw) - 20px), 200px))`,
         }}
       >
         <ArrowRight className="w-6 h-6" />
