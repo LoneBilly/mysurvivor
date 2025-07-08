@@ -29,6 +29,7 @@ serve(async (req) => {
 
     if (error) {
       // Si l'erreur est une AuthApiError avec le statut 404, cela signifie que l'utilisateur n'a pas été trouvé.
+      // C'est une manière plus fiable de vérifier que `instanceof` dans certains environnements serveur.
       if (error instanceof AuthApiError && error.status === 404) {
         return new Response(JSON.stringify({ exists: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
