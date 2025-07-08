@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 const GRID_SIZE = 100;
-const CELL_SIZE_PX = 60;
+const CELL_SIZE_PX = 40; // Réduit de 60 à 40 pour dézoomer
 const CELL_GAP = 4;
 
 const ExplorationGrid = () => {

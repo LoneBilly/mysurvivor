@@ -13,6 +13,7 @@ import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
 import ExplorationGrid from "./ExplorationGrid";
+import ExplorationHeader from "./ExplorationHeader";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -25,6 +26,7 @@ const GameInterface = () => {
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -34,8 +36,9 @@ const GameInterface = () => {
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
-  const handleExploreAction = () => {
+  const handleExploreAction = (zone: { name: string; icon: string | null }) => {
     closeModal();
+    setExplorationZone(zone);
     setCurrentView('exploration');
   };
 
@@ -74,9 +77,7 @@ const GameInterface = () => {
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
-    // D'abord, vérifier si la case est découverte.
     if (!isDiscovered) {
-      // Si non découverte, toujours afficher la même modale.
       setModalState({
         isOpen: true,
         title: "Zone non découverte",
@@ -88,7 +89,6 @@ const GameInterface = () => {
       return;
     }
 
-    // Maintenant, nous savons que la case est découverte. Vérifier si c'est la position actuelle.
     if (isCurrentPosition) {
       const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [];
 
@@ -96,7 +96,7 @@ const GameInterface = () => {
         actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
       }
       
-      actions.push({ label: "Explorer", onClick: handleExploreAction, variant: "default" });
+      actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }), variant: "default" });
 
       if (gameState.base_position_x === null || gameState.base_position_y === null) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
@@ -109,7 +109,6 @@ const GameInterface = () => {
         actions,
       });
     } else {
-      // C'est découvert, mais pas la position actuelle. Proposer de se déplacer.
       const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
       const energyCost = distance * 10;
 
@@ -207,7 +206,15 @@ const GameInterface = () => {
             <BaseInterface />
           </div>
         ) : (
-          <ExplorationGrid />
+          <div className="relative w-full h-full">
+            {explorationZone && (
+              <ExplorationHeader
+                zoneName={explorationZone.name}
+                zoneIcon={explorationZone.icon}
+              />
+            )}
+            <ExplorationGrid />
+          </div>
         )}
       </main>
       
