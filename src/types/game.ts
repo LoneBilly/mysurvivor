@@ -19,6 +19,8 @@ export interface GameState {
   position_y: number;
   base_position_x: number | null;
   base_position_y: number | null;
+  exploration_x: number | null;
+  exploration_y: number | null;
   created_at: string;
   updated_at: string;
   wood: number;

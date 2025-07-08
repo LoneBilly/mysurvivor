@@ -42,6 +42,8 @@ export const useGameState = () => {
           base_position_y: base_zone?.y ?? null,
           zones_decouvertes: data.zones_decouvertes || [],
           inventaire: [],
+          exploration_x: data.exploration_x,
+          exploration_y: data.exploration_y,
         };
         setGameState(transformedState);
       } else if (error && error.code === 'PGRST116') {

@@ -7,28 +7,29 @@ const CELL_GAP = 4;
 const ENTRANCE_X = 25;
 const ENTRANCE_Y = 50;
 
-const ExplorationGrid = () => {
+interface ExplorationGridProps {
+  playerPosition: { x: number; y: number } | null;
+  onCellClick: (x: number, y: number) => void;
+}
+
+const ExplorationGrid = ({ playerPosition, onCellClick }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  const centerViewportOnEntrance = () => {
-    if (!viewportRef.current) return;
-    
-    const viewport = viewportRef.current;
-    const cellCenterX = ENTRANCE_X * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const cellCenterY = ENTRANCE_Y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    
-    const scrollLeft = cellCenterX - viewport.clientWidth / 2;
-    const scrollTop = cellCenterY - viewport.clientHeight / 2;
-
-    viewport.scrollTo({
-      left: scrollLeft,
-      top: scrollTop,
-      behavior: 'auto',
-    });
-  };
-
   useLayoutEffect(() => {
-    centerViewportOnEntrance();
+    if (viewportRef.current && playerPosition) {
+      const viewport = viewportRef.current;
+      const cellCenterX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+      const cellCenterY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+      
+      const scrollLeft = cellCenterX - viewport.clientWidth / 2;
+      const scrollTop = cellCenterY - viewport.clientHeight / 2;
+
+      viewport.scrollTo({
+        left: scrollLeft,
+        top: scrollTop,
+        behavior: 'auto',
+      });
+    }
   }, []);
 
   return (
@@ -47,14 +48,20 @@ const ExplorationGrid = () => {
           {Array.from({ length: GRID_SIZE }).map((_, y) =>
             Array.from({ length: GRID_SIZE }).map((_, x) => {
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
+              const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
+              const isAdjacent = playerPosition && Math.abs(playerPosition.x - x) + Math.abs(playerPosition.y - y) === 1;
+
               return (
-                <div
+                <button
                   key={`${x}-${y}`}
+                  onClick={() => onCellClick(x, y)}
+                  disabled={!isAdjacent && !isPlayerOnCell}
                   className={cn(
-                    "absolute flex items-center justify-center rounded border",
+                    "absolute flex items-center justify-center rounded border transition-colors",
                     isEntrance 
                       ? "bg-amber-900/50 border-amber-700/50" 
-                      : "bg-gray-800/50 border-gray-700/20"
+                      : "bg-gray-800/50 border-gray-700/20",
+                    (isAdjacent || (isEntrance && isPlayerOnCell)) && "cursor-pointer hover:bg-gray-700/50"
                   )}
                   style={{
                     left: x * (CELL_SIZE_PX + CELL_GAP),
@@ -63,8 +70,10 @@ const ExplorationGrid = () => {
                     height: CELL_SIZE_PX,
                   }}
                 >
-                  {/* Cell content can be added here later */}
-                </div>
+                  {isPlayerOnCell && (
+                    <div className="w-2/3 h-2/3 rounded-full bg-blue-500 shadow-lg animate-pulse"></div>
+                  )}
+                </button>
               );
             })
           )}

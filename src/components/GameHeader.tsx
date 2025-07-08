@@ -13,6 +13,7 @@ interface GameHeaderProps {
 
 const GameHeader = ({ joursSurvecus, spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
+  const showBackButton = currentView === 'base';
 
   useEffect(() => {
     if (!spawnDate) return;
@@ -44,7 +45,7 @@ const GameHeader = ({ joursSurvecus, spawnDate, onLeaderboard, onOptions, curren
           <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-gray-700">
             <Trophy className="w-5 h-5" />
           </Button>
-        ) : (
+        ) : showBackButton ? (
           <Button
             variant="ghost"
             onClick={onBackToMap}
@@ -53,6 +54,8 @@ const GameHeader = ({ joursSurvecus, spawnDate, onLeaderboard, onOptions, curren
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Retour</span>
           </Button>
+        ) : (
+          <div className="w-10 h-10" /> // Placeholder
         )}
       </div>
       <div className="flex-none text-center px-4">

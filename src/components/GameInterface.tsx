@@ -20,6 +20,9 @@ const formatZoneName = (name: string): string => {
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
 
+const ENTRANCE_X = 25;
+const ENTRANCE_Y = 50;
+
 const GameInterface = () => {
   const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
@@ -36,8 +39,15 @@ const GameInterface = () => {
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
-  const handleExploreAction = (zone: { name: string; icon: string | null }) => {
+  const handleExploreAction = async (zone: { name: string; icon: string | null }) => {
     closeModal();
+    if (!gameState) return;
+
+    await saveGameState({
+      exploration_x: gameState.exploration_x ?? ENTRANCE_X,
+      exploration_y: gameState.exploration_y ?? ENTRANCE_Y,
+    });
+
     setExplorationZone(zone);
     setCurrentView('exploration');
   };
@@ -144,6 +154,48 @@ const GameInterface = () => {
     }
   };
 
+  const handleExplorationCellClick = async (x: number, y: number) => {
+    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;
+
+    const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
+    const playerIsOnEntrance = gameState.exploration_x === ENTRANCE_X && gameState.exploration_y === ENTRANCE_Y;
+
+    if (isEntrance && playerIsOnEntrance) {
+      setModalState({
+        isOpen: true,
+        title: "Quitter la zone d'exploration ?",
+        description: "Vous retournerez à la carte principale. Votre position dans cette zone sera sauvegardée.",
+        actions: [
+          { label: "Quitter", onClick: confirmExitExploration, variant: "destructive" },
+          { label: "Rester", onClick: closeModal, variant: "secondary" },
+        ],
+      });
+      return;
+    }
+
+    const distance = Math.abs(gameState.exploration_x - x) + Math.abs(gameState.exploration_y - y);
+    if (distance === 1) {
+      if (gameState.energie < 1) {
+        showError("Pas assez d'énergie pour vous déplacer.");
+        return;
+      }
+      await saveGameState({
+        exploration_x: x,
+        exploration_y: y,
+        energie: gameState.energie - 1,
+      });
+    }
+  };
+
+  const confirmExitExploration = async () => {
+    closeModal();
+    await saveGameState({
+      exploration_x: null,
+      exploration_y: null,
+    });
+    setCurrentView('map');
+  };
+
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);
   const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
@@ -213,7 +265,14 @@ const GameInterface = () => {
                 zoneIcon={explorationZone.icon}
               />
             )}
-            <ExplorationGrid />
+            <ExplorationGrid
+              playerPosition={
+                gameState.exploration_x !== null && gameState.exploration_y !== null
+                ? { x: gameState.exploration_x, y: gameState.exploration_y }
+                : null
+              }
+              onCellClick={handleExplorationCellClick}
+            />
           </div>
         )}
       </main>
