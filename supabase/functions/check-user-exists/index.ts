@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,8 +25,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-  // Correct ✅
-const { data, error } = await supabaseAdmin.auth.admin.lookupUserByEmail(email)
+    const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email)
 
     // If there's an error, but it's not 'User not found', it's a real issue.
     if (error && error.message !== 'User not found') {
