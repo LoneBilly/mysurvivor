@@ -1,41 +1,24 @@
 import React from 'react';
-import { useMapLayout } from '@/hooks/useMapLayout';
-import { usePlayerState } from '@/hooks/usePlayerState';
-import MapGrid from './MapGrid';
 import { Button } from './ui/button';
-import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { GameState } from '@/types/game';
+import ExplorationMap from './ExplorationMap';
 
 interface ExplorationViewProps {
   onBack: () => void;
+  gameState: GameState;
 }
 
-const ExplorationView: React.FC<ExplorationViewProps> = ({ onBack }) => {
-  const { layout, isLoading: isLoadingMap } = useMapLayout();
-  const { playerState, isLoading: isLoadingPlayer } = usePlayerState();
-
-  if (isLoadingMap || isLoadingPlayer) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>;
-  }
-
-  const playerPosition = playerState && layout ? layout.find(c => c.id === playerState.current_zone_id) : undefined;
-
+const ExplorationView: React.FC<ExplorationViewProps> = ({ onBack, gameState }) => {
   return (
-    <div className="p-4 h-screen bg-background">
-      <Card className="h-full flex flex-col">
+    <div className="p-0 sm:p-4 h-full w-full bg-gray-900">
+      <Card className="h-full flex flex-col bg-gray-800/50 border-gray-700 text-white rounded-none sm:rounded-lg">
         <CardHeader className="flex flex-row items-center justify-between flex-shrink-0">
           <CardTitle>Carte d'exploration</CardTitle>
-          <Button onClick={onBack}>Retour au jeu</Button>
+          <Button onClick={onBack} variant="outline" className="bg-gray-700 border-gray-600 hover:bg-gray-600">Retour</Button>
         </CardHeader>
-        <CardContent className="flex-grow overflow-auto flex items-center justify-center">
-            <MapGrid
-              layout={layout || []}
-              onCellClick={() => {}} // Read-only map
-              gridSize={{ width: 100, height: 100 }}
-              cellSize="w-8 h-8"
-              playerPositions={playerPosition ? [{ x: playerPosition.x, y: playerPosition.y, id: playerState.id }] : []}
-              discoveredZones={playerState?.zones_decouvertes}
-            />
+        <CardContent className="flex-grow overflow-hidden flex items-center justify-center no-scrollbar p-0 sm:p-2">
+          <ExplorationMap gameState={gameState} />
         </CardContent>
       </Card>
     </div>
