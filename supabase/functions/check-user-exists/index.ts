@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { createClient, AuthError } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,20 +25,24 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ email });
+    // Utilise getUserByEmail pour une vérification plus directe et fiable
+    const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email);
 
     if (error) {
-      // Ne pas considérer "user not found" comme une erreur serveur
-      if (error.message.includes("User not found")) {
-         return new Response(JSON.stringify({ exists: false }), {
+      // Si l'erreur indique que l'utilisateur n'a pas été trouvé, cela signifie que l'e-mail n'existe pas.
+      // Les erreurs d'authentification de Supabase ont un statut, 404 pour "non trouvé".
+      if (error instanceof AuthError && error.status === 404) {
+        return new Response(JSON.stringify({ exists: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
-        })
+        });
       }
-      throw error
+      // Pour toute autre erreur, la renvoyer pour qu'elle soit capturée par le bloc catch externe.
+      throw error;
     }
-    
-    const exists = data.users.length > 0;
+
+    // Si des données sont retournées sans erreur, l'utilisateur existe.
+    const exists = !!data.user;
 
     return new Response(JSON.stringify({ exists }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
