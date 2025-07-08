@@ -7,7 +7,7 @@ interface GameHeaderProps {
   spawnDate: string;
   onLeaderboard: () => void;
   onOptions: () => void;
-  currentView: 'map' | 'base';
+  currentView: 'map' | 'base' | 'exploration';
   onBackToMap: () => void;
 }
 

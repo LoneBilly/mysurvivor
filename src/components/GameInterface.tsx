@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
-import { Button } from "@/components/ui/button";
+import ExplorationGrid from "./ExplorationGrid";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -22,7 +22,7 @@ const formatZoneName = (name: string): string => {
 const GameInterface = () => {
   const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
-  const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
+  const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [modalState, setModalState] = useState<{
@@ -35,9 +35,8 @@ const GameInterface = () => {
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleExploreAction = () => {
-    // Logique d'exploration de la case actuelle
-    showSuccess("Exploration en cours...");
     closeModal();
+    setCurrentView('exploration');
   };
 
   const handleBuildBase = async () => {
@@ -196,7 +195,7 @@ const GameInterface = () => {
             playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
             basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
           />
-        ) : (
+        ) : currentView === 'base' ? (
           <div className="relative w-full h-full">
             <BaseHeader
               resources={{
@@ -207,6 +206,8 @@ const GameInterface = () => {
             />
             <BaseInterface />
           </div>
+        ) : (
+          <ExplorationGrid />
         )}
       </main>
       
