@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { showError } from "@/utils/toast";
 
 interface BaseCell {
   x: number;
@@ -9,20 +12,59 @@ interface BaseCell {
   canBuild?: boolean;
 }
 
+interface BaseConstruction {
+  x: number;
+  y: number;
+  type: string;
+}
+
 const GRID_SIZE = 100;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
 const BaseInterface = () => {
+  const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  // Nouvel état pour suivre la dernière cellule construite
   const [lastBuiltCell, setLastBuiltCell] = useState<{ x: number; y: number } | null>(null);
 
-  // Configuration initiale de la grille
-  useEffect(() => {
-    const newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
+  const updateCanBuild = (grid: BaseCell[][]): BaseCell[][] => {
+    const newGrid = grid.map(row => row.map(cell => ({ ...cell, canBuild: false })));
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        if (newGrid[y][x].type === 'campfire' || newGrid[y][x].type === 'foundation') {
+          const adjacentPositions = [
+            { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
+          ];
+          adjacentPositions.forEach(pos => {
+            if (newGrid[pos.y]?.[pos.x]?.type === 'empty') {
+              newGrid[pos.y][pos.x].canBuild = true;
+            }
+          });
+        }
+      }
+    }
+    return newGrid;
+  };
+
+  const initializeGrid = useCallback(async () => {
+    if (!user) return;
+
+    setIsInitialized(false);
+
+    const { data: constructions, error } = await supabase
+      .from('base_constructions')
+      .select('x, y, type')
+      .eq('player_id', user.id);
+
+    if (error) {
+      showError("Erreur lors du chargement de la base.");
+      console.error(error);
+      return;
+    }
+
+    let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
       Array.from({ length: GRID_SIZE }, (_, x) => ({
         x,
         y,
@@ -31,23 +73,55 @@ const BaseInterface = () => {
       }))
     );
 
-    const center = Math.floor(GRID_SIZE / 2);
-    newGrid[center][center].type = 'campfire';
+    let centerOnX = Math.floor(GRID_SIZE / 2);
+    let centerOnY = Math.floor(GRID_SIZE / 2);
 
-    const adjacentPositions = [
-      { x: center - 1, y: center }, { x: center + 1, y: center },
-      { x: center, y: center - 1 }, { x: center, y: center + 1 },
-    ];
-    adjacentPositions.forEach(pos => {
-      if (newGrid[pos.y]?.[pos.x]) {
-        newGrid[pos.y][pos.x].canBuild = true;
+    if (constructions.length === 0) {
+      // New base, create and save the initial campfire
+      const campfire = {
+        player_id: user.id,
+        x: centerOnX,
+        y: centerOnY,
+        type: 'campfire'
+      };
+      const { error: insertError } = await supabase
+        .from('base_constructions')
+        .insert(campfire);
+      
+      if (insertError) {
+        showError("Impossible de créer le campement initial.");
+        console.error(insertError);
+        return;
       }
-    });
+      newGrid[centerOnY][centerOnX].type = 'campfire';
+    } else {
+      // Existing base, populate grid
+      constructions.forEach((c: BaseConstruction) => {
+        if (newGrid[c.y]?.[c.x]) {
+          newGrid[c.y][c.x].type = c.type as 'campfire' | 'foundation';
+          if (c.type === 'campfire') {
+            centerOnX = c.x;
+            centerOnY = c.y;
+          }
+        }
+      });
+    }
 
-    setGridData(newGrid);
-  }, []);
+    const finalGrid = updateCanBuild(newGrid);
+    setGridData(finalGrid);
+    
+    // Center viewport after grid is set
+    setTimeout(() => {
+      centerViewport(centerOnX, centerOnY, false);
+      setIsInitialized(true);
+    }, 0);
 
-  // Fonction pour centrer la vue sur une cellule
+  }, [user]);
+
+  useEffect(() => {
+    initializeGrid();
+  }, [initializeGrid]);
+
   const centerViewport = (x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
     
@@ -65,46 +139,44 @@ const BaseInterface = () => {
     });
   };
 
-  // Effet pour le centrage initial (sans animation)
-  useEffect(() => {
-    if (gridData && !isInitialized) {
-      const center = Math.floor(GRID_SIZE / 2);
-      centerViewport(center, center, false);
-      setIsInitialized(true);
-    }
-  }, [gridData, isInitialized]);
-
-  // Effet pour centrer la vue sur la dernière cellule construite (avec animation)
   useEffect(() => {
     if (lastBuiltCell) {
       centerViewport(lastBuiltCell.x, lastBuiltCell.y);
     }
   }, [lastBuiltCell]);
 
-  // Gère le clic sur une cellule
-  const handleCellClick = (x: number, y: number) => {
-    if (!gridData) return;
+  const handleCellClick = async (x: number, y: number) => {
+    if (!gridData || !user) return;
 
     const cell = gridData[y][x];
     if (!cell.canBuild || cell.type !== 'empty') return;
 
-    const newGrid = gridData.map(row => row.map(c => ({ ...c })));
-
+    // Optimistic UI update
+    let newGrid = gridData.map(row => row.map(c => ({ ...c })));
     newGrid[y][x].type = 'foundation';
     newGrid[y][x].canBuild = false;
-
-    const adjacentPositions = [
-      { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
-    ];
-    adjacentPositions.forEach(pos => {
-      if (newGrid[pos.y]?.[pos.x]?.type === 'empty') {
-        newGrid[pos.y][pos.x].canBuild = true;
-      }
-    });
-
-    // Met à jour la grille, PUIS déclenche l'effet de centrage
+    newGrid = updateCanBuild(newGrid);
     setGridData(newGrid);
     setLastBuiltCell({ x, y });
+
+    // Save to DB
+    const newConstruction = {
+      player_id: user.id,
+      x,
+      y,
+      type: 'foundation'
+    };
+
+    const { error } = await supabase
+      .from('base_constructions')
+      .insert(newConstruction);
+
+    if (error) {
+      showError("Erreur lors de la construction.");
+      console.error(error);
+      // Revert UI change by reloading from DB
+      initializeGrid();
+    }
   };
 
   const getCellContent = (cell: BaseCell) => {
@@ -125,11 +197,11 @@ const BaseInterface = () => {
     }
   };
 
-  if (!gridData) {
+  if (!isInitialized || !gridData) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white">
         <Loader2 className="w-8 h-8 animate-spin mb-4" />
-        <p>Génération de la base...</p>
+        <p>Chargement de la base...</p>
       </div>
     );
   }
@@ -138,7 +210,7 @@ const BaseInterface = () => {
     <div
       ref={viewportRef}
       className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
-      style={{ opacity: isInitialized ? 1 : 0 }}
+      style={{ opacity: isInitialized ? 1 : 0, transition: 'opacity 0.5s' }}
     >
       <div
         className="relative"
