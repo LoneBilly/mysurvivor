@@ -76,10 +76,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
       viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'auto' });
       setTimeout(updateIndicators, 100);
     }
-  }, []);
-
-  useEffect(() => {
-    updateIndicators();
   }, [playerPosition, updateIndicators]);
 
   return (
@@ -108,21 +104,23 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
                 isPlayerOnCell || 
                 (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1)
               );
+              
+              const isClickable = isTarget || canClickEntrance;
 
               return (
                 <button
                   key={`${x}-${y}`}
                   onMouseEnter={() => onCellHover(x, y)}
-                  onClick={() => onCellClick(x, y)}
-                  disabled={!isTarget && !canClickEntrance && !isPlayerOnCell}
+                  onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
                     "absolute flex items-center justify-center rounded border transition-all duration-100",
                     isEntrance 
                       ? "bg-gray-900/70 border-gray-700" 
                       : "bg-gray-800/50 border-gray-700/20",
                     isPath && "bg-blue-500/20 border-blue-400/30",
-                    isTarget && "bg-blue-500/40 border-blue-400/50 cursor-pointer",
-                    canClickEntrance && "cursor-pointer hover:bg-gray-800/70"
+                    isTarget && "bg-blue-500/40 border-blue-400/50",
+                    isClickable ? "cursor-pointer" : "cursor-default",
+                    canClickEntrance && "hover:bg-gray-800/70"
                   )}
                   style={{
                     left: x * (CELL_SIZE_PX + CELL_GAP),
@@ -164,7 +162,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
           opacity: playerIndicator.visible ? 1 : 0,
           top: '50%',
           left: '50%',
-          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(50px, calc(min(35vh, 35vw) - 20px), 200px))`,
+          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))`,
         }}
       >
         <ArrowRight className="w-6 h-6" />
