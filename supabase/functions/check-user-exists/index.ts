@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { createClient, AuthError } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { createClient, AuthApiError } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,13 +25,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Utilise getUserByEmail pour une vérification plus directe et fiable
     const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email);
 
     if (error) {
-      // Si l'erreur indique que l'utilisateur n'a pas été trouvé, cela signifie que l'e-mail n'existe pas.
-      // Les erreurs d'authentification de Supabase ont un statut, 404 pour "non trouvé".
-      if (error instanceof AuthError && error.status === 404) {
+      // Si l'erreur est une AuthApiError avec le statut 404, cela signifie que l'utilisateur n'a pas été trouvé.
+      if (error instanceof AuthApiError && error.status === 404) {
         return new Response(JSON.stringify({ exists: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
