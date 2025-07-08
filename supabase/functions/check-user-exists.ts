@@ -25,22 +25,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    try {
-      // This will throw an error if the user is not found.
-      await supabaseAdmin.auth.admin.getUserByEmail(email)
-      return new Response(JSON.stringify({ exists: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
-    } catch (error) {
-      if (error.message.includes('User not found')) {
-        return new Response(JSON.stringify({ exists: false }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        })
-      }
-      throw error // Re-throw other errors
+    const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email)
+
+    // If there's an error, but it's not 'User not found', it's a real issue.
+    if (error && error.message !== 'User not found') {
+      throw error
     }
+
+    // If there's no error, the user exists.
+    // If the error is 'User not found', the user doesn't exist.
+    const exists = !error;
+
+    return new Response(JSON.stringify({ exists }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+
   } catch (e) {
     console.error('Error in check-user-exists function:', e)
     return new Response(JSON.stringify({ error: e.message || 'Internal Server Error' }), {
