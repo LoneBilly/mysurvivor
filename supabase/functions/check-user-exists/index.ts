@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { createClient, AuthApiError } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,9 +28,9 @@ serve(async (req) => {
     const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email);
 
     if (error) {
-      // Si l'erreur est une AuthApiError avec le statut 404, cela signifie que l'utilisateur n'a pas été trouvé.
-      // C'est une manière plus fiable de vérifier que `instanceof` dans certains environnements serveur.
-      if (error instanceof AuthApiError && error.status === 404) {
+      // Utilisation de la vérification des propriétés de l'erreur pour une meilleure fiabilité.
+      // L'erreur "User not found" a un nom 'AuthApiError' et un statut 404.
+      if (error.name === 'AuthApiError' && error.status === 404) {
         return new Response(JSON.stringify({ exists: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -48,6 +48,7 @@ serve(async (req) => {
       status: 200,
     })
   } catch (error) {
+    console.error('Error in check-user-exists function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
