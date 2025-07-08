@@ -93,15 +93,16 @@ const GameInterface = () => {
     if (isCurrentPosition) {
       const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [];
 
+      // Nouvelle logique : "Installer mon campement" en premier si possible
+      if (gameState.base_position_x === null || gameState.base_position_y === null) {
+        actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
+      }
+
       if (isBaseLocation) {
         actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
       }
       
       actions.push({ label: "Explorer", onClick: handleExploreAction, variant: "default" });
-
-      if (gameState.base_position_x === null || gameState.base_position_y === null) {
-        actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
-      }
 
       setModalState({
         isOpen: true,
