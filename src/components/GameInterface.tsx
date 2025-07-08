@@ -71,7 +71,7 @@ const GameInterface = () => {
     isOpen: boolean;
     title: string;
     description: React.ReactNode;
-    actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[];
+    actions: { label: string; onClick: () => void; variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
 
   useEffect(() => {
@@ -158,7 +158,7 @@ const GameInterface = () => {
     }
 
     if (isCurrentPosition) {
-      const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [];
+      const actions: { label: string; onClick: () => void; variant?: any }[] = [];
 
       if (isBaseLocation) {
         actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
@@ -250,7 +250,7 @@ const GameInterface = () => {
         description: "Vous retournerez à la carte principale. Votre position dans cette zone sera sauvegardée.",
         actions: [
           { label: "Quitter", onClick: confirmExitExploration, variant: "destructive" },
-          { label: "Rester", onClick: closeModal, variant: "secondary" },
+          { label: "Rester", onClick: closeModal, variant: "outline" },
         ],
       });
       return;
@@ -267,6 +267,18 @@ const GameInterface = () => {
             energie: gameState.energie - cost,
           });
           setExplorationPath(null);
+
+          if (targetCell.x === ENTRANCE_X && targetCell.y === ENTRANCE_Y) {
+            setModalState({
+              isOpen: true,
+              title: "Quitter la zone d'exploration ?",
+              description: "Vous avez atteint la sortie. Vous pouvez retourner à la carte principale.",
+              actions: [
+                { label: "Quitter", onClick: confirmExitExploration, variant: "destructive" },
+                { label: "Rester", onClick: closeModal, variant: "outline" },
+              ],
+            });
+          }
         }
       }
     }

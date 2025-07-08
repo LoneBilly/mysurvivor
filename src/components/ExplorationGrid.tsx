@@ -64,6 +64,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
     }
   }, [playerPosition]);
 
+  // Center on mount only
   useLayoutEffect(() => {
     if (viewportRef.current && playerPosition) {
       const viewport = viewportRef.current;
@@ -76,6 +77,12 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
       viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'auto' });
       setTimeout(updateIndicators, 100);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update indicators when player moves
+  useEffect(() => {
+    updateIndicators();
   }, [playerPosition, updateIndicators]);
 
   return (
