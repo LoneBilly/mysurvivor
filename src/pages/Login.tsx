@@ -73,7 +73,15 @@ const Login = () => {
                   button_label: "S'inscrire",
                   loading_button_label: 'Inscription...',
                   link_text: "Pas de compte ? Créez-en un pour survivre"
-                }
+                },
+                forgotten_password: {
+                  link_text: 'Mot de passe oublié ?',
+                  email_label: 'Votre adresse email',
+                  password_reset_button_label: 'Envoyer les instructions de réinitialisation',
+                  loading_button_label: 'Envoi...',
+                  link_text_return: 'Retour à la connexion',
+                  confirmation_text: 'Vérifiez votre email pour le lien de réinitialisation du mot de passe.'
+                },
               }
             }}
           />
