@@ -41,13 +41,13 @@ const Leaderboard = () => {
   }, []);
 
   return (
-    <Card className="w-full max-w-md lg:max-w-lg bg-white border-gray-200 shadow-xl">
+    <div className="w-full max-w-md lg:max-w-lg bg-black/30 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-2xl shadow-black/50">
       <CardHeader>
         <div className="flex items-center space-x-3">
-          <Trophy className="w-6 h-6 text-yellow-500" />
+          <Trophy className="w-6 h-6 text-amber-400" />
           <div>
-            <CardTitle className="text-2xl text-gray-800">Classement</CardTitle>
-            <CardDescription className="text-gray-600">Top 10 des survivants</CardDescription>
+            <CardTitle className="text-2xl text-gray-100">Classement des Survivants</CardTitle>
+            <CardDescription className="text-gray-400">Top 10 des plus endurcis</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -55,30 +55,30 @@ const Leaderboard = () => {
         <div className="max-h-[60vh] overflow-y-auto">
           {loading ? (
             <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
           ) : error ? (
-             <div className="flex flex-col items-center justify-center h-40 text-center text-red-500">
+             <div className="flex flex-col items-center justify-center h-40 text-center text-red-400">
                 <ShieldAlert className="w-8 h-8 mb-2" />
                 <p>{error}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">#</TableHead>
-                  <TableHead>Joueur</TableHead>
-                  <TableHead>Zone</TableHead>
-                  <TableHead className="text-right">Jours</TableHead>
+                <TableRow className="border-b-gray-700 hover:bg-transparent">
+                  <TableHead className="w-[50px] text-gray-300">#</TableHead>
+                  <TableHead className="text-gray-300">Joueur</TableHead>
+                  <TableHead className="text-gray-300">Zone</TableHead>
+                  <TableHead className="text-right text-gray-300">Jours</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {leaderboard.map((player, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
-                    <TableCell>{player.username}</TableCell>
-                    <TableCell className="text-gray-500">{player.current_zone}</TableCell>
-                    <TableCell className="text-right font-bold">{player.days_alive}</TableCell>
+                  <TableRow key={index} className="border-b-gray-800 hover:bg-gray-800/40">
+                    <TableCell className="font-medium text-gray-200">{index + 1}</TableCell>
+                    <TableCell className="text-gray-200">{player.username}</TableCell>
+                    <TableCell className="text-gray-400">{player.current_zone}</TableCell>
+                    <TableCell className="text-right font-bold text-amber-400">{player.days_alive}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -86,7 +86,7 @@ const Leaderboard = () => {
           )}
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 };
 
