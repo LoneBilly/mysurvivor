@@ -228,7 +228,7 @@ const GameInterface = () => {
 
   if (loading) {
     return (
-      <div className="h-dvh flex items-center justify-center bg-gray-900">
+      <div className="h-full flex items-center justify-center bg-gray-900">
         <div className="text-center text-white">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-200" />
           <p className="text-gray-400">Chargement du jeu...</p>
@@ -239,7 +239,7 @@ const GameInterface = () => {
 
   if (!gameState) {
     return (
-      <div className="h-dvh flex items-center justify-center bg-gray-900">
+      <div className="h-full flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <p className="text-gray-400 mb-4">Erreur lors du chargement du jeu</p>
           <button 
@@ -254,7 +254,7 @@ const GameInterface = () => {
   }
 
   return (
-    <div className="h-dvh flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-900">
       <GameHeader
         joursSurvecus={gameState.jours_survecus}
         spawnDate={gameState.spawn_date}
