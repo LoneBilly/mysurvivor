@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Plus, Loader2, LocateFixed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,8 +103,8 @@ const BaseInterface = () => {
 
     const finalGrid = updateCanBuild(newGrid);
     setGridData(finalGrid);
-    setCampfirePosition(campPos); // Set campfire position here
-    setIsInitialized(true); // Set initialized here
+    setCampfirePosition(campPos);
+    setIsInitialized(true);
   }, [user]);
 
   useEffect(() => {
@@ -128,8 +128,7 @@ const BaseInterface = () => {
     });
   };
 
-  // New useEffect to center viewport once initialized and campfire position is known
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isInitialized && campfirePosition && viewportRef.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
     }
