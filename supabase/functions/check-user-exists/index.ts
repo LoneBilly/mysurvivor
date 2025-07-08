@@ -20,23 +20,24 @@ serve(async (req) => {
       })
     }
 
+    // Nous utilisons la clé de service pour avoir les privilèges nécessaires
+    // pour appeler des fonctions sécurisées.
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email)
+    // Appelle la fonction de base de données (RPC) pour vérifier si l'utilisateur existe.
+    const { data, error } = await supabaseAdmin.rpc('check_user_exists_by_email', {
+      user_email: email,
+    })
 
-    // If there's an error, but it's not 'User not found', it's a real issue.
-    if (error && error.message !== 'User not found') {
+    if (error) {
       throw error
     }
 
-    // If there's no error, the user exists.
-    // If the error is 'User not found', the user doesn't exist.
-    const exists = !error;
-
-    return new Response(JSON.stringify({ exists }), {
+    // La fonction RPC retourne `true` ou `false`.
+    return new Response(JSON.stringify({ exists: data }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
