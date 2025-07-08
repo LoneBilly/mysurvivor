@@ -48,10 +48,6 @@ const Login = () => {
       showError("Veuillez renseigner l'e-mail et le mot de passe.");
       return;
     }
-    if (password.length < 6) {
-      showError("Le mot de passe doit contenir au moins 6 caractères.");
-      return;
-    }
     setLoading(true);
 
     try {

@@ -25,25 +25,20 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Utilise getUserByEmail pour une vérification plus directe et fiable
-    const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email)
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ email });
 
     if (error) {
-      // Si l'erreur est "User not found", cela signifie que l'utilisateur n'existe pas.
-      // C'est le résultat attendu pour un nouvel utilisateur.
-      if (error.message === 'User not found') {
-        return new Response(JSON.stringify({ exists: false }), {
+      // Ne pas considérer "user not found" comme une erreur serveur
+      if (error.message.includes("User not found")) {
+         return new Response(JSON.stringify({ exists: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         })
       }
-      // Pour toute autre erreur, nous la traitons comme une erreur serveur.
-      console.error('Error checking user existence:', error.message)
-      throw new Error('An unexpected error occurred while checking user existence.')
+      throw error
     }
-
-    // S'il n'y a pas d'erreur et que nous avons des données utilisateur, l'utilisateur existe.
-    const exists = !!data && !!data.user
+    
+    const exists = data.users.length > 0;
 
     return new Response(JSON.stringify({ exists }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
