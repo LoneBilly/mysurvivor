@@ -8,10 +8,11 @@ import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
 import OptionsModal from "./OptionsModal";
 import { useGameState } from "@/hooks/useGameState";
+import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { MapCell } from "@/types/game";
-import ExplorationView from "./ExplorationView";
+import { Button } from "@/components/ui/button";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -19,8 +20,9 @@ const formatZoneName = (name: string): string => {
 };
 
 const GameInterface = () => {
+  const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
-  const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
+  const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [modalState, setModalState] = useState<{
@@ -33,8 +35,9 @@ const GameInterface = () => {
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleExploreAction = () => {
+    // Logique d'exploration de la case actuelle
+    showSuccess("Exploration en cours...");
     closeModal();
-    setCurrentView('exploration');
   };
 
   const handleBuildBase = async () => {
@@ -72,7 +75,9 @@ const GameInterface = () => {
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
+    // D'abord, vérifier si la case est découverte.
     if (!isDiscovered) {
+      // Si non découverte, toujours afficher la même modale.
       setModalState({
         isOpen: true,
         title: "Zone non découverte",
@@ -84,18 +89,19 @@ const GameInterface = () => {
       return;
     }
 
+    // Maintenant, nous savons que la case est découverte. Vérifier si c'est la position actuelle.
     if (isCurrentPosition) {
       const actions: { label: string; onClick: () => void; variant?: "default" | "secondary" }[] = [];
-
-      if (gameState.base_position_x === null || gameState.base_position_y === null) {
-        actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
-      }
 
       if (isBaseLocation) {
         actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
       }
       
-      actions.push({ label: "Explorer la carte", onClick: handleExploreAction, variant: "secondary" });
+      actions.push({ label: "Explorer", onClick: handleExploreAction, variant: "default" });
+
+      if (gameState.base_position_x === null || gameState.base_position_y === null) {
+        actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
+      }
 
       setModalState({
         isOpen: true,
@@ -104,6 +110,7 @@ const GameInterface = () => {
         actions,
       });
     } else {
+      // C'est découvert, mais pas la position actuelle. Proposer de se déplacer.
       const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
       const energyCost = distance * 10;
 
@@ -125,7 +132,7 @@ const GameInterface = () => {
 
       setModalState({
         isOpen: true,
-        title: `Aller à ${formatZoneName(type)}`,
+        title: formatZoneName(type),
         description: (
           <>
             Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}
@@ -134,7 +141,6 @@ const GameInterface = () => {
         ),
         actions: [
           { label: "Se déplacer", onClick: handleMoveAction, variant: "default" },
-          { label: "Annuler", onClick: closeModal, variant: "secondary" },
         ],
       });
     }
@@ -171,8 +177,6 @@ const GameInterface = () => {
     );
   }
 
-  const effectiveViewForHeader = currentView === 'exploration' ? 'map' : currentView;
-
   return (
     <div className="h-dvh flex flex-col bg-gray-900">
       <GameHeader
@@ -180,20 +184,19 @@ const GameInterface = () => {
         spawnDate={gameState.spawn_date}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
-        currentView={effectiveViewForHeader}
+        currentView={currentView}
         onBackToMap={handleBackToMap}
       />
       
-      <main className="flex-1 flex items-center justify-center p-0 sm:p-4 bg-gray-900 min-h-0">
-        {currentView === 'map' && (
+      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0">
+        {currentView === 'map' ? (
           <GameGrid 
             onCellSelect={handleCellSelect}
             discoveredZones={gameState.zones_decouvertes}
             playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
             basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
           />
-        )}
-        {currentView === 'base' && (
+        ) : (
           <div className="relative w-full h-full">
             <BaseHeader
               resources={{
@@ -204,9 +207,6 @@ const GameInterface = () => {
             />
             <BaseInterface />
           </div>
-        )}
-        {currentView === 'exploration' && (
-          <ExplorationView onBack={() => setCurrentView('map')} gameState={gameState} />
         )}
       </main>
       
