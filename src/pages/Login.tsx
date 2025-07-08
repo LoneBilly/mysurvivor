@@ -65,36 +65,14 @@ const Login = () => {
                   password_label: 'Mot de passe',
                   button_label: 'Connexion',
                   loading_button_label: 'Connexion...',
-                  link_text: 'Vous avez déjà un compte ? Connectez-vous',
-                  email_input_placeholder: 'Votre identifiant',
-                  password_input_placeholder: 'Votre mot de passe',
-                  error_message: {
-                    invalid_credentials: "Identifiants invalides. Le compte n'existe peut-être pas ou le mot de passe est incorrect. Voulez-vous en créer un ?"
-                  }
+                  link_text: 'Vous avez déjà un compte ? Connectez-vous'
                 },
                 sign_up: {
                   email_label: 'Identifiant',
                   password_label: 'Mot de passe',
                   button_label: "S'inscrire",
                   loading_button_label: 'Inscription...',
-                  link_text: "Pas de compte ? Créez-en un pour survivre",
-                  email_input_placeholder: 'Choisissez un identifiant',
-                  password_input_placeholder: 'Choisissez un mot de passe',
-                },
-                forgotten_password: {
-                  email_label: 'Identifiant',
-                  password_label: 'Nouveau mot de passe', // This label is for the reset form, not the request form
-                  button_label: 'Envoyer les instructions de réinitialisation',
-                  loading_button_label: 'Envoi en cours...',
-                  link_text: 'Mot de passe oublié ?',
-                  email_input_placeholder: 'Votre identifiant',
-                  link_text_return: 'Retour à la connexion',
-                },
-                update_password: {
-                  password_label: 'Nouveau mot de passe',
-                  password_input_placeholder: 'Entrez votre nouveau mot de passe',
-                  button_label: 'Mettre à jour le mot de passe',
-                  loading_button_label: 'Mise à jour...',
+                  link_text: "Pas de compte ? Créez-en un pour survivre"
                 }
               }
             }}
