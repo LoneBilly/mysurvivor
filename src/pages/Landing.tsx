@@ -4,7 +4,7 @@ import Leaderboard from '@/components/Leaderboard';
 import TestimonialCarousel from '@/components/TestimonialCarousel';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { ShieldAlert, Map, Home, Swords, Treasure, Users } from 'lucide-react';
+import { ShieldAlert, Map, Home, Swords, TreasureChest, Users } from 'lucide-react';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ const Landing = () => {
   const features = [
     { icon: Map, title: "Explorez", description: "Découvrez un monde en ruines, zone par zone, et révélez ses secrets." },
     { icon: Home, title: "Construisez", description: "Établissez votre campement et transformez-le en une base imprenable." },
-    { icon: Treasure, title: "Lootez", description: "Fouillez les décombres pour trouver des ressources et des objets précieux." },
+    { icon: TreasureChest, title: "Lootez", description: "Fouillez les décombres pour trouver des ressources et des objets précieux." },
     { icon: Swords, title: "Survivez", description: "Affrontez les autres survivants dans un environnement où chaque rencontre est décisive." },
   ];
 
