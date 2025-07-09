@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
+import { Loader2, ShieldAlert, Trophy, Home, CalendarDays, Medal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LeaderboardEntry {
@@ -27,13 +26,9 @@ const Leaderboard = () => {
       setError(null);
       try {
         const { data, error } = await supabase.rpc('get_leaderboard_data');
-
         if (error) throw error;
-
-        // Filtrer pour les joueurs avec une base et prendre le top 10
         const filteredData = (data || []).filter((p: LeaderboardEntry) => p.base_location).slice(0, 10);
         setLeaderboard(filteredData);
-
       } catch (err: any) {
         console.error("Error fetching leaderboard:", err);
         setError("Impossible de charger le classement.");
@@ -41,92 +36,96 @@ const Leaderboard = () => {
         setLoading(false);
       }
     };
-
     fetchLeaderboard();
   }, []);
 
-  return (
-    <Card className="w-full max-w-md lg:max-w-lg bg-white text-black border-2 border-black shadow-[8px_8px_0px_#000] rounded-none">
-      <CardHeader className="p-6">
-        <div className="flex items-center space-x-3">
-          <Trophy className="w-6 h-6 text-black" />
-          <div>
-            <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Classement</CardTitle>
-            <CardDescription className="text-gray-700">Top 10 des bâtisseurs</CardDescription>
-          </div>
+  const topPlayer = leaderboard.length > 0 ? leaderboard[0] : null;
+  const otherPlayers = leaderboard.length > 1 ? leaderboard.slice(1) : [];
+
+  const renderContent = () => {
+    if (loading) {
+      return <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-black" /></div>;
+    }
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 text-center text-red-500">
+          <ShieldAlert className="w-8 h-8 mb-2" />
+          <p>{error}</p>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="max-h-[60vh] overflow-y-auto border-t-2 border-black">
-          {loading ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-black" />
+      );
+    }
+    if (leaderboard.length === 0) {
+      return <div className="text-center p-8 text-gray-500 h-64 flex items-center justify-center">Aucun survivant n'a encore bâti de base.</div>;
+    }
+
+    return (
+      <div className="p-3 sm:p-4 space-y-3">
+        {topPlayer && (
+          <div className="p-4 rounded-none border-2 border-yellow-400 bg-yellow-100 shadow-[4px_4px_0px_#facc15]">
+            <div className="flex items-center gap-4">
+              <Trophy className="w-10 h-10 text-yellow-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-mono text-yellow-700">#1 Survivant</p>
+                <p className="text-xl font-bold text-black truncate">{topPlayer.username || 'Anonyme'}</p>
+              </div>
             </div>
-          ) : error ? (
-             <div className="flex flex-col items-center justify-center h-40 text-center text-red-500">
-                <ShieldAlert className="w-8 h-8 mb-2" />
-                <p>{error}</p>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <div className="flex items-center gap-2 p-2 bg-white/50 rounded-none border border-yellow-300">
+                <Home className="w-4 h-4 text-gray-600" />
+                <span>Base: <span className="font-bold">{formatZoneName(topPlayer.base_location)}</span></span>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-white/50 rounded-none border border-yellow-300">
+                <CalendarDays className="w-4 h-4 text-gray-600" />
+                <span><span className="font-bold">{topPlayer.days_alive}</span> jours</span>
+              </div>
             </div>
-          ) : leaderboard.length === 0 ? (
-            <div className="text-center p-8 text-gray-500">Aucun survivant classé.</div>
-          ) : (
-            <>
-              {/* Vue Mobile */}
-              <div className="md:hidden">
-                {leaderboard.map((player, index) => (
-                  <div key={index} className={cn("grid grid-cols-12 items-center p-4 border-b border-black last:border-b-0", index === 0 && "bg-yellow-100")}>
-                    <div className="col-span-1 font-bold text-black flex items-center justify-center">
-                      {index === 0 ? <Trophy className="w-5 h-5 text-yellow-500" /> : `#${index + 1}`}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {otherPlayers.map((player, index) => {
+            const rank = index + 2;
+            const rankInfo = {
+              2: { icon: Medal, color: "text-gray-500", bgColor: "bg-gray-100" },
+              3: { icon: Medal, color: "text-orange-500", bgColor: "bg-orange-100" },
+            }[rank];
+
+            return (
+              <div key={rank} className={cn("p-3 rounded-none border-2 border-black", rankInfo?.bgColor || "bg-white")}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="font-bold text-lg w-8 text-center flex-shrink-0">
+                      {rankInfo ? <rankInfo.icon className={cn("w-6 h-6 mx-auto", rankInfo.color)} /> : <span>#{rank}</span>}
                     </div>
-                    <div className="col-span-7 pl-2">
-                      <p className="font-medium text-black truncate">{player.username || 'Anonyme'}</p>
-                      <p className="text-sm text-gray-600 truncate">Base: {formatZoneName(player.base_location)}</p>
-                    </div>
-                    <div className="col-span-4 text-left pl-2">
-                      <p className="font-bold text-black">{player.days_alive}</p>
-                      <p className="text-sm text-gray-600">Jours</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold truncate">{player.username || 'Anonyme'}</p>
+                      <p className="text-xs text-gray-600 flex items-center gap-1 truncate">
+                        <Home size={12} /> {formatZoneName(player.base_location)}
+                      </p>
                     </div>
                   </div>
-                ))}
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-bold text-lg">{player.days_alive}</p>
+                    <p className="text-xs text-gray-600">jours</p>
+                  </div>
+                </div>
               </div>
-
-              {/* Vue Desktop */}
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-2 border-black hover:bg-gray-100">
-                      <TableHead className="w-[50px] text-black font-mono">#</TableHead>
-                      <TableHead className="text-black font-mono">Joueur</TableHead>
-                      <TableHead className="text-black font-mono">Base</TableHead>
-                      <TableHead className="text-black font-mono">Jours</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leaderboard.map((player, index) => (
-                      <TableRow 
-                        key={index} 
-                        className={cn(
-                          "border-b border-black last:border-b-0 hover:bg-gray-100",
-                          index === 0 && "bg-yellow-100 hover:bg-yellow-200 border-b-2 border-yellow-400"
-                        )}
-                      >
-                        <TableCell className="font-bold text-black">
-                          <div className="flex items-center gap-2">
-                            {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
-                            <span>#{index + 1}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-black font-medium">{player.username || 'Anonyme'}</TableCell>
-                        <TableCell className="text-gray-700">{formatZoneName(player.base_location)}</TableCell>
-                        <TableCell className="font-bold text-black">{player.days_alive}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
-          )}
+            );
+          })}
         </div>
+      </div>
+    );
+  };
+
+  return (
+    <Card className="w-full max-w-md lg:max-w-lg bg-white text-black border-2 border-black shadow-[8px_8px_0px_#000] rounded-none">
+      <CardHeader className="text-center border-b-2 border-black p-4">
+        <Trophy className="w-8 h-8 mx-auto text-black mb-2" />
+        <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Hall des Légendes</CardTitle>
+        <CardDescription className="text-gray-700">Seuls les plus forts survivent.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {renderContent()}
       </CardContent>
     </Card>
   );
