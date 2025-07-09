@@ -6,9 +6,9 @@ import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LeaderboardEntry {
-  username: string;
-  current_zone: string;
-  days_alive: number;
+  username: string | null;
+  jours_survecus: number;
+  base_zone: { x: number; y: number } | null;
 }
 
 const Leaderboard = () => {
@@ -22,9 +22,10 @@ const Leaderboard = () => {
       setError(null);
       try {
         const { data, error } = await supabase
-          .from('leaderboard')
-          .select('username, current_zone, days_alive')
-          .order('days_alive', { ascending: false })
+          .from('player_states')
+          .select('username, jours_survecus, base_zone:map_layout!player_states_base_zone_id_fkey(x, y)')
+          .not('base_zone_id', 'is', null)
+          .order('jours_survecus', { ascending: false })
           .limit(10);
 
         if (error) throw error;
@@ -48,7 +49,7 @@ const Leaderboard = () => {
           <Trophy className="w-6 h-6 text-black" />
           <div>
             <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Classement</CardTitle>
-            <CardDescription className="text-gray-700">Top 10 des plus endurcis</CardDescription>
+            <CardDescription className="text-gray-700">Top 10 des bâtisseurs</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -63,38 +64,66 @@ const Leaderboard = () => {
                 <ShieldAlert className="w-8 h-8 mb-2" />
                 <p>{error}</p>
             </div>
+          ) : leaderboard.length === 0 ? (
+            <div className="text-center p-8 text-gray-500">Aucun bâtisseur n'a encore été classé.</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-2 border-black hover:bg-gray-100">
-                  <TableHead className="w-[50px] text-black font-mono">#</TableHead>
-                  <TableHead className="text-black font-mono">Joueur</TableHead>
-                  <TableHead className="text-black font-mono">Zone</TableHead>
-                  <TableHead className="text-right text-black font-mono">Jours</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile View */}
+              <div className="md:hidden">
                 {leaderboard.map((player, index) => (
-                  <TableRow 
-                    key={index} 
-                    className={cn(
-                      "border-b border-black last:border-b-0 hover:bg-gray-100",
-                      index === 0 && "bg-yellow-100 hover:bg-yellow-200 border-b-2 border-yellow-400"
-                    )}
-                  >
-                    <TableCell className="font-bold text-black">
-                      <div className="flex items-center gap-2">
-                        {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
-                        <span>#{index + 1}</span>
+                  <div key={index} className={cn("flex items-center justify-between p-4 border-b border-black last:border-b-0", index === 0 && "bg-yellow-100")}>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-black w-8 text-center flex-shrink-0">
+                        {index === 0 ? <Trophy className="w-5 h-5 text-yellow-500" /> : `#${index + 1}`}
+                      </span>
+                      <div>
+                        <p className="font-medium text-black">{player.username || 'Anonyme'}</p>
+                        <p className="text-sm text-gray-600">Base: ({player.base_zone?.x}, {player.base_zone?.y})</p>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-black font-medium">{player.username}</TableCell>
-                    <TableCell className="text-gray-700">{player.current_zone}</TableCell>
-                    <TableCell className="text-right font-bold text-black">{player.days_alive}</TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <p className="font-bold text-black">{player.jours_survecus}</p>
+                      <p className="text-sm text-gray-600">Jours</p>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop View */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b-2 border-black hover:bg-gray-100">
+                      <TableHead className="w-[50px] text-black font-mono">#</TableHead>
+                      <TableHead className="text-black font-mono">Joueur</TableHead>
+                      <TableHead className="text-black font-mono">Base</TableHead>
+                      <TableHead className="text-right text-black font-mono">Jours</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaderboard.map((player, index) => (
+                      <TableRow 
+                        key={index} 
+                        className={cn(
+                          "border-b border-black last:border-b-0 hover:bg-gray-100",
+                          index === 0 && "bg-yellow-100 hover:bg-yellow-200 border-b-2 border-yellow-400"
+                        )}
+                      >
+                        <TableCell className="font-bold text-black">
+                          <div className="flex items-center gap-2">
+                            {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
+                            <span>#{index + 1}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-black font-medium">{player.username || 'Anonyme'}</TableCell>
+                        <TableCell className="text-gray-700">({player.base_zone?.x}, {player.base_zone?.y})</TableCell>
+                        <TableCell className="text-right font-bold text-black">{player.jours_survecus}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </div>
       </CardContent>
