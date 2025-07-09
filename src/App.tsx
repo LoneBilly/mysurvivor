@@ -1,11 +1,14 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Index from './pages/Index';
 import Login from './pages/Login';
+import Landing from './pages/Landing';
 import CreateProfile from './pages/CreateProfile';
 import Admin from './pages/Admin';
+import NotFound from './pages/NotFound';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import AdminRoute from './components/AdminRoute';
+import PublicRoute from './components/PublicRoute';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -29,17 +32,11 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
 function App() {
   useEffect(() => {
     const preventZoom = (e: TouchEvent) => {
-      // Bloque le geste de zoom (pincement avec deux doigts)
       if (e.touches.length > 1) {
         e.preventDefault();
       }
     };
-
-    // Ajoute l'écouteur d'événement au document
-    // L'option { passive: false } est cruciale pour que preventDefault() fonctionne
     document.addEventListener('touchmove', preventZoom, { passive: false });
-
-    // Nettoie l'écouteur lorsque le composant est démonté
     return () => {
       document.removeEventListener('touchmove', preventZoom);
     };
@@ -49,20 +46,22 @@ function App() {
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          
+          <Route
+            path="/game"
+            element={
+              <PrivateRoute>
+                <Index />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/create-profile"
             element={
               <PrivateRoute>
                 <CreateProfile />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Index />
               </PrivateRoute>
             }
           />
@@ -74,6 +73,7 @@ function App() {
               </AdminRoute>
             }
           />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster position="top-center" />
       </AuthProvider>

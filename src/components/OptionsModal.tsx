@@ -22,7 +22,7 @@ interface OptionsModalProps {
 }
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
-  const { user, role } = useAuth();
+  const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const [currentUsername, setCurrentUsername] = useState('');
   const [newUsername, setNewUsername] = useState('');
@@ -47,7 +47,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
 
     if (isOpen) {
       fetchProfile();
-      setNewUsername(''); // Reset input field when modal opens
+      setNewUsername('');
     }
   }, [user, isOpen]);
 
@@ -74,13 +74,14 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
 
   const handleLogout = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signOut();
-    setLoading(false);
-    if (error) {
-      showError(error.message);
-    } else {
+    try {
+      await signOut();
       showSuccess('Déconnexion réussie.');
       onClose();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 

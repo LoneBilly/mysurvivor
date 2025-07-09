@@ -50,8 +50,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setRole(profile.role);
           if (profile.username === null && location.pathname !== '/create-profile') {
             navigate('/create-profile');
-          } else if (profile.username !== null && location.pathname === '/create-profile') {
-            navigate('/');
+          } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
+            navigate('/game');
           }
         }
       } else {
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    navigate('/');
   }, [navigate]);
 
   const value = useMemo(() => ({

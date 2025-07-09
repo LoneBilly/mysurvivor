@@ -9,8 +9,7 @@ const AdminRoute = ({ children }: { children: JSX.Element }) => {
   }
 
   if (!user || role !== 'admin') {
-    // Redirige vers la page d'accueil si l'utilisateur n'est pas un admin
-    return <Navigate to="/" />;
+    return <Navigate to="/game" />;
   }
 
   return children;

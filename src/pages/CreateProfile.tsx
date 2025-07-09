@@ -43,9 +43,7 @@ const CreateProfile = () => {
       console.error('Error updating profile:', error);
     } else {
       showSuccess("Votre pseudonyme a été enregistré. Bienvenue !");
-      // The AuthProvider will detect the change and redirect to '/'
-      // but we can force it for better UX
-      navigate('/');
+      navigate('/game');
     }
     setLoading(false);
   };

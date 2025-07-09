@@ -1,27 +1,17 @@
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import Leaderboard from '@/components/Leaderboard';
 import { ShieldAlert, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { showError, showSuccess } from '@/utils/toast';
 import ActionModal from '@/components/ActionModal';
+import { Link } from 'react-router-dom';
 
 const Login = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false });
-
-  useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
 
   const handleSignUp = async () => {
     setModalState({ isOpen: false });
@@ -54,18 +44,14 @@ const Login = () => {
       if (error) throw error;
 
       if (data.exists) {
-        // User exists, try to sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (signInError) {
-          // This is likely a wrong password
           showError("Mot de passe incorrect.");
         }
-        // On success, AuthProvider will handle redirect
       } else {
-        // User does not exist, ask to create account
         setModalState({ isOpen: true });
       }
     } catch (err: any) {
@@ -79,14 +65,17 @@ const Login = () => {
   return (
     <>
       <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4">
-        <div className="w-full flex flex-col lg:flex-row items-center justify-center gap-12">
-          <div className="w-full max-w-md bg-white border-2 border-black shadow-[8px_8px_0px_#000] rounded-none p-8">
+        <div className="w-full max-w-sm">
+           <Link to="/" className="absolute top-4 left-4 text-sm text-gray-600 hover:text-black font-mono">
+            &larr; Retour à l'accueil
+          </Link>
+          <div className="bg-white border-2 border-black shadow-[8px_8px_0px_#000] rounded-none p-8">
             <div className="text-center mb-8">
               <ShieldAlert className="w-12 h-12 mx-auto text-black mb-4" />
               <h1 className="text-3xl font-bold text-black font-mono tracking-wider uppercase">
                 Terminal de Survie
               </h1>
-              <p className="text-gray-700 mt-2">Authentification requise pour continuer.</p>
+              <p className="text-gray-700 mt-2">Authentification requise.</p>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -118,9 +107,6 @@ const Login = () => {
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connexion / Inscription'}
               </Button>
             </form>
-          </div>
-          <div className="w-full max-w-md lg:max-w-lg">
-            <Leaderboard />
           </div>
         </div>
       </div>
