@@ -69,19 +69,12 @@
   html,
   body,
   #root {
-    @apply h-full overflow-hidden;
+    @apply h-full;
   }
   /* Fix for iOS zoom on input focus */
   input,
   textarea {
     font-size: 16px !important;
-  }
-  /* Prevent user selection */
-  * {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
   }
 }
 
