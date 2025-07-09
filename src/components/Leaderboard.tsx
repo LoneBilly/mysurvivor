@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LeaderboardEntry {
   username: string;
@@ -74,9 +75,20 @@ const Leaderboard = () => {
               </TableHeader>
               <TableBody>
                 {leaderboard.map((player, index) => (
-                  <TableRow key={index} className="border-b border-black last:border-b-0 hover:bg-gray-100">
-                    <TableCell className="font-medium text-black">#{index + 1}</TableCell>
-                    <TableCell className="text-black">{player.username}</TableCell>
+                  <TableRow 
+                    key={index} 
+                    className={cn(
+                      "border-b border-black last:border-b-0 hover:bg-gray-100",
+                      index === 0 && "bg-yellow-100 hover:bg-yellow-200 border-b-2 border-yellow-400"
+                    )}
+                  >
+                    <TableCell className="font-bold text-black">
+                      <div className="flex items-center gap-2">
+                        {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
+                        <span>#{index + 1}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-black font-medium">{player.username}</TableCell>
                     <TableCell className="text-gray-700">{player.current_zone}</TableCell>
                     <TableCell className="text-right font-bold text-black">{player.days_alive}</TableCell>
                   </TableRow>
