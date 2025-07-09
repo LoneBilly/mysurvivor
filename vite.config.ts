@@ -5,17 +5,21 @@ import path from "path";
 
 export default defineConfig(() => ({
   server: {
-    host: "::", // Garde cette configuration pour permettre l'accès externe
-    port: 8080, // Votre port actuel
-    // --- C'est la ligne importante à ajouter ! ---
+    host: "::", // Permet l'accès externe
+    port: 8080, // Port de développement
+
+    // Autorisation d'accès aux fichiers du projet
     fs: {
-      allow: [
-        '.', // Ceci autorise l'accès aux fichiers du répertoire de votre projet
-        '8c1aec6d1cc6.ngrok-free.app' // C'est ici que vous ajoutez l'hôte ngrok spécifique
-      ]
-    }
+      allow: ['.']
+    },
+
+    // Autorisation d'un hôte spécifique (à remplacer par ton sous-domaine ngrok actuel)
+    allowedHosts: ['df4fa5b77365.ngrok-free.app'],
   },
-  plugins: [dyadComponentTagger(), react()],
+  plugins: [
+    dyadComponentTagger(),
+    react()
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
