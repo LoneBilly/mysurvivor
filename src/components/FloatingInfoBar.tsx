@@ -1,12 +1,12 @@
-import { Users, Trophy } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 interface FloatingInfoBarProps {
   playerCount: number | null;
-  topPlayer: { username: string; days_alive: number } | null;
+  // Removed topPlayer prop
 }
 
-const FloatingInfoBar = ({ playerCount, topPlayer }: FloatingInfoBarProps) => {
-  if (playerCount === null && !topPlayer) {
+const FloatingInfoBar = ({ playerCount }: FloatingInfoBarProps) => {
+  if (playerCount === null) { // Simplified condition
     return null;
   }
 
@@ -19,15 +19,7 @@ const FloatingInfoBar = ({ playerCount, topPlayer }: FloatingInfoBarProps) => {
             <span>Rejoignez <span className="font-bold">{playerCount}</span> survivants dans le jeu.</span>
           </div>
         )}
-        {playerCount !== null && topPlayer && (
-          <div className="hidden sm:block w-px h-6 bg-black" />
-        )}
-        {topPlayer && (
-          <div className="flex items-center gap-2 text-sm font-mono text-black">
-            <Trophy className="w-5 h-5 text-yellow-500" />
-            <span>Top survivant : <span className="font-bold">{topPlayer.username}</span> ({topPlayer.days_alive} jours) !</span>
-          </div>
-        )}
+        {/* Removed separator and topPlayer display */}
       </div>
     </div>
   );

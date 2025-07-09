@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { ShieldAlert, Map, Home, Swords, Package } from 'lucide-react';
 import FloatingInfoBar from '@/components/FloatingInfoBar';
+import LaserButton from '@/components/LaserButton'; // Import the new component
 
 const Landing = () => {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState<number | null>(null);
-  const [topPlayer, setTopPlayer] = useState<{ username: string; days_alive: number } | null>(null);
+  // Removed topPlayer state as requested
 
   useEffect(() => {
     const fetchLandingData = async () => {
@@ -21,18 +22,7 @@ const Landing = () => {
       if (countError) console.error("Error fetching player count:", countError);
       else setPlayerCount(count);
 
-      // Fetch top player
-      const { data: topPlayerData, error: topPlayerError } = await supabase
-        .from('leaderboard')
-        .select('username, days_alive')
-        .order('days_alive', { ascending: false })
-        .limit(1)
-        .single();
-      if (topPlayerError && topPlayerError.code !== 'PGRST116') { // Ignore "No rows found" error
-        console.error("Error fetching top player:", topPlayerError);
-      } else {
-        setTopPlayer(topPlayerData);
-      }
+      // Removed top player fetching logic as requested
     };
 
     fetchLandingData();
@@ -40,7 +30,7 @@ const Landing = () => {
 
   const features = [
     { icon: Map, title: "Explorez", description: "Découvrez un monde en ruines, zone par zone, et révélez ses secrets." },
-    { icon: Home, title: "Construisez", description: "Établissez votre campement et transformez-le en une base imprenable." },
+    { icon: Home, title: "Construisez", description: "Établissez votre campement et transformez-lo en une base imprenable." },
     { icon: Package, title: "Lootez", description: "Fouillez les décombres pour trouver des ressources et des objets précieux." },
     { icon: Swords, title: "Survivez", description: "Affrontez les autres survivants dans un environnement où chaque rencontre est décisive." },
   ];
@@ -58,12 +48,11 @@ const Landing = () => {
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
-          <Button 
+          <LaserButton // Using the new LaserButton component
             onClick={() => navigate('/login')}
-            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
           >
             COMMENCER L'AVENTURE
-          </Button>
+          </LaserButton>
         </div>
         <div className="mt-16 w-full flex justify-center">
           <Leaderboard />
@@ -98,15 +87,14 @@ const Landing = () => {
         <p className="text-gray-700 mt-4 text-lg max-w-2xl mx-auto">
           Le monde ne vous attendra pas. Chaque seconde compte. Rejoignez les rangs des survivants et forgez votre propre légende.
         </p>
-        <Button 
+        <LaserButton // Using the new LaserButton component
           onClick={() => navigate('/login')}
-          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-12 py-6"
         >
           JOUER MAINTENANT
-        </Button>
+        </LaserButton>
       </section>
 
-      <FloatingInfoBar playerCount={playerCount} topPlayer={topPlayer} />
+      <FloatingInfoBar playerCount={playerCount} /> {/* Removed topPlayer prop */}
     </div>
   );
 };
