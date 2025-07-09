@@ -23,20 +23,27 @@ interface ActionModalProps {
 const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-white">{title}</DialogTitle>
+      <DialogContent className="sm:max-w-md bg-black/60 backdrop-blur-sm border border-amber-400/20 rounded-lg shadow-2xl shadow-black/50 text-white p-6">
+        <DialogHeader className="text-center">
+          <DialogTitle className="text-amber-400 font-mono tracking-wider uppercase text-xl">
+            {title}
+          </DialogTitle>
           {description && (
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-gray-300 mt-2 text-base">
               {description}
             </DialogDescription>
           )}
         </DialogHeader>
         {actions.length > 0 && (
-          <DialogFooter className="mt-4 sm:justify-center">
-            <div className="flex w-full flex-col sm:flex-row gap-2">
+          <DialogFooter className="mt-6 sm:justify-center">
+            <div className="flex w-full flex-col sm:flex-row gap-3">
               {actions.map((action, index) => (
-                <Button key={index} onClick={action.onClick} variant={action.variant || "default"} className="flex-1">
+                <Button
+                  key={index}
+                  onClick={action.onClick}
+                  variant={action.variant || "default"}
+                  className="flex-1 font-bold tracking-wide"
+                >
                   {action.label}
                 </Button>
               ))}

@@ -41,7 +41,7 @@ const IconPickerModal = ({ isOpen, onClose, currentIcon, onSelectIcon }: IconPic
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-gray-800 border-gray-700 text-white">
+      <DialogContent className="sm:max-w-lg bg-gray-900/80 backdrop-blur-sm border border-gray-700 text-white rounded-lg shadow-lg">
         <DialogHeader>
           <DialogTitle className="text-white">Choisir une icône</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -53,7 +53,7 @@ const IconPickerModal = ({ isOpen, onClose, currentIcon, onSelectIcon }: IconPic
             placeholder="Rechercher une icône..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="mb-4 bg-gray-700 border-gray-600 text-white"
+            className="mb-4 bg-gray-800 border-gray-600 text-white"
           />
           <ScrollArea className="h-[300px] w-full rounded-md border border-gray-700 p-4 bg-gray-900/50">
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">

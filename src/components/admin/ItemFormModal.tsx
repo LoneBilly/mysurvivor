@@ -124,7 +124,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
+      <DialogContent className="sm:max-w-md bg-gray-900/80 backdrop-blur-sm border border-gray-700 text-white rounded-lg shadow-lg">
         <DialogHeader>
           <DialogTitle className="text-white">{item ? 'Modifier l\'objet' : 'Créer un nouvel objet'}</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -141,7 +141,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="col-span-3 bg-gray-700 border-gray-600 text-white"
+                className="col-span-3 bg-gray-800 border-gray-600 text-white"
                 required
                 disabled={loading}
               />
@@ -158,7 +158,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="col-span-3 bg-gray-700 border-gray-600 text-white"
+                className="col-span-3 bg-gray-800 border-gray-600 text-white"
                 disabled={loading}
               />
             </div>
@@ -167,7 +167,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 Type
               </Label>
               <Select value={type} onValueChange={setType} disabled={loading}>
-                <SelectTrigger className="col-span-3 bg-gray-700 border-gray-600 text-white">
+                <SelectTrigger className="col-span-3 bg-gray-800 border-gray-600 text-white">
                   <SelectValue placeholder="Sélectionner un type" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700 text-white">

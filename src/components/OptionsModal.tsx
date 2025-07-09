@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { useNavigate } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 
 interface OptionsModalProps {
   isOpen: boolean;
@@ -90,43 +91,44 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
-        <DialogHeader>
-          <DialogTitle>Options</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-w-md bg-black/60 backdrop-blur-sm border border-amber-400/20 rounded-lg shadow-2xl shadow-black/50 text-white p-6">
+        <DialogHeader className="text-center mb-4">
+          <Settings className="w-8 h-8 mx-auto text-amber-400 mb-2" />
+          <DialogTitle className="text-amber-400 font-mono tracking-wider uppercase text-xl">Options</DialogTitle>
+          <DialogDescription className="text-gray-300 mt-1">
             Gérez les paramètres de votre compte et du jeu.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-2">
           <div className="space-y-4">
-            <h4 className="font-medium text-gray-200">Changer de pseudo</h4>
+            <h4 className="font-medium text-gray-200 font-mono">Changer de pseudo</h4>
             <div className="space-y-2">
-              <Label htmlFor="username">Nouveau pseudo</Label>
+              <Label htmlFor="username" className="text-gray-400 font-mono">Nouveau pseudo</Label>
               <Input
                 id="username"
                 placeholder={currentUsername || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
-                className="bg-gray-700 border-gray-600 text-white"
+                className="bg-gray-900/50 border-gray-600 focus:border-amber-500 focus:ring-amber-500"
                 disabled={loading}
               />
             </div>
-            <Button onClick={handleSave} disabled={loading || !newUsername.trim()} className="w-full">
+            <Button onClick={handleSave} disabled={loading || !newUsername.trim()} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold">
               {loading ? 'Sauvegarde...' : 'Sauvegarder le pseudo'}
             </Button>
           </div>
-          <Separator className="bg-gray-700" />
+          <Separator className="bg-amber-400/20" />
           <div className="space-y-4">
-            <h4 className="font-medium text-gray-200">Compte</h4>
+            <h4 className="font-medium text-gray-200 font-mono">Compte</h4>
             {role === 'admin' && (
               <>
-                <Button onClick={handleGoToAdmin} variant="secondary" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                <Button onClick={handleGoToAdmin} variant="secondary" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
                   Panel d'Administration
                 </Button>
-                <Separator className="bg-gray-700" />
+                <Separator className="bg-amber-400/20" />
               </>
             )}
-            <Button onClick={handleLogout} variant="destructive" disabled={loading} className="w-full">
+            <Button onClick={handleLogout} variant="destructive" disabled={loading} className="w-full font-bold">
               Déconnexion
             </Button>
           </div>

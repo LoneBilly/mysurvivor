@@ -131,7 +131,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   return (
     <>
       <div
-        className="bg-gray-900/50 h-full aspect-square flex items-center justify-center bg-[radial-gradient(theme(colors.gray.800)_1px,transparent_1px)] [background-size:20px_20px]"
+        className="bg-gray-900/50 h-full aspect-square flex items-center justify-center"
         onMouseMove={handleMouseMove}
       >
         <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full p-2 md:p-3">
