@@ -84,9 +84,9 @@ const Leaderboard = () => {
                     <span className="font-bold text-black w-8 text-center flex-shrink-0 text-lg">
                       {index === 0 ? <Trophy className="w-6 h-6 text-yellow-500" /> : `#${index + 1}`}
                     </span>
-                    <div>
+                    <div className="text-left">
                       <p className="font-bold text-black text-base">{player.username || 'Anonyme'}</p>
-                      <p className="text-sm text-gray-600 font-mono">Zone: {formatZoneName(player.base_zone?.type)}</p>
+                      <p className="text-sm text-gray-600 font-mono">{formatZoneName(player.base_zone?.type)}</p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
