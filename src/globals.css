@@ -86,4 +86,41 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
+
+  .btn-laser {
+    @apply relative overflow-hidden;
+  }
+  .btn-laser::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #00ff00;
+    box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 20px #00ff00;
+    border-radius: 50%;
+    animation: laser-border-scan 4s linear infinite;
+  }
+
+  @keyframes laser-border-scan {
+    0% {
+      top: -2px;
+      left: -2px;
+    }
+    25% {
+      top: -2px;
+      left: calc(100% - 2px);
+    }
+    50% {
+      top: calc(100% - 2px);
+      left: calc(100% - 2px);
+    }
+    75% {
+      top: calc(100% - 2px);
+      left: -2px;
+    }
+    100% {
+      top: -2px;
+      left: -2px;
+    }
+  }
 }
