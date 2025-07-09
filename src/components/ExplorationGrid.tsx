@@ -87,11 +87,11 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   }, [playerPosition, updateIndicators]);
 
   return (
-    <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
+    <div className="relative w-full h-full bg-gray-100" onMouseLeave={() => onCellHover(-1, -1)}>
       <div
         ref={viewportRef}
         onScroll={updateIndicators}
-        className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
+        className="w-full h-full overflow-auto bg-gray-100 no-scrollbar"
       >
         <div
           className="relative"
@@ -127,19 +127,19 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                   onMouseEnter={() => onCellHover(x, y)}
                   onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
-                    "absolute flex items-center justify-center rounded border transition-all duration-100",
+                    "absolute flex items-center justify-center rounded-none border-2 transition-all duration-100",
                     isEntrance 
-                      ? "bg-gray-900/70 border-gray-700" 
-                      : "bg-gray-800/50 border-gray-700/20",
+                      ? "bg-gray-200 border-gray-400" 
+                      : "bg-white border-gray-300/80",
                     
-                    isAffordablePath && "bg-blue-500/20 border-blue-400/30",
-                    isUnaffordablePath && "bg-orange-500/20 border-orange-400/30",
+                    isAffordablePath && "bg-blue-200 border-blue-500",
+                    isUnaffordablePath && "bg-orange-200 border-orange-500",
                     
-                    isTarget && canAffordMove && "bg-blue-500/40 border-blue-400/50",
-                    isTarget && !canAffordMove && "bg-orange-500/40 border-orange-400/50",
+                    isTarget && canAffordMove && "bg-blue-300 border-blue-600",
+                    isTarget && !canAffordMove && "bg-orange-300 border-orange-600",
 
                     isClickable ? "cursor-pointer" : "cursor-default",
-                    canClickEntrance && "hover:bg-gray-800/70"
+                    canClickEntrance && "hover:bg-gray-300"
                   )}
                   style={{
                     left: x * (CELL_SIZE_PX + CELL_GAP),
@@ -150,17 +150,17 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                 >
                   {isEntrance && !isPlayerOnCell && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <ArrowDown className="w-6 h-6 text-amber-300 animate-bounce" style={{ animationDuration: '2s' }} />
+                      <ArrowDown className="w-6 h-6 text-black animate-bounce" style={{ animationDuration: '2s' }} />
                     </div>
                   )}
                   {isPlayerOnCell && (
-                    <div className="relative w-1/4 h-1/4 rounded-full bg-blue-500 shadow-lg"></div>
+                    <div className="relative w-1/2 h-1/2 rounded-full bg-black shadow-lg"></div>
                   )}
                   {isTarget && energyCost > 0 && (
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
                       <div className={cn(
-                        "flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border rounded-md px-2 py-0.5 text-xs font-bold",
-                        canAffordMove ? "text-yellow-400 border-yellow-600/50" : "text-red-400 border-red-600/50"
+                        "flex items-center gap-1 bg-white border-2 border-black rounded-none px-2 py-0.5 text-xs font-bold",
+                        canAffordMove ? "text-black" : "text-red-500"
                       )}>
                         <Zap size={12} />
                         <span>{energyCost}</span>
@@ -175,7 +175,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       </div>
       {/* Exit Indicator */}
       <div
-        className="absolute z-20 text-amber-400 transition-opacity pointer-events-none"
+        className="absolute z-20 text-black transition-opacity pointer-events-none"
         style={{
           opacity: exitIndicator.visible ? 1 : 0,
           top: `${exitIndicator.y}px`,
@@ -187,7 +187,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       </div>
       {/* Player Indicator */}
       <div
-        className="absolute z-20 text-blue-400 transition-opacity pointer-events-none"
+        className="absolute z-20 text-black transition-opacity pointer-events-none"
         style={{
           opacity: playerIndicator.visible ? 1 : 0,
           top: '50%',

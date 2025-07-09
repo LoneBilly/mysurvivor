@@ -55,8 +55,6 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     return grid;
   };
 
-  const grid = generateGrid();
-
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') return null;
     if (!cell.discovered) return <Lock className="w-1/2 h-1/2 text-gray-500" />;
@@ -72,25 +70,20 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') {
-      return "bg-black/50 border-transparent cursor-default";
+      return "bg-gray-200 border-transparent cursor-default";
     }
 
     if (!cell.discovered) {
       return cn(
-        "bg-gray-800/80 border-gray-700/50 text-gray-400 cursor-pointer",
-        !isMobile && "hover:border-sky-500 hover:bg-gray-800"
+        "bg-gray-300 border-black/50 text-gray-800 cursor-pointer",
+        !isMobile && "hover:border-black hover:bg-gray-400"
       );
     }
     
-    let typeStyle;
-    switch (cell.type) {
-      default:
-        typeStyle = "border-gray-500/50 text-gray-300 bg-gray-900/30";
-    }
     return cn(
-      typeStyle,
+      "bg-white border-black/80 text-black",
       "cursor-pointer",
-      !isMobile && "hover:bg-gray-900/60 hover:border-sky-500"
+      !isMobile && "hover:bg-gray-200 hover:border-black"
     );
   };
 
@@ -122,8 +115,8 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
 
   if (loading) {
     return (
-      <div className="bg-gray-800 p-1 md:p-2 rounded-lg shadow-lg h-full aspect-square flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      <div className="bg-white p-1 md:p-2 rounded-none shadow-[4px_4px_0px_#000] border-2 border-black h-full aspect-square flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-black" />
       </div>
     );
   }
@@ -131,7 +124,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
   return (
     <>
       <div
-        className="bg-gray-900/50 h-full aspect-square flex items-center justify-center"
+        className="bg-gray-200 h-full aspect-square flex items-center justify-center border-2 border-black shadow-[8px_8px_0px_#000]"
         onMouseMove={handleMouseMove}
       >
         <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full p-2 md:p-3">
@@ -142,7 +135,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
                 onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
                 disabled={!cell || cell.type === 'unknown'}
                 className={cn(
-                  "relative aspect-square flex items-center justify-center font-bold rounded-md border-2 transition-all duration-200 w-full h-full",
+                  "relative aspect-square flex items-center justify-center font-bold rounded-none border-2 transition-all duration-200 w-full h-full",
                   getCellStyle(cell)
                 )}
                 onMouseEnter={(e) => cell && handleMouseEnter(e, cell)}
@@ -150,13 +143,13 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
               >
                 {getCellContent(cell)}
                 {playerPosition.x === x && playerPosition.y === y && (
-                  <div className="absolute top-1 right-1 w-2 h-2">
-                    <div className="w-full h-full rounded-full bg-blue-400 animate-ping absolute"></div>
-                    <div className="w-full h-full rounded-full bg-blue-500 relative"></div>
+                  <div className="absolute top-1 right-1 w-2.5 h-2.5">
+                    <div className="w-full h-full rounded-full bg-black animate-ping absolute"></div>
+                    <div className="w-full h-full rounded-full bg-black relative border-2 border-white"></div>
                   </div>
                 )}
                 {basePosition && basePosition.x === x && basePosition.y === y && (
-                  <div className="absolute inset-0 border-2 border-amber-400 rounded-md pointer-events-none"></div>
+                  <div className="absolute inset-0 border-2 border-dashed border-black pointer-events-none"></div>
                 )}
               </button>
             ))
@@ -165,7 +158,7 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
       </div>
       {!isMobile && tooltip && tooltip.visible && (
         <div
-          className="pointer-events-none fixed z-50 rounded-md bg-gray-800 border border-gray-700 px-3 py-1.5 text-sm text-gray-200 shadow-lg"
+          className="pointer-events-none fixed z-50 rounded-none bg-white border-2 border-black px-3 py-1.5 text-sm text-black shadow-[2px_2px_0px_#000]"
           style={{
             left: `${tooltip.x + 15}px`,
             top: `${tooltip.y + 15}px`,

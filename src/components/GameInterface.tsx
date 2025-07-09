@@ -301,10 +301,10 @@ const GameInterface = () => {
 
   if (loading || !isViewReady) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-900">
-        <div className="text-center text-white">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-200" />
-          <p className="text-gray-400">Chargement du jeu...</p>
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center text-black">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-gray-600">Chargement du jeu...</p>
         </div>
       </div>
     );
@@ -312,12 +312,12 @@ const GameInterface = () => {
 
   if (!gameState) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-900">
+      <div className="h-full flex items-center justify-center bg-gray-100">
         <div className="text-center">
-          <p className="text-gray-400 mb-4">Erreur lors du chargement du jeu</p>
+          <p className="text-gray-600 mb-4">Erreur lors du chargement du jeu</p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-black text-white rounded-none"
           >
             Recharger
           </button>
@@ -327,7 +327,7 @@ const GameInterface = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-100 text-black">
       <GameHeader
         joursSurvecus={gameState.jours_survecus}
         spawnDate={gameState.spawn_date}
@@ -338,7 +338,7 @@ const GameInterface = () => {
       />
       
       <main className={cn(
-        "flex-1 flex items-center justify-center bg-gray-900 min-h-0 overflow-hidden",
+        "flex-1 flex items-center justify-center bg-gray-100 min-h-0 overflow-hidden",
         currentView === 'map' && "p-4"
       )}>
         {currentView === 'map' ? (

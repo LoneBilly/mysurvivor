@@ -13,7 +13,7 @@ interface GameHeaderProps {
 
 const GameHeader = ({ joursSurvecus, spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
-  const showBackButton = currentView === 'base';
+  const showBackButton = currentView === 'base' || currentView === 'exploration';
 
   useEffect(() => {
     if (!spawnDate) return;
@@ -39,17 +39,17 @@ const GameHeader = ({ joursSurvecus, spawnDate, onLeaderboard, onOptions, curren
   }, [spawnDate]);
 
   return (
-    <header className="flex items-center justify-between p-4 bg-gray-800/50 backdrop-blur-sm text-white border-b border-gray-700/50 h-[73px]">
+    <header className="flex items-center justify-between p-4 bg-white text-black border-b-2 border-black h-[73px]">
       <div className="flex-1 flex justify-start">
         {currentView === 'map' ? (
-          <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-gray-700">
+          <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-gray-200 rounded-none">
             <Trophy className="w-5 h-5" />
           </Button>
         ) : showBackButton ? (
           <Button
             variant="ghost"
             onClick={onBackToMap}
-            className="flex items-center space-x-2 text-gray-200 hover:bg-gray-700 hover:text-white p-2 sm:px-3"
+            className="flex items-center space-x-2 text-black hover:bg-gray-200 p-2 sm:px-3 rounded-none"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Retour</span>
@@ -59,17 +59,17 @@ const GameHeader = ({ joursSurvecus, spawnDate, onLeaderboard, onOptions, curren
         )}
       </div>
       <div className="flex-none text-center px-4">
-        <p className="text-sm text-gray-300">
-          Jours survécus: <span className="font-bold text-lg text-green-400">{joursSurvecus}</span>
+        <p className="text-sm text-gray-600 font-mono">
+          Jours survécus: <span className="font-bold text-lg text-black">{joursSurvecus}</span>
         </p>
         {elapsedTime && (
-          <p className="text-xs text-gray-400 font-mono mt-1" suppressHydrationWarning>
+          <p className="text-xs text-gray-500 font-mono mt-1" suppressHydrationWarning>
             {elapsedTime}
           </p>
         )}
       </div>
       <div className="flex-1 flex justify-end">
-        <Button variant="ghost" size="icon" onClick={onOptions} className="hover:bg-gray-700">
+        <Button variant="ghost" size="icon" onClick={onOptions} className="hover:bg-gray-200 rounded-none">
           <Settings className="w-5 h-5" />
         </Button>
       </div>

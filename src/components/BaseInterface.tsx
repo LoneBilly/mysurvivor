@@ -172,18 +172,18 @@ const BaseInterface = () => {
 
   const getCellStyle = (cell: BaseCell) => {
     switch (cell.type) {
-      case 'campfire': return "bg-orange-200/10 border-orange-400/30";
-      case 'foundation': return "bg-gray-600 border-gray-500";
+      case 'campfire': return "bg-orange-100 border-black";
+      case 'foundation': return "bg-gray-300 border-black";
       case 'empty':
-        if (cell.canBuild) return "bg-gray-700/50 border-gray-600 hover:bg-gray-600/50 cursor-pointer border-dashed";
-        return "bg-gray-800/50 border-gray-700/20";
-      default: return "bg-gray-800/50 border-gray-700/20";
+        if (cell.canBuild) return "bg-white border-gray-400 hover:bg-gray-200 cursor-pointer border-dashed";
+        return "bg-gray-100 border-gray-300/50";
+      default: return "bg-gray-100 border-gray-300/50";
     }
   };
 
   if (!isInitialized || !gridData) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white">
+      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-black">
         <Loader2 className="w-8 h-8 animate-spin mb-4" />
         <p>Chargement de la base...</p>
       </div>
@@ -194,7 +194,7 @@ const BaseInterface = () => {
     <div className="relative w-full h-full">
       <div
         ref={viewportRef}
-        className="w-full h-full overflow-auto bg-gray-900 no-scrollbar"
+        className="w-full h-full overflow-auto bg-gray-100 no-scrollbar"
         style={{ opacity: isInitialized ? 1 : 0, transition: 'opacity 0.5s' }}
       >
         <div
@@ -210,7 +210,7 @@ const BaseInterface = () => {
                 key={`${x}-${y}`}
                 onClick={() => handleCellClick(x, y)}
                 className={cn(
-                  "absolute flex items-center justify-center text-2xl font-bold rounded border transition-colors",
+                  "absolute flex items-center justify-center text-2xl font-bold rounded-none border-2 transition-colors",
                   getCellStyle(cell)
                 )}
                 style={{
@@ -237,7 +237,7 @@ const BaseInterface = () => {
         }}
         variant="secondary"
         size="icon"
-        className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg bg-gray-800/80 hover:bg-gray-700/80 border border-gray-600 text-white"
+        className="absolute bottom-4 right-4 z-10 rounded-none shadow-[2px_2px_0px_#000] bg-white hover:bg-gray-200 border-2 border-black text-black"
       >
         <LocateFixed className="w-5 h-5" />
       </Button>
