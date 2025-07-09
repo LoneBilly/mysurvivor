@@ -19,15 +19,11 @@ interface BaseConstruction {
   type: string;
 }
 
-interface BaseInterfaceProps {
-  isActive: boolean;
-}
-
 const GRID_SIZE = 100;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
-const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
+const BaseInterface = () => {
   const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -133,16 +129,16 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   useLayoutEffect(() => {
-    if (isActive && isInitialized && campfirePosition && viewportRef.current) {
+    if (isInitialized && campfirePosition && viewportRef.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
     }
-  }, [isActive, isInitialized, campfirePosition]);
+  }, [isInitialized, campfirePosition]);
 
   useEffect(() => {
-    if (isActive && lastBuiltCell) {
+    if (lastBuiltCell) {
       centerViewport(lastBuiltCell.x, lastBuiltCell.y);
     }
-  }, [isActive, lastBuiltCell]);
+  }, [lastBuiltCell]);
 
   const handleCellClick = async (x: number, y: number) => {
     if (!gridData || !user) return;
