@@ -104,7 +104,7 @@
       transparent,
       #0000ff
     );
-    animation: rotate 4s linear infinite;
+    animation: rotate 8s linear infinite;
     transform: translate(-50%, -50%);
   }
 
