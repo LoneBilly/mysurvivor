@@ -1,21 +1,19 @@
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { MapCell } from "@/types/game";
-import { Loader2, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface GameGridProps {
+  mapLayout: MapCell[];
   onCellSelect: (cell: MapCell) => void;
   discoveredZones: number[];
   playerPosition: { x: number; y: number };
   basePosition: { x: number; y: number } | null;
 }
 
-const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition }: GameGridProps) => {
-  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
-  const [loading, setLoading] = useState(true);
+const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, basePosition }: GameGridProps) => {
   const isMobile = useIsMobile();
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
@@ -23,21 +21,6 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     x: number;
     y: number;
   } | null>(null);
-
-  useEffect(() => {
-    const fetchMapLayout = async () => {
-      setLoading(true);
-      const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
-      if (error) {
-        console.error("Error fetching map layout:", error);
-        setLoading(false);
-      } else {
-        setMapLayout(data as MapCell[]);
-        setLoading(false);
-      }
-    };
-    fetchMapLayout();
-  }, []);
 
   const generateGrid = (): (MapCell & { discovered: boolean })[][] => {
     const grid: (MapCell & { discovered: boolean })[][] = Array(7).fill(null).map(() => []);
@@ -112,14 +95,6 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     if (isMobile) return;
     setTooltip(null);
   };
-
-  if (loading) {
-    return (
-      <div className="bg-white p-1 md:p-2 rounded-none shadow-[4px_4px_0px_#000] border-2 border-black h-full aspect-square flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-black" />
-      </div>
-    );
-  }
 
   const grid = generateGrid();
 

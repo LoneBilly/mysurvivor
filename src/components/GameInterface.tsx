@@ -62,7 +62,9 @@ const findPathBFS = (start: {x: number, y: number}, end: {x: number, y: number})
 
 const GameInterface = () => {
   const { user } = useAuth();
-  const { gameState, loading, saveGameState } = useGameState();
+  const { gameState, loading: gameStateLoading, saveGameState } = useGameState();
+  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
+  const [mapLoading, setMapLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -77,7 +79,22 @@ const GameInterface = () => {
   }>({ isOpen: false, title: "", description: "", actions: [] });
 
   useEffect(() => {
-    if (gameState && !loading) {
+    const fetchMapLayout = async () => {
+      setMapLoading(true);
+      const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
+      if (error) {
+        console.error("Error fetching map layout:", error);
+        showError("Impossible de charger la carte.");
+      } else {
+        setMapLayout(data as MapCell[]);
+      }
+      setMapLoading(false);
+    };
+    fetchMapLayout();
+  }, []);
+
+  useEffect(() => {
+    if (gameState && !gameStateLoading) {
       if (gameState.exploration_x !== null && gameState.exploration_y !== null) {
         const fetchCurrentZoneInfo = async () => {
           const { data: zoneData } = await supabase
@@ -99,7 +116,7 @@ const GameInterface = () => {
         setIsViewReady(true);
       }
     }
-  }, [gameState, loading]);
+  }, [gameState, gameStateLoading]);
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
@@ -299,7 +316,7 @@ const GameInterface = () => {
   const handleOptions = () => setIsOptionsOpen(true);
   const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
 
-  if (loading || !isViewReady) {
+  if (gameStateLoading || mapLoading || !isViewReady) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-100">
         <div className="text-center text-black">
@@ -343,6 +360,7 @@ const GameInterface = () => {
       )}>
         {currentView === 'map' ? (
           <GameGrid 
+            mapLayout={mapLayout}
             onCellSelect={handleCellSelect}
             discoveredZones={gameState.zones_decouvertes}
             playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
