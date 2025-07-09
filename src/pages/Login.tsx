@@ -64,21 +64,21 @@ const Login = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4 overflow-hidden">
         <div className="w-full max-w-sm">
            <Link to="/" className="absolute top-4 left-4 text-sm text-gray-600 hover:text-black font-mono">
             &larr; Retour à l'accueil
           </Link>
-          <div className="bg-white border-2 border-black shadow-[8px_8px_0px_#000] rounded-none p-8">
-            <div className="text-center mb-8">
-              <ShieldAlert className="w-12 h-12 mx-auto text-black mb-4" />
-              <h1 className="text-3xl font-bold text-black font-mono tracking-wider uppercase">
+          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] sm:shadow-[8px_8px_0px_#000] rounded-none p-6 sm:p-8">
+            <div className="text-center mb-6 sm:mb-8">
+              <ShieldAlert className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-black mb-4" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-black font-mono tracking-wider uppercase">
                 Terminal de Survie
               </h1>
-              <p className="text-gray-700 mt-2">Authentification requise.</p>
+              <p className="text-gray-700 mt-2 text-sm sm:text-base">Authentification requise.</p>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div>
                 <label htmlFor="email" className="text-sm font-medium text-black font-mono">Identifiant</label>
                 <Input
