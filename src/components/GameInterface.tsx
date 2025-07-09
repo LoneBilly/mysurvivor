@@ -336,7 +336,7 @@ const GameInterface = () => {
         onBackToMap={handleBackToMap}
       />
       
-      <main className="flex-1 flex items-center justify-center p-4 bg-gray-900 min-h-0 overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-gray-900 min-h-0 overflow-hidden">
         {currentView === 'map' ? (
           <GameGrid 
             onCellSelect={handleCellSelect}
