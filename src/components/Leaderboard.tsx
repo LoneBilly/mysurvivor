@@ -25,6 +25,9 @@ const Leaderboard = () => {
       setLoading(true);
       setError(null);
       try {
+        // NOTE: This query fetches 'jours_survecus' directly from 'player_states'.
+        // If the displayed numbers are incorrect, the issue likely lies in the
+        // database itself, where the value isn't being updated by the game's logic.
         const { data, error } = await supabase
           .from('player_states')
           .select('username, jours_survecus, base_zone:map_layout!player_states_base_zone_id_fkey(type)')
@@ -71,27 +74,34 @@ const Leaderboard = () => {
           ) : leaderboard.length === 0 ? (
             <div className="text-center p-8 text-gray-500">Aucun survivant classé.</div>
           ) : (
-            <div className="p-4 space-y-3">
+            <div>
+              {/* Header for the list */}
+              <div className="grid grid-cols-[auto,1fr,1fr,auto] gap-4 items-center p-4 font-mono text-sm uppercase text-gray-500 border-b-2 border-black bg-gray-50">
+                <div className="w-8 text-center">#</div>
+                <div>Survivant</div>
+                <div>Base</div>
+                <div className="text-right">Jours</div>
+              </div>
+              {/* List of players */}
               {leaderboard.map((player, index) => (
                 <div
                   key={index}
                   className={cn(
-                    "flex items-center justify-between p-3 rounded-none border-2 border-black",
-                    index === 0 ? "bg-yellow-100 shadow-[3px_3px_0px_#000]" : "bg-white"
+                    "grid grid-cols-[auto,1fr,1fr,auto] gap-4 items-center p-4 border-b border-black last:border-b-0",
+                    index === 0 ? "bg-yellow-100 font-bold" : "bg-white hover:bg-gray-50"
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-black w-8 text-center flex-shrink-0 text-lg">
-                      {index === 0 ? <Trophy className="w-6 h-6 text-yellow-500" /> : `#${index + 1}`}
-                    </span>
-                    <div className="text-left">
-                      <p className="font-bold text-black text-base">{player.username || 'Anonyme'}</p>
-                      <p className="text-sm text-gray-600 font-mono">{formatZoneName(player.base_zone?.type)}</p>
-                    </div>
+                  <div className="w-8 text-center font-bold text-black">
+                    {index === 0 ? <Trophy className="w-5 h-5 mx-auto text-yellow-500" /> : index + 1}
                   </div>
-                  <div className="text-right flex-shrink-0 ml-2">
-                    <p className="font-bold text-black text-lg">{player.jours_survecus}</p>
-                    <p className="text-xs text-gray-600 font-mono">JOURS</p>
+                  <div className="text-black font-medium truncate" title={player.username || 'Anonyme'}>
+                    {player.username || 'Anonyme'}
+                  </div>
+                  <div className="text-gray-700 truncate" title={formatZoneName(player.base_zone?.type)}>
+                    {formatZoneName(player.base_zone?.type)}
+                  </div>
+                  <div className="text-right font-bold text-black">
+                    {player.jours_survecus}
                   </div>
                 </div>
               ))}
