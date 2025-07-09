@@ -4,26 +4,37 @@ import Leaderboard from '@/components/Leaderboard';
 import TestimonialCarousel from '@/components/TestimonialCarousel';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { ShieldAlert, Map, Home, Swords, Package, Users } from 'lucide-react';
+import { ShieldAlert, Map, Home, Swords, Package, Users, Trophy } from 'lucide-react';
 
 const Landing = () => {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState<number | null>(null);
+  const [topPlayer, setTopPlayer] = useState<{ username: string; days_alive: number } | null>(null);
 
   useEffect(() => {
-    const fetchPlayerCount = async () => {
-      const { count, error } = await supabase
+    const fetchLandingData = async () => {
+      // Fetch player count
+      const { count, error: countError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
+      if (countError) console.error("Error fetching player count:", countError);
+      else setPlayerCount(count);
 
-      if (error) {
-        console.error("Error fetching player count:", error);
+      // Fetch top player
+      const { data: topPlayerData, error: topPlayerError } = await supabase
+        .from('leaderboard')
+        .select('username, days_alive')
+        .order('days_alive', { ascending: false })
+        .limit(1)
+        .single();
+      if (topPlayerError && topPlayerError.code !== 'PGRST116') { // Ignore "No rows found" error
+        console.error("Error fetching top player:", topPlayerError);
       } else {
-        setPlayerCount(count);
+        setTopPlayer(topPlayerData);
       }
     };
 
-    fetchPlayerCount();
+    fetchLandingData();
   }, []);
 
   const features = [
@@ -45,7 +56,7 @@ const Landing = () => {
         <p className="text-gray-700 mt-4 text-lg max-w-3xl mx-auto">
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
         </p>
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
             className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
@@ -55,10 +66,20 @@ const Landing = () => {
           {playerCount !== null && (
             <div className="flex items-center gap-2 text-sm font-mono bg-white border-2 border-black px-4 py-2">
               <Users className="w-5 h-5" />
-              <span><span className="font-bold">{playerCount}</span> survivants déjà inscrits</span>
+              <span>Rejoignez <span className="font-bold">{playerCount}</span> survivants dans le jeu.</span>
             </div>
           )}
         </div>
+        {topPlayer && (
+          <div className="mt-8 w-full max-w-md bg-yellow-100 border-2 border-black p-4 text-center shadow-[4px_4px_0px_#000]">
+            <div className="flex items-center justify-center gap-2">
+              <Trophy className="w-6 h-6 text-yellow-500" />
+              <p className="font-mono text-black">
+                Le N°1 est <span className="font-bold">{topPlayer.username}</span> avec <span className="font-bold">{topPlayer.days_alive}</span> jours de survie !
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Features Section */}
