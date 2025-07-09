@@ -87,22 +87,3 @@
     scrollbar-width: none;  /* Firefox */
   }
 }
-
-/* Laser Button Effect */
-.laser-button-wrapper::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(from 0deg at 50% 50%, transparent 0%, transparent 25%, #00f 35%, #00f 65%, transparent 75%, transparent 100%); /* Blue laser */
-  animation: rotate-laser 4s linear infinite;
-  z-index: 0; /* Behind the button */
-  pointer-events: none; /* Ensure clicks pass through */
-}
-
-@keyframes rotate-laser {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
