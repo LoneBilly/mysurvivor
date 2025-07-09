@@ -64,11 +64,11 @@ const Login = () => {
 
   return (
     <>
-      <div className="h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4 overflow-hidden">
+      <div className="h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4 overflow-hidden relative">
+        <Link to="/" className="absolute top-4 left-4 text-sm text-gray-600 hover:text-black font-mono z-10">
+          &larr; Retour à l'accueil
+        </Link>
         <div className="w-full max-w-sm">
-           <Link to="/" className="absolute top-4 left-4 text-sm text-gray-600 hover:text-black font-mono">
-            &larr; Retour à l'accueil
-          </Link>
           <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] sm:shadow-[8px_8px_0px_#000] rounded-none p-6 sm:p-8">
             <div className="text-center mb-6 sm:mb-8">
               <ShieldAlert className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-black mb-4" />
