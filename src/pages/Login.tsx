@@ -64,7 +64,7 @@ const Login = () => {
 
   return (
     <>
-      <div className="h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4 overflow-hidden relative">
+      <div className="h-screen bg-gray-100 text-black flex flex-col items-center justify-center px-4 overflow-hidden relative">
         <Link to="/" className="absolute top-4 left-4 text-sm text-gray-600 hover:text-black font-mono z-10">
           &larr; Retour à l'accueil
         </Link>
