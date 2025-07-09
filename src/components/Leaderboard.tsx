@@ -82,7 +82,7 @@ const Leaderboard = () => {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[235px] overflow-y-auto pr-2">
           {otherPlayers.map((player, index) => {
             const rank = index + 2;
             const rankInfo = {
