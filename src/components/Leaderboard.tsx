@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,7 +53,7 @@ const Leaderboard = () => {
           <Trophy className="w-6 h-6 text-black" />
           <div>
             <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Classement</CardTitle>
-            <CardDescription className="text-gray-700">Top 10 des bâtisseurs</CardDescription>
+            <CardDescription className="text-gray-700">Top 10 des Survivants</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -72,63 +71,31 @@ const Leaderboard = () => {
           ) : leaderboard.length === 0 ? (
             <div className="text-center p-8 text-gray-500">Aucun survivant classé.</div>
           ) : (
-            <>
-              {/* Mobile View */}
-              <div className="md:hidden">
-                {leaderboard.map((player, index) => (
-                  <div key={index} className={cn("flex items-center justify-between p-4 border-b border-black last:border-b-0", index === 0 && "bg-yellow-100")}>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-black w-8 text-center flex-shrink-0">
-                        {index === 0 ? <Trophy className="w-5 h-5 text-yellow-500" /> : `#${index + 1}`}
-                      </span>
-                      <div>
-                        <p className="font-medium text-black">{player.username || 'Anonyme'}</p>
-                        <p className="text-sm text-gray-600">Zone: {formatZoneName(player.base_zone?.type)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <p className="font-bold text-black">{player.jours_survecus}</p>
-                      <p className="text-sm text-gray-600">Jours</p>
+            <div className="p-4 space-y-3">
+              {leaderboard.map((player, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "flex items-center justify-between p-3 rounded-none border-2 border-black",
+                    index === 0 ? "bg-yellow-100 shadow-[3px_3px_0px_#000]" : "bg-white"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-black w-8 text-center flex-shrink-0 text-lg">
+                      {index === 0 ? <Trophy className="w-6 h-6 text-yellow-500" /> : `#${index + 1}`}
+                    </span>
+                    <div>
+                      <p className="font-bold text-black text-base">{player.username || 'Anonyme'}</p>
+                      <p className="text-sm text-gray-600 font-mono">Zone: {formatZoneName(player.base_zone?.type)}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              {/* Desktop View */}
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-2 border-black hover:bg-gray-100">
-                      <TableHead className="w-[50px] text-black font-mono">#</TableHead>
-                      <TableHead className="text-black font-mono">Joueur</TableHead>
-                      <TableHead className="text-black font-mono">Zone</TableHead>
-                      <TableHead className="text-right text-black font-mono">Jours</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leaderboard.map((player, index) => (
-                      <TableRow 
-                        key={index} 
-                        className={cn(
-                          "border-b border-black last:border-b-0 hover:bg-gray-100",
-                          index === 0 && "bg-yellow-100 hover:bg-yellow-200 border-b-2 border-yellow-400"
-                        )}
-                      >
-                        <TableCell className="font-bold text-black">
-                          <div className="flex items-center gap-2">
-                            {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
-                            <span>#{index + 1}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-black font-medium">{player.username || 'Anonyme'}</TableCell>
-                        <TableCell className="text-gray-700">{formatZoneName(player.base_zone?.type)}</TableCell>
-                        <TableCell className="text-right font-bold text-black">{player.jours_survecus}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <p className="font-bold text-black text-lg">{player.jours_survecus}</p>
+                    <p className="text-xs text-gray-600 font-mono">JOURS</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </CardContent>
