@@ -85,7 +85,6 @@ const FloatingInfobar: React.FC = () => {
       <div className="flex items-center space-x-2">
         <span>Jours survécus: {playerState.jours_survecus}</span>
       </div>
-      {/* La section 'Top Survivant' a été supprimée */}
     </div>
   );
 };

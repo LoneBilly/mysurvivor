@@ -43,6 +43,11 @@ const Landing = () => {
         <p className="text-gray-700 mt-4 text-lg max-w-3xl mx-auto">
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
         </p>
+        {playerCount !== null && (
+          <p className="text-gray-800 mt-2 text-xl font-bold font-mono">
+            {playerCount} survivants en jeu
+          </p>
+        )}
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
@@ -92,7 +97,7 @@ const Landing = () => {
         </Button>
       </section>
 
-      <FloatingInfoBar playerCount={playerCount} />
+      <FloatingInfoBar />
     </div>
   );
 };
