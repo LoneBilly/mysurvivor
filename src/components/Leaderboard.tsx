@@ -65,7 +65,7 @@ const Leaderboard = () => {
                 <p>{error}</p>
             </div>
           ) : leaderboard.length === 0 ? (
-            <div className="text-center p-8 text-gray-500">Aucun bâtisseur n'a encore été classé.</div>
+            <div className="text-center p-8 text-gray-500">Aucun survivant classé.</div>
           ) : (
             <>
               {/* Mobile View */}
