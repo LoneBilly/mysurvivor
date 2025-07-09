@@ -6,8 +6,8 @@ import { Gamepad2 } from "lucide-react";
 export default function Index() {
   return (
     <div className="w-full min-h-screen bg-[#111] text-white">
-      <div className="container mx-auto flex flex-col items-center justify-center min-h-screen p-4">
-        <div className="text-center mb-12">
+      <div className="container mx-auto flex flex-col items-center justify-center min-h-screen p-4 gap-12">
+        <div className="text-center">
           <Gamepad2 className="w-16 h-16 mx-auto mb-4 text-purple-400" />
           <h1 className="text-5xl md:text-6xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-500">
             SURVIVAL ZONE
@@ -17,11 +17,13 @@ export default function Index() {
           </p>
         </div>
 
-        <Link to="/game" className="mb-16">
-          <AnimatedBorderButton>Commencer l'aventure</AnimatedBorderButton>
-        </Link>
+        <div className="w-full max-w-md lg:max-w-lg flex flex-col gap-8">
+          <Link to="/game">
+            <AnimatedBorderButton className="w-full">
+              Commencer l'aventure
+            </AnimatedBorderButton>
+          </Link>
 
-        <div className="w-full max-w-md lg:max-w-lg">
           <Leaderboard />
         </div>
       </div>
