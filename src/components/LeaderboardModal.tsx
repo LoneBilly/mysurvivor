@@ -1,59 +1,41 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
-
-interface LeaderboardEntry {
-  username: string;
-  current_zone: string;
-  days_alive: number;
-}
+import { Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LeaderboardModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface LeaderboardEntry {
+  username: string;
+  base_location: string;
+  days_alive: number;
+}
+
 const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       const fetchLeaderboard = async () => {
         setLoading(true);
-        setError(null);
-        try {
-          const { data, error } = await supabase
-            .from('leaderboard')
-            .select('username, current_zone, days_alive')
-            .order('days_alive', { ascending: false })
-            .limit(10);
+        const { data, error } = await supabase.rpc('get_leaderboard_data');
 
-          if (error) throw error;
-
-          setLeaderboard(data || []);
-        } catch (err: any) {
-          console.error("Error fetching leaderboard:", err);
-          setError("Impossible de charger le classement. Veuillez réessayer.");
-        } finally {
-          setLoading(false);
+        if (error) {
+          console.error("Error fetching leaderboard:", error);
+          setLeaderboard([]);
+        } else {
+          setLeaderboard(data as LeaderboardEntry[]);
         }
+        setLoading(false);
       };
 
       fetchLeaderboard();
@@ -66,43 +48,49 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
         <DialogHeader className="text-center mb-4">
           <Trophy className="w-8 h-8 mx-auto text-black mb-2" />
           <DialogTitle className="text-black font-mono tracking-wider uppercase text-xl">Classement</DialogTitle>
-          <DialogDescription className="text-gray-700 mt-1">
-            Top 10 des survivants les plus endurcis.
-          </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto border-2 border-black">
-          {loading ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-black" />
+        {loading ? (
+          <p className="text-center">Chargement...</p>
+        ) : (
+          <div>
+            {/* Mobile View */}
+            <div className="md:hidden font-mono space-y-4">
+              {leaderboard.map((entry, index) => (
+                <div key={index} className="border-b-2 border-black pb-2 last:border-b-0">
+                  <div className="flex justify-between items-center">
+                    <p className="font-bold text-lg truncate">#{index + 1} {entry.username}</p>
+                    <p className="text-lg whitespace-nowrap">{entry.days_alive} jours</p>
+                  </div>
+                  <p className="text-sm text-gray-600">Base: {entry.base_location || 'N/A'}</p>
+                </div>
+              ))}
             </div>
-          ) : error ? (
-             <div className="flex flex-col items-center justify-center h-40 text-center text-red-500 p-4">
-                <ShieldAlert className="w-8 h-8 mb-2" />
-                <p>{error}</p>
+
+            {/* Desktop View */}
+            <div className="hidden md:block">
+              <table className="w-full text-left font-mono">
+                <thead>
+                  <tr className="border-b-2 border-black">
+                    <th className="p-2">Rang</th>
+                    <th className="p-2">Pseudo</th>
+                    <th className="p-2">Base</th>
+                    <th className="p-2 text-right">Jours de Survie</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaderboard.map((entry, index) => (
+                    <tr key={index} className="border-b border-gray-700 last:border-b-0">
+                      <td className="p-2 font-bold">#{index + 1}</td>
+                      <td className="p-2 truncate">{entry.username}</td>
+                      <td className="p-2">{entry.base_location || 'N/A'}</td>
+                      <td className="p-2 text-right">{entry.days_alive}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-2 border-black hover:bg-gray-100">
-                  <TableHead className="text-black font-mono w-[50px]">Rang</TableHead>
-                  <TableHead className="text-black font-mono">Joueur</TableHead>
-                  <TableHead className="text-black font-mono">Zone</TableHead>
-                  <TableHead className="text-right text-black font-mono">Jours</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leaderboard.map((player, index) => (
-                  <TableRow key={index} className="border-b border-black last:border-b-0 hover:bg-gray-100">
-                    <TableCell className="font-bold text-black">#{index + 1}</TableCell>
-                    <TableCell className="text-black">{player.username}</TableCell>
-                    <TableCell className="text-gray-700">{player.current_zone}</TableCell>
-                    <TableCell className="text-right font-bold text-black">{player.days_alive}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
