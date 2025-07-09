@@ -62,18 +62,24 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-black/60 backdrop-blur-sm border border-amber-400/20 rounded-lg shadow-2xl shadow-black/50 text-white p-6">
+      <DialogContent className="relative sm:max-w-lg bg-slate-900/80 backdrop-blur-sm border border-cyan-400/30 rounded-lg shadow-2xl shadow-cyan-500/10 text-white p-6 overflow-hidden">
+        {/* Corner Brackets */}
+        <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400/50 rounded-tl-lg"></div>
+        <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400/50 rounded-tr-lg"></div>
+        <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400/50 rounded-bl-lg"></div>
+        <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400/50 rounded-br-lg"></div>
+
         <DialogHeader className="text-center mb-4">
-          <Trophy className="w-8 h-8 mx-auto text-amber-400 mb-2" />
-          <DialogTitle className="text-amber-400 font-mono tracking-wider uppercase text-xl">Classement</DialogTitle>
-          <DialogDescription className="text-gray-300 mt-1">
+          <Trophy className="w-8 h-8 mx-auto text-cyan-300 mb-2" />
+          <DialogTitle className="text-cyan-300 font-sans tracking-wide text-2xl">Classement</DialogTitle>
+          <DialogDescription className="text-slate-300 mt-1">
             Top 10 des survivants les plus endurcis.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto">
           {loading ? (
             <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
             </div>
           ) : error ? (
              <div className="flex flex-col items-center justify-center h-40 text-center text-red-400">
@@ -83,20 +89,20 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="border-b-amber-400/20 hover:bg-transparent">
-                  <TableHead className="text-gray-300 font-mono w-[50px]">Rang</TableHead>
-                  <TableHead className="text-gray-300 font-mono">Joueur</TableHead>
-                  <TableHead className="text-gray-300 font-mono">Zone</TableHead>
-                  <TableHead className="text-right text-gray-300 font-mono">Jours</TableHead>
+                <TableRow className="border-b-cyan-400/20 hover:bg-transparent">
+                  <TableHead className="text-slate-300 font-sans w-[50px]">Rang</TableHead>
+                  <TableHead className="text-slate-300 font-sans">Joueur</TableHead>
+                  <TableHead className="text-slate-300 font-sans">Zone</TableHead>
+                  <TableHead className="text-right text-slate-300 font-sans">Jours</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {leaderboard.map((player, index) => (
-                  <TableRow key={index} className="border-b-gray-800 hover:bg-gray-800/40">
-                    <TableCell className="font-medium text-amber-400">#{index + 1}</TableCell>
-                    <TableCell className="text-gray-200">{player.username}</TableCell>
-                    <TableCell className="text-gray-400">{player.current_zone}</TableCell>
-                    <TableCell className="text-right font-bold text-amber-400">{player.days_alive}</TableCell>
+                  <TableRow key={index} className="border-b-slate-800 hover:bg-slate-800/40">
+                    <TableCell className="font-medium text-cyan-300">#{index + 1}</TableCell>
+                    <TableCell className="text-slate-200">{player.username}</TableCell>
+                    <TableCell className="text-slate-400">{player.current_zone}</TableCell>
+                    <TableCell className="text-right font-bold text-cyan-300">{player.days_alive}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

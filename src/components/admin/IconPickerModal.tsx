@@ -41,10 +41,10 @@ const IconPickerModal = ({ isOpen, onClose, currentIcon, onSelectIcon }: IconPic
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-gray-900/80 backdrop-blur-sm border border-gray-700 text-white rounded-lg shadow-lg">
+      <DialogContent className="relative sm:max-w-2xl bg-slate-900/80 backdrop-blur-sm border border-cyan-400/30 rounded-lg shadow-2xl shadow-cyan-500/10 text-white p-6 overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="text-white">Choisir une icône</DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogTitle className="text-cyan-300 font-sans tracking-wide text-2xl">Choisir une icône</DialogTitle>
+          <DialogDescription className="text-slate-300 mt-1">
             Recherchez et sélectionnez une icône pour cette zone.
           </DialogDescription>
         </DialogHeader>
@@ -53,9 +53,9 @@ const IconPickerModal = ({ isOpen, onClose, currentIcon, onSelectIcon }: IconPic
             placeholder="Rechercher une icône..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="mb-4 bg-gray-800 border-gray-600 text-white"
+            className="mb-4 bg-slate-800/70 border-slate-600 text-white focus:border-cyan-500"
           />
-          <ScrollArea className="h-[300px] w-full rounded-md border border-gray-700 p-4 bg-gray-900/50">
+          <ScrollArea className="h-[300px] w-full rounded-md border border-slate-700 p-4 bg-slate-900/50">
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
               {filteredIcons.map((iconName) => {
                 const IconComponent = (LucideIcons as any)[iconName];
@@ -68,8 +68,8 @@ const IconPickerModal = ({ isOpen, onClose, currentIcon, onSelectIcon }: IconPic
                     onClick={() => handleSelect(iconName)}
                     className={cn(
                       "flex flex-col items-center justify-center p-2 h-auto w-auto aspect-square rounded-md",
-                      "hover:bg-gray-700/70 text-gray-300",
-                      currentIcon === iconName && "bg-blue-600 hover:bg-blue-700 text-white"
+                      "hover:bg-slate-700/70 text-slate-300",
+                      currentIcon === iconName && "bg-cyan-600 hover:bg-cyan-700 text-white"
                     )}
                   >
                     <IconComponent className="w-6 h-6 mb-1" />
@@ -78,7 +78,7 @@ const IconPickerModal = ({ isOpen, onClose, currentIcon, onSelectIcon }: IconPic
                 );
               })}
               {filteredIcons.length === 0 && (
-                <p className="col-span-full text-center text-gray-500">Aucune icône trouvée.</p>
+                <p className="col-span-full text-center text-slate-500">Aucune icône trouvée.</p>
               )}
             </div>
           </ScrollArea>
