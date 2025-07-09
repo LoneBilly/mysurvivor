@@ -122,7 +122,7 @@ const Leaderboard = () => {
       <CardHeader className="text-center border-b-2 border-black p-4">
         <Trophy className="w-8 h-8 mx-auto text-black mb-2" />
         <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Leaderboard</CardTitle>
-        <CardDescription className="text-gray-700">Les meilleurs survivants.</CardDescription>
+        <CardDescription className="text-gray-700">Seuls les meilleurs sont là.</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         {renderContent()}
