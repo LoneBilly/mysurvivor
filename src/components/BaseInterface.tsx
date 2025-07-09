@@ -27,7 +27,7 @@ const BaseInterface = () => {
   const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const hasCentered = useRef(false);
   const [lastBuiltCell, setLastBuiltCell] = useState<{ x: number; y: number } | null>(null);
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
 
@@ -52,9 +52,6 @@ const BaseInterface = () => {
 
   const initializeGrid = useCallback(async () => {
     if (!user) return;
-
-    setIsInitialized(false);
-    setCampfirePosition(null);
 
     const { data: constructions, error } = await supabase
       .from('base_constructions')
@@ -104,12 +101,13 @@ const BaseInterface = () => {
     const finalGrid = updateCanBuild(newGrid);
     setGridData(finalGrid);
     setCampfirePosition(campPos);
-    setIsInitialized(true);
   }, [user]);
 
   useEffect(() => {
-    initializeGrid();
-  }, [initializeGrid]);
+    if (!gridData) {
+      initializeGrid();
+    }
+  }, [initializeGrid, gridData]);
 
   const centerViewport = (x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -129,10 +127,11 @@ const BaseInterface = () => {
   };
 
   useLayoutEffect(() => {
-    if (isInitialized && campfirePosition && viewportRef.current) {
+    if (gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
+      hasCentered.current = true;
     }
-  }, [isInitialized, campfirePosition]);
+  }, [gridData, campfirePosition]);
 
   useEffect(() => {
     if (lastBuiltCell) {
@@ -159,7 +158,8 @@ const BaseInterface = () => {
     if (error) {
       showError("Erreur lors de la construction.");
       console.error(error);
-      initializeGrid();
+      // Re-fetch the whole grid on error to ensure consistency
+      setGridData(null);
     }
   };
 
@@ -181,7 +181,7 @@ const BaseInterface = () => {
     }
   };
 
-  if (!isInitialized || !gridData) {
+  if (!gridData) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-black">
         <Loader2 className="w-8 h-8 animate-spin mb-4" />
@@ -195,7 +195,7 @@ const BaseInterface = () => {
       <div
         ref={viewportRef}
         className="w-full h-full overflow-auto bg-gray-100 no-scrollbar"
-        style={{ opacity: isInitialized ? 1 : 0, transition: 'opacity 0.5s' }}
+        style={{ opacity: gridData ? 1 : 0, transition: 'opacity 0.5s' }}
       >
         <div
           className="relative"
