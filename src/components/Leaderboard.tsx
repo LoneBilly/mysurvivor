@@ -77,7 +77,7 @@ const Leaderboard = () => {
                 <div className="w-8 text-center">#</div>
                 <div className="text-left">Survivant</div>
                 <div className="text-left">Base</div>
-                <div className="text-left">Jours</div>
+                <div className="text-right">Jours</div>
               </div>
               {leaderboard.map((player, index) => {
                 const spawnDate = new Date(player.spawn_date);
@@ -102,7 +102,7 @@ const Leaderboard = () => {
                     <div className="text-left text-gray-700 truncate" title={formatZoneName(player.base_zone?.type)}>
                       {formatZoneName(player.base_zone?.type)}
                     </div>
-                    <div className="text-left font-bold text-black">
+                    <div className="text-right font-bold text-black">
                       {daysSurvived}
                     </div>
                   </div>
