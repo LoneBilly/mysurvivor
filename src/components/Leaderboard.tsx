@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, ShieldAlert, Trophy, MapPin } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface LeaderboardEntry {
   username: string | null;
@@ -27,9 +27,13 @@ const Leaderboard = () => {
       setError(null);
       try {
         const { data, error } = await supabase.rpc('get_leaderboard_data');
+
         if (error) throw error;
+
+        // Filtrer pour les joueurs avec une base et prendre le top 10
         const filteredData = (data || []).filter((p: LeaderboardEntry) => p.base_location).slice(0, 10);
         setLeaderboard(filteredData);
+
       } catch (err: any) {
         console.error("Error fetching leaderboard:", err);
         setError("Impossible de charger le classement.");
@@ -37,25 +41,26 @@ const Leaderboard = () => {
         setLoading(false);
       }
     };
+
     fetchLeaderboard();
   }, []);
 
   return (
-    <Card className="w-full max-w-md lg:max-w-lg bg-gray-900/50 text-white border-2 border-gray-700 shadow-[8px_8px_0px_#4a5568] rounded-none backdrop-blur-sm">
-      <CardHeader className="p-6 border-b-2 border-gray-700">
+    <Card className="w-full max-w-md lg:max-w-lg bg-white text-black border-2 border-black shadow-[8px_8px_0px_#000] rounded-none">
+      <CardHeader className="p-6">
         <div className="flex items-center space-x-3">
-          <Trophy className="w-8 h-8 text-yellow-400" />
+          <Trophy className="w-6 h-6 text-black" />
           <div>
-            <CardTitle className="text-2xl text-white font-mono tracking-wider uppercase">Classement des Survivants</CardTitle>
-            <CardDescription className="text-gray-400">Les légendes des terres désolées.</CardDescription>
+            <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Classement</CardTitle>
+            <CardDescription className="text-gray-700">Top 10 des bâtisseurs</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="max-h-[60vh] overflow-y-auto border-t-2 border-black">
           {loading ? (
             <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-white" />
+              <Loader2 className="w-8 h-8 animate-spin text-black" />
             </div>
           ) : error ? (
              <div className="flex flex-col items-center justify-center h-40 text-center text-red-500">
@@ -65,44 +70,61 @@ const Leaderboard = () => {
           ) : leaderboard.length === 0 ? (
             <div className="text-center p-8 text-gray-500">Aucun survivant classé.</div>
           ) : (
-            <div className="divide-y-2 divide-gray-800">
-              {leaderboard.map((player, index) => {
-                const rank = index + 1;
-                const rankStyling =
-                  rank === 1 ? "bg-yellow-500/10 border-l-4 border-yellow-400" :
-                  rank === 2 ? "bg-gray-500/10 border-l-4 border-gray-400" :
-                  rank === 3 ? "bg-orange-500/10 border-l-4 border-orange-400" :
-                  "border-l-4 border-transparent";
-
-                return (
-                  <div key={index} className={cn("p-4 flex items-center space-x-4 transition-all hover:bg-gray-800/50", rankStyling)}>
-                    <div className="flex-shrink-0 w-8 text-center">
-                      <span className={cn("text-2xl font-bold font-mono", rank === 1 && "text-yellow-300", rank === 2 && "text-gray-300", rank === 3 && "text-orange-300")}>
-                        {rank}
-                      </span>
+            <>
+              {/* Vue Mobile */}
+              <div className="md:hidden">
+                {leaderboard.map((player, index) => (
+                  <div key={index} className={cn("grid grid-cols-12 items-center p-4 border-b border-black last:border-b-0", index === 0 && "bg-yellow-100")}>
+                    <div className="col-span-1 font-bold text-black flex items-center justify-center">
+                      {index === 0 ? <Trophy className="w-5 h-5 text-yellow-500" /> : `#${index + 1}`}
                     </div>
-                    
-                    <Avatar className="w-12 h-12 border-2 border-gray-600">
-                      <AvatarImage src={`https://api.dicebear.com/8.x/pixel-art/svg?seed=${player.username || 'Anonyme'}`} />
-                      <AvatarFallback>{player.username?.charAt(0) || 'A'}</AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-grow min-w-0">
-                      <p className="text-lg font-bold text-white truncate">{player.username || 'Anonyme'}</p>
-                      <div className="flex items-center text-sm text-gray-400 mt-1">
-                        <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                        <span className="truncate">{formatZoneName(player.base_location)}</span>
-                      </div>
+                    <div className="col-span-7 pl-2">
+                      <p className="font-medium text-black truncate">{player.username || 'Anonyme'}</p>
+                      <p className="text-sm text-gray-600 truncate">Base: {formatZoneName(player.base_location)}</p>
                     </div>
-
-                    <div className="flex-shrink-0 text-right">
-                      <p className="text-xl font-bold text-white">{player.days_alive}</p>
-                      <p className="text-xs text-gray-500 font-mono">JOURS</p>
+                    <div className="col-span-4 text-left pl-2">
+                      <p className="font-bold text-black">{player.days_alive}</p>
+                      <p className="text-sm text-gray-600">Jours</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+
+              {/* Vue Desktop */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b-2 border-black hover:bg-gray-100">
+                      <TableHead className="w-[50px] text-black font-mono">#</TableHead>
+                      <TableHead className="text-black font-mono">Joueur</TableHead>
+                      <TableHead className="text-black font-mono">Base</TableHead>
+                      <TableHead className="text-black font-mono">Jours</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaderboard.map((player, index) => (
+                      <TableRow 
+                        key={index} 
+                        className={cn(
+                          "border-b border-black last:border-b-0 hover:bg-gray-100",
+                          index === 0 && "bg-yellow-100 hover:bg-yellow-200 border-b-2 border-yellow-400"
+                        )}
+                      >
+                        <TableCell className="font-bold text-black">
+                          <div className="flex items-center gap-2">
+                            {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
+                            <span>#{index + 1}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-black font-medium">{player.username || 'Anonyme'}</TableCell>
+                        <TableCell className="text-gray-700">{formatZoneName(player.base_location)}</TableCell>
+                        <TableCell className="font-bold text-black">{player.days_alive}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </div>
       </CardContent>
