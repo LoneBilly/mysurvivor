@@ -10,6 +10,7 @@ import FloatingInfoBar from '@/components/FloatingInfoBar';
 const Landing = () => {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState<number | null>(null);
+  const [topPlayer, setTopPlayer] = useState<{ username: string; days_alive: number } | null>(null);
 
   useEffect(() => {
     const fetchLandingData = async () => {
@@ -19,6 +20,19 @@ const Landing = () => {
         .select('*', { count: 'exact', head: true });
       if (countError) console.error("Error fetching player count:", countError);
       else setPlayerCount(count);
+
+      // Fetch top player
+      const { data: topPlayerData, error: topPlayerError } = await supabase
+        .from('leaderboard')
+        .select('username, days_alive')
+        .order('days_alive', { ascending: false })
+        .limit(1)
+        .single();
+      if (topPlayerError && topPlayerError.code !== 'PGRST116') { // Ignore "No rows found" error
+        console.error("Error fetching top player:", topPlayerError);
+      } else {
+        setTopPlayer(topPlayerData);
+      }
     };
 
     fetchLandingData();
@@ -46,9 +60,9 @@ const Landing = () => {
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
-            className="w-full sm:w-auto rounded-none animated-border-button shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] font-bold text-lg px-10 py-6"
+            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
           >
-            <span>COMMENCER L'AVENTURE</span>
+            COMMENCER L'AVENTURE
           </Button>
         </div>
         <div className="mt-16 w-full flex justify-center">
@@ -92,7 +106,7 @@ const Landing = () => {
         </Button>
       </section>
 
-      <FloatingInfoBar playerCount={playerCount} />
+      <FloatingInfoBar playerCount={playerCount} topPlayer={topPlayer} />
     </div>
   );
 };
