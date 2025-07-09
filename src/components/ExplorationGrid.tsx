@@ -14,9 +14,10 @@ interface ExplorationGridProps {
   onCellClick: (x: number, y: number) => void;
   onCellHover: (x: number, y: number) => void;
   path: { x: number; y: number }[] | null;
+  currentEnergy: number;
 }
 
-const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: ExplorationGridProps) => {
+const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
@@ -104,16 +105,21 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
               const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
               
-              const isPath = path?.some(p => p.x === x && p.y === y);
+              const pathIndex = path?.findIndex(p => p.x === x && p.y === y) ?? -1;
+              const isPath = pathIndex !== -1;
+              const isAffordablePath = isPath && pathIndex > 0 && pathIndex <= currentEnergy;
+              const isUnaffordablePath = isPath && pathIndex > 0 && pathIndex > currentEnergy;
+
               const isTarget = path && path.length > 1 && path[path.length - 1].x === x && path[path.length - 1].y === y;
               const energyCost = path ? path.length - 1 : 0;
+              const canAffordMove = energyCost <= currentEnergy;
 
               const canClickEntrance = isEntrance && playerPosition && (
                 isPlayerOnCell || 
                 (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1)
               );
               
-              const isClickable = isTarget || canClickEntrance;
+              const isClickable = (isTarget && canAffordMove) || canClickEntrance;
 
               return (
                 <button
@@ -125,8 +131,13 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
                     isEntrance 
                       ? "bg-gray-900/70 border-gray-700" 
                       : "bg-gray-800/50 border-gray-700/20",
-                    isPath && "bg-blue-500/20 border-blue-400/30",
-                    isTarget && "bg-blue-500/40 border-blue-400/50",
+                    
+                    isAffordablePath && "bg-blue-500/20 border-blue-400/30",
+                    isUnaffordablePath && "bg-orange-500/20 border-orange-400/30",
+                    
+                    isTarget && canAffordMove && "bg-blue-500/40 border-blue-400/50",
+                    isTarget && !canAffordMove && "bg-orange-500/40 border-orange-400/50",
+
                     isClickable ? "cursor-pointer" : "cursor-default",
                     canClickEntrance && "hover:bg-gray-800/70"
                   )}
@@ -147,7 +158,10 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
                   )}
                   {isTarget && energyCost > 0 && (
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-                      <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm text-yellow-400 border border-yellow-600/50 rounded-md px-2 py-0.5 text-xs font-bold">
+                      <div className={cn(
+                        "flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border rounded-md px-2 py-0.5 text-xs font-bold",
+                        canAffordMove ? "text-yellow-400 border-yellow-600/50" : "text-red-400 border-red-600/50"
+                      )}>
                         <Zap size={12} />
                         <span>{energyCost}</span>
                       </div>

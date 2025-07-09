@@ -232,11 +232,7 @@ const GameInterface = () => {
     }
 
     const path = findPathBFS(startPos, endPos);
-    if (path && path.length - 1 <= gameState.energie) {
-      setExplorationPath(path);
-    } else {
-      setExplorationPath(null);
-    }
+    setExplorationPath(path);
   };
 
   const handleExplorationCellClick = async (x: number, y: number) => {
@@ -376,6 +372,7 @@ const GameInterface = () => {
               onCellClick={handleExplorationCellClick}
               onCellHover={handleExplorationCellHover}
               path={explorationPath}
+              currentEnergy={gameState.energie}
             />
           </div>
         )}
