@@ -318,7 +318,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
   return (
     <div className="h-full flex flex-col bg-gray-100 text-black">
       <GameHeader
-        daysSurvived={gameState.jours_survecus}
         spawnDate={gameState.spawn_date}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}

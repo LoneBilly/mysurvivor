@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
 interface GameHeaderProps {
-  daysSurvived: number;
   spawnDate: string;
   onLeaderboard: () => void;
   onOptions: () => void;
@@ -11,14 +10,15 @@ interface GameHeaderProps {
   onBackToMap: () => void;
 }
 
-const GameHeader = ({ daysSurvived, spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
+const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
+  const [daysSurvived, setDaysSurvived] = useState(0);
   const showBackButton = currentView === 'base';
 
   useEffect(() => {
     if (!spawnDate) return;
 
-    const calculateElapsedTime = () => {
+    const calculateTimes = () => {
       const spawn = new Date(spawnDate);
       const now = new Date();
       const diffMs = now.getTime() - spawn.getTime();
@@ -30,10 +30,13 @@ const GameHeader = ({ daysSurvived, spawnDate, onLeaderboard, onOptions, current
 
       const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
       setElapsedTime(formattedTime);
+
+      const calculatedDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      setDaysSurvived(calculatedDays);
     };
 
-    calculateElapsedTime();
-    const intervalId = setInterval(calculateElapsedTime, 1000);
+    calculateTimes();
+    const intervalId = setInterval(calculateTimes, 1000);
 
     return () => clearInterval(intervalId);
   }, [spawnDate]);
