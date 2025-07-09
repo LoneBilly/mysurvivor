@@ -23,13 +23,19 @@ interface ActionModalProps {
 const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-black/60 backdrop-blur-sm border border-amber-400/20 rounded-lg shadow-2xl shadow-black/50 text-white p-6">
+      <DialogContent className="relative sm:max-w-md bg-slate-900/80 backdrop-blur-md border border-cyan-400/30 rounded-lg shadow-lg shadow-cyan-500/20 text-white p-6 overflow-hidden">
+        {/* Decorative corner brackets */}
+        <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400/50 rounded-tl-lg"></div>
+        <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400/50 rounded-tr-lg"></div>
+        <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400/50 rounded-bl-lg"></div>
+        <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400/50 rounded-br-lg"></div>
+
         <DialogHeader className="text-center">
-          <DialogTitle className="text-amber-400 font-mono tracking-wider uppercase text-xl">
+          <DialogTitle className="text-cyan-300 font-mono tracking-wider uppercase text-xl">
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription className="text-gray-300 mt-2 text-base">
+            <DialogDescription className="text-slate-300 mt-2 text-base">
               {description}
             </DialogDescription>
           )}
@@ -42,7 +48,11 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
                   key={index}
                   onClick={action.onClick}
                   variant={action.variant || "default"}
-                  className="flex-1 font-bold tracking-wide"
+                  className={`flex-1 font-bold tracking-wide ${
+                    action.variant === 'default' || !action.variant
+                      ? 'bg-cyan-600/80 hover:bg-cyan-600 text-white border border-cyan-500/50'
+                      : ''
+                  }`}
                 >
                   {action.label}
                 </Button>
