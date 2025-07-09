@@ -1,37 +1,61 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
+
+interface LeaderboardEntry {
+  username: string;
+  current_zone: string;
+  days_alive: number;
+}
 
 interface LeaderboardModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface LeaderboardEntry {
-  username: string;
-  base_location: string;
-  days_alive: number;
-}
-
 const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
-  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       const fetchLeaderboard = async () => {
         setLoading(true);
-        const { data, error } = await supabase.rpc('get_leaderboard_data');
-        
-        if (error) {
-          console.error('Error fetching leaderboard data:', error);
-        } else if (data) {
-          setLeaderboardData(data);
+        setError(null);
+        try {
+          const { data, error } = await supabase
+            .from('leaderboard')
+            .select('username, current_zone, days_alive')
+            .order('days_alive', { ascending: false })
+            .limit(10);
+
+          if (error) throw error;
+
+          setLeaderboard(data || []);
+        } catch (err: any) {
+          console.error("Error fetching leaderboard:", err);
+          setError("Impossible de charger le classement. Veuillez réessayer.");
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       };
+
       fetchLeaderboard();
     }
   }, [isOpen]);
@@ -42,33 +66,41 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
         <DialogHeader className="text-center mb-4">
           <Trophy className="w-8 h-8 mx-auto text-black mb-2" />
           <DialogTitle className="text-black font-mono tracking-wider uppercase text-xl">Classement</DialogTitle>
+          <DialogDescription className="text-gray-700 mt-1">
+            Top 10 des survivants les plus endurcis.
+          </DialogDescription>
         </DialogHeader>
-        <div className="overflow-x-auto">
+        <div className="max-h-[60vh] overflow-y-auto border-2 border-black">
           {loading ? (
-            <p className="text-center py-8">Chargement du classement...</p>
-          ) : leaderboardData.length > 0 ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="w-8 h-8 animate-spin text-black" />
+            </div>
+          ) : error ? (
+             <div className="flex flex-col items-center justify-center h-40 text-center text-red-500 p-4">
+                <ShieldAlert className="w-8 h-8 mb-2" />
+                <p>{error}</p>
+            </div>
+          ) : (
             <Table>
               <TableHeader>
-                <TableRow className="border-b-black hover:bg-gray-100">
-                  <TableHead className="text-black font-mono uppercase">Rang</TableHead>
-                  <TableHead className="text-black font-mono uppercase">Pseudo</TableHead>
-                  <TableHead className="text-black font-mono uppercase">Base</TableHead>
-                  <TableHead className="text-right text-black font-mono uppercase">Jours</TableHead>
+                <TableRow className="border-b-2 border-black hover:bg-gray-100">
+                  <TableHead className="text-black font-mono w-[50px]">Rang</TableHead>
+                  <TableHead className="text-black font-mono">Joueur</TableHead>
+                  <TableHead className="text-black font-mono">Zone</TableHead>
+                  <TableHead className="text-right text-black font-mono">Jours</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leaderboardData.map((player, index) => (
-                  <TableRow key={index} className="border-b-black/20 hover:bg-gray-50">
-                    <TableCell className="font-medium">{index + 1}</TableCell>
-                    <TableCell>{player.username}</TableCell>
-                    <TableCell>{player.base_location || 'Inconnue'}</TableCell>
-                    <TableCell className="text-right">{player.days_alive}</TableCell>
+                {leaderboard.map((player, index) => (
+                  <TableRow key={index} className="border-b border-black last:border-b-0 hover:bg-gray-100">
+                    <TableCell className="font-bold text-black">#{index + 1}</TableCell>
+                    <TableCell className="text-black">{player.username}</TableCell>
+                    <TableCell className="text-gray-700">{player.current_zone}</TableCell>
+                    <TableCell className="text-right font-bold text-black">{player.days_alive}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          ) : (
-            <p className="text-center py-8">Le classement est actuellement vide.</p>
           )}
         </div>
       </DialogContent>
