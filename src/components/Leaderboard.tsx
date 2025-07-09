@@ -41,44 +41,44 @@ const Leaderboard = () => {
   }, []);
 
   return (
-    <div className="w-full max-w-md lg:max-w-lg bg-black/30 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-2xl shadow-black/50">
-      <CardHeader>
+    <Card className="w-full max-w-md lg:max-w-lg bg-white text-black border-2 border-black shadow-[8px_8px_0px_#000] rounded-none">
+      <CardHeader className="p-6">
         <div className="flex items-center space-x-3">
-          <Trophy className="w-6 h-6 text-amber-400" />
+          <Trophy className="w-6 h-6 text-black" />
           <div>
-            <CardTitle className="text-2xl text-gray-100">Classement des Survivants</CardTitle>
-            <CardDescription className="text-gray-400">Top 10 des plus endurcis</CardDescription>
+            <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Classement</CardTitle>
+            <CardDescription className="text-gray-700">Top 10 des plus endurcis</CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="max-h-[60vh] overflow-y-auto">
+      <CardContent className="p-0">
+        <div className="max-h-[60vh] overflow-y-auto border-t-2 border-black">
           {loading ? (
             <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+              <Loader2 className="w-8 h-8 animate-spin text-black" />
             </div>
           ) : error ? (
-             <div className="flex flex-col items-center justify-center h-40 text-center text-red-400">
+             <div className="flex flex-col items-center justify-center h-40 text-center text-red-500">
                 <ShieldAlert className="w-8 h-8 mb-2" />
                 <p>{error}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="border-b-gray-700 hover:bg-transparent">
-                  <TableHead className="w-[50px] text-gray-300">#</TableHead>
-                  <TableHead className="text-gray-300">Joueur</TableHead>
-                  <TableHead className="text-gray-300">Zone</TableHead>
-                  <TableHead className="text-right text-gray-300">Jours</TableHead>
+                <TableRow className="border-b-2 border-black hover:bg-gray-100">
+                  <TableHead className="w-[50px] text-black font-mono">#</TableHead>
+                  <TableHead className="text-black font-mono">Joueur</TableHead>
+                  <TableHead className="text-black font-mono">Zone</TableHead>
+                  <TableHead className="text-right text-black font-mono">Jours</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {leaderboard.map((player, index) => (
-                  <TableRow key={index} className="border-b-gray-800 hover:bg-gray-800/40">
-                    <TableCell className="font-medium text-gray-200">{index + 1}</TableCell>
-                    <TableCell className="text-gray-200">{player.username}</TableCell>
-                    <TableCell className="text-gray-400">{player.current_zone}</TableCell>
-                    <TableCell className="text-right font-bold text-amber-400">{player.days_alive}</TableCell>
+                  <TableRow key={index} className="border-b border-black last:border-b-0 hover:bg-gray-100">
+                    <TableCell className="font-medium text-black">#{index + 1}</TableCell>
+                    <TableCell className="text-black">{player.username}</TableCell>
+                    <TableCell className="text-gray-700">{player.current_zone}</TableCell>
+                    <TableCell className="text-right font-bold text-black">{player.days_alive}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -86,7 +86,7 @@ const Leaderboard = () => {
           )}
         </div>
       </CardContent>
-    </div>
+    </Card>
   );
 };
 

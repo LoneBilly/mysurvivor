@@ -78,43 +78,43 @@ const Login = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-800/40 via-gray-900 to-black text-white flex flex-col items-center justify-center p-4">
-        <div className="w-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12">
-          <div className="w-full max-w-md bg-black/30 backdrop-blur-sm border border-gray-700/50 rounded-lg p-8 shadow-2xl shadow-black/50">
+      <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4">
+        <div className="w-full flex flex-col lg:flex-row items-center justify-center gap-12">
+          <div className="w-full max-w-md bg-white border-2 border-black shadow-[8px_8px_0px_#000] rounded-none p-8">
             <div className="text-center mb-8">
-              <ShieldAlert className="w-12 h-12 mx-auto text-amber-400/80 mb-4" />
-              <h1 className="text-3xl font-bold text-amber-400 font-mono tracking-wider uppercase">
+              <ShieldAlert className="w-12 h-12 mx-auto text-black mb-4" />
+              <h1 className="text-3xl font-bold text-black font-mono tracking-wider uppercase">
                 Terminal de Survie
               </h1>
-              <p className="text-gray-400 mt-2">Authentification requise pour continuer.</p>
+              <p className="text-gray-700 mt-2">Authentification requise pour continuer.</p>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="text-sm font-medium text-gray-400 font-mono">Identifiant</label>
+                <label htmlFor="email" className="text-sm font-medium text-black font-mono">Identifiant</label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="mt-1 bg-gray-900/50 border-gray-600 focus:border-amber-500 focus:ring-amber-500"
+                  className="mt-1 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
                   placeholder="votre@email.com"
                 />
               </div>
               <div>
-                <label htmlFor="password"className="text-sm font-medium text-gray-400 font-mono">Mot de passe</label>
+                <label htmlFor="password"className="text-sm font-medium text-black font-mono">Mot de passe</label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="mt-1 bg-gray-900/50 border-gray-600 focus:border-amber-500 focus:ring-amber-500"
+                  className="mt-1 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
                   placeholder="••••••••"
                 />
               </div>
-              <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold" disabled={loading || !email || !password}>
+              <Button type="submit" className="w-full rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800 font-bold" disabled={loading || !email || !password}>
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connexion / Inscription'}
               </Button>
             </form>
