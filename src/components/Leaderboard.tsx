@@ -60,8 +60,7 @@ export function Leaderboard() {
                 <TableHead className="w-[40px] text-left font-bold text-black">#</TableHead>
                 <TableHead className="text-left font-bold text-black">Joueur</TableHead>
                 <TableHead className="text-left font-bold text-black">Base</TableHead>
-                <TableHead className="text-left font-bold text-black">Zone</TableHead>
-                <TableHead className="text-left font-bold text-black">Jours</TableHead>
+                <TableHead className="text-right font-bold text-black">Jours</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -71,13 +70,12 @@ export function Leaderboard() {
                     <TableCell className="font-medium text-left">{index + 1}</TableCell>
                     <TableCell className="text-left">{player.username}</TableCell>
                     <TableCell className="text-left">{player.base_location || 'N/A'}</TableCell>
-                    <TableCell className="text-left">{player.current_zone || 'Inconnue'}</TableCell>
-                    <TableCell className="text-left">{player.days_alive}</TableCell>
+                    <TableCell className="text-right">{player.days_alive}</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-4">
+                  <TableCell colSpan={4} className="text-center py-4">
                     Le classement est vide.
                   </TableCell>
                 </TableRow>
