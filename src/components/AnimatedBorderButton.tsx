@@ -15,7 +15,7 @@ const AnimatedBorderButton = ({ children, className, ...props }: AnimatedBorderB
       )}
       {...props}
     >
-      <span className="block px-10 py-6 bg-black text-white rounded-none">
+      <span className="block px-10 py-6 bg-white text-black rounded-none">
         {children}
       </span>
     </button>
