@@ -1,52 +1,40 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Leaderboard } from '@/components/Leaderboard';
+import Leaderboard from '@/components/Leaderboard';
 import TestimonialCarousel from '@/components/TestimonialCarousel';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { ShieldAlert, Map, Home, Swords, Package } from 'lucide-react';
-import FloatingInfoBar from '@/components/FloatingInfoBar';
+import { ShieldAlert, Map, Home, Swords, Treasure, Users } from 'lucide-react';
 
 const Landing = () => {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState<number | null>(null);
-  const [topPlayer, setTopPlayer] = useState<{ username: string; days_alive: number } | null>(null);
 
   useEffect(() => {
-    const fetchLandingData = async () => {
-      // Fetch player count
-      const { count, error: countError } = await supabase
+    const fetchPlayerCount = async () => {
+      const { count, error } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
-      if (countError) console.error("Error fetching player count:", countError);
-      else setPlayerCount(count);
 
-      // Fetch top player
-      const { data: topPlayerData, error: topPlayerError } = await supabase
-        .from('leaderboard')
-        .select('username, days_alive')
-        .order('days_alive', { ascending: false })
-        .limit(1)
-        .single();
-      if (topPlayerError && topPlayerError.code !== 'PGRST116') { // Ignore "No rows found" error
-        console.error("Error fetching top player:", topPlayerError);
+      if (error) {
+        console.error("Error fetching player count:", error);
       } else {
-        setTopPlayer(topPlayerData);
+        setPlayerCount(count);
       }
     };
 
-    fetchLandingData();
+    fetchPlayerCount();
   }, []);
 
   const features = [
     { icon: Map, title: "Explorez", description: "Découvrez un monde en ruines, zone par zone, et révélez ses secrets." },
     { icon: Home, title: "Construisez", description: "Établissez votre campement et transformez-le en une base imprenable." },
-    { icon: Package, title: "Lootez", description: "Fouillez les décombres pour trouver des ressources et des objets précieux." },
+    { icon: Treasure, title: "Lootez", description: "Fouillez les décombres pour trouver des ressources et des objets précieux." },
     { icon: Swords, title: "Survivez", description: "Affrontez les autres survivants dans un environnement où chaque rencontre est décisive." },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center p-4 sm:p-6 lg:p-8 overflow-x-hidden pb-28 sm:pb-24">
+    <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center p-4 sm:p-6 lg:p-8 overflow-x-hidden">
       
       {/* Hero Section */}
       <section className="w-full max-w-5xl text-center py-16 sm:py-24">
@@ -57,16 +45,19 @@ const Landing = () => {
         <p className="text-gray-700 mt-4 text-lg max-w-3xl mx-auto">
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
         </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
-            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
+            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
           >
             COMMENCER L'AVENTURE
           </Button>
-        </div>
-        <div className="mt-16 w-full flex justify-center">
-          <Leaderboard />
+          {playerCount !== null && (
+            <div className="flex items-center gap-2 text-sm font-mono bg-white border-2 border-black px-4 py-2">
+              <Users className="w-5 h-5" />
+              <span><span className="font-bold">{playerCount}</span> survivants déjà inscrits</span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -90,6 +81,11 @@ const Landing = () => {
         <TestimonialCarousel />
       </section>
 
+      {/* Leaderboard Section */}
+      <section className="w-full max-w-5xl flex flex-col items-center py-16">
+        <Leaderboard />
+      </section>
+
       {/* Final CTA Section */}
       <section className="w-full max-w-5xl text-center py-16">
         <h2 className="text-3xl md:text-4xl font-bold text-black font-mono tracking-wider uppercase">
@@ -100,13 +96,12 @@ const Landing = () => {
         </p>
         <Button 
           onClick={() => navigate('/login')}
-          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-12 py-6"
+          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all bg-black text-white hover:bg-gray-800 font-bold text-lg px-12 py-6"
         >
           JOUER MAINTENANT
         </Button>
       </section>
 
-      <FloatingInfoBar playerCount={playerCount} topPlayer={topPlayer} />
     </div>
   );
 };

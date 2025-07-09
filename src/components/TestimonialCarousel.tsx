@@ -11,22 +11,22 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 const testimonials = [
   {
     quote: "L'adrénaline de l'exploration est incroyable. On ne sait jamais sur quoi on va tomber. J'ai perdu ma première base, mais la deuxième est une forteresse !",
-    name: "Izipeace",
-    avatar: "I",
+    name: "Alex 'Le Bricoleur'",
+    avatar: "A",
   },
   {
     quote: "Ce jeu ne pardonne pas, et c'est ça qui est bon. Chaque ressource compte, chaque décision a un impact. C'est la meilleure simulation de survie à laquelle j'ai joué.",
-    name: "ShadowKiller92",
+    name: "Sarah 'L'Ombre'",
     avatar: "S",
   },
   {
     quote: "J'ai passé 15 jours à survivre, c'était intense ! Le système de construction est simple mais profond. Voir sa base grandir jour après jour, c'est gratifiant.",
-    name: "Jacadu66",
-    avatar: "J",
+    name: "Marco 'Le Stratège'",
+    avatar: "M",
   },
   {
     quote: "Le frisson de croiser un autre joueur... allié ou ennemi ? Cette tension permanente est ce qui me fait revenir chaque jour. Un must pour les fans de survie.",
-    name: "LaReineDuLoot",
+    name: "Léa 'La Fantôme'",
     avatar: "L",
   },
 ];

@@ -1,35 +1,67 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Leaderboard } from "@/components/Leaderboard";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import GameInterface from "@/components/GameInterface";
+import { useGameState } from "@/hooks/useGameState";
+import { supabase } from "@/integrations/supabase/client";
+import { MapCell, GameState } from "@/types/game";
+import { showError } from "@/utils/toast";
+import { Loader2 } from "lucide-react";
 
-export default function Index() {
-  return (
-    <div className="w-full min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
-      <div className="max-w-4xl w-full mx-auto flex flex-col items-center">
-        <Card className="bg-white text-black border-2 border-black shadow-[8px_8px_0px_#000] rounded-none mb-8 w-full">
-          <CardHeader>
-            <CardTitle className="text-3xl sm:text-4xl font-bold text-center">
-              Bienvenue dans l'Aventure
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center space-y-6 p-6">
-            <p className="text-center text-lg">
-              Votre survie commence maintenant. Êtes-vous prêt à relever le défi ?
-            </p>
-            <Link to="/game">
-              <Button 
-                size="lg" 
-                className="bg-black text-white hover:bg-gray-800 rounded-none px-8 py-4 text-lg font-bold animate-pulse-border"
-              >
-                Commencer l'aventure
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+const Index = () => {
+  const { gameState, loading: gameStateLoading, saveGameState } = useGameState();
+  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
+  const [mapLoading, setMapLoading] = useState(true);
 
-        <Leaderboard />
+  useEffect(() => {
+    const fetchMapLayout = async () => {
+      const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
+      if (error) {
+        console.error("Error fetching map layout:", error);
+        showError("Impossible de charger la carte.");
+      } else {
+        setMapLayout(data as MapCell[]);
+      }
+      setMapLoading(false);
+    };
+    
+    fetchMapLayout();
+  }, []);
+
+  const isLoading = gameStateLoading || mapLoading;
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center text-black">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-gray-600">Chargement de votre aventure...</p>
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  if (!gameState) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Erreur lors du chargement des données du joueur.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-black text-white rounded-none"
+          >
+            Recharger
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <GameInterface
+      gameState={gameState}
+      mapLayout={mapLayout}
+      saveGameState={saveGameState}
+    />
   );
-}
+};
+
+export default Index;
