@@ -91,41 +91,41 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-black/60 backdrop-blur-sm border border-amber-400/20 rounded-lg shadow-2xl shadow-black/50 text-white p-6">
+      <DialogContent className="sm:max-w-md bg-slate-900/80 backdrop-blur-sm border border-cyan-400/50 rounded-lg shadow-lg shadow-cyan-500/10 text-slate-100 p-6">
         <DialogHeader className="text-center mb-4">
-          <Settings className="w-8 h-8 mx-auto text-amber-400 mb-2" />
-          <DialogTitle className="text-amber-400 font-mono tracking-wider uppercase text-xl">Options</DialogTitle>
-          <DialogDescription className="text-gray-300 mt-1">
+          <Settings className="w-8 h-8 mx-auto text-cyan-400 mb-2" />
+          <DialogTitle className="text-cyan-400 font-mono tracking-wider uppercase text-xl">Options</DialogTitle>
+          <DialogDescription className="text-slate-400 mt-1">
             Gérez les paramètres de votre compte et du jeu.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-2">
           <div className="space-y-4">
-            <h4 className="font-medium text-gray-200 font-mono">Changer de pseudo</h4>
+            <h4 className="font-medium text-slate-200 font-mono">Changer de pseudo</h4>
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-gray-400 font-mono">Nouveau pseudo</Label>
+              <Label htmlFor="username" className="text-slate-400 font-mono">Nouveau pseudo</Label>
               <Input
                 id="username"
                 placeholder={currentUsername || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
-                className="bg-gray-900/50 border-gray-600 focus:border-amber-500 focus:ring-amber-500"
+                className="bg-slate-800/50 border-slate-700 focus:border-cyan-500 focus:ring-cyan-500"
                 disabled={loading}
               />
             </div>
-            <Button onClick={handleSave} disabled={loading || !newUsername.trim()} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold">
+            <Button onClick={handleSave} disabled={loading || !newUsername.trim()} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold">
               {loading ? 'Sauvegarde...' : 'Sauvegarder le pseudo'}
             </Button>
           </div>
-          <Separator className="bg-amber-400/20" />
+          <Separator className="bg-cyan-400/20" />
           <div className="space-y-4">
-            <h4 className="font-medium text-gray-200 font-mono">Compte</h4>
+            <h4 className="font-medium text-slate-200 font-mono">Compte</h4>
             {role === 'admin' && (
               <>
                 <Button onClick={handleGoToAdmin} variant="secondary" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
                   Panel d'Administration
                 </Button>
-                <Separator className="bg-amber-400/20" />
+                <Separator className="bg-cyan-400/20" />
               </>
             )}
             <Button onClick={handleLogout} variant="destructive" disabled={loading} className="w-full font-bold">

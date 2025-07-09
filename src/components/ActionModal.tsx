@@ -23,13 +23,13 @@ interface ActionModalProps {
 const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-black/60 backdrop-blur-sm border border-amber-400/20 rounded-lg shadow-2xl shadow-black/50 text-white p-6">
+      <DialogContent className="sm:max-w-md bg-slate-900/80 backdrop-blur-sm border border-cyan-400/50 rounded-lg shadow-lg shadow-cyan-500/10 text-slate-100 p-6">
         <DialogHeader className="text-center">
-          <DialogTitle className="text-amber-400 font-mono tracking-wider uppercase text-xl">
+          <DialogTitle className="text-cyan-400 font-mono tracking-wider uppercase text-xl">
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription className="text-gray-300 mt-2 text-base">
+            <DialogDescription className="text-slate-400 mt-2 text-base">
               {description}
             </DialogDescription>
           )}
