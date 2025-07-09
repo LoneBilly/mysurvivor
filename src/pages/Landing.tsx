@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import Leaderboard from '@/components/Leaderboard';
+import { Leaderboard } from '@/components/Leaderboard';
 import TestimonialCarousel from '@/components/TestimonialCarousel';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
