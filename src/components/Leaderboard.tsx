@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, ShieldAlert, Trophy, Home, CalendarDays, Medal } from 'lucide-react';
+import { Loader2, ShieldAlert, Trophy, Home, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LeaderboardEntry {
@@ -86,8 +86,8 @@ const Leaderboard = () => {
           {otherPlayers.map((player, index) => {
             const rank = index + 2;
             const rankInfo = {
-              2: { icon: Medal, color: "text-gray-500", bgColor: "bg-gray-100" },
-              3: { icon: Medal, color: "text-orange-500", bgColor: "bg-orange-100" },
+              2: { bgColor: "bg-gray-100" },
+              3: { bgColor: "bg-orange-100" },
             }[rank];
 
             return (
@@ -95,7 +95,7 @@ const Leaderboard = () => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="font-bold text-lg w-8 text-center flex-shrink-0">
-                      {rankInfo ? <rankInfo.icon className={cn("w-6 h-6 mx-auto", rankInfo.color)} /> : <span>#{rank}</span>}
+                      <span>#{rank}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold truncate">{player.username || 'Anonyme'}</p>
@@ -104,7 +104,7 @@ const Leaderboard = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-center flex-shrink-0 w-16">
                     <p className="font-bold text-lg">{player.days_alive}</p>
                     <p className="text-xs text-gray-600">jours</p>
                   </div>
