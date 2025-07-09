@@ -10,6 +10,7 @@ const ENTRANCE_Y = 50;
 const ORBIT_RADIUS_PX = 40;
 
 interface ExplorationGridProps {
+  isActive: boolean;
   playerPosition: { x: number; y: number } | null;
   onCellClick: (x: number, y: number) => void;
   onCellHover: (x: number, y: number) => void;
@@ -17,13 +18,13 @@ interface ExplorationGridProps {
   currentEnergy: number;
 }
 
-const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
+const ExplorationGrid = ({ isActive, playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
 
   const updateIndicators = useCallback(() => {
-    if (!viewportRef.current || !playerPosition) {
+    if (!isActive || !viewportRef.current || !playerPosition) {
       setExitIndicator({ visible: false, angle: 0, x: 0, y: 0 });
       setPlayerIndicator({ visible: false, angle: 0 });
       return;
@@ -63,11 +64,11 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       const angleDeg = angleRad * (180 / Math.PI);
       setPlayerIndicator({ visible: true, angle: angleDeg });
     }
-  }, [playerPosition]);
+  }, [playerPosition, isActive]);
 
   // Center on mount only
   useLayoutEffect(() => {
-    if (viewportRef.current && playerPosition) {
+    if (isActive && viewportRef.current && playerPosition) {
       const viewport = viewportRef.current;
       const cellCenterX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
       const cellCenterY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
@@ -78,13 +79,14 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'auto' });
       setTimeout(updateIndicators, 100);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isActive, playerPosition, updateIndicators]);
 
   // Update indicators when player moves
   useEffect(() => {
-    updateIndicators();
-  }, [playerPosition, updateIndicators]);
+    if (isActive) {
+      updateIndicators();
+    }
+  }, [playerPosition, isActive, updateIndicators]);
 
   return (
     <div className="relative w-full h-full bg-gray-100" onMouseLeave={() => onCellHover(-1, -1)}>
