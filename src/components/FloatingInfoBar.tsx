@@ -18,7 +18,7 @@ const FloatingInfoBar: React.FC<FloatingInfoBarProps> = ({ playerCount }) => {
             <div className="flex items-center gap-2 text-sm sm:text-base">
               <Users className="w-5 h-5 text-green-400" />
               <span className="font-bold">{playerCount}</span>
-              <span>survivants en ligne</span>
+              <span>survivants</span>
             </div>
           )}
         </div>
