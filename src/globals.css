@@ -99,12 +99,12 @@
     width: 200vmax;
     height: 200vmax;
     background-image: conic-gradient(
-      transparent,
-      transparent,
-      transparent,
-      #0000ff
+      from 0deg,
+      transparent 70%,
+      #0000ff,
+      transparent 90%
     );
-    animation: rotate 4s linear infinite;
+    animation: rotate 6s linear infinite;
     transform: translate(-50%, -50%);
   }
 
