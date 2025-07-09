@@ -7,11 +7,9 @@ import BaseInterface from "./BaseInterface";
 import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
 import OptionsModal from "./OptionsModal";
-import { useGameState } from "@/hooks/useGameState";
-import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
-import { MapCell } from "@/types/game";
+import { GameState, MapCell } from "@/types/game";
 import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,11 +58,13 @@ const findPathBFS = (start: {x: number, y: number}, end: {x: number, y: number})
     return null;
 };
 
-const GameInterface = () => {
-  const { user } = useAuth();
-  const { gameState, loading: gameStateLoading, saveGameState } = useGameState();
-  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
-  const [mapLoading, setMapLoading] = useState(true);
+interface GameInterfaceProps {
+  gameState: GameState;
+  mapLayout: MapCell[];
+  saveGameState: (updates: Partial<Omit<GameState, 'id'>>) => Promise<void>;
+}
+
+const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfaceProps) => {
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -79,50 +79,32 @@ const GameInterface = () => {
   }>({ isOpen: false, title: "", description: "", actions: [] });
 
   useEffect(() => {
-    const fetchMapLayout = async () => {
-      setMapLoading(true);
-      const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
-      if (error) {
-        console.error("Error fetching map layout:", error);
-        showError("Impossible de charger la carte.");
-      } else {
-        setMapLayout(data as MapCell[]);
-      }
-      setMapLoading(false);
-    };
-    fetchMapLayout();
-  }, []);
-
-  useEffect(() => {
-    if (gameState && !gameStateLoading) {
-      // Si la vue est déjà définie sur 'base', on ne la change pas.
-      if (currentView === 'base') {
-        setIsViewReady(true);
-        return;
-      }
-
-      if (gameState.exploration_x !== null && gameState.exploration_y !== null) {
-        const fetchCurrentZoneInfo = async () => {
-          const { data: zoneData } = await supabase
-            .from('map_layout')
-            .select('type, icon')
-            .eq('x', gameState.position_x)
-            .eq('y', gameState.position_y)
-            .single();
-          
-          if (zoneData) {
-            setExplorationZone({ name: formatZoneName(zoneData.type), icon: zoneData.icon });
-            setCurrentView('exploration');
-          }
-          setIsViewReady(true);
-        };
-        fetchCurrentZoneInfo();
-      } else {
-        setCurrentView('map');
-        setIsViewReady(true);
-      }
+    if (currentView === 'base') {
+      setIsViewReady(true);
+      return;
     }
-  }, [gameState, gameStateLoading, currentView]);
+
+    if (gameState.exploration_x !== null && gameState.exploration_y !== null) {
+      const fetchCurrentZoneInfo = async () => {
+        const { data: zoneData } = await supabase
+          .from('map_layout')
+          .select('type, icon')
+          .eq('x', gameState.position_x)
+          .eq('y', gameState.position_y)
+          .single();
+        
+        if (zoneData) {
+          setExplorationZone({ name: formatZoneName(zoneData.type), icon: zoneData.icon });
+          setCurrentView('exploration');
+        }
+        setIsViewReady(true);
+      };
+      fetchCurrentZoneInfo();
+    } else {
+      setCurrentView('map');
+      setIsViewReady(true);
+    }
+  }, [gameState, currentView]);
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
@@ -322,28 +304,12 @@ const GameInterface = () => {
   const handleOptions = () => setIsOptionsOpen(true);
   const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
 
-  if (gameStateLoading || mapLoading || !isViewReady) {
+  if (!isViewReady) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-100">
         <div className="text-center text-black">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
-          <p className="text-gray-600">Chargement du jeu...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!gameState) {
-    return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Erreur lors du chargement du jeu</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-black text-white rounded-none"
-          >
-            Recharger
-          </button>
+          <p className="text-gray-600">Préparation de l'interface...</p>
         </div>
       </div>
     );

@@ -1,31 +1,67 @@
+import { useState, useEffect } from "react";
 import GameInterface from "@/components/GameInterface";
-import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useGameState } from "@/hooks/useGameState";
+import { supabase } from "@/integrations/supabase/client";
+import { MapCell, GameState } from "@/types/game";
+import { showError } from "@/utils/toast";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
+  const { gameState, loading: gameStateLoading, saveGameState } = useGameState();
+  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
+  const [mapLoading, setMapLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login');
-    }
-  }, [user, loading, navigate]);
+    const fetchMapLayout = async () => {
+      const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
+      if (error) {
+        console.error("Error fetching map layout:", error);
+        showError("Impossible de charger la carte.");
+      } else {
+        setMapLayout(data as MapCell[]);
+      }
+      setMapLoading(false);
+    };
+    
+    fetchMapLayout();
+  }, []);
 
-  if (loading) {
+  const isLoading = gameStateLoading || mapLoading;
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center text-black">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-gray-600">Chargement de votre aventure...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
+  if (!gameState) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Erreur lors du chargement des données du joueur.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-black text-white rounded-none"
+          >
+            Recharger
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  return <GameInterface />;
+  return (
+    <GameInterface
+      gameState={gameState}
+      mapLayout={mapLayout}
+      saveGameState={saveGameState}
+    />
+  );
 };
 
 export default Index;

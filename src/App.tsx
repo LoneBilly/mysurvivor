@@ -7,13 +7,20 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import AdminRoute from './components/AdminRoute';
 import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    // You can add a global loader here
-    return <div className="flex items-center justify-center h-screen">Chargement...</div>;
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center text-black">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-gray-600">Chargement de votre aventure...</p>
+        </div>
+      </div>
+    );
   }
 
   return user ? children : <Navigate to="/login" />;
