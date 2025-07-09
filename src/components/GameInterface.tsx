@@ -373,7 +373,7 @@ const GameInterface = () => {
               components: gameState.components,
             }}
           />
-          <BaseInterface />
+          <BaseInterface isActive={currentView === 'base'} />
         </div>
 
         <div className={cn("relative w-full h-full", currentView !== 'exploration' && "hidden")}>

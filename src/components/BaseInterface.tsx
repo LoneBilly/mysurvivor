@@ -23,9 +23,14 @@ const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
-const BaseInterface = () => {
+interface BaseInterfaceProps {
+  isActive: boolean;
+}
+
+const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
+  const [loading, setLoading] = useState(true);
   const viewportRef = useRef<HTMLDivElement>(null);
   const hasCentered = useRef(false);
   const [lastBuiltCell, setLastBuiltCell] = useState<{ x: number; y: number } | null>(null);
@@ -52,8 +57,10 @@ const BaseInterface = () => {
 
   const initializeGrid = useCallback(async () => {
     if (!user) return;
+    setLoading(true);
+    hasCentered.current = false;
 
-    const { data: constructions, error } = await supabase
+    let { data: constructions, error } = await supabase
       .from('base_constructions')
       .select('x, y, type')
       .eq('player_id', user.id);
@@ -61,7 +68,17 @@ const BaseInterface = () => {
     if (error) {
       showError("Erreur lors du chargement de la base.");
       console.error(error);
+      setLoading(false);
       return;
+    }
+
+    const campfire = constructions.find(c => c.type === 'campfire');
+    const isCampfireInvalid = !campfire || campfire.x >= GRID_SIZE || campfire.y >= GRID_SIZE;
+
+    if (isCampfireInvalid && constructions.length > 0) {
+      await supabase.from('base_constructions').delete().eq('player_id', user.id);
+      const { data: newConstructions } = await supabase.from('base_constructions').select('*').eq('player_id', user.id);
+      constructions = newConstructions || [];
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
@@ -80,13 +97,12 @@ const BaseInterface = () => {
       
       if (insertError) {
         showError("Impossible de créer le campement initial.");
-        console.error(insertError);
+        setLoading(false);
         return;
       }
       
       newGrid[newCampY][newCampX].type = 'campfire';
       campPos = { x: newCampX, y: newCampY };
-
     } else {
       constructions.forEach((c: BaseConstruction) => {
         if (newGrid[c.y]?.[c.x]) {
@@ -101,13 +117,14 @@ const BaseInterface = () => {
     const finalGrid = updateCanBuild(newGrid);
     setGridData(finalGrid);
     setCampfirePosition(campPos);
+    setLoading(false);
   }, [user]);
 
   useEffect(() => {
-    if (!gridData) {
+    if (isActive) {
       initializeGrid();
     }
-  }, [initializeGrid, gridData]);
+  }, [isActive, initializeGrid]);
 
   const centerViewport = (x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -127,11 +144,11 @@ const BaseInterface = () => {
   };
 
   useLayoutEffect(() => {
-    if (gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
+    if (!loading && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
       hasCentered.current = true;
     }
-  }, [gridData, campfirePosition]);
+  }, [loading, gridData, campfirePosition]);
 
   useEffect(() => {
     if (lastBuiltCell) {
@@ -158,8 +175,7 @@ const BaseInterface = () => {
     if (error) {
       showError("Erreur lors de la construction.");
       console.error(error);
-      // Re-fetch the whole grid on error to ensure consistency
-      setGridData(null);
+      initializeGrid();
     }
   };
 
@@ -181,7 +197,7 @@ const BaseInterface = () => {
     }
   };
 
-  if (!gridData) {
+  if (loading) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-black">
         <Loader2 className="w-8 h-8 animate-spin mb-4" />
@@ -204,7 +220,7 @@ const BaseInterface = () => {
             height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
           }}
         >
-          {gridData.map((row, y) =>
+          {gridData?.map((row, y) =>
             row.map((cell, x) => (
               <button
                 key={`${x}-${y}`}

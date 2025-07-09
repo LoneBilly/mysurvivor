@@ -13,7 +13,7 @@ interface GameHeaderProps {
 
 const GameHeader = ({ joursSurvecus, spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
-  const showBackButton = currentView === 'base' || currentView === 'exploration';
+  const showBackButton = currentView === 'base';
 
   useEffect(() => {
     if (!spawnDate) return;
