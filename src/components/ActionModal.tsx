@@ -7,6 +7,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ActionModalProps {
   isOpen: boolean;
@@ -23,13 +24,13 @@ interface ActionModalProps {
 const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-slate-900/80 backdrop-blur-sm border border-cyan-400/50 rounded-lg shadow-lg shadow-cyan-500/10 text-slate-100 p-6">
+      <DialogContent className="sm:max-w-md bg-white text-black border-2 border-black shadow-[4px_4px_0px_#000] rounded-none p-6">
         <DialogHeader className="text-center">
-          <DialogTitle className="text-cyan-400 font-mono tracking-wider uppercase text-xl">
+          <DialogTitle className="text-black font-mono tracking-wider uppercase text-xl">
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription className="text-slate-400 mt-2 text-base">
+            <DialogDescription className="text-gray-700 mt-2 text-base">
               {description}
             </DialogDescription>
           )}
@@ -41,8 +42,14 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
                 <Button
                   key={index}
                   onClick={action.onClick}
-                  variant={action.variant || "default"}
-                  className="flex-1 font-bold tracking-wide"
+                  className={cn(
+                    "flex-1 font-bold tracking-wide rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all",
+                    action.variant === 'destructive' 
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : action.variant === 'secondary' || action.variant === 'outline'
+                      ? "bg-white text-black hover:bg-gray-200"
+                      : "bg-black text-white hover:bg-gray-800"
+                  )}
                 >
                   {action.label}
                 </Button>
