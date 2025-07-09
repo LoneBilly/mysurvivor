@@ -2,10 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Leaderboard from '@/components/Leaderboard';
 import TestimonialCarousel from '@/components/TestimonialCarousel';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { ShieldAlert, Map, Home, Swords, Package } from 'lucide-react';
 import FloatingInfoBar from '@/components/FloatingInfoBar';
-import AnimatedBorderButton from '@/components/AnimatedBorderButton';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -14,9 +14,9 @@ const Landing = () => {
 
   useEffect(() => {
     const fetchLandingData = async () => {
-      // Fetch player count from player_states which is public
+      // Fetch player count
       const { count, error: countError } = await supabase
-        .from('player_states')
+        .from('profiles')
         .select('*', { count: 'exact', head: true });
       if (countError) console.error("Error fetching player count:", countError);
       else setPlayerCount(count);
@@ -58,9 +58,12 @@ const Landing = () => {
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
-          <AnimatedBorderButton onClick={() => navigate('/login')}>
+          <Button 
+            onClick={() => navigate('/login')}
+            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
+          >
             COMMENCER L'AVENTURE
-          </AnimatedBorderButton>
+          </Button>
         </div>
         <div className="mt-16 w-full flex justify-center">
           <Leaderboard />
@@ -95,9 +98,12 @@ const Landing = () => {
         <p className="text-gray-700 mt-4 text-lg max-w-2xl mx-auto">
           Le monde ne vous attendra pas. Chaque seconde compte. Rejoignez les rangs des survivants et forgez votre propre légende.
         </p>
-        <AnimatedBorderButton onClick={() => navigate('/login')} className="mt-8">
+        <Button 
+          onClick={() => navigate('/login')}
+          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-12 py-6"
+        >
           JOUER MAINTENANT
-        </AnimatedBorderButton>
+        </Button>
       </section>
 
       <FloatingInfoBar playerCount={playerCount} topPlayer={topPlayer} />

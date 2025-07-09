@@ -6,27 +6,26 @@ interface FloatingInfoBarProps {
 }
 
 const FloatingInfoBar = ({ playerCount, topPlayer }: FloatingInfoBarProps) => {
-  if (playerCount === null && topPlayer === null) {
+  if (playerCount === null && !topPlayer) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md sm:w-auto bg-white/80 backdrop-blur-sm text-black border-2 border-black shadow-[4px_4px_0px_#000] rounded-none p-2 sm:p-3 z-50">
-      <div className="flex items-center justify-center divide-x-2 divide-black">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 pointer-events-none">
+      <div className="container mx-auto max-w-4xl bg-white border-2 border-black shadow-[4px_4px_0px_#000] p-3 rounded-none flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-2 sm:gap-6 pointer-events-auto">
         {playerCount !== null && (
-          <div className="flex items-center gap-2 px-3">
+          <div className="flex items-center gap-2 text-sm font-mono text-black">
             <Users className="w-5 h-5" />
-            <span className="font-mono text-sm">
-              <span className="font-bold">{playerCount}</span> survivants
-            </span>
+            <span>Rejoignez <span className="font-bold">{playerCount}</span> survivants dans le jeu.</span>
           </div>
         )}
+        {playerCount !== null && topPlayer && (
+          <div className="hidden sm:block w-px h-6 bg-black" />
+        )}
         {topPlayer && (
-          <div className="hidden sm:flex items-center gap-2 px-3">
+          <div className="flex items-center gap-2 text-sm font-mono text-black">
             <Trophy className="w-5 h-5 text-yellow-500" />
-            <span className="font-mono text-sm">
-              Top: <span className="font-bold">{topPlayer.username}</span> ({topPlayer.days_alive}j)
-            </span>
+            <span>Top survivant : <span className="font-bold">{topPlayer.username}</span> ({topPlayer.days_alive} jours) !</span>
           </div>
         )}
       </div>
