@@ -14,9 +14,9 @@ const Landing = () => {
 
   useEffect(() => {
     const fetchLandingData = async () => {
-      // Fetch player count
+      // Fetch player count from player_states which is public
       const { count, error: countError } = await supabase
-        .from('profiles')
+        .from('player_states')
         .select('*', { count: 'exact', head: true });
       if (countError) console.error("Error fetching player count:", countError);
       else setPlayerCount(count);
