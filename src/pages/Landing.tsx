@@ -46,7 +46,7 @@ const Landing = () => {
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
-            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] bg-red-500 text-white font-bold text-lg px-10 py-6 transition-all hover:bg-red-600 hover:shadow-[6px_6px_0px_#000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
+            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] bg-black text-white font-bold text-lg px-10 py-6 transition-all hover:bg-gray-800 hover:shadow-[6px_6px_0px_#000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
           >
             COMMENCER L'AVENTURE
           </Button>
@@ -86,7 +86,7 @@ const Landing = () => {
         </p>
         <Button 
           onClick={() => navigate('/login')}
-          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] bg-red-500 text-white font-bold text-lg px-12 py-6 transition-all hover:bg-red-600 hover:shadow-[6px_6px_0px_#000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
+          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] bg-black text-white font-bold text-lg px-12 py-6 transition-all hover:bg-gray-800 hover:shadow-[6px_6px_0px_#000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
         >
           JOUER MAINTENANT
         </Button>
