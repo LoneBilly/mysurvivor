@@ -15,6 +15,7 @@ import { MapCell } from "@/types/game";
 import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -336,7 +337,10 @@ const GameInterface = () => {
         onBackToMap={handleBackToMap}
       />
       
-      <main className="flex-1 flex items-center justify-center bg-gray-900 min-h-0 overflow-hidden">
+      <main className={cn(
+        "flex-1 flex items-center justify-center bg-gray-900 min-h-0 overflow-hidden",
+        currentView === 'map' && "p-4"
+      )}>
         {currentView === 'map' ? (
           <GameGrid 
             onCellSelect={handleCellSelect}
