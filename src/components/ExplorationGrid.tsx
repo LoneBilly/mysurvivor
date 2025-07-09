@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowDown, ArrowRight } from "lucide-react";
+import { ArrowDown, ArrowRight, Zap } from "lucide-react";
 
 const GRID_SIZE = 51;
 const CELL_SIZE_PX = 40;
@@ -105,7 +105,8 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
               const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
               
               const isPath = path?.some(p => p.x === x && p.y === y);
-              const isTarget = path && path[path.length - 1].x === x && path[path.length - 1].y === y;
+              const isTarget = path && path.length > 1 && path[path.length - 1].x === x && path[path.length - 1].y === y;
+              const energyCost = path ? path.length - 1 : 0;
 
               const canClickEntrance = isEntrance && playerPosition && (
                 isPlayerOnCell || 
@@ -143,6 +144,14 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path }: Exp
                   )}
                   {isPlayerOnCell && (
                     <div className="relative w-1/4 h-1/4 rounded-full bg-blue-500 shadow-lg"></div>
+                  )}
+                  {isTarget && energyCost > 0 && (
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+                      <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm text-yellow-400 border border-yellow-600/50 rounded-md px-2 py-0.5 text-xs font-bold">
+                        <Zap size={12} />
+                        <span>{energyCost}</span>
+                      </div>
+                    </div>
                   )}
                 </button>
               );

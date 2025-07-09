@@ -63,6 +63,7 @@ const GameInterface = () => {
   const { user } = useAuth();
   const { gameState, loading, saveGameState } = useGameState();
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
+  const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
@@ -89,8 +90,12 @@ const GameInterface = () => {
             setExplorationZone({ name: formatZoneName(zoneData.type), icon: zoneData.icon });
             setCurrentView('exploration');
           }
+          setIsViewReady(true);
         };
         fetchCurrentZoneInfo();
+      } else {
+        setCurrentView('map');
+        setIsViewReady(true);
       }
     }
   }, [gameState, loading]);
@@ -297,7 +302,7 @@ const GameInterface = () => {
   const handleOptions = () => setIsOptionsOpen(true);
   const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
 
-  if (loading) {
+  if (loading || !isViewReady) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-900">
         <div className="text-center text-white">
