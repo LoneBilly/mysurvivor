@@ -5,8 +5,9 @@ import { Loader2, ShieldAlert, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LeaderboardEntry {
+  id: string;
   username: string | null;
-  jours_survecus: number;
+  spawn_date: string;
   base_zone: { type: string } | null;
 }
 
@@ -25,14 +26,11 @@ const Leaderboard = () => {
       setLoading(true);
       setError(null);
       try {
-        // NOTE: This query fetches 'jours_survecus' directly from 'player_states'.
-        // If the displayed numbers are incorrect, the issue likely lies in the
-        // database itself, where the value isn't being updated by the game's logic.
         const { data, error } = await supabase
           .from('player_states')
-          .select('username, jours_survecus, base_zone:map_layout!player_states_base_zone_id_fkey(type)')
+          .select('id, username, spawn_date, base_zone:map_layout!player_states_base_zone_id_fkey(type)')
           .not('base_zone_id', 'is', null)
-          .order('jours_survecus', { ascending: false })
+          .order('spawn_date', { ascending: true })
           .limit(10);
 
         if (error) throw error;
@@ -75,36 +73,41 @@ const Leaderboard = () => {
             <div className="text-center p-8 text-gray-500">Aucun survivant classé.</div>
           ) : (
             <div>
-              {/* Header for the list */}
               <div className="grid grid-cols-[auto,1fr,1fr,auto] gap-4 items-center p-4 font-mono text-sm uppercase text-gray-500 border-b-2 border-black bg-gray-50">
                 <div className="w-8 text-center">#</div>
-                <div>Survivant</div>
-                <div>Base</div>
+                <div className="text-left">Survivant</div>
+                <div className="text-left">Base</div>
                 <div className="text-right">Jours</div>
               </div>
-              {/* List of players */}
-              {leaderboard.map((player, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "grid grid-cols-[auto,1fr,1fr,auto] gap-4 items-center p-4 border-b border-black last:border-b-0",
-                    index === 0 ? "bg-yellow-100 font-bold" : "bg-white hover:bg-gray-50"
-                  )}
-                >
-                  <div className="w-8 text-center font-bold text-black">
-                    {index === 0 ? <Trophy className="w-5 h-5 mx-auto text-yellow-500" /> : index + 1}
+              {leaderboard.map((player, index) => {
+                const spawnDate = new Date(player.spawn_date);
+                const now = new Date();
+                const diffTime = Math.abs(now.getTime() - spawnDate.getTime());
+                const daysSurvived = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                return (
+                  <div
+                    key={player.id}
+                    className={cn(
+                      "grid grid-cols-[auto,1fr,1fr,auto] gap-4 items-center p-4 border-b border-black last:border-b-0",
+                      index === 0 ? "bg-yellow-100 font-bold" : "bg-white hover:bg-gray-50"
+                    )}
+                  >
+                    <div className="w-8 text-center font-bold text-black">
+                      {index === 0 ? <Trophy className="w-5 h-5 mx-auto text-yellow-500" /> : index + 1}
+                    </div>
+                    <div className="text-left text-black font-medium truncate" title={player.username || 'Anonyme'}>
+                      {player.username || 'Anonyme'}
+                    </div>
+                    <div className="text-left text-gray-700 truncate" title={formatZoneName(player.base_zone?.type)}>
+                      {formatZoneName(player.base_zone?.type)}
+                    </div>
+                    <div className="text-right font-bold text-black">
+                      {daysSurvived}
+                    </div>
                   </div>
-                  <div className="text-black font-medium truncate" title={player.username || 'Anonyme'}>
-                    {player.username || 'Anonyme'}
-                  </div>
-                  <div className="text-gray-700 truncate" title={formatZoneName(player.base_zone?.type)}>
-                    {formatZoneName(player.base_zone?.type)}
-                  </div>
-                  <div className="text-right font-bold text-black">
-                    {player.jours_survecus}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
