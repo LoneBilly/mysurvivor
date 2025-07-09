@@ -354,11 +354,8 @@ const GameInterface = () => {
         onBackToMap={handleBackToMap}
       />
       
-      <main className={cn(
-        "flex-1 flex items-center justify-center bg-gray-100 min-h-0 overflow-hidden",
-        currentView === 'map' && "p-4"
-      )}>
-        {currentView === 'map' ? (
+      <main className="flex-1 bg-gray-100 min-h-0 overflow-hidden">
+        <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid 
             mapLayout={mapLayout}
             onCellSelect={handleCellSelect}
@@ -366,38 +363,38 @@ const GameInterface = () => {
             playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
             basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
           />
-        ) : currentView === 'base' ? (
-          <div className="relative w-full h-full">
-            <BaseHeader
-              resources={{
-                wood: gameState.wood,
-                metal: gameState.metal,
-                components: gameState.components,
-              }}
+        </div>
+        
+        <div className={cn("relative w-full h-full", currentView !== 'base' && "hidden")}>
+          <BaseHeader
+            resources={{
+              wood: gameState.wood,
+              metal: gameState.metal,
+              components: gameState.components,
+            }}
+          />
+          <BaseInterface />
+        </div>
+
+        <div className={cn("relative w-full h-full", currentView !== 'exploration' && "hidden")}>
+          {explorationZone && (
+            <ExplorationHeader
+              zoneName={explorationZone.name}
+              zoneIcon={explorationZone.icon}
             />
-            <BaseInterface />
-          </div>
-        ) : (
-          <div className="relative w-full h-full">
-            {explorationZone && (
-              <ExplorationHeader
-                zoneName={explorationZone.name}
-                zoneIcon={explorationZone.icon}
-              />
-            )}
-            <ExplorationGrid
-              playerPosition={
-                gameState.exploration_x !== null && gameState.exploration_y !== null
-                ? { x: gameState.exploration_x, y: gameState.exploration_y }
-                : null
-              }
-              onCellClick={handleExplorationCellClick}
-              onCellHover={handleExplorationCellHover}
-              path={explorationPath}
-              currentEnergy={gameState.energie}
-            />
-          </div>
-        )}
+          )}
+          <ExplorationGrid
+            playerPosition={
+              gameState.exploration_x !== null && gameState.exploration_y !== null
+              ? { x: gameState.exploration_x, y: gameState.exploration_y }
+              : null
+            }
+            onCellClick={handleExplorationCellClick}
+            onCellHover={handleExplorationCellHover}
+            path={explorationPath}
+            currentEnergy={gameState.energie}
+          />
+        </div>
       </main>
       
       <GameFooter
