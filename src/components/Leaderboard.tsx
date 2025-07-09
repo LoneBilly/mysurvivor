@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 
 interface LeaderboardEntry {
   username: string | null;
-  jours_survecus: number;
-  base_zone: { type: string } | null;
+  days_alive: number;
+  base_location: string | null;
 }
 
 const formatZoneName = (name: string | null | undefined): string => {
@@ -26,16 +26,14 @@ const Leaderboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const { data, error } = await supabase
-          .from('player_states')
-          .select('username, jours_survecus, base_zone:map_layout!player_states_base_zone_id_fkey(type)')
-          .not('base_zone_id', 'is', null)
-          .order('jours_survecus', { ascending: false })
-          .limit(10);
+        const { data, error } = await supabase.rpc('get_leaderboard_data');
 
         if (error) throw error;
 
-        setLeaderboard(data || []);
+        // Filtrer pour les joueurs avec une base et prendre le top 10
+        const filteredData = (data || []).filter((p: LeaderboardEntry) => p.base_location).slice(0, 10);
+        setLeaderboard(filteredData);
+
       } catch (err: any) {
         console.error("Error fetching leaderboard:", err);
         setError("Impossible de charger le classement.");
@@ -73,36 +71,34 @@ const Leaderboard = () => {
             <div className="text-center p-8 text-gray-500">Aucun survivant classé.</div>
           ) : (
             <>
-              {/* Mobile View */}
+              {/* Vue Mobile */}
               <div className="md:hidden">
                 {leaderboard.map((player, index) => (
-                  <div key={index} className={cn("flex items-center justify-between p-4 border-b border-black last:border-b-0", index === 0 && "bg-yellow-100")}>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-black w-8 text-center flex-shrink-0">
-                        {index === 0 ? <Trophy className="w-5 h-5 text-yellow-500" /> : `#${index + 1}`}
-                      </span>
-                      <div>
-                        <p className="font-medium text-black">{player.username || 'Anonyme'}</p>
-                        <p className="text-sm text-gray-600">Zone: {formatZoneName(player.base_zone?.type)}</p>
-                      </div>
+                  <div key={index} className={cn("grid grid-cols-12 items-center p-4 border-b border-black last:border-b-0", index === 0 && "bg-yellow-100")}>
+                    <div className="col-span-1 font-bold text-black flex items-center justify-center">
+                      {index === 0 ? <Trophy className="w-5 h-5 text-yellow-500" /> : `#${index + 1}`}
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <p className="font-bold text-black">{player.jours_survecus}</p>
+                    <div className="col-span-7 pl-2">
+                      <p className="font-medium text-black truncate">{player.username || 'Anonyme'}</p>
+                      <p className="text-sm text-gray-600 truncate">Base: {formatZoneName(player.base_location)}</p>
+                    </div>
+                    <div className="col-span-4 text-left pl-2">
+                      <p className="font-bold text-black">{player.days_alive}</p>
                       <p className="text-sm text-gray-600">Jours</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Desktop View */}
+              {/* Vue Desktop */}
               <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-b-2 border-black hover:bg-gray-100">
                       <TableHead className="w-[50px] text-black font-mono">#</TableHead>
                       <TableHead className="text-black font-mono">Joueur</TableHead>
-                      <TableHead className="text-black font-mono">Zone</TableHead>
-                      <TableHead className="text-right text-black font-mono">Jours</TableHead>
+                      <TableHead className="text-black font-mono">Base</TableHead>
+                      <TableHead className="text-black font-mono">Jours</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -121,8 +117,8 @@ const Leaderboard = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-black font-medium">{player.username || 'Anonyme'}</TableCell>
-                        <TableCell className="text-gray-700">{formatZoneName(player.base_zone?.type)}</TableCell>
-                        <TableCell className="text-right font-bold text-black">{player.jours_survecus}</TableCell>
+                        <TableCell className="text-gray-700">{formatZoneName(player.base_location)}</TableCell>
+                        <TableCell className="font-bold text-black">{player.days_alive}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
