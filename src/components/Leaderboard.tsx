@@ -121,7 +121,7 @@ const Leaderboard = () => {
     <Card className="w-full max-w-md lg:max-w-lg bg-white text-black border-2 border-black shadow-[8px_8px_0px_#000] rounded-none">
       <CardHeader className="text-center border-b-2 border-black p-4">
         <Trophy className="w-8 h-8 mx-auto text-black mb-2" />
-        <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Hall des Légendes</CardTitle>
+        <CardTitle className="text-2xl text-black font-mono tracking-wider uppercase">Leaderboard</CardTitle>
         <CardDescription className="text-gray-700">Seuls les plus forts survivent.</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
