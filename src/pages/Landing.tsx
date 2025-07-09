@@ -59,7 +59,7 @@ const Landing = () => {
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
-            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
+            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
           >
             COMMENCER L'AVENTURE
           </Button>
@@ -69,17 +69,17 @@ const Landing = () => {
               <span>Rejoignez <span className="font-bold">{playerCount}</span> survivants dans le jeu.</span>
             </div>
           )}
-        </div>
-        {topPlayer && (
-          <div className="mt-8 w-full max-w-md bg-yellow-100 border-2 border-black p-4 text-center shadow-[4px_4px_0px_#000]">
-            <div className="flex items-center justify-center gap-2">
-              <Trophy className="w-6 h-6 text-yellow-500" />
-              <p className="font-mono text-black">
-                Le N°1 est <span className="font-bold">{topPlayer.username}</span> avec <span className="font-bold">{topPlayer.days_alive}</span> jours de survie !
-              </p>
+          {topPlayer && (
+            <div className="mt-4 w-full max-w-md bg-white border-2 border-black p-4 text-center shadow-[4px_4px_0px_#000]">
+              <div className="flex items-center justify-center gap-2">
+                <Trophy className="w-6 h-6 text-yellow-500" />
+                <p className="font-mono text-black">
+                  Top survivant : <span className="font-bold">{topPlayer.username}</span> ({topPlayer.days_alive} jours) !
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </section>
 
       {/* Features Section */}
@@ -117,7 +117,7 @@ const Landing = () => {
         </p>
         <Button 
           onClick={() => navigate('/login')}
-          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all bg-black text-white hover:bg-gray-800 font-bold text-lg px-12 py-6"
+          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-12 py-6"
         >
           JOUER MAINTENANT
         </Button>
