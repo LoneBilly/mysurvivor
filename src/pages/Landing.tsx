@@ -2,10 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Leaderboard from '@/components/Leaderboard';
 import TestimonialCarousel from '@/components/TestimonialCarousel';
-import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { ShieldAlert, Map, Home, Swords, Package } from 'lucide-react';
 import FloatingInfoBar from '@/components/FloatingInfoBar';
+import AnimatedBorderButton from '@/components/AnimatedBorderButton';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -58,12 +58,9 @@ const Landing = () => {
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
-          <Button 
-            onClick={() => navigate('/login')}
-            className="btn-laser w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-10 py-6"
-          >
+          <AnimatedBorderButton onClick={() => navigate('/login')}>
             COMMENCER L'AVENTURE
-          </Button>
+          </AnimatedBorderButton>
         </div>
         <div className="mt-16 w-full flex justify-center">
           <Leaderboard />
@@ -98,12 +95,9 @@ const Landing = () => {
         <p className="text-gray-700 mt-4 text-lg max-w-2xl mx-auto">
           Le monde ne vous attendra pas. Chaque seconde compte. Rejoignez les rangs des survivants et forgez votre propre légende.
         </p>
-        <Button 
-          onClick={() => navigate('/login')}
-          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all duration-150 hover:scale-[1.02] hover:shadow-[6px_6px_0px_#000] bg-black text-white hover:bg-gray-800 font-bold text-lg px-12 py-6"
-        >
+        <AnimatedBorderButton onClick={() => navigate('/login')} className="mt-8">
           JOUER MAINTENANT
-        </Button>
+        </AnimatedBorderButton>
       </section>
 
       <FloatingInfoBar playerCount={playerCount} topPlayer={topPlayer} />

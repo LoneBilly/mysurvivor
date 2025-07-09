@@ -87,40 +87,34 @@
     scrollbar-width: none;  /* Firefox */
   }
 
-  .btn-laser {
-    @apply relative overflow-hidden;
-  }
-  .btn-laser::before {
-    content: '';
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background: #00ff00;
-    box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 20px #00ff00;
-    border-radius: 50%;
-    animation: laser-border-scan 4s linear infinite;
+  .animated-border-btn {
+    @apply relative p-[2px] overflow-hidden;
   }
 
-  @keyframes laser-border-scan {
-    0% {
-      top: -2px;
-      left: -2px;
-    }
-    25% {
-      top: -2px;
-      left: calc(100% - 2px);
-    }
-    50% {
-      top: calc(100% - 2px);
-      left: calc(100% - 2px);
-    }
-    75% {
-      top: calc(100% - 2px);
-      left: -2px;
-    }
+  .animated-border-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200vmax;
+    height: 200vmax;
+    background-image: conic-gradient(
+      transparent,
+      transparent,
+      transparent,
+      #00ff00
+    );
+    animation: rotate 4s linear infinite;
+    transform: translate(-50%, -50%);
+  }
+
+  @keyframes rotate {
     100% {
-      top: -2px;
-      left: -2px;
+      transform: translate(-50%, -50%) rotate(1turn);
     }
+  }
+
+  .animated-border-btn > span {
+    @apply relative z-10;
   }
 }
