@@ -19,7 +19,7 @@ interface BaseConstruction {
   type: string;
 }
 
-const GRID_SIZE = 100;
+const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
