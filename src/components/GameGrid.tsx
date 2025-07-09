@@ -121,6 +121,8 @@ const GameGrid = ({ onCellSelect, discoveredZones, playerPosition, basePosition 
     );
   }
 
+  const grid = generateGrid();
+
   return (
     <>
       <div
