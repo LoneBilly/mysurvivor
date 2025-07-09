@@ -21,6 +21,20 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   const viewportRef = useRef<HTMLDivElement>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
+  const hasCentered = useRef(false);
+
+  const centerViewport = useCallback((x: number, y: number, behavior: 'auto' | 'smooth' = 'auto') => {
+    if (viewportRef.current) {
+      const viewport = viewportRef.current;
+      const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+      const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+      
+      const scrollLeft = cellCenterX - viewport.clientWidth / 2;
+      const scrollTop = cellCenterY - viewport.clientHeight / 2;
+
+      viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior });
+    }
+  }, []);
 
   const updateIndicators = useCallback(() => {
     if (!viewportRef.current || !playerPosition) {
@@ -65,23 +79,14 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
     }
   }, [playerPosition]);
 
-  // Center on mount only
   useLayoutEffect(() => {
-    if (viewportRef.current && playerPosition) {
-      const viewport = viewportRef.current;
-      const cellCenterX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      const cellCenterY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      
-      const scrollLeft = cellCenterX - viewport.clientWidth / 2;
-      const scrollTop = cellCenterY - viewport.clientHeight / 2;
-
-      viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'auto' });
+    if (playerPosition && !hasCentered.current) {
+      centerViewport(playerPosition.x, playerPosition.y, 'auto');
+      hasCentered.current = true;
       setTimeout(updateIndicators, 100);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [playerPosition, centerViewport, updateIndicators]);
 
-  // Update indicators when player moves
   useEffect(() => {
     updateIndicators();
   }, [playerPosition, updateIndicators]);

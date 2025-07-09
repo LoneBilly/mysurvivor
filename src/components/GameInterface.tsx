@@ -95,6 +95,12 @@ const GameInterface = () => {
 
   useEffect(() => {
     if (gameState && !gameStateLoading) {
+      // Si la vue est déjà définie sur 'base', on ne la change pas.
+      if (currentView === 'base') {
+        setIsViewReady(true);
+        return;
+      }
+
       if (gameState.exploration_x !== null && gameState.exploration_y !== null) {
         const fetchCurrentZoneInfo = async () => {
           const { data: zoneData } = await supabase
@@ -116,7 +122,7 @@ const GameInterface = () => {
         setIsViewReady(true);
       }
     }
-  }, [gameState, gameStateLoading]);
+  }, [gameState, gameStateLoading, currentView]);
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 

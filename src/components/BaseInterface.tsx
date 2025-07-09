@@ -126,7 +126,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
   }, [isActive, initializeGrid]);
 
-  const centerViewport = (x: number, y: number, smooth: boolean = true) => {
+  const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
     
     const viewport = viewportRef.current;
@@ -141,20 +141,20 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       top: scrollTop,
       behavior: smooth ? 'smooth' : 'auto',
     });
-  };
+  }, []);
 
   useLayoutEffect(() => {
     if (!loading && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
       hasCentered.current = true;
     }
-  }, [loading, gridData, campfirePosition]);
+  }, [loading, gridData, campfirePosition, centerViewport]);
 
   useEffect(() => {
     if (lastBuiltCell) {
       centerViewport(lastBuiltCell.x, lastBuiltCell.y);
     }
-  }, [lastBuiltCell]);
+  }, [lastBuiltCell, centerViewport]);
 
   const handleCellClick = async (x: number, y: number) => {
     if (!gridData || !user) return;

@@ -14,7 +14,12 @@ export const useGameState = () => {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    
+    // Affiche le chargement complet uniquement s'il n'y a pas encore d'état de jeu.
+    // Les rechargements suivants se feront en arrière-plan.
+    if (!gameState) {
+      setLoading(true);
+    }
 
     try {
       const { data, error } = await supabase
@@ -47,8 +52,6 @@ export const useGameState = () => {
         };
         setGameState(transformedState);
       } else if (error && error.code === 'PGRST116') {
-        // No player state found, maybe the trigger didn't run yet.
-        // We can try to reload after a short delay.
         setTimeout(loadGameState, 2000);
         return;
       }
@@ -58,7 +61,7 @@ export const useGameState = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, gameState]); // Ajout de gameState pour la condition de chargement
 
   const saveGameState = async (updates: Partial<Omit<GameState, 'id'>>) => {
     if (!user || !gameState) return;
@@ -108,7 +111,7 @@ export const useGameState = () => {
     if (user) {
       loadGameState();
     }
-  }, [user, loadGameState]);
+  }, [user]); // Retrait de loadGameState pour éviter une boucle infinie
 
   return {
     gameState,
