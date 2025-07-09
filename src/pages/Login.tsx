@@ -64,7 +64,7 @@ const Login = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4 overflow-hidden">
+      <div className="h-screen bg-gray-100 text-black flex flex-col items-center justify-center p-4 overflow-hidden">
         <div className="w-full max-w-sm">
            <Link to="/" className="absolute top-4 left-4 text-sm text-gray-600 hover:text-black font-mono">
             &larr; Retour à l'accueil
