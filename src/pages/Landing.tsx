@@ -4,7 +4,8 @@ import Leaderboard from '@/components/Leaderboard';
 import TestimonialCarousel from '@/components/TestimonialCarousel';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { ShieldAlert, Map, Home, Swords, Package, Users, Trophy } from 'lucide-react';
+import { ShieldAlert, Map, Home, Swords, Package } from 'lucide-react';
+import FloatingInfoBar from '@/components/FloatingInfoBar';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center p-4 sm:p-6 lg:p-8 overflow-x-hidden pb-28 sm:pb-24">
       
       {/* Hero Section */}
       <section className="w-full max-w-5xl text-center py-16 sm:py-24">
@@ -63,22 +64,9 @@ const Landing = () => {
           >
             COMMENCER L'AVENTURE
           </Button>
-          {playerCount !== null && (
-            <div className="flex items-center gap-2 text-sm font-mono bg-white border-2 border-black px-4 py-2">
-              <Users className="w-5 h-5" />
-              <span>Rejoignez <span className="font-bold">{playerCount}</span> survivants dans le jeu.</span>
-            </div>
-          )}
-          {topPlayer && (
-            <div className="mt-4 w-full max-w-md bg-white border-2 border-black p-4 text-center shadow-[4px_4px_0px_#000]">
-              <div className="flex items-center justify-center gap-2">
-                <Trophy className="w-6 h-6 text-yellow-500" />
-                <p className="font-mono text-black">
-                  Top survivant : <span className="font-bold">{topPlayer.username}</span> ({topPlayer.days_alive} jours) !
-                </p>
-              </div>
-            </div>
-          )}
+        </div>
+        <div className="mt-16 w-full flex justify-center">
+          <Leaderboard />
         </div>
       </section>
 
@@ -102,11 +90,6 @@ const Landing = () => {
         <TestimonialCarousel />
       </section>
 
-      {/* Leaderboard Section */}
-      <section className="w-full max-w-5xl flex flex-col items-center py-16">
-        <Leaderboard />
-      </section>
-
       {/* Final CTA Section */}
       <section className="w-full max-w-5xl text-center py-16">
         <h2 className="text-3xl md:text-4xl font-bold text-black font-mono tracking-wider uppercase">
@@ -123,6 +106,7 @@ const Landing = () => {
         </Button>
       </section>
 
+      <FloatingInfoBar playerCount={playerCount} topPlayer={topPlayer} />
     </div>
   );
 };

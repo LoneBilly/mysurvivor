@@ -8,8 +8,13 @@ import { cn } from '@/lib/utils';
 interface LeaderboardEntry {
   username: string | null;
   jours_survecus: number;
-  base_zone: { x: number; y: number } | null;
+  base_zone: { type: string } | null;
 }
+
+const formatZoneName = (name: string | null | undefined): string => {
+  if (!name) return "Inconnue";
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
 
 const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -23,7 +28,7 @@ const Leaderboard = () => {
       try {
         const { data, error } = await supabase
           .from('player_states')
-          .select('username, jours_survecus, base_zone:map_layout!player_states_base_zone_id_fkey(x, y)')
+          .select('username, jours_survecus, base_zone:map_layout!player_states_base_zone_id_fkey(type)')
           .not('base_zone_id', 'is', null)
           .order('jours_survecus', { ascending: false })
           .limit(10);
@@ -78,7 +83,7 @@ const Leaderboard = () => {
                       </span>
                       <div>
                         <p className="font-medium text-black">{player.username || 'Anonyme'}</p>
-                        <p className="text-sm text-gray-600">Base: ({player.base_zone?.x}, {player.base_zone?.y})</p>
+                        <p className="text-sm text-gray-600">Zone: {formatZoneName(player.base_zone?.type)}</p>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-2">
@@ -96,7 +101,7 @@ const Leaderboard = () => {
                     <TableRow className="border-b-2 border-black hover:bg-gray-100">
                       <TableHead className="w-[50px] text-black font-mono">#</TableHead>
                       <TableHead className="text-black font-mono">Joueur</TableHead>
-                      <TableHead className="text-black font-mono">Base</TableHead>
+                      <TableHead className="text-black font-mono">Zone</TableHead>
                       <TableHead className="text-right text-black font-mono">Jours</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -116,7 +121,7 @@ const Leaderboard = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-black font-medium">{player.username || 'Anonyme'}</TableCell>
-                        <TableCell className="text-gray-700">({player.base_zone?.x}, {player.base_zone?.y})</TableCell>
+                        <TableCell className="text-gray-700">{formatZoneName(player.base_zone?.type)}</TableCell>
                         <TableCell className="text-right font-bold text-black">{player.jours_survecus}</TableCell>
                       </TableRow>
                     ))}
