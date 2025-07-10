@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
@@ -80,11 +80,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
   const [justMovedTo, setJustMovedTo] = useState<MapCell | null>(null);
-
-  const gameStateRef = useRef(gameState);
-  gameStateRef.current = gameState;
-  const explorationPathRef = useRef(explorationPath);
-  explorationPathRef.current = explorationPath;
 
   useEffect(() => {
     if (currentView === 'base') {
@@ -241,23 +236,13 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
     }
   }, [gameState, justMovedTo]);
 
-  const confirmExitExploration = useCallback(async () => {
-    closeModal();
-    await saveGameState({
-      exploration_x: null,
-      exploration_y: null,
-    });
-    setCurrentView('map');
-  }, [saveGameState]);
-
-  const handleExplorationCellHover = useCallback((x: number, y: number) => {
-    const gs = gameStateRef.current;
-    if (!gs || gs.exploration_x === null || gs.exploration_y === null || x < 0 || y < 0) {
+  const handleExplorationCellHover = (x: number, y: number) => {
+    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
       setExplorationPath(null);
       return;
     }
 
-    const startPos = { x: gs.exploration_x, y: gs.exploration_y };
+    const startPos = { x: gameState.exploration_x, y: gameState.exploration_y };
     const endPos = { x, y };
 
     if (startPos.x === endPos.x && startPos.y === endPos.y) {
@@ -267,17 +252,14 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
 
     const path = findPathBFS(startPos, endPos);
     setExplorationPath(path);
-  }, []);
+  };
 
-  const handleExplorationCellClick = useCallback(async (x: number, y: number) => {
-    const gs = gameStateRef.current;
-    const path = explorationPathRef.current;
-
-    if (!gs || gs.exploration_x === null || gs.exploration_y === null) return;
+  const handleExplorationCellClick = async (x: number, y: number) => {
+    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;
 
     const clickedCellIsEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
-    const playerX = gs.exploration_x;
-    const playerY = gs.exploration_y;
+    const playerX = gameState.exploration_x;
+    const playerY = gameState.exploration_y;
     const playerIsOnEntrance = playerX === ENTRANCE_X && playerY === ENTRANCE_Y;
     const playerIsAdjacentToEntrance = Math.abs(playerX - ENTRANCE_X) + Math.abs(playerY - ENTRANCE_Y) === 1;
 
@@ -294,15 +276,15 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
       return;
     }
 
-    if (path) {
-      const targetCell = path[path.length - 1];
+    if (explorationPath) {
+      const targetCell = explorationPath[explorationPath.length - 1];
       if (targetCell.x === x && targetCell.y === y) {
-        const cost = path.length - 1;
-        if (cost > 0 && gs.energie >= cost) {
+        const cost = explorationPath.length - 1;
+        if (cost > 0 && gameState.energie >= cost) {
           await saveGameState({
             exploration_x: targetCell.x,
             exploration_y: targetCell.y,
-            energie: gs.energie - cost,
+            energie: gameState.energie - cost,
           });
           setExplorationPath(null);
 
@@ -320,7 +302,16 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
         }
       }
     }
-  }, [saveGameState, confirmExitExploration]);
+  };
+
+  const confirmExitExploration = async () => {
+    closeModal();
+    await saveGameState({
+      exploration_x: null,
+      exploration_y: null,
+    });
+    setCurrentView('map');
+  };
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);

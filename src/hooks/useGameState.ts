@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { GameState, GameStats, InventoryItem, BaseConstruction, MapCell } from '@/types/game';
@@ -11,8 +11,6 @@ export const useGameState = () => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState("Chargement du monde...");
-  const gameStateRef = useRef(gameState);
-  gameStateRef.current = gameState;
 
   const loadGameState = useCallback(async () => {
     if (!user) {
@@ -88,16 +86,15 @@ export const useGameState = () => {
     }
   }, [user]);
 
-  const saveGameState = useCallback(async (updates: Partial<Omit<GameState, 'id'>>) => {
-    const currentGameState = gameStateRef.current;
-    if (!user || !currentGameState) return;
+  const saveGameState = async (updates: Partial<Omit<GameState, 'id'>>) => {
+    if (!user || !gameState) return;
 
     try {
       const dbUpdates: { [key: string]: any } = { ...updates };
 
       if ('position_x' in updates || 'position_y' in updates) {
-        const newX = updates.position_x ?? currentGameState.position_x;
-        const newY = updates.position_y ?? currentGameState.position_y;
+        const newX = updates.position_x ?? gameState.position_x;
+        const newY = updates.position_y ?? gameState.position_y;
         const { data: zone } = await supabase.from('map_layout').select('id').eq('x', newX).eq('y', newY).single();
         if (zone) dbUpdates.current_zone_id = zone.id;
         delete dbUpdates.position_x;
@@ -127,7 +124,7 @@ export const useGameState = () => {
       console.error('Erreur lors de la sauvegarde:', err);
       showError('Erreur de sauvegarde.');
     }
-  }, [user]);
+  };
   
   const updateStats = async (newStats: Partial<GameStats>) => {
     await saveGameState(newStats);
@@ -135,10 +132,13 @@ export const useGameState = () => {
 
   useEffect(() => {
     if (user) {
+      // On ne charge les données que s'il n'y a pas d'état de jeu
+      // ou si l'utilisateur connecté a changé.
       if (!gameState || gameState.id !== user.id) {
         loadGameState();
       }
     } else {
+      // Si l'utilisateur se déconnecte, on réinitialise tout.
       setGameState(null);
       setMapLayout([]);
       setLoading(false);
