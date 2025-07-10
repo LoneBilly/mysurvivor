@@ -4,7 +4,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { getCachedSignedUrl } from '@/utils/iconCache';
 
 interface ItemFormModalProps {
   isOpen: boolean;
@@ -31,10 +31,15 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [icon, setIcon] = useState('');
   const [stackable, setStackable] = useState(true);
   const [loading, setLoading] = useState(false);
+  
   const [nameExists, setNameExists] = useState(false);
   const [checkingName, setCheckingName] = useState(false);
-
   const debouncedName = useDebounce(name, 500);
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isValidatingIcon, setIsValidatingIcon] = useState(false);
+  const [iconExists, setIconExists] = useState<boolean | null>(null);
+  const debouncedIcon = useDebounce(icon, 500);
 
   useEffect(() => {
     if (isOpen) {
@@ -50,6 +55,8 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         setStackable(true);
       }
       setNameExists(false);
+      setPreviewUrl(null);
+      setIconExists(null);
     }
   }, [item, isOpen]);
 
@@ -60,56 +67,68 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         setCheckingName(false);
         return;
       }
-
       setCheckingName(true);
-      const { data, error } = await supabase
-        .from('items')
-        .select('id', { count: 'exact' })
-        .ilike('name', debouncedName);
-
-      if (error) {
-        console.error("Error checking item name:", error);
-        setNameExists(false);
-      } else {
-        setNameExists(data && data.length > 0);
-      }
+      const { data } = await supabase.from('items').select('id').ilike('name', debouncedName);
+      setNameExists(data && data.length > 0);
       setCheckingName(false);
     };
-
     checkItemName();
   }, [debouncedName, item, isOpen]);
 
+  useEffect(() => {
+    const validateAndPreviewIcon = async () => {
+      if (!debouncedIcon) {
+        setPreviewUrl(null);
+        setIconExists(null);
+        setIsValidatingIcon(false);
+        return;
+      }
+      setIsValidatingIcon(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('check-file-exists', {
+          body: { bucket: 'items.icons', path: debouncedIcon },
+        });
+        if (error) throw error;
+        
+        setIconExists(data.exists);
+        if (data.exists) {
+          const url = await getCachedSignedUrl(debouncedIcon);
+          setPreviewUrl(url);
+        } else {
+          setPreviewUrl(null);
+        }
+      } catch (e) {
+        console.error("Error validating icon:", e);
+        setIconExists(false);
+        setPreviewUrl(null);
+      } finally {
+        setIsValidatingIcon(false);
+      }
+    };
+    validateAndPreviewIcon();
+  }, [debouncedIcon]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
     if (nameExists) {
       showError("Un objet avec ce nom existe déjà.");
-      setLoading(false);
+      return;
+    }
+    if (icon && !iconExists) {
+      showError("L'icône spécifiée n'existe pas dans le stockage.");
       return;
     }
 
+    setLoading(true);
     const itemData = { name, description, icon: icon || null, stackable };
-    let error = null;
-
-    if (item) {
-      const { error: updateError } = await supabase
-        .from('items')
-        .update(itemData)
-        .eq('id', item.id);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase
-        .from('items')
-        .insert(itemData);
-      error = insertError;
-    }
+    const { error } = item
+      ? await supabase.from('items').update(itemData).eq('id', item.id)
+      : await supabase.from('items').insert(itemData);
 
     if (error) {
-      showError(`Erreur lors de la sauvegarde de l'objet: ${error.message}`);
-      console.error("Save item error:", error);
+      showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess(`Objet ${item ? 'mis à jour' : 'créé'} avec succès !`);
+      showSuccess(`Objet ${item ? 'mis à jour' : 'créé'} !`);
       onSave();
       onClose();
     }
@@ -127,52 +146,36 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div>
             <Label htmlFor="name" className="text-gray-300 font-mono">Nom</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
-              required
-              disabled={loading}
-            />
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} />
             {checkingName && <Loader2 className="w-4 h-4 animate-spin text-white mt-1" />}
-            {nameExists && !checkingName && (
-              <p className="text-red-400 text-sm mt-1">Ce nom existe déjà !</p>
-            )}
+            {nameExists && !checkingName && <p className="text-red-400 text-sm mt-1">Ce nom existe déjà !</p>}
           </div>
           <div>
             <Label htmlFor="description" className="text-gray-300 font-mono">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
-              disabled={loading}
-            />
+            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" disabled={loading} />
           </div>
           <div>
             <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
-            <Input
-              id="icon"
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
-              placeholder="ex: pomme.png"
-              disabled={loading}
-            />
+            <div className="flex items-center gap-2 mt-1">
+              <div className="w-12 h-12 bg-white/5 border border-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                {isValidatingIcon ? <Loader2 className="w-5 h-5 animate-spin" /> :
+                 previewUrl ? <img src={previewUrl} alt="Prévisualisation" className="w-full h-full object-contain p-1" /> :
+                 <AlertCircle className="w-5 h-5 text-gray-500" />}
+              </div>
+              <div className="relative w-full">
+                <Input id="icon" value={icon} onChange={(e) => setIcon(e.target.value)} className="bg-white/5 border border-white/20 rounded-lg" placeholder="ex: pomme.png" disabled={loading} />
+                {!isValidatingIcon && icon && (
+                  iconExists ? <CheckCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-green-400" /> : <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <Checkbox
-              id="stackable"
-              checked={stackable}
-              onCheckedChange={(checked) => setStackable(!!checked)}
-              className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded"
-              disabled={loading}
-            />
+            <Checkbox id="stackable" checked={stackable} onCheckedChange={(checked) => setStackable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
             <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
           </div>
           <DialogFooter className="pt-4">
-            <Button type="submit" disabled={loading || nameExists || !name.trim()} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+            <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists)} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {item ? 'Sauvegarder' : 'Créer l\'objet'}
             </Button>
