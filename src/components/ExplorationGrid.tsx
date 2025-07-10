@@ -20,8 +20,10 @@ interface ExplorationGridProps {
 
 const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
-  const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
+  const exitIndicatorRef = useRef<HTMLDivElement>(null);
+  const playerIndicatorRef = useRef<HTMLDivElement>(null);
+  const [exitIndicatorVisible, setExitIndicatorVisible] = useState(false);
+  const [playerIndicatorVisible, setPlayerIndicatorVisible] = useState(false);
   const hasCentered = useRef(false);
 
   const [visibleRange, setVisibleRange] = useState<{
@@ -45,49 +47,62 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   }, []);
 
   const updateIndicatorsAndVisibleCells = useCallback(() => {
-    if (!viewportRef.current) return;
+    if (!viewportRef.current || !exitIndicatorRef.current || !playerIndicatorRef.current) return;
+
     const viewport = viewportRef.current;
+    const exitIndicatorEl = exitIndicatorRef.current;
+    const playerIndicatorEl = playerIndicatorRef.current;
+
     const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewport;
 
-    // Mettre à jour les cellules visibles pour la virtualisation
     const rowStart = Math.max(0, Math.floor(scrollTop / (CELL_SIZE_PX + CELL_GAP)) - RENDER_BUFFER);
     const rowEnd = Math.min(GRID_SIZE - 1, Math.ceil((scrollTop + clientHeight) / (CELL_SIZE_PX + CELL_GAP)) + RENDER_BUFFER);
     const colStart = Math.max(0, Math.floor(scrollLeft / (CELL_SIZE_PX + CELL_GAP)) - RENDER_BUFFER);
     const colEnd = Math.min(GRID_SIZE - 1, Math.ceil((scrollLeft + clientWidth) / (CELL_SIZE_PX + CELL_GAP)) + RENDER_BUFFER);
     setVisibleRange({ rowStart, rowEnd, colStart, colEnd });
 
-    // Mettre à jour les indicateurs hors écran
     if (!playerPosition) {
-      setExitIndicator({ visible: false, angle: 0, x: 0, y: 0 });
-      setPlayerIndicator({ visible: false, angle: 0 });
+      setExitIndicatorVisible(false);
+      setPlayerIndicatorVisible(false);
       return;
     }
 
     const playerPixelX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const playerPixelY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
 
+    // Exit Indicator Logic
     const exitPixelX = ENTRANCE_X * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const exitPixelY = ENTRANCE_Y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
     const isExitVisible = exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight;
     
-    setExitIndicator(prev => {
-      if (isExitVisible) return prev.visible ? { ...prev, visible: false } : prev;
+    setExitIndicatorVisible(!isExitVisible);
+
+    if (!isExitVisible) {
       const dx = exitPixelX - playerPixelX;
       const dy = exitPixelY - playerPixelY;
       const angleRad = Math.atan2(dy, dx);
-      return { visible: true, angle: angleRad * (180 / Math.PI), x: playerPixelX - scrollLeft, y: playerPixelY - scrollTop };
-    });
+      const angleDeg = angleRad * (180 / Math.PI);
+      const playerXInViewport = playerPixelX - scrollLeft;
+      const playerYInViewport = playerPixelY - scrollTop;
 
+      exitIndicatorEl.style.transform = `translate(${playerXInViewport - exitIndicatorEl.offsetWidth / 2}px, ${playerYInViewport - exitIndicatorEl.offsetHeight / 2}px) rotate(${angleDeg}deg) translate(${ORBIT_RADIUS_PX}px)`;
+    }
+
+    // Player Indicator Logic
     const isPlayerVisible = playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight;
-    setPlayerIndicator(prev => {
-      if (isPlayerVisible) return prev.visible ? { ...prev, visible: false } : prev;
+    
+    setPlayerIndicatorVisible(!isPlayerVisible);
+
+    if (!isPlayerVisible) {
       const viewportCenterX = scrollLeft + clientWidth / 2;
       const viewportCenterY = scrollTop + clientHeight / 2;
       const dx = playerPixelX - viewportCenterX;
       const dy = playerPixelY - viewportCenterY;
       const angleRad = Math.atan2(dy, dx);
-      return { visible: true, angle: angleRad * (180 / Math.PI) };
-    });
+      const angleDeg = angleRad * (180 / Math.PI);
+
+      playerIndicatorEl.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))`;
+    }
   }, [playerPosition]);
 
   useLayoutEffect(() => {
@@ -214,25 +229,17 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       </div>
       {/* Indicateur de sortie */}
       <div
-        className="absolute z-20 text-white pointer-events-none transition-all duration-100 ease-linear"
-        style={{
-          opacity: exitIndicator.visible ? 1 : 0,
-          top: `${exitIndicator.y}px`,
-          left: `${exitIndicator.x}px`,
-          transform: `translate(-50%, -50%) rotate(${exitIndicator.angle}deg) translate(${ORBIT_RADIUS_PX}px)`,
-        }}
+        ref={exitIndicatorRef}
+        className="absolute top-0 left-0 z-20 text-white pointer-events-none transition-opacity duration-150"
+        style={{ opacity: exitIndicatorVisible ? 1 : 0 }}
       >
         <ArrowRight className="w-6 h-6" />
       </div>
       {/* Indicateur de joueur */}
       <div
-        className="absolute z-20 text-white pointer-events-none transition-all duration-100 ease-linear"
-        style={{
-          opacity: playerIndicator.visible ? 1 : 0,
-          top: '50%',
-          left: '50%',
-          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))`,
-        }}
+        ref={playerIndicatorRef}
+        className="absolute top-1/2 left-1/2 z-20 text-white pointer-events-none transition-opacity duration-150"
+        style={{ opacity: playerIndicatorVisible ? 1 : 0 }}
       >
         <ArrowRight className="w-6 h-6" />
       </div>
