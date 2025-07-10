@@ -4,8 +4,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +12,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
 import { InventoryItem } from '@/types/game';
 import { Item } from '@/types/admin';
-import { Loader2, Package, Trash2, Edit, PlusCircle } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ItemIcon from '@/components/ItemIcon';
 import ActionModal from '@/components/ActionModal';
+import { getCachedSignedUrl } from '@/utils/iconCache';
 
 interface AdminInventoryModalProps {
   isOpen: boolean;
@@ -47,20 +46,38 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     
     if (error) {
       showError("Erreur de chargement de l'inventaire.");
+      setInventory([]);
     } else {
-      setInventory(data as InventoryItem[]);
+      const inventoryWithUrls = await Promise.all(
+        (data as InventoryItem[]).map(async (invItem) => {
+          if (invItem.items && invItem.items.icon && invItem.items.icon.includes('.')) {
+            const signedUrl = await getCachedSignedUrl(invItem.items.icon);
+            return {
+              ...invItem,
+              items: {
+                ...invItem.items,
+                signedIconUrl: signedUrl || undefined,
+              },
+            };
+          }
+          return invItem;
+        })
+      );
+      setInventory(inventoryWithUrls);
     }
     setLoading(false);
   }, [isOpen, player.id]);
 
   useEffect(() => {
-    fetchInventory();
-    const fetchAllItems = async () => {
-      const { data } = await supabase.from('items').select('*');
-      setAllItems(data || []);
-    };
-    fetchAllItems();
-  }, [fetchInventory]);
+    if (isOpen) {
+      fetchInventory();
+      const fetchAllItems = async () => {
+        const { data } = await supabase.from('items').select('*');
+        setAllItems(data || []);
+      };
+      fetchAllItems();
+    }
+  }, [isOpen, fetchInventory]);
 
   const handleItemAction = (item: InventoryItem, type: 'delete' | 'edit') => {
     setActionModal({ isOpen: true, type, item, newQuantity: String(item.quantity) });
@@ -101,7 +118,6 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       player_id: player.id,
       item_id: item.id,
       quantity: 1,
-      // Note: This doesn't handle slot position, it will be null.
     });
     if (error) {
       showError("Erreur lors de l'ajout de l'objet.");
@@ -123,11 +139,11 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
               <div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
             ) : (
               <div className="max-h-[60vh] overflow-y-auto pr-2">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {inventory.map(invItem => (
-                    <div key={invItem.id} className="relative group bg-slate-700/50 p-2 rounded-lg border border-slate-600 aspect-square flex flex-col items-center justify-center text-center">
+                    <div key={invItem.id} className="relative group bg-slate-700/50 p-2 rounded-lg border border-slate-600 w-24 h-24 flex flex-col items-center justify-center text-center">
                       <div className="absolute inset-0">
-                        <ItemIcon iconName={invItem.items?.icon} alt={invItem.items?.name || ''} />
+                        <ItemIcon iconName={invItem.items?.signedIconUrl || invItem.items?.icon} alt={invItem.items?.name || ''} />
                       </div>
                       {invItem.quantity > 1 && (
                         <span className="absolute bottom-1 right-1.5 text-sm font-bold" style={{ textShadow: '1px 1px 2px black' }}>{invItem.quantity}</span>
@@ -139,7 +155,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setIsAddModalOpen(true)} className="border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:bg-slate-700/50 hover:text-white transition-colors">
+                  <button onClick={() => setIsAddModalOpen(true)} className="border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:bg-slate-700/50 hover:text-white transition-colors w-24 h-24">
                     <PlusCircle className="w-8 h-8 mb-2" />
                     <span className="text-sm font-bold">Ajouter</span>
                   </button>

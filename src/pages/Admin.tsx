@@ -50,13 +50,13 @@ const Admin = () => {
   const handleBackToGrid = () => setSelectedZone(null);
 
   if (loading && !mapLayout.length) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
+    return <div className="h-screen bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8 gap-4">
+    <div className="h-screen bg-gray-900 text-white p-4 sm:p-8 flex flex-col">
+      <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0">
+        <div className="flex items-center justify-between mb-8 gap-4 flex-shrink-0">
           <div className="flex items-center gap-4">
             <Button onClick={() => navigate('/game')} variant="outline" size="icon" className="bg-gray-800 border-gray-700 hover:bg-gray-700">
               <ArrowLeft className="w-4 h-4" />
@@ -68,19 +68,19 @@ const Admin = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="map" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md mb-6">
+        <Tabs defaultValue="map" className="w-full flex flex-col flex-1 min-h-0">
+          <TabsList className="grid w-full grid-cols-2 max-w-md mb-6 flex-shrink-0">
             <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Gestion de la carte</TabsTrigger>
             <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Gestion des joueurs</TabsTrigger>
           </TabsList>
-          <TabsContent value="map">
+          <TabsContent value="map" className="flex-1 overflow-y-auto no-scrollbar">
             {selectedZone ? (
               <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
             ) : (
               <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
             )}
           </TabsContent>
-          <TabsContent value="players">
+          <TabsContent value="players" className="flex-1 overflow-y-auto no-scrollbar">
             <PlayerManager />
           </TabsContent>
         </Tabs>
