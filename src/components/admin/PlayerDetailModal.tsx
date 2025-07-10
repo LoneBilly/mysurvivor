@@ -15,6 +15,8 @@ import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MapCell } from '@/types/game';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
@@ -25,6 +27,8 @@ interface PlayerDetailModalProps {
 
 const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
   const [baseLocation, setBaseLocation] = useState<string | null>(null);
+  const [baseZoneId, setBaseZoneId] = useState<number | null>(null);
+  const [allZones, setAllZones] = useState<MapCell[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
@@ -35,32 +39,62 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
     if (isOpen) {
       const fetchDetails = async () => {
         setLoadingDetails(true);
-        const { data, error } = await supabase
+        
+        const { data: zonesData, error: zonesError } = await supabase
+          .from('map_layout')
+          .select('id, type, x, y')
+          .neq('type', 'unknown')
+          .order('type');
+
+        if (zonesError) {
+          showError("Impossible de charger les zones de la carte.");
+        } else {
+          setAllZones(zonesData as MapCell[]);
+        }
+
+        const { data: playerStateData, error: playerStateError } = await supabase
           .from('player_states')
           .select('base_zone_id')
           .eq('id', player.id)
           .single();
-        
-        if (error || !data?.base_zone_id) {
-          setBaseLocation('Aucune');
+
+        if (playerStateError && playerStateError.code !== 'PGRST116') {
+          showError("Erreur de chargement de l'état du joueur.");
+          setBaseLocation('Erreur');
+          setBaseZoneId(null);
+        } else if (playerStateData?.base_zone_id) {
+          const baseZone = (zonesData || []).find(z => z.id === playerStateData.base_zone_id);
+          setBaseLocation(baseZone ? baseZone.type : 'Inconnue');
+          setBaseZoneId(playerStateData.base_zone_id);
         } else {
-          const { data: zoneData, error: zoneError } = await supabase
-            .from('map_layout')
-            .select('type')
-            .eq('id', data.base_zone_id)
-            .single();
-          
-          if (zoneError) {
-            setBaseLocation('Inconnue');
-          } else {
-            setBaseLocation(zoneData.type);
-          }
+          setBaseLocation('Aucune');
+          setBaseZoneId(null);
         }
+
         setLoadingDetails(false);
       };
       fetchDetails();
     }
   }, [isOpen, player.id]);
+
+  const handleBaseLocationChange = async (newZoneIdStr: string) => {
+    const newZoneId = parseInt(newZoneIdStr, 10);
+    if (isNaN(newZoneId)) return;
+
+    const { error } = await supabase
+        .from('player_states')
+        .update({ base_zone_id: newZoneId })
+        .eq('id', player.id);
+
+    if (error) {
+        showError("Erreur lors du déplacement de la base.");
+    } else {
+        showSuccess("La base du joueur a été déplacée.");
+        const newZone = allZones.find(z => z.id === newZoneId);
+        setBaseLocation(newZone ? newZone.type : 'Inconnue');
+        setBaseZoneId(newZoneId);
+    }
+  };
 
   const handleToggleBan = async () => {
     const newBanStatus = !player.is_banned;
@@ -117,7 +151,21 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
             </div>
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
-              <span>Base: {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="font-bold">{baseLocation}</span>}</span>
+              <span className="font-medium">Base:</span>
+              {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                <Select onValueChange={handleBaseLocationChange} value={baseZoneId?.toString()}>
+                  <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
+                    <SelectValue placeholder={baseLocation || "Choisir une zone..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allZones.map(zone => (
+                      <SelectItem key={zone.id} value={zone.id.toString()}>
+                        {zone.type} ({zone.x}, {zone.y})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (

@@ -149,9 +149,9 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
               <div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
             ) : (
               <div className="max-h-[60vh] overflow-y-auto pr-2">
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-2 sm:gap-3">
                   {inventory.map(invItem => (
-                    <div key={invItem.id} className="relative group bg-slate-700/50 p-2 rounded-lg border border-slate-600 w-24 h-24 flex flex-col items-center justify-center text-center">
+                    <div key={invItem.id} className="relative group bg-slate-700/50 p-2 rounded-lg border border-slate-600 aspect-square flex flex-col items-center justify-center text-center">
                       <div className="absolute inset-0">
                         <ItemIcon iconName={invItem.items?.signedIconUrl || invItem.items?.icon} alt={invItem.items?.name || ''} />
                       </div>
@@ -165,7 +165,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setIsAddModalOpen(true)} className="border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:bg-slate-700/50 hover:text-white transition-colors w-24 h-24">
+                  <button onClick={() => setIsAddModalOpen(true)} className="border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:bg-slate-700/50 hover:text-white transition-colors aspect-square">
                     <PlusCircle className="w-8 h-8 mb-2" />
                     <span className="text-sm font-bold">Ajouter</span>
                   </button>

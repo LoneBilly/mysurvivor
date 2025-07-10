@@ -58,7 +58,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
 
   if (!isUnlocked) {
     return (
-      <div className="relative w-14 h-14 flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-slate-600 cursor-not-allowed">
+      <div className="relative w-full aspect-square flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-slate-600 cursor-not-allowed">
         <Lock className="w-5 h-5 text-slate-500" />
       </div>
     );
@@ -76,7 +76,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
       onMouseLeave={() => { interactionState.current = null; }}
       style={{ touchAction: 'none' }}
       className={cn(
-        "relative w-14 h-14 rounded-lg border transition-all duration-200 flex items-center justify-center flex-shrink-0",
+        "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
         "bg-slate-700/50 border-slate-600",
         isDragOver && "bg-slate-600/70 ring-2 ring-slate-400 border-slate-400",
         isBeingDragged && "bg-transparent border-dashed border-slate-500",
