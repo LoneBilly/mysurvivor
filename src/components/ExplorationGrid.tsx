@@ -99,7 +99,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
         className="w-full h-full overflow-auto no-scrollbar"
       >
         <div
-          className="relative"
+          className="relative border-2 border-slate-700"
           style={{
             width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
             height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
@@ -132,7 +132,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                   onMouseEnter={() => onCellHover(x, y)}
                   onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
-                    "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
+                    "absolute flex items-center justify-center rounded-lg border transition-colors duration-100",
                     // Base styles
                     isEntrance 
                       ? "bg-white/20 border-white/30" 
