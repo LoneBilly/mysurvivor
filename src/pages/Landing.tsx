@@ -53,10 +53,13 @@ const Landing = () => {
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
-            className="w-full sm:w-auto rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-lg px-10 py-6 transition-all hover:bg-white/20"
+            className="w-full sm:w-auto rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-lg px-10 py-6 transition-all hover:bg-white/20 animate-button-glow"
           >
             COMMENCER L'AVENTURE
           </Button>
+          <p className="text-sm text-gray-400 mt-2">
+            Inscription 100% gratuite, 100 jetons offerts
+          </p>
         </div>
         <div className="mt-16 w-full flex justify-center">
           <Leaderboard />
