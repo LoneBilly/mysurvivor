@@ -27,8 +27,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
 
   if (!isUnlocked) {
     return (
-      <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-white/10 cursor-not-allowed">
-        <Lock className="w-5 h-5 text-gray-600" />
+      <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-lg bg-black/30 border border-dashed border-white/15 cursor-not-allowed">
+        <Lock className="w-5 h-5 text-gray-500" />
       </div>
     );
   }
@@ -41,10 +41,10 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       style={{ touchAction: 'none' }}
       className={cn(
         "relative w-16 h-16 flex-shrink-0 rounded-lg border transition-all duration-200",
-        "bg-white/10 border-white/20",
-        isDragOver && "bg-white/25 ring-2 ring-white/60 border-white/40",
-        isBeingDragged && "bg-transparent border-dashed border-white/30",
-        item && "cursor-grab active:cursor-grabbing hover:bg-white/20 hover:border-white/30"
+        "bg-white/20 border-white/30",
+        isDragOver && isUnlocked && "bg-white/30 ring-2 ring-white/70 border-white/50",
+        isBeingDragged && "bg-transparent border-dashed border-white/40",
+        item && "cursor-grab active:cursor-grabbing hover:bg-white/25 hover:border-white/40"
       )}
     >
       {item && (
@@ -60,7 +60,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
                 )}
               </div>
             </TooltipTrigger>
-            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20 font-mono rounded-lg shadow-lg p-3">
+            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/30 font-mono rounded-lg shadow-lg p-3">
               <p className="font-bold text-lg text-white">{item.items?.name}</p>
               {item.items?.description && <p className="text-sm text-gray-300 max-w-xs mt-1">{item.items.description}</p>}
               <p className="text-xs text-gray-500 mt-2 uppercase tracking-wider">{item.items?.type || 'Objet'}</p>

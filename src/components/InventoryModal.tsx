@@ -43,7 +43,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement | null);
 
   const unlockedSlots = gameState?.unlocked_slots ?? 0;
 
@@ -211,7 +211,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full bg-black/30 backdrop-blur-xl text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
+      <DialogContent className="max-w-3xl w-full bg-gradient-radial from-gray-700/70 to-gray-900/80 backdrop-blur-xl text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center mb-4">
           <div className="flex items-center justify-center gap-3">
             <Package className="w-7 h-7 text-white" />
@@ -223,7 +223,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
         </DialogHeader>
         <div
           ref={gridRef}
-          className="flex flex-wrap gap-2 justify-center p-4 bg-black/20 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
+          className="flex flex-wrap gap-2 justify-center p-4 bg-black/30 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
             <div className="h-full w-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
