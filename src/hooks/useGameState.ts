@@ -132,9 +132,18 @@ export const useGameState = () => {
 
   useEffect(() => {
     if (user) {
-      loadGameState();
+      // On ne charge les données que s'il n'y a pas d'état de jeu
+      // ou si l'utilisateur connecté a changé.
+      if (!gameState || gameState.id !== user.id) {
+        loadGameState();
+      }
+    } else {
+      // Si l'utilisateur se déconnecte, on réinitialise tout.
+      setGameState(null);
+      setMapLayout([]);
+      setLoading(false);
     }
-  }, [user, loadGameState]);
+  }, [user, gameState, loadGameState]);
 
   return {
     gameState,
