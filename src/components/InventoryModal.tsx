@@ -116,9 +116,9 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     ghostNode.style.zIndex = '5000';
     ghostNode.style.width = `${node.offsetWidth}px`;
     ghostNode.style.height = `${node.offsetHeight}px`;
-    ghostNode.style.opacity = '0.7';
+    ghostNode.style.opacity = '0.8';
     ghostNode.style.transform = 'scale(1.1)';
-    ghostNode.classList.add('backdrop-blur-md');
+    ghostNode.classList.add('backdrop-blur-sm');
     document.body.appendChild(ghostNode);
     draggedItemNode.current = ghostNode;
 
@@ -215,7 +215,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       <DialogContent className="max-w-3xl w-full bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center mb-4">
           <div className="flex items-center justify-center gap-3">
-            <Package className="w-7 h-7 text-white" />
+            <Package className="w-7 h-7 text-cyan-300" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire</DialogTitle>
           </div>
           <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
@@ -224,10 +224,10 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
         </DialogHeader>
         <div
           ref={gridRef}
-          className="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2 p-4 bg-black/20 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
+          className="flex flex-wrap gap-2 justify-center p-4 bg-black/20 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
-            <div className="h-full flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+            <div className="h-32 flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin text-cyan-400" /></div>
           ) : (
             slots.map((item, index) => (
               <InventorySlot
