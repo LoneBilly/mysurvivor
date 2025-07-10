@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
+import { BaseConstruction } from "@/types/game";
 
 interface BaseCell {
   x: number;
@@ -13,21 +14,16 @@ interface BaseCell {
   canBuild?: boolean;
 }
 
-interface BaseConstruction {
-  x: number;
-  y: number;
-  type: string;
-}
-
 const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
 interface BaseInterfaceProps {
   isActive: boolean;
+  initialConstructions: BaseConstruction[];
 }
 
-const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
+const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,30 +51,18 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     return newGrid;
   };
 
-  const initializeGrid = useCallback(async () => {
+  const initializeGrid = useCallback(async (constructions: BaseConstruction[]) => {
     if (!user) return;
     setLoading(true);
     hasCentered.current = false;
 
-    let { data: constructions, error } = await supabase
-      .from('base_constructions')
-      .select('x, y, type')
-      .eq('player_id', user.id);
-
-    if (error) {
-      showError("Erreur lors du chargement de la base.");
-      console.error(error);
-      setLoading(false);
-      return;
-    }
-
-    const campfire = constructions.find(c => c.type === 'campfire');
+    let currentConstructions = [...constructions];
+    const campfire = currentConstructions.find(c => c.type === 'campfire');
     const isCampfireInvalid = !campfire || campfire.x >= GRID_SIZE || campfire.y >= GRID_SIZE;
 
-    if (isCampfireInvalid && constructions.length > 0) {
+    if (isCampfireInvalid && currentConstructions.length > 0) {
       await supabase.from('base_constructions').delete().eq('player_id', user.id);
-      const { data: newConstructions } = await supabase.from('base_constructions').select('*').eq('player_id', user.id);
-      constructions = newConstructions || [];
+      currentConstructions = [];
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
@@ -87,7 +71,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
     let campPos: { x: number; y: number } | null = null;
 
-    if (constructions.length === 0) {
+    if (currentConstructions.length === 0) {
       const newCampX = Math.floor(GRID_SIZE / 2);
       const newCampY = Math.floor(GRID_SIZE / 2);
       
@@ -104,7 +88,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       newGrid[newCampY][newCampX].type = 'campfire';
       campPos = { x: newCampX, y: newCampY };
     } else {
-      constructions.forEach((c: BaseConstruction) => {
+      currentConstructions.forEach((c: BaseConstruction) => {
         if (newGrid[c.y]?.[c.x]) {
           newGrid[c.y][c.x].type = c.type as 'campfire' | 'foundation';
           if (c.type === 'campfire') {
@@ -122,9 +106,9 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
   useEffect(() => {
     if (isActive) {
-      initializeGrid();
+      initializeGrid(initialConstructions);
     }
-  }, [isActive, initializeGrid]);
+  }, [isActive, initialConstructions, initializeGrid]);
 
   const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -175,7 +159,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     if (error) {
       showError("Erreur lors de la construction.");
       console.error(error);
-      initializeGrid();
+      initializeGrid(initialConstructions);
     }
   };
 

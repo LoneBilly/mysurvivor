@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameState, GameStats } from '@/types/game';
+import { GameState, GameStats, InventoryItem, BaseConstruction } from '@/types/game';
 import { showError } from '@/utils/toast';
+import { getCachedSignedUrl } from '@/utils/iconCache';
 
 export const useGameState = () => {
   const { user } = useAuth();
@@ -15,27 +16,49 @@ export const useGameState = () => {
       return;
     }
     
-    if (!gameState) {
-      setLoading(true);
-    }
+    setLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from('player_states')
-        .select(`
-          *,
-          current_zone:map_layout!fk_current_zone(x, y),
-          base_zone:map_layout!fk_base_zone(x, y)
-        `)
-        .eq('id', user.id)
-        .single();
+      const [playerStateRes, inventoryRes, baseRes] = await Promise.all([
+        supabase
+          .from('player_states')
+          .select(`
+            *,
+            current_zone:map_layout!fk_current_zone(x, y),
+            base_zone:map_layout!fk_base_zone(x, y)
+          `)
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('inventories')
+          .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
+          .eq('player_id', user.id),
+        supabase
+          .from('base_constructions')
+          .select('x, y, type')
+          .eq('player_id', user.id)
+      ]);
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
+      if (playerStateRes.error && playerStateRes.error.code !== 'PGRST116') throw playerStateRes.error;
+      if (inventoryRes.error) throw inventoryRes.error;
+      if (baseRes.error) throw baseRes.error;
 
-      if (data) {
-        const { current_zone, base_zone, ...restOfData } = data;
+      if (playerStateRes.data) {
+        const { current_zone, base_zone, ...restOfData } = playerStateRes.data;
+        
+        const inventoryData = inventoryRes.data || [];
+        const inventoryWithUrls = await Promise.all(
+          inventoryData.map(async (item) => {
+            if (item.items && item.items.icon && item.items.icon.includes('.')) {
+              const signedUrl = await getCachedSignedUrl(item.items.icon);
+              if (signedUrl) {
+                return { ...item, items: { ...item.items, signedIconUrl: signedUrl } };
+              }
+            }
+            return item;
+          })
+        );
+
         const transformedState: GameState = {
           ...restOfData,
           id: restOfData.id,
@@ -43,14 +66,15 @@ export const useGameState = () => {
           position_y: current_zone.y,
           base_position_x: base_zone?.x ?? null,
           base_position_y: base_zone?.y ?? null,
-          zones_decouvertes: data.zones_decouvertes || [],
-          inventaire: [],
-          exploration_x: data.exploration_x,
-          exploration_y: data.exploration_y,
-          unlocked_slots: data.unlocked_slots,
+          zones_decouvertes: restOfData.zones_decouvertes || [],
+          inventaire: inventoryWithUrls as InventoryItem[],
+          base_constructions: (baseRes.data || []) as BaseConstruction[],
+          exploration_x: restOfData.exploration_x,
+          exploration_y: restOfData.exploration_y,
+          unlocked_slots: restOfData.unlocked_slots,
         };
         setGameState(transformedState);
-      } else if (error && error.code === 'PGRST116') {
+      } else if (playerStateRes.error && playerStateRes.error.code === 'PGRST116') {
         setTimeout(loadGameState, 2000);
         return;
       }
@@ -60,7 +84,7 @@ export const useGameState = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, gameState]);
+  }, [user]);
 
   const saveGameState = async (updates: Partial<Omit<GameState, 'id'>>) => {
     if (!user || !gameState) return;
@@ -110,7 +134,7 @@ export const useGameState = () => {
     if (user) {
       loadGameState();
     }
-  }, [user]);
+  }, [user, loadGameState]);
 
   return {
     gameState,

@@ -346,7 +346,10 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
               components: gameState.components,
             }}
           />
-          <BaseInterface isActive={currentView === 'base'} />
+          <BaseInterface 
+            isActive={currentView === 'base'} 
+            initialConstructions={gameState.base_constructions}
+          />
         </div>
 
         <div className={cn("relative w-full h-full", currentView !== 'exploration' && "hidden")}>
@@ -401,7 +404,8 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
       <InventoryModal
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
-        gameState={gameState}
+        inventory={gameState.inventaire}
+        unlockedSlots={gameState.unlocked_slots}
       />
     </div>
   );

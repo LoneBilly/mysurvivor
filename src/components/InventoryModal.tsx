@@ -11,33 +11,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
-import { GameState } from "@/types/game";
-import { getCachedSignedUrl } from "@/utils/iconCache";
+import { InventoryItem } from "@/types/game";
 
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  gameState: GameState | null;
-}
-
-export interface InventoryItem {
-  id: number;
-  item_id: number;
-  quantity: number;
-  slot_position: number;
-  items: {
-    name: string;
-    description: string | null;
-    icon: string | null;
-    type: string;
-    signedIconUrl?: string;
-  } | null;
+  inventory: InventoryItem[];
+  unlockedSlots: number;
 }
 
 const TOTAL_SLOTS = 50;
 
-const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => {
-  const { user } = useAuth();
+const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: InventoryModalProps) => {
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   
@@ -47,54 +32,19 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   const gridRef = useRef<HTMLDivElement | null>(null);
   const scrollIntervalRef = useRef<number | null>(null);
 
-  const unlockedSlots = gameState?.unlocked_slots ?? 0;
-
-  const fetchInventory = useCallback(async () => {
-    if (!user) return;
-
-    const { data: inventoryData, error } = await supabase
-      .from('inventories')
-      .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
-      .eq('player_id', user.id);
-
-    if (error) {
-      console.error("Error fetching inventory:", error);
-      setLoading(false);
-      return;
-    }
-
-    const itemsWithSignedUrls = await Promise.all(
-      inventoryData.map(async (item) => {
-        if (item.items && item.items.icon && item.items.icon.includes('.')) {
-          const signedUrl = await getCachedSignedUrl(item.items.icon);
-          if (signedUrl) {
-            return { ...item, items: { ...item.items, signedIconUrl: signedUrl } };
-          }
-        }
-        return item;
-      })
-    );
-
-    const newSlots = Array(TOTAL_SLOTS).fill(null);
-    itemsWithSignedUrls.forEach((item) => {
-      if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
-        newSlots[item.slot_position] = item;
-      }
-    });
-    setSlots(newSlots);
-    setLoading(false);
-  }, [user]);
-
   useEffect(() => {
     if (isOpen) {
-      fetchInventory();
+      setLoading(true);
+      const newSlots = Array(TOTAL_SLOTS).fill(null);
+      inventory.forEach((item) => {
+        if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
+          newSlots[item.slot_position] = item;
+        }
+      });
+      setSlots(newSlots);
+      setLoading(false);
     }
-  }, [isOpen, fetchInventory]);
-
-  useEffect(() => {
-    setSlots(Array(TOTAL_SLOTS).fill(null));
-    setLoading(true);
-  }, [user]);
+  }, [isOpen, inventory]);
 
   const stopAutoScroll = useCallback(() => {
     if (scrollIntervalRef.current) {

@@ -5,6 +5,26 @@ export interface GameStats {
   energie: number;
 }
 
+export interface InventoryItem {
+  id: number;
+  item_id: number;
+  quantity: number;
+  slot_position: number;
+  items: {
+    name: string;
+    description: string | null;
+    icon: string | null;
+    type: string;
+    signedIconUrl?: string;
+  } | null;
+}
+
+export interface BaseConstruction {
+  x: number;
+  y: number;
+  type: string;
+}
+
 export interface GameState {
   id: string; // user_id
   username: string | null;
@@ -14,7 +34,8 @@ export interface GameState {
   soif: number;
   energie: number;
   zones_decouvertes: number[];
-  inventaire: string[]; // L'inventaire n'est pas encore complètement implémenté
+  inventaire: InventoryItem[];
+  base_constructions: BaseConstruction[];
   position_x: number;
   position_y: number;
   base_position_x: number | null;
