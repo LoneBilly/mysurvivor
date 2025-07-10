@@ -19,7 +19,6 @@ interface ExplorationGridProps {
 
 const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<number | null>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
   const hasCentered = useRef(false);
@@ -81,14 +80,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
     }
   }, [playerPosition]);
 
-  const handleScroll = useCallback(() => {
-    if (scrollTimeoutRef.current) return;
-    scrollTimeoutRef.current = window.setTimeout(() => {
-      updateIndicators();
-      scrollTimeoutRef.current = null;
-    }, 100); // Throttle to 100ms
-  }, [updateIndicators]);
-
   useLayoutEffect(() => {
     if (playerPosition && !hasCentered.current) {
       centerViewport(playerPosition.x, playerPosition.y, 'auto');
@@ -99,18 +90,13 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
 
   useEffect(() => {
     updateIndicators();
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
   }, [playerPosition, updateIndicators]);
 
   return (
     <div className="relative w-full h-full">
       <div
         ref={viewportRef}
-        onScroll={handleScroll}
+        onScroll={updateIndicators}
         className="w-full h-full overflow-auto no-scrollbar"
       >
         <div
