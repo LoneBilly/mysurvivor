@@ -115,7 +115,7 @@ const AdminBaseViewer = ({ isOpen, onClose, player }: AdminBaseViewerProps) => {
         <DialogHeader>
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Base de {player.username}</DialogTitle>
         </DialogHeader>
-        <div className="relative flex-1 mt-4">
+        <div className="relative flex-1 mt-4 min-h-0">
           {loading ? (
             <div className="w-full h-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (

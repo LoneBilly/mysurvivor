@@ -119,11 +119,28 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
 
   const handleAddItem = async (item: Item) => {
     setIsAddModalOpen(false);
+
+    const usedSlots = new Set(inventory.map(i => i.slot_position));
+    let nextFreeSlot = -1;
+    for (let i = 0; i < unlockedSlots; i++) {
+      if (!usedSlots.has(i)) {
+        nextFreeSlot = i;
+        break;
+      }
+    }
+
+    if (nextFreeSlot === -1) {
+      showError("L'inventaire du joueur est plein.");
+      return;
+    }
+
     const { error } = await supabase.from('inventories').insert({
       player_id: player.id,
       item_id: item.id,
       quantity: 1,
+      slot_position: nextFreeSlot,
     });
+
     if (error) {
       showError("Erreur lors de l'ajout de l'objet.");
     } else {
