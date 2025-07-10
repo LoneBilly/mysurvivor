@@ -14,11 +14,10 @@ interface ExplorationGridProps {
   onCellClick: (x: number, y: number) => void;
   onCellHover: (x: number, y: number) => void;
   path: { x: number; y: number }[] | null;
-  pathMap: Map<string, number>;
   currentEnergy: number;
 }
 
-const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, pathMap, currentEnergy }: ExplorationGridProps) => {
+const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
@@ -111,7 +110,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, pathM
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
               const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
               
-              const pathIndex = pathMap.get(`${x},${y}`) ?? -1;
+              const pathIndex = path?.findIndex(p => p.x === x && p.y === y) ?? -1;
               const isPath = pathIndex !== -1;
               const isAffordablePath = isPath && pathIndex > 0 && pathIndex <= currentEnergy;
               const isUnaffordablePath = isPath && pathIndex > 0 && pathIndex > currentEnergy;
