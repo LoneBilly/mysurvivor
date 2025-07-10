@@ -105,8 +105,10 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
   }, [user]);
 
   useEffect(() => {
-    initializeGrid(initialConstructions);
-  }, [initialConstructions, initializeGrid]);
+    if (isActive) {
+      initializeGrid(initialConstructions);
+    }
+  }, [isActive, initialConstructions, initializeGrid]);
 
   const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;

@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Package, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
@@ -32,16 +33,18 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
   const scrollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    const newSlots = Array(TOTAL_SLOTS).fill(null);
-    inventory.forEach((item) => {
-      if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
-        newSlots[item.slot_position] = item;
-      }
-    });
-    setSlots(newSlots);
-    setLoading(false);
-  }, [inventory]);
+    if (isOpen) {
+      setLoading(true);
+      const newSlots = Array(TOTAL_SLOTS).fill(null);
+      inventory.forEach((item) => {
+        if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
+          newSlots[item.slot_position] = item;
+        }
+      });
+      setSlots(newSlots);
+      setLoading(false);
+    }
+  }, [isOpen, inventory]);
 
   const stopAutoScroll = useCallback(() => {
     if (scrollIntervalRef.current) {
