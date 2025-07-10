@@ -244,13 +244,13 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         ) : (
           <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-2">
             {filteredItems.map(item => (
-              <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between bg-gray-700/50 p-3 rounded-md gap-3">
-                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400 self-start md:self-center truncate">
+              <div key={item.id} className="bg-gray-700/50 p-3 rounded-md">
+                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
                   {item.name}
                 </Button>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                  <div className="w-full sm:w-auto flex items-center justify-between gap-2">
-                    <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col items-center">
+                    <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm mb-1">Chance</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id={`item-chance-${item.id}`}
@@ -266,8 +266,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                       <span className="text-gray-400">%</span>
                     </div>
                   </div>
-                  <div className="w-full sm:w-auto flex items-center justify-between gap-2">
-                    <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Max</Label>
+                  <div className="flex flex-col items-center">
+                    <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm mb-1">Quantité</Label>
                     <Input
                       id={`item-quantity-${item.id}`}
                       type="number"

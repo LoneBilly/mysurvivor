@@ -62,7 +62,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
   useEffect(() => {
     const checkItemName = async () => {
-      if (!isOpen || !debouncedName || (item && debouncedName === item.name)) {
+      if (!isOpen || debouncedName.trim() === '' || (item && debouncedName === item.name)) {
         setNameExists(false);
         setCheckingName(false);
         return;
@@ -163,7 +163,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                  <AlertCircle className="w-5 h-5 text-gray-500" />}
               </div>
               <div className="relative w-full">
-                <Input id="icon" value={icon} onChange={(e) => setIcon(e.target.value)} className="bg-white/5 border border-white/20 rounded-lg" placeholder="ex: pomme.png" disabled={loading} />
+                <Input id="icon" value={icon} onChange={(e) => setIcon(e.target.value.toLowerCase())} className="bg-white/5 border border-white/20 rounded-lg" placeholder="ex: pomme.png" disabled={loading} />
                 {!isValidatingIcon && icon && (
                   iconExists ? <CheckCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-green-400" /> : <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
                 )}

@@ -1,0 +1,142 @@
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { supabase } from '@/integrations/supabase/client';
+import { PlayerProfile } from './PlayerManager';
+import { Loader2, Ban, CheckCircle, Home, Calendar, User } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
+import ActionModal from '@/components/ActionModal';
+
+interface PlayerDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  player: PlayerProfile;
+  onPlayerUpdate: (player: PlayerProfile) => void;
+}
+
+const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
+  const [baseLocation, setBaseLocation] = useState<string | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(true);
+  const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchDetails = async () => {
+        setLoadingDetails(true);
+        const { data, error } = await supabase
+          .from('player_states')
+          .select('base_zone_id')
+          .eq('id', player.id)
+          .single();
+        
+        if (error || !data?.base_zone_id) {
+          setBaseLocation('Aucune');
+        } else {
+          const { data: zoneData, error: zoneError } = await supabase
+            .from('map_layout')
+            .select('type')
+            .eq('id', data.base_zone_id)
+            .single();
+          
+          if (zoneError) {
+            setBaseLocation('Inconnue');
+          } else {
+            setBaseLocation(zoneData.type);
+          }
+        }
+        setLoadingDetails(false);
+      };
+      fetchDetails();
+    }
+  }, [isOpen, player.id]);
+
+  const handleToggleBan = async () => {
+    const newBanStatus = !player.is_banned;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_banned: newBanStatus })
+      .eq('id', player.id);
+
+    if (error) {
+      showError(`Erreur lors de la modification du statut de ${player.username}.`);
+    } else {
+      showSuccess(`Le statut de ${player.username} a été mis à jour.`);
+      onPlayerUpdate({ ...player, is_banned: newBanStatus });
+    }
+    setModalState({ ...modalState, isOpen: false });
+    onClose();
+  };
+
+  const openBanModal = () => {
+    setModalState({
+      isOpen: true,
+      title: `${player.is_banned ? 'Lever le bannissement' : 'Bannir'} ${player.username}`,
+      description: `Êtes-vous sûr de vouloir ${player.is_banned ? 'autoriser de nouveau' : 'bannir'} ce joueur ?`,
+      onConfirm: handleToggleBan,
+    });
+  };
+
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+          <DialogHeader className="text-center">
+            <User className="w-10 h-10 mx-auto text-white mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+              {player.username || 'Joueur Anonyme'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-gray-400" />
+              <span>Inscrit le: <span className="font-bold">{new Date(player.created_at).toLocaleDateString()}</span></span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Home className="w-5 h-5 text-gray-400" />
+              <span>Base: {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="font-bold">{baseLocation}</span>}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {player.is_banned ? (
+                <>
+                  <Ban className="w-5 h-5 text-red-400" />
+                  <span className="text-red-400">Statut: Banni</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                  <span className="text-green-400">Statut: Actif</span>
+                </>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+            <Button disabled className="w-full">Voir la base</Button>
+            <Button disabled className="w-full">Voir l'inventaire</Button>
+            <Button onClick={openBanModal} variant={player.is_banned ? 'default' : 'destructive'} className="w-full">
+              {player.is_banned ? 'Lever le bannissement' : 'Bannir le joueur'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ActionModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+        title={modalState.title}
+        description={modalState.description}
+        actions={[
+          { label: "Confirmer", onClick: modalState.onConfirm, variant: "destructive" },
+          { label: "Annuler", onClick: () => setModalState({ ...modalState, isOpen: false }), variant: "secondary" },
+        ]}
+      />
+    </>
+  );
+};
+
+export default PlayerDetailModal;
