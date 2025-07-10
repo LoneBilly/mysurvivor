@@ -211,7 +211,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full bg-black/30 backdrop-blur-xl text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
+      <DialogContent className="max-w-3xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center mb-4">
           <div className="flex items-center justify-center gap-3">
             <Package className="w-7 h-7 text-white" />
@@ -223,7 +223,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
         </DialogHeader>
         <div
           ref={gridRef}
-          className="flex flex-wrap gap-2 justify-center p-4 bg-black/20 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
+          className="flex flex-wrap gap-2 justify-center p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
             <div className="h-full w-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
@@ -236,7 +236,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
                 isUnlocked={index < unlockedSlots}
                 onDragStart={handleDragStart}
                 isBeingDragged={draggedItemIndex === index}
-                isDragOver={dragOverIndex === index}
+                isDragOver={dragOverIndex === index && index < unlockedSlots}
               />
             ))
           )}
