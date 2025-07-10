@@ -5,15 +5,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
 import { InventoryItem } from '@/types/game';
 import { Item } from '@/types/admin';
-import { Loader2, Trash2, Edit, PlusCircle } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ItemIcon from '@/components/ItemIcon';
 import ActionModal from '@/components/ActionModal';
@@ -31,12 +32,10 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
   const [loading, setLoading] = useState(true);
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [actionModal, setActionModal] = useState<{
-    isOpen: boolean;
-    type: 'delete' | 'edit';
-    item: InventoryItem | null;
-    newQuantity?: string;
-  }>({ isOpen: false, type: 'delete', item: null });
+  
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editingQuantity, setEditingQuantity] = useState('');
+  const [deletingItem, setDeletingItem] = useState<InventoryItem | null>(null);
 
   const fetchInventoryAndSlots = useCallback(async () => {
     if (!isOpen) return;
@@ -84,37 +83,44 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     }
   }, [isOpen, fetchInventoryAndSlots]);
 
-  const handleItemAction = (item: InventoryItem, type: 'delete' | 'edit') => {
-    setActionModal({ isOpen: true, type, item, newQuantity: String(item.quantity) });
+  const handleItemClick = (item: InventoryItem) => {
+    setEditingItem(item);
+    setEditingQuantity(String(item.quantity));
   };
 
-  const confirmDeleteItem = async () => {
-    if (!actionModal.item) return;
-    const { error } = await supabase.from('inventories').delete().eq('id', actionModal.item.id);
-    if (error) {
-      showError("Erreur de suppression.");
-    } else {
-      showSuccess("Objet supprimé.");
-      fetchInventoryAndSlots();
-    }
-    setActionModal({ isOpen: false, type: 'delete', item: null });
-  };
-
-  const confirmEditQuantity = async () => {
-    if (!actionModal.item || !actionModal.newQuantity) return;
-    const quantity = parseInt(actionModal.newQuantity, 10);
+  const handleSaveQuantity = async () => {
+    if (!editingItem) return;
+    const quantity = parseInt(editingQuantity, 10);
     if (isNaN(quantity) || quantity <= 0) {
       showError("Quantité invalide.");
       return;
     }
-    const { error } = await supabase.from('inventories').update({ quantity }).eq('id', actionModal.item.id);
+    const { error } = await supabase.from('inventories').update({ quantity }).eq('id', editingItem.id);
     if (error) {
       showError("Erreur de mise à jour.");
     } else {
       showSuccess("Quantité mise à jour.");
       fetchInventoryAndSlots();
     }
-    setActionModal({ isOpen: false, type: 'edit', item: null });
+    setEditingItem(null);
+  };
+
+  const handleDeleteRequest = () => {
+    if (!editingItem) return;
+    setDeletingItem(editingItem);
+    setEditingItem(null);
+  };
+
+  const confirmDeleteItem = async () => {
+    if (!deletingItem) return;
+    const { error } = await supabase.from('inventories').delete().eq('id', deletingItem.id);
+    if (error) {
+      showError("Erreur de suppression.");
+    } else {
+      showSuccess("Objet supprimé.");
+      fetchInventoryAndSlots();
+    }
+    setDeletingItem(null);
   };
 
   const handleAddItem = async (item: Item) => {
@@ -151,7 +157,11 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
               <div className="max-h-[60vh] overflow-y-auto pr-2">
                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-2 sm:gap-3">
                   {inventory.map(invItem => (
-                    <div key={invItem.id} className="relative group bg-slate-700/50 p-2 rounded-lg border border-slate-600 aspect-square flex flex-col items-center justify-center text-center">
+                    <div 
+                      key={invItem.id} 
+                      className="relative bg-slate-700/50 p-2 rounded-lg border border-slate-600 aspect-square flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-700/80 transition-colors"
+                      onClick={() => handleItemClick(invItem)}
+                    >
                       <div className="absolute inset-0">
                         <ItemIcon iconName={invItem.items?.signedIconUrl || invItem.items?.icon} alt={invItem.items?.name || ''} />
                       </div>
@@ -159,10 +169,6 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
                         <span className="absolute bottom-1 right-1.5 text-sm font-bold" style={{ textShadow: '1px 1px 2px black' }}>x{invItem.quantity}</span>
                       )}
                       <p className="absolute top-1 text-xs font-semibold truncate w-full px-1" style={{ textShadow: '1px 1px 2px black' }}>{invItem.items?.name}</p>
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <Button size="icon" variant="destructive" onClick={() => handleItemAction(invItem, 'delete')}><Trash2 className="w-4 h-4" /></Button>
-                        <Button size="icon" onClick={() => handleItemAction(invItem, 'edit')}><Edit className="w-4 h-4" /></Button>
-                      </div>
                     </div>
                   ))}
                   <button onClick={() => setIsAddModalOpen(true)} className="border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:bg-slate-700/50 hover:text-white transition-colors aspect-square">
@@ -190,22 +196,46 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
         </CommandList>
       </CommandDialog>
 
+      <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
+        <DialogContent className="bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+            <DialogHeader>
+                <DialogTitle>Modifier {editingItem?.items?.name}</DialogTitle>
+                <DialogDescription>
+                    Ajustez la quantité ou supprimez l'objet de l'inventaire du joueur.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <label htmlFor="quantity" className="text-sm font-medium text-gray-400">Quantité</label>
+                <Input
+                    id="quantity"
+                    type="number"
+                    value={editingQuantity}
+                    onChange={(e) => setEditingQuantity(e.target.value)}
+                    className="mt-2 bg-white/5 border-white/20"
+                    min="1"
+                />
+            </div>
+            <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 pt-4">
+                <Button variant="destructive" onClick={handleDeleteRequest}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer l'objet
+                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <Button variant="secondary" onClick={() => setEditingItem(null)}>Annuler</Button>
+                    <Button onClick={handleSaveQuantity}>Sauvegarder</Button>
+                </div>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ActionModal
-        isOpen={actionModal.isOpen}
-        onClose={() => setActionModal({ ...actionModal, isOpen: false })}
-        title={actionModal.type === 'delete' ? "Supprimer l'objet" : "Modifier la quantité"}
-        description={
-          actionModal.type === 'delete' ? `Voulez-vous vraiment supprimer "${actionModal.item?.items?.name}" ?` :
-          <Input
-            type="number"
-            value={actionModal.newQuantity}
-            onChange={(e) => setActionModal({ ...actionModal, newQuantity: e.target.value })}
-            className="mt-4 bg-white/5 border-white/20"
-          />
-        }
+        isOpen={!!deletingItem}
+        onClose={() => setDeletingItem(null)}
+        title="Supprimer l'objet"
+        description={`Voulez-vous vraiment supprimer "${deletingItem?.items?.name}" de l'inventaire ?`}
         actions={[
-          { label: "Confirmer", onClick: actionModal.type === 'delete' ? confirmDeleteItem : confirmEditQuantity, variant: "destructive" },
-          { label: "Annuler", onClick: () => setActionModal({ ...actionModal, isOpen: false }), variant: "secondary" },
+            { label: "Confirmer la suppression", onClick: confirmDeleteItem, variant: "destructive" },
+            { label: "Annuler", onClick: () => setDeletingItem(null), variant: "secondary" },
         ]}
       />
     </>
