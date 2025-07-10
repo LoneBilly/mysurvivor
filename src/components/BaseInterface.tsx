@@ -105,10 +105,10 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
   }, [user]);
 
   useEffect(() => {
-    if (isActive) {
+    if (initialConstructions) {
       initializeGrid(initialConstructions);
     }
-  }, [isActive, initialConstructions, initializeGrid]);
+  }, [initialConstructions, initializeGrid]);
 
   const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -128,11 +128,11 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
   }, []);
 
   useLayoutEffect(() => {
-    if (!loading && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
+    if (isActive && !loading && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
       hasCentered.current = true;
     }
-  }, [loading, gridData, campfirePosition, centerViewport]);
+  }, [isActive, loading, gridData, campfirePosition, centerViewport]);
 
   useEffect(() => {
     if (lastBuiltCell) {
