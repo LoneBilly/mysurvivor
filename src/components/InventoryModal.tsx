@@ -39,16 +39,17 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
   
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
 
   const unlockedSlots = gameState?.unlocked_slots ?? 0;
 
   const fetchInventory = useCallback(async () => {
-    if (!user || !isOpen) return;
+    if (!user) return;
     setLoading(true);
 
     const { data: inventoryData, error } = await supabase
@@ -87,22 +88,34 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       }
     });
     setSlots(newSlots);
+    setHasFetched(true);
     setLoading(false);
-  }, [user, isOpen]);
+  }, [user]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !hasFetched) {
       fetchInventory();
     }
-    return () => {
+  }, [isOpen, hasFetched, fetchInventory]);
+
+  useEffect(() => {
+    // Reset on user change, to refetch for new user
+    setHasFetched(false);
+    setSlots(Array(TOTAL_SLOTS).fill(null));
+    setLoading(true);
+  }, [user]);
+
+  useEffect(() => {
+    // Cleanup drag state when modal is closed
+    if (!isOpen) {
       if (draggedItemNode.current) {
         document.body.removeChild(draggedItemNode.current);
         draggedItemNode.current = null;
       }
       setDraggedItemIndex(null);
       setDragOverIndex(null);
-    };
-  }, [isOpen, fetchInventory]);
+    }
+  }, [isOpen]);
 
   const handleDragStart = (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -223,10 +236,10 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
         </DialogHeader>
         <div
           ref={gridRef}
-          className="flex flex-wrap gap-2 justify-center p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[60vh] overflow-y-auto"
+          className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-2 p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
-            <div className="h-full w-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
+            <div className="h-full w-full flex items-center justify-center col-span-full row-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (
             slots.map((item, index) => (
               <InventorySlot
