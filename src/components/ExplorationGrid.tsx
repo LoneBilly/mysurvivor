@@ -1,218 +1,207 @@
-import { useLayoutEffect, useRef, useState, useCallback, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { ArrowDown, ArrowRight, Zap } from "lucide-react";
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { AStar } from 'tiny-based-pathfinding';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getIconForZone } from '@/lib/zoneIcons';
 
-const GRID_SIZE = 51;
-const CELL_SIZE_PX = 40;
+// Constants
+const CELL_SIZE_PX = 48;
 const CELL_GAP = 4;
-const ENTRANCE_X = 25;
-const ENTRANCE_Y = 50;
-const ORBIT_RADIUS_PX = 40;
+const GRID_SIZE = 20;
 
-interface ExplorationGridProps {
-  playerPosition: { x: number; y: number } | null;
-  onCellClick: (x: number, y: number) => void;
-  onCellHover: (x: number, y: number) => void;
-  path: { x: number; y: number }[] | null;
-  currentEnergy: number;
+interface Zone {
+  id: number;
+  x: number;
+  y: number;
+  type: string;
+  icon?: string;
 }
 
-const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
-  const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
-  const hasCentered = useRef(false);
+interface PlayerPosition {
+  x: number;
+  y: number;
+}
 
-  const centerViewport = useCallback((x: number, y: number, behavior: 'auto' | 'smooth' = 'auto') => {
-    if (viewportRef.current) {
-      const viewport = viewportRef.current;
-      const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      
-      const scrollLeft = cellCenterX - viewport.clientWidth / 2;
-      const scrollTop = cellCenterY - viewport.clientHeight / 2;
+interface ExplorationGridProps {
+  mapLayout: Zone[];
+  discoveredZones: number[];
+  playerPosition: PlayerPosition;
+  onCellClick: (zone: Zone) => void;
+  isMoving: boolean;
+}
 
-      viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior });
+const ExplorationGrid: React.FC<ExplorationGridProps> = ({
+  mapLayout,
+  discoveredZones,
+  playerPosition,
+  onCellClick,
+  isMoving,
+}) => {
+  const [hoveredCell, setHoveredCell] = useState<Zone | null>(null);
+  const [path, setPath] = useState<{ x: number; y: number }[]>([]);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const pathfindingGrid = useMemo(() => {
+    const grid = Array(GRID_SIZE)
+      .fill(null)
+      .map(() => Array(GRID_SIZE).fill(1)); // Default to unwalkable
+    
+    mapLayout.forEach((zone) => {
+      if (zone.x < GRID_SIZE && zone.y < GRID_SIZE) {
+        if (discoveredZones.includes(zone.id)) {
+          grid[zone.y][zone.x] = 0; // Walkable
+        }
+      }
+    });
+    
+    if (playerPosition.y < GRID_SIZE && playerPosition.x < GRID_SIZE) {
+      grid[playerPosition.y][playerPosition.x] = 0;
     }
-  }, []);
 
-  const updateIndicators = useCallback(() => {
-    if (!viewportRef.current || !playerPosition) {
-      setExitIndicator({ visible: false, angle: 0, x: 0, y: 0 });
-      setPlayerIndicator({ visible: false, angle: 0 });
+    return grid;
+  }, [mapLayout, discoveredZones, playerPosition]);
+
+  useEffect(() => {
+    if (hoveredCell && !isMoving && discoveredZones.includes(hoveredCell.id)) {
+      const astar = new AStar(pathfindingGrid);
+      const start = playerPosition;
+      const end = { x: hoveredCell.x, y: hoveredCell.y };
+      
+      if (
+        start.x >= 0 && start.x < GRID_SIZE && start.y >= 0 && start.y < GRID_SIZE &&
+        end.x >= 0 && end.x < GRID_SIZE && end.y >= 0 && end.y < GRID_SIZE
+      ) {
+        const newPath = astar.search(start, end);
+        setPath(newPath);
+      } else {
+        setPath([]);
+      }
+    } else {
+      setPath([]);
+    }
+  }, [hoveredCell, playerPosition, pathfindingGrid, isMoving, discoveredZones]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (throttleTimeoutRef.current) {
       return;
     }
 
-    const viewport = viewportRef.current;
-    const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewport;
+    throttleTimeoutRef.current = setTimeout(() => {
+      if (gridRef.current) {
+        const rect = gridRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-    const playerPixelX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const playerPixelY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+        const cellX = Math.floor(x / (CELL_SIZE_PX + CELL_GAP));
+        const cellY = Math.floor(y / (CELL_SIZE_PX + CELL_GAP));
 
-    const exitPixelX = ENTRANCE_X * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const exitPixelY = ENTRANCE_Y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const isExitVisible = exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight;
-    
-    if (isExitVisible) {
-      setExitIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
-    } else {
-      const playerScreenX = playerPixelX - scrollLeft;
-      const playerScreenY = playerPixelY - scrollTop;
-      const dx = exitPixelX - playerPixelX;
-      const dy = exitPixelY - playerPixelY;
-      const angleRad = Math.atan2(dy, dx);
-      const angleDeg = angleRad * (180 / Math.PI);
-      setExitIndicator({ visible: true, angle: angleDeg, x: playerScreenX, y: playerScreenY });
+        if (cellX >= 0 && cellX < GRID_SIZE && cellY >= 0 && cellY < GRID_SIZE) {
+          const cell = mapLayout.find((z) => z.x === cellX && z.y === cellY);
+          if (cell && (cell.x !== hoveredCell?.x || cell.y !== hoveredCell?.y)) {
+            setHoveredCell(cell);
+          }
+        } else {
+          setHoveredCell(null);
+        }
+      }
+      throttleTimeoutRef.current = null;
+    }, 50);
+  };
+
+  const handleMouseLeave = () => {
+    if (throttleTimeoutRef.current) {
+      clearTimeout(throttleTimeoutRef.current);
+      throttleTimeoutRef.current = null;
     }
-
-    const isPlayerVisible = playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight;
-    if (isPlayerVisible) {
-      setPlayerIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
-    } else {
-      const viewportCenterX = scrollLeft + clientWidth / 2;
-      const viewportCenterY = scrollTop + clientHeight / 2;
-      const dx = playerPixelX - viewportCenterX;
-      const dy = playerPixelY - viewportCenterY;
-      const angleRad = Math.atan2(dy, dx);
-      const angleDeg = angleRad * (180 / Math.PI);
-      setPlayerIndicator({ visible: true, angle: angleDeg });
-    }
-  }, [playerPosition]);
-
-  useLayoutEffect(() => {
-    if (playerPosition && !hasCentered.current) {
-      centerViewport(playerPosition.x, playerPosition.y, 'auto');
-      hasCentered.current = true;
-      setTimeout(updateIndicators, 100);
-    }
-  }, [playerPosition, centerViewport, updateIndicators]);
-
-  useEffect(() => {
-    updateIndicators();
-  }, [playerPosition, updateIndicators]);
+    setHoveredCell(null);
+  };
 
   return (
-    <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
+    <TooltipProvider delayDuration={100}>
       <div
-        ref={viewportRef}
-        onScroll={updateIndicators}
-        className="w-full h-full overflow-auto no-scrollbar"
+        ref={gridRef}
+        className="relative"
+        style={{
+          width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP) - CELL_GAP,
+          height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP) - CELL_GAP,
+        }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onClick={() => hoveredCell && !isMoving && discoveredZones.includes(hoveredCell.id) && onCellClick(hoveredCell)}
       >
         <div
-          className="relative"
+          className="grid bg-black/20 p-2 rounded-lg"
           style={{
-            width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
-            height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
+            gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_SIZE_PX}px)`,
+            gap: `${CELL_GAP}px`,
           }}
         >
-          {Array.from({ length: GRID_SIZE }).map((_, y) =>
-            Array.from({ length: GRID_SIZE }).map((_, x) => {
-              const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
-              const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
-              
-              const pathIndex = path?.findIndex(p => p.x === x && p.y === y) ?? -1;
-              const isPath = pathIndex !== -1;
-              const isAffordablePath = isPath && pathIndex > 0 && pathIndex <= currentEnergy;
-              const isUnaffordablePath = isPath && pathIndex > 0 && pathIndex > currentEnergy;
+          {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
+            const x = index % GRID_SIZE;
+            const y = Math.floor(index / GRID_SIZE);
+            const zone = mapLayout.find((z) => z.x === x && z.y === y);
+            const isDiscovered = zone ? discoveredZones.includes(zone.id) : false;
+            const isPlayerPosition = playerPosition.x === x && playerPosition.y === y;
 
-              const isTarget = path && path.length > 1 && path[path.length - 1].x === x && path[path.length - 1].y === y;
-              const energyCost = path ? path.length - 1 : 0;
-              const canAffordMove = energyCost <= currentEnergy;
+            if (!zone) {
+              return <div key={index} className="w-12 h-12 bg-gray-900/50 rounded-md" />;
+            }
 
-              const canClickEntrance = isEntrance && playerPosition && (
-                isPlayerOnCell || 
-                (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1)
-              );
-              
-              const isClickable = (isTarget && canAffordMove) || canClickEntrance;
+            const ZoneIcon = getIconForZone(zone.type);
 
-              return (
-                <button
-                  key={`${x}-${y}`}
-                  onMouseEnter={() => onCellHover(x, y)}
-                  onClick={() => isClickable && onCellClick(x, y)}
-                  className={cn(
-                    "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
-                    // Base styles
-                    isEntrance 
-                      ? "bg-white/20 border-white/30" 
-                      : "bg-white/10 border-white/20",
-                    
-                    // Path styles
-                    isAffordablePath && "bg-sky-400/30 border-sky-400/50",
-                    isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
-                    
-                    // Target styles
-                    isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
-                    isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
+            return (
+              <Tooltip key={zone.id}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={cn(
+                      'w-12 h-12 rounded-md flex items-center justify-center transition-colors duration-300',
+                      isDiscovered ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-gray-800/30',
+                      isPlayerPosition && 'ring-2 ring-green-400 ring-offset-2 ring-offset-gray-900'
+                    )}
+                  >
+                    {isDiscovered && <ZoneIcon className="w-6 h-6 text-gray-400" />}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{zone.type}</p>
+                  {isDiscovered ? <p>({zone.x}, {zone.y})</p> : <p>Inexploré</p>}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
 
-                    // Interactivity
-                    isClickable ? "cursor-pointer" : "cursor-default",
-                    canClickEntrance && "hover:bg-white/30"
-                  )}
-                  style={{
-                    left: x * (CELL_SIZE_PX + CELL_GAP),
-                    top: y * (CELL_SIZE_PX + CELL_GAP),
-                    width: CELL_SIZE_PX,
-                    height: CELL_SIZE_PX,
-                  }}
-                >
-                  {isEntrance && !isPlayerOnCell && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ArrowDown className="w-6 h-6 text-white animate-bounce" style={{ animationDuration: '2s' }} />
-                    </div>
-                  )}
-                  {isPlayerOnCell && (
-                    <div className="relative w-1/2 h-1/2 rounded-full bg-sky-400 shadow-lg"></div>
-                  )}
-                  {isAffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-sky-300/70"></div>
-                  )}
-                  {isUnaffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400/70"></div>
-                  )}
-                  {isTarget && energyCost > 0 && (
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-                      <div className={cn(
-                        "flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-white/20 rounded-full px-2 py-0.5 text-xs font-bold",
-                        canAffordMove ? "text-white" : "text-red-400"
-                      )}>
-                        <Zap size={12} />
-                        <span>{energyCost}</span>
-                      </div>
-                    </div>
-                  )}
-                </button>
-              );
-            })
+        <div className="absolute top-2 left-2 pointer-events-none">
+          {path.slice(1, -1).map((p, i) => (
+            <motion.div
+              key={`path-${p.x}-${p.y}`}
+              className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.02 }}
+              style={{
+                left: p.x * (CELL_SIZE_PX + CELL_GAP) + (CELL_SIZE_PX - 8) / 2,
+                top: p.y * (CELL_SIZE_PX + CELL_GAP) + (CELL_SIZE_PX - 8) / 2,
+              }}
+            />
+          ))}
+
+          {hoveredCell && discoveredZones.includes(hoveredCell.id) && !isMoving && (
+            <div
+              className="absolute border-2 border-yellow-400 rounded-md"
+              style={{
+                width: CELL_SIZE_PX,
+                height: CELL_SIZE_PX,
+                left: hoveredCell.x * (CELL_SIZE_PX + CELL_GAP),
+                top: hoveredCell.y * (CELL_SIZE_PX + CELL_GAP),
+              }}
+            />
           )}
         </div>
       </div>
-      {/* Exit Indicator */}
-      <div
-        className="absolute z-20 text-white transition-opacity pointer-events-none"
-        style={{
-          opacity: exitIndicator.visible ? 1 : 0,
-          top: `${exitIndicator.y}px`,
-          left: `${exitIndicator.x}px`,
-          transform: `translate(-50%, -50%) rotate(${exitIndicator.angle}deg) translate(${ORBIT_RADIUS_PX}px)`,
-        }}
-      >
-        <ArrowRight className="w-6 h-6" />
-      </div>
-      {/* Player Indicator */}
-      <div
-        className="absolute z-20 text-white transition-opacity pointer-events-none"
-        style={{
-          opacity: playerIndicator.visible ? 1 : 0,
-          top: '50%',
-          left: '50%',
-          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))`,
-        }}
-      >
-        <ArrowRight className="w-6 h-6" />
-      </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
