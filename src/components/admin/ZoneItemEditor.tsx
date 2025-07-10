@@ -4,12 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Search, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, Plus, HelpCircle } from 'lucide-react';
 import * as LucideIcons from "lucide-react";
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
-import IconPickerModal from './IconPickerModal';
+import ZoneIconEditorModal from './ZoneIconEditorModal';
 import ItemFormModal from './ItemFormModal';
+
+const getZoneIconComponent = (iconName: string | null): React.ElementType => {
+    if (!iconName) return LucideIcons.Map;
+    const Icon = (LucideIcons as any)[iconName];
+    if (Icon && typeof Icon.render === 'function') {
+        return Icon;
+    }
+    return HelpCircle;
+};
 
 const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const [items, setItems] = useState<Item[]>([]);
@@ -22,7 +31,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const initialZoneIconRef = useRef(zone.icon);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [isIconEditorOpen, setIsIconEditorOpen] = useState(false);
   const [isItemFormModalOpen, setIsItemFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
@@ -192,7 +201,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const CurrentIconComponent = zoneIcon ? (LucideIcons as any)[zoneIcon] : LucideIcons.Map;
+  const CurrentIconComponent = getZoneIconComponent(zoneIcon);
 
   return (
     <Card className="w-full max-w-3xl mx-auto bg-gray-800/50 border-gray-700 text-white">
@@ -202,8 +211,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
             <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
             <div>
               <div className="flex items-baseline gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setIsIconPickerOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
-                  {CurrentIconComponent && <CurrentIconComponent className="w-6 h-6" />}
+                <Button variant="ghost" size="icon" onClick={() => setIsIconEditorOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
+                  <CurrentIconComponent className="w-6 h-6" />
                 </Button>
                 <Input
                   value={zoneName}
@@ -274,11 +283,11 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         )}
       </CardContent>
 
-      <IconPickerModal
-        isOpen={isIconPickerOpen}
-        onClose={() => setIsIconPickerOpen(false)}
+      <ZoneIconEditorModal
+        isOpen={isIconEditorOpen}
+        onClose={() => setIsIconEditorOpen(false)}
         currentIcon={zoneIcon}
-        onSelectIcon={handleZoneIconSave}
+        onSave={handleZoneIconSave}
       />
 
       <ItemFormModal

@@ -166,7 +166,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 value={icon}
                 onChange={(e) => setIcon(e.target.value)}
                 className="col-span-3 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
-                placeholder="Nom de l'icône Lucide"
+                placeholder="nom-du-fichier.png"
                 disabled={loading}
               />
             </div>
