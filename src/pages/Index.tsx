@@ -12,6 +12,13 @@ const Index = () => {
   const [mapLoading, setMapLoading] = useState(true);
 
   useEffect(() => {
+    document.body.classList.add('landing-page-bg');
+    return () => {
+      document.body.classList.remove('landing-page-bg');
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchMapLayout = async () => {
       const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
       if (error) {
@@ -30,10 +37,10 @@ const Index = () => {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center text-black">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
-          <p className="text-gray-600">Chargement de votre aventure...</p>
+      <div className="h-full flex items-center justify-center bg-gray-950">
+        <div className="text-center text-white">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Chargement de votre aventure...</p>
         </div>
       </div>
     );
@@ -41,12 +48,12 @@ const Index = () => {
 
   if (!gameState) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
+      <div className="h-full flex items-center justify-center bg-gray-950">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Erreur lors du chargement des données du joueur.</p>
+          <p className="text-gray-400 mb-4">Erreur lors du chargement des données du joueur.</p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-black text-white rounded-none"
+            className="px-4 py-2 bg-white/10 text-white rounded-lg"
           >
             Recharger
           </button>

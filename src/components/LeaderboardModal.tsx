@@ -44,10 +44,10 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-white text-black border-2 border-black shadow-[4px_4px_0px_#000] rounded-none p-6">
+      <DialogContent className="sm:max-w-lg bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-6">
         <DialogHeader className="text-center mb-4">
-          <Trophy className="w-8 h-8 mx-auto text-black mb-2" />
-          <DialogTitle className="text-black font-mono tracking-wider uppercase text-xl">Classement</DialogTitle>
+          <Trophy className="w-8 h-8 mx-auto text-white mb-2" />
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Classement</DialogTitle>
         </DialogHeader>
         {loading ? (
           <p className="text-center">Chargement...</p>
@@ -56,12 +56,12 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
             {/* Mobile View */}
             <div className="md:hidden font-mono space-y-4">
               {leaderboard.map((entry, index) => (
-                <div key={index} className="border-b-2 border-black pb-2 last:border-b-0">
+                <div key={index} className="border-b-2 border-white/10 pb-2 last:border-b-0">
                   <div className="flex justify-between items-center">
                     <p className="font-bold text-lg truncate">#{index + 1} {entry.username}</p>
                     <p className="text-lg whitespace-nowrap">{entry.days_alive} jours</p>
                   </div>
-                  <p className="text-sm text-gray-600">Base: {entry.base_location || 'N/A'}</p>
+                  <p className="text-sm text-gray-400">Base: {entry.base_location || 'N/A'}</p>
                 </div>
               ))}
             </div>
@@ -70,7 +70,7 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
             <div className="hidden md:block">
               <table className="w-full text-left font-mono">
                 <thead>
-                  <tr className="border-b-2 border-black">
+                  <tr className="border-b-2 border-white/20">
                     <th className="p-2">Rang</th>
                     <th className="p-2">Pseudo</th>
                     <th className="p-2">Base</th>
@@ -79,7 +79,7 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
                 </thead>
                 <tbody>
                   {leaderboard.map((entry, index) => (
-                    <tr key={index} className="border-b border-gray-700 last:border-b-0">
+                    <tr key={index} className="border-b border-white/10 last:border-b-0">
                       <td className="p-2 font-bold">#{index + 1}</td>
                       <td className="p-2 truncate">{entry.username}</td>
                       <td className="p-2">{entry.base_location || 'N/A'}</td>

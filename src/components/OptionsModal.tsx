@@ -92,44 +92,44 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-white text-black border-2 border-black shadow-[4px_4px_0px_#000] rounded-none p-6">
+      <DialogContent className="sm:max-w-md bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-6">
         <DialogHeader className="text-center mb-4">
-          <Settings className="w-8 h-8 mx-auto text-black mb-2" />
-          <DialogTitle className="text-black font-mono tracking-wider uppercase text-xl">Options</DialogTitle>
-          <DialogDescription className="text-gray-700 mt-1">
+          <Settings className="w-8 h-8 mx-auto text-white mb-2" />
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Options</DialogTitle>
+          <DialogDescription className="text-gray-300 mt-1">
             Gérez les paramètres de votre compte et du jeu.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-2">
           <div className="space-y-4">
-            <h4 className="font-medium text-black font-mono">Changer de pseudo</h4>
+            <h4 className="font-medium text-white font-mono">Changer de pseudo</h4>
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-black font-mono">Nouveau pseudo</Label>
+              <Label htmlFor="username" className="text-gray-300 font-mono">Nouveau pseudo</Label>
               <Input
                 id="username"
                 placeholder={currentUsername || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
-                className="bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
+                className="bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
                 disabled={loading}
               />
             </div>
-            <Button onClick={handleSave} disabled={loading || !newUsername.trim()} className="w-full rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800">
+            <Button onClick={handleSave} disabled={loading || !newUsername.trim()} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
               {loading ? 'Sauvegarde...' : 'Sauvegarder le pseudo'}
             </Button>
           </div>
-          <Separator className="bg-black h-0.5" />
+          <Separator className="bg-white/20 h-px" />
           <div className="space-y-4">
-            <h4 className="font-medium text-black font-mono">Compte</h4>
+            <h4 className="font-medium text-white font-mono">Compte</h4>
             {role === 'admin' && (
               <>
-                <Button onClick={handleGoToAdmin} className="w-full rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-white text-black hover:bg-gray-200">
+                <Button onClick={handleGoToAdmin} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
                   Panel d'Administration
                 </Button>
-                <Separator className="bg-black h-0.5" />
+                <Separator className="bg-white/20 h-px" />
               </>
             )}
-            <Button onClick={handleLogout} disabled={loading} className="w-full rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-red-500 text-white hover:bg-red-600">
+            <Button onClick={handleLogout} disabled={loading} className="w-full rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
               Déconnexion
             </Button>
           </div>

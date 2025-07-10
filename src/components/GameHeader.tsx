@@ -42,17 +42,17 @@ const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackTo
   }, [spawnDate]);
 
   return (
-    <header className="flex items-center justify-between p-4 bg-white text-black border-b-2 border-black h-[73px]">
+    <header className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-lg text-white border-b border-white/10 h-[73px]">
       <div className="flex-1 flex justify-start">
         {currentView === 'map' ? (
-          <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-gray-200 rounded-none">
+          <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-white/10 rounded-lg">
             <Trophy className="w-5 h-5" />
           </Button>
         ) : showBackButton ? (
           <Button
             variant="ghost"
             onClick={onBackToMap}
-            className="flex items-center space-x-2 text-black hover:bg-gray-200 p-2 sm:px-3 rounded-none"
+            className="flex items-center space-x-2 text-white hover:bg-white/10 p-2 sm:px-3 rounded-lg"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Retour</span>
@@ -62,17 +62,17 @@ const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackTo
         )}
       </div>
       <div className="flex-none text-center px-4">
-        <p className="text-sm text-gray-600 font-mono">
-          Jours survécus: <span className="font-bold text-lg text-black">{daysSurvived}</span>
+        <p className="text-sm text-gray-300 font-mono">
+          Jours survécus: <span className="font-bold text-lg text-white">{daysSurvived}</span>
         </p>
         {elapsedTime && (
-          <p className="text-xs text-gray-500 font-mono mt-1" suppressHydrationWarning>
+          <p className="text-xs text-gray-400 font-mono mt-1" suppressHydrationWarning>
             {elapsedTime}
           </p>
         )}
       </div>
       <div className="flex-1 flex justify-end">
-        <Button variant="ghost" size="icon" onClick={onOptions} className="hover:bg-gray-200 rounded-none">
+        <Button variant="ghost" size="icon" onClick={onOptions} className="hover:bg-white/10 rounded-lg">
           <Settings className="w-5 h-5" />
         </Button>
       </div>

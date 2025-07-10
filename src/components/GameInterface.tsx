@@ -306,17 +306,17 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
 
   if (!isViewReady) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center text-black">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
-          <p className="text-gray-600">Préparation de l'interface...</p>
+      <div className="h-full flex items-center justify-center bg-gray-950">
+        <div className="text-center text-white">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Préparation de l'interface...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-100 text-black">
+    <div className="h-full flex flex-col text-white">
       <GameHeader
         spawnDate={gameState.spawn_date}
         onLeaderboard={handleLeaderboard}
@@ -325,7 +325,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
         onBackToMap={handleBackToMap}
       />
       
-      <main className="flex-1 bg-gray-100 min-h-0 overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-hidden">
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid 
             mapLayout={mapLayout}

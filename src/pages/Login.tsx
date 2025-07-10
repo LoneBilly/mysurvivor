@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ShieldAlert, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,13 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false });
+
+  useEffect(() => {
+    document.body.classList.add('landing-page-bg');
+    return () => {
+      document.body.classList.remove('landing-page-bg');
+    };
+  }, []);
 
   const handleSignUp = async () => {
     setModalState({ isOpen: false });
@@ -64,46 +71,46 @@ const Login = () => {
 
   return (
     <>
-      <div className="h-full bg-gray-100 text-black flex flex-col items-center justify-center px-4 overflow-hidden relative">
-        <Link to="/" className="absolute top-4 left-4 text-sm text-gray-600 hover:text-black font-mono z-10">
+      <div className="h-full text-white flex flex-col items-center justify-center px-4 overflow-hidden relative">
+        <Link to="/" className="absolute top-4 left-4 text-sm text-gray-300 hover:text-white font-mono z-10 transition-colors">
           &larr; Retour à l'accueil
         </Link>
         <div className="w-full max-w-sm">
-          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] sm:shadow-[8px_8px_0px_#000] rounded-none p-6 sm:p-8">
+          <div className="bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl p-6 sm:p-8">
             <div className="text-center mb-6 sm:mb-8">
-              <ShieldAlert className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-black mb-4" />
-              <h1 className="text-2xl sm:text-3xl font-bold text-black font-mono tracking-wider uppercase">
+              <ShieldAlert className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-white mb-4" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-white font-mono tracking-wider uppercase">
                 Terminal de Survie
               </h1>
-              <p className="text-gray-700 mt-2 text-sm sm:text-base">Authentification requise.</p>
+              <p className="text-gray-300 mt-2 text-sm sm:text-base">Authentification requise.</p>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div>
-                <label htmlFor="email" className="text-sm font-medium text-black font-mono">Identifiant</label>
+                <label htmlFor="email" className="text-sm font-medium text-white font-mono">Identifiant</label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="mt-1 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
+                  className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
                   placeholder="votre@email.com"
                 />
               </div>
               <div>
-                <label htmlFor="password"className="text-sm font-medium text-black font-mono">Mot de passe</label>
+                <label htmlFor="password"className="text-sm font-medium text-white font-mono">Mot de passe</label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="mt-1 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
+                  className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
                   placeholder="••••••••"
                 />
               </div>
-              <Button type="submit" className="w-full rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800 font-bold" disabled={loading || !email || !password}>
+              <Button type="submit" className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20" disabled={loading || !email || !password}>
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connexion / Inscription'}
               </Button>
             </form>

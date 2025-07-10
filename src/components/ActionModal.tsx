@@ -24,13 +24,13 @@ interface ActionModalProps {
 const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-white text-black border-2 border-black shadow-[4px_4px_0px_#000] rounded-none p-6">
+      <DialogContent className="sm:max-w-md bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-6">
         <DialogHeader className="text-center">
-          <DialogTitle className="text-black font-mono tracking-wider uppercase text-xl">
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription className="text-gray-700 mt-2 text-base">
+            <DialogDescription className="text-gray-300 mt-2 text-base">
               {description}
             </DialogDescription>
           )}
@@ -43,12 +43,12 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
                   key={index}
                   onClick={action.onClick}
                   className={cn(
-                    "flex-1 font-bold tracking-wide rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all",
+                    "flex-1 font-bold tracking-wide rounded-lg border border-white/20 transition-all",
                     action.variant === 'destructive' 
-                      ? "bg-red-500 text-white hover:bg-red-600"
+                      ? "bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30"
                       : action.variant === 'secondary' || action.variant === 'outline'
-                      ? "bg-white text-black hover:bg-gray-200"
-                      : "bg-black text-white hover:bg-gray-800"
+                      ? "bg-white/10 text-white hover:bg-white/20"
+                      : "bg-white/20 text-white hover:bg-white/30"
                   )}
                 >
                   {action.label}

@@ -40,7 +40,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') return null;
-    if (!cell.discovered) return <Lock className="w-1/2 h-1/2 text-gray-500" />;
+    if (!cell.discovered) return <Lock className="w-1/2 h-1/2 text-gray-400" />;
     
     const IconComponent = cell.icon ? (LucideIcons as any)[cell.icon] : LucideIcons.Building2;
     
@@ -53,20 +53,20 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
     if (!cell || cell.type === 'unknown') {
-      return "bg-gray-200 border-transparent cursor-default";
+      return "bg-black/20 border-transparent cursor-default";
     }
 
     if (!cell.discovered) {
       return cn(
-        "bg-gray-300 border-black/50 text-gray-800 cursor-pointer",
-        !isMobile && "hover:border-black hover:bg-gray-400"
+        "bg-white/5 border-white/10 text-gray-300 cursor-pointer",
+        !isMobile && "hover:border-white/30 hover:bg-white/10"
       );
     }
     
     return cn(
-      "bg-white border-black/80 text-black",
+      "bg-white/10 border-white/20 text-white",
       "cursor-pointer",
-      !isMobile && "hover:bg-gray-200 hover:border-black"
+      !isMobile && "hover:bg-white/20 hover:border-white/40"
     );
   };
 
@@ -101,7 +101,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   return (
     <>
       <div
-        className="bg-gray-200 h-full aspect-square flex items-center justify-center border-2 border-black shadow-[8px_8px_0px_#000]"
+        className="bg-white/10 backdrop-blur-lg h-full aspect-square flex items-center justify-center border border-white/20 shadow-2xl rounded-2xl"
         onMouseMove={handleMouseMove}
       >
         <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full p-2 md:p-3">
@@ -112,7 +112,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
                 onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
                 disabled={!cell || cell.type === 'unknown'}
                 className={cn(
-                  "relative aspect-square flex items-center justify-center font-bold rounded-none border-2 transition-all duration-200 w-full h-full",
+                  "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
                   getCellStyle(cell)
                 )}
                 onMouseEnter={(e) => cell && handleMouseEnter(e, cell)}
@@ -121,12 +121,12 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
                 {getCellContent(cell)}
                 {playerPosition.x === x && playerPosition.y === y && (
                   <div className="absolute top-1 right-1 w-2.5 h-2.5">
-                    <div className="w-full h-full rounded-full bg-black animate-ping absolute"></div>
-                    <div className="w-full h-full rounded-full bg-black relative border-2 border-white"></div>
+                    <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
+                    <div className="w-full h-full rounded-full bg-sky-400 relative border-2 border-gray-900"></div>
                   </div>
                 )}
                 {basePosition && basePosition.x === x && basePosition.y === y && (
-                  <div className="absolute inset-0 border-2 border-dashed border-black pointer-events-none"></div>
+                  <div className="absolute inset-0 border-2 border-dashed border-green-400/80 pointer-events-none rounded-lg"></div>
                 )}
               </button>
             ))
@@ -135,7 +135,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
       </div>
       {!isMobile && tooltip && tooltip.visible && (
         <div
-          className="pointer-events-none fixed z-50 rounded-none bg-white border-2 border-black px-3 py-1.5 text-sm text-black shadow-[2px_2px_0px_#000]"
+          className="pointer-events-none fixed z-50 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-white/20 px-3 py-1.5 text-sm text-white shadow-lg"
           style={{
             left: `${tooltip.x + 15}px`,
             top: `${tooltip.y + 15}px`,

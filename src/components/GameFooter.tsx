@@ -18,20 +18,20 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
     label: string; 
     value: number;
   }) => (
-    <div className="flex flex-col items-start space-y-1 p-3 rounded-none border-2 border-black bg-white w-full">
+    <div className="flex flex-col items-start space-y-1 p-3 rounded-lg border border-white/10 bg-white/5 w-full">
       <div className="flex items-center justify-between w-full mb-1">
         <div className="flex items-center space-x-2">
-          <Icon className="w-5 h-5 text-black" />
-          <span className="text-sm font-medium text-gray-600 font-mono">{label}</span>
+          <Icon className="w-5 h-5 text-white" />
+          <span className="text-sm font-medium text-gray-300 font-mono">{label}</span>
         </div>
-        <span className="text-sm font-bold text-black font-mono">{value}/100</span>
+        <span className="text-sm font-bold text-white font-mono">{value}/100</span>
       </div>
-      <Progress value={value} className="w-full h-3 bg-white border border-black" indicatorClassName="bg-black" />
+      <Progress value={value} className="w-full h-3 bg-white/10 border border-white/20 rounded-full" indicatorClassName="bg-white rounded-full" />
     </div>
   );
 
   return (
-    <footer className="bg-white border-t-2 border-black text-black p-4">
+    <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 text-white p-4">
       {/* Layout mobile */}
       <div className="md:hidden">
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -42,7 +42,7 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
         </div>
         <Button
           onClick={onInventaire}
-          className="w-full flex items-center justify-center space-x-2 bg-black text-white hover:bg-gray-800 rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+          className="w-full flex items-center justify-center space-x-2 bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all"
           variant="default"
         >
           <Package className="w-5 h-5" />
@@ -59,11 +59,11 @@ const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
           <StatItem icon={Zap} label="Énergie" value={stats.energie} />
         </div>
         
-        <div className="w-px h-12 bg-black mx-6"></div>
+        <div className="w-px h-12 bg-white/20 mx-6"></div>
         
         <Button
           onClick={onInventaire}
-          className="flex items-center space-x-2 bg-black text-white hover:bg-gray-800 rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all px-6"
+          className="flex items-center space-x-2 bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all px-6"
           variant="default"
         >
           <Package className="w-5 h-5" />
