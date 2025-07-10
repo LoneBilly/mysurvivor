@@ -51,8 +51,8 @@ interface ExplorationGridProps {
 
 const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
-  const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
+  const exitIndicatorRef = useRef<HTMLDivElement>(null);
+  const playerIndicatorRef = useRef<HTMLDivElement>(null);
   const hasCentered = useRef(false);
   const cellElementsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
   const lastPathRef = useRef<{ x: number; y: number }[] | null>(null);
@@ -140,27 +140,55 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
   };
 
   const updateIndicators = useCallback(() => {
-    if (!viewportRef.current || !playerPosition) return;
-    const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewportRef.current;
-    const playerPixelX = playerPosition.x * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
-    const playerPixelY = playerPosition.y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
-    const exitPixelX = ENTRANCE_X * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
-    const exitPixelY = ENTRANCE_Y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
-    
-    setExitIndicator(prev => ({ ...prev, visible: !(exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight) }));
-    if (exitIndicator.visible) {
-      const dx = exitPixelX - playerPixelX;
-      const dy = exitPixelY - playerPixelY;
-      setExitIndicator(prev => ({ ...prev, angle: Math.atan2(dy, dx) * (180 / Math.PI), x: playerPixelX - scrollLeft, y: playerPixelY - scrollTop }));
+    const viewport = viewportRef.current;
+    const exitIndicatorEl = exitIndicatorRef.current;
+    const playerIndicatorEl = playerIndicatorRef.current;
+
+    if (!viewport || !playerPosition || !exitIndicatorEl || !playerIndicatorEl) {
+      return;
     }
 
-    setPlayerIndicator(prev => ({ ...prev, visible: !(playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight) }));
-    if (playerIndicator.visible) {
-      const dx = playerPixelX - (scrollLeft + clientWidth / 2);
-      const dy = playerPixelY - (scrollTop + clientHeight / 2);
-      setPlayerIndicator(prev => ({ ...prev, angle: Math.atan2(dy, dx) * (180 / Math.PI) }));
+    const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewport;
+
+    const playerPixelX = playerPosition.x * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
+    const playerPixelY = playerPosition.y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
+
+    // Exit Indicator Logic
+    const exitPixelX = ENTRANCE_X * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
+    const exitPixelY = ENTRANCE_Y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
+    const isExitVisible = exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight;
+
+    if (isExitVisible) {
+      exitIndicatorEl.style.opacity = '0';
+    } else {
+      const playerScreenX = playerPixelX - scrollLeft;
+      const playerScreenY = playerPixelY - scrollTop;
+      const dx = exitPixelX - playerPixelX;
+      const dy = exitPixelY - playerPixelY;
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      
+      exitIndicatorEl.style.opacity = '1';
+      exitIndicatorEl.style.top = `${playerScreenY}px`;
+      exitIndicatorEl.style.left = `${playerScreenX}px`;
+      exitIndicatorEl.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translate(${ORBIT_RADIUS_PX}px)`;
     }
-  }, [playerPosition, exitIndicator.visible, playerIndicator.visible]);
+
+    // Player Indicator Logic
+    const isPlayerVisible = playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight;
+
+    if (isPlayerVisible) {
+      playerIndicatorEl.style.opacity = '0';
+    } else {
+      const viewportCenterX = scrollLeft + clientWidth / 2;
+      const viewportCenterY = scrollTop + clientHeight / 2;
+      const dx = playerPixelX - viewportCenterX;
+      const dy = playerPixelY - viewportCenterY;
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      playerIndicatorEl.style.opacity = '1';
+      playerIndicatorEl.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))`;
+    }
+  }, [playerPosition]);
 
   useLayoutEffect(() => {
     if (playerPosition && !hasCentered.current) {
@@ -221,10 +249,18 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
           ))}
         </div>
       </div>
-      <div className="absolute z-20 text-white transition-opacity pointer-events-none" style={{ opacity: exitIndicator.visible ? 1 : 0, top: `${exitIndicator.y}px`, left: `${exitIndicator.x}px`, transform: `translate(-50%, -50%) rotate(${exitIndicator.angle}deg) translate(${ORBIT_RADIUS_PX}px)` }}>
+      <div
+        ref={exitIndicatorRef}
+        className="absolute z-20 text-white transition-opacity pointer-events-none"
+        style={{ opacity: 0 }}
+      >
         <ArrowRight className="w-6 h-6" />
       </div>
-      <div className="absolute z-20 text-white transition-opacity pointer-events-none" style={{ opacity: playerIndicator.visible ? 1 : 0, top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))` }}>
+      <div
+        ref={playerIndicatorRef}
+        className="absolute z-20 text-white transition-opacity pointer-events-none"
+        style={{ opacity: 0, top: '50%', left: '50%' }}
+      >
         <ArrowRight className="w-6 h-6" />
       </div>
     </div>
