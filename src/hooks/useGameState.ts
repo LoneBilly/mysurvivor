@@ -19,7 +19,7 @@ export const useGameState = () => {
     }
     
     setLoading(true);
-    setLoadingMessage("Chargement des données du jeu...");
+    setLoadingMessage("Chargement du monde...");
 
     try {
       const [mapRes, playerStateRes, inventoryRes, baseRes] = await Promise.all([
