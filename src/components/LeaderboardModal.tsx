@@ -45,9 +45,11 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-6">
-        <DialogHeader className="text-center mb-4">
-          <Trophy className="w-8 h-8 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Classement</DialogTitle>
+        <DialogHeader className="mb-4">
+          <div className="flex flex-col items-center">
+            <Trophy className="w-8 h-8 text-white mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Classement</DialogTitle>
+          </div>
         </DialogHeader>
         {loading ? (
           <p className="text-center">Chargement...</p>
