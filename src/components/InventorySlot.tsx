@@ -27,8 +27,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
 
   if (!isUnlocked) {
     return (
-      <div className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-slate-600 cursor-not-allowed">
-        <Lock className="w-4 h-4 text-slate-500" />
+      <div className="relative w-14 h-14 flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-slate-600 cursor-not-allowed">
+        <Lock className="w-5 h-5 text-slate-500" />
       </div>
     );
   }
@@ -40,7 +40,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       onTouchStart={handleInteractionStart}
       style={{ touchAction: 'none' }}
       className={cn(
-        "relative w-10 h-10 rounded-lg border transition-all duration-200 flex items-center justify-center flex-shrink-0",
+        "relative w-14 h-14 rounded-lg border transition-all duration-200 flex items-center justify-center flex-shrink-0",
         "bg-slate-700/50 border-slate-600",
         isDragOver && "bg-slate-600/70 ring-2 ring-slate-400 border-slate-400",
         isBeingDragged && "bg-transparent border-dashed border-slate-500",
@@ -54,7 +54,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
               <div className={cn("absolute inset-0 item-visual", isBeingDragged && "opacity-0")}>
                 <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
                 {item.quantity > 1 && (
-                  <span className="absolute bottom-0 right-1 text-xs font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
+                  <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
                     {item.quantity}
                   </span>
                 )}

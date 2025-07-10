@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
 import { GameState } from "@/types/game";
+import { getCachedSignedUrl } from "@/utils/iconCache";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -65,15 +66,9 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     const itemsWithSignedUrls = await Promise.all(
       inventoryData.map(async (item) => {
         if (item.items && item.items.icon && item.items.icon.includes('.')) {
-          try {
-            const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
-              body: { itemName: item.items.icon },
-            });
-            if (funcError) throw funcError;
-            return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
-          } catch (e) {
-            console.error(`Failed to get signed URL for ${item.items.icon}`, e);
-            return item;
+          const signedUrl = await getCachedSignedUrl(item.items.icon);
+          if (signedUrl) {
+            return { ...item, items: { ...item.items, signedIconUrl: signedUrl } };
           }
         }
         return item;
@@ -124,8 +119,8 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     ghostNode.style.position = 'fixed';
     ghostNode.style.pointerEvents = 'none';
     ghostNode.style.zIndex = '5000';
-    ghostNode.style.width = '40px';
-    ghostNode.style.height = '40px';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
     ghostNode.style.opacity = '0.85';
     ghostNode.style.transform = 'scale(1.1)';
     document.body.appendChild(ghostNode);
