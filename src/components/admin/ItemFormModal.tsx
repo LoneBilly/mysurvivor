@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
@@ -22,16 +21,14 @@ import { Loader2 } from 'lucide-react';
 interface ItemFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item?: Item | null; // Optional, for editing existing items
-  onSave: () => void; // Callback to refresh item list
+  item?: Item | null;
+  onSave: () => void;
 }
-
-const itemTypes = ['resource', 'tool', 'consumable', 'weapon', 'armor', 'material', 'other'];
 
 const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) => {
   const [name, setName] = useState(item?.name || '');
   const [description, setDescription] = useState(item?.description || '');
-  const [type, setType] = useState(item?.type || '');
+  const [icon, setIcon] = useState(item?.icon || '');
   const [stackable, setStackable] = useState(item?.stackable ?? true);
   const [loading, setLoading] = useState(false);
   const [nameExists, setNameExists] = useState(false);
@@ -43,20 +40,20 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     if (item) {
       setName(item.name);
       setDescription(item.description || '');
-      setType(item.type);
+      setIcon(item.icon || '');
       setStackable(item.stackable);
     } else {
       setName('');
       setDescription('');
-      setType('');
+      setIcon('');
       setStackable(true);
     }
-    setNameExists(false); // Reset on modal open/item change
+    setNameExists(false);
   }, [item, isOpen]);
 
   useEffect(() => {
     const checkItemName = async () => {
-      if (!debouncedName || debouncedName === item?.name) { // Don't check if name is empty or unchanged for editing
+      if (!debouncedName || debouncedName === item?.name) {
         setNameExists(false);
         setCheckingName(false);
         return;
@@ -78,7 +75,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setCheckingName(false);
     };
 
-    if (isOpen) { // Only check when modal is open
+    if (isOpen) {
       checkItemName();
     }
   }, [debouncedName, item?.name, isOpen]);
@@ -87,24 +84,22 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     e.preventDefault();
     setLoading(true);
 
-    if (nameExists && name !== item?.name) { // Prevent saving if name exists and it's not the current item's name
+    if (nameExists && name !== item?.name) {
       showError("Un objet avec ce nom existe déjà.");
       setLoading(false);
       return;
     }
 
-    const itemData = { name, description, type, stackable };
+    const itemData = { name, description, icon: icon || null, stackable };
     let error = null;
 
     if (item) {
-      // Update existing item
       const { error: updateError } = await supabase
         .from('items')
         .update(itemData)
         .eq('id', item.id);
       error = updateError;
     } else {
-      // Create new item
       const { error: insertError } = await supabase
         .from('items')
         .insert(itemData);
@@ -163,19 +158,17 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="type" className="text-right text-black">
-                Type
+              <Label htmlFor="icon" className="text-right text-black">
+                Icône
               </Label>
-              <Select value={type} onValueChange={setType} disabled={loading}>
-                <SelectTrigger className="col-span-3 bg-white border-2 border-black rounded-none text-black focus:ring-0">
-                  <SelectValue placeholder="Sélectionner un type" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-2 border-black rounded-none text-black">
-                  {itemTypes.map(t => (
-                    <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="icon"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                className="col-span-3 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
+                placeholder="Nom de l'icône Lucide"
+                disabled={loading}
+              />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="stackable" className="text-right text-black">
@@ -191,7 +184,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={loading || nameExists && name !== item?.name || !name.trim() || !type.trim()} className="rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800">
+            <Button type="submit" disabled={loading || (nameExists && name !== item?.name) || !name.trim()} className="rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800">
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {item ? 'Sauvegarder les modifications' : 'Créer l\'objet'}
             </Button>
