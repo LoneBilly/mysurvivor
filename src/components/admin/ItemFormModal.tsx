@@ -26,10 +26,10 @@ interface ItemFormModalProps {
 }
 
 const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) => {
-  const [name, setName] = useState(item?.name || '');
-  const [description, setDescription] = useState(item?.description || '');
-  const [icon, setIcon] = useState(item?.icon || '');
-  const [stackable, setStackable] = useState(item?.stackable ?? true);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('');
+  const [stackable, setStackable] = useState(true);
   const [loading, setLoading] = useState(false);
   const [nameExists, setNameExists] = useState(false);
   const [checkingName, setCheckingName] = useState(false);
@@ -37,45 +37,35 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const debouncedName = useDebounce(name, 500);
 
   useEffect(() => {
-    if (item) {
-      setName(item.name);
-      setDescription(item.description || '');
-      setIcon(item.icon || '');
-      setStackable(item.stackable);
-    } else {
-      setName('');
-      setDescription('');
-      setIcon('');
-      setStackable(true);
+    if (isOpen) {
+      if (item) {
+        setName(item.name);
+        setDescription(item.description || '');
+        setIcon(item.icon || '');
+        setStackable(item.stackable);
+      } else {
+        setName('');
+        setDescription('');
+        setIcon('');
+        setStackable(true);
+      }
+      setNameExists(false);
     }
-    setNameExists(false);
   }, [item, isOpen]);
 
   useEffect(() => {
     const checkItemName = async () => {
-      if (!debouncedName) {
-        setNameExists(false);
-        setCheckingName(false);
-        return;
-      }
-      
-      if (item && debouncedName === item.name) {
+      if (!isOpen || !debouncedName || (item && debouncedName === item.name)) {
         setNameExists(false);
         setCheckingName(false);
         return;
       }
 
       setCheckingName(true);
-      let query = supabase
+      const { data, error } = await supabase
         .from('items')
-        .select('id')
+        .select('id', { count: 'exact' })
         .ilike('name', debouncedName);
-
-      if (item) {
-        query = query.neq('id', item.id);
-      }
-      
-      const { data, error } = await query.limit(1);
 
       if (error) {
         console.error("Error checking item name:", error);
@@ -86,16 +76,14 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setCheckingName(false);
     };
 
-    if (isOpen) {
-      checkItemName();
-    }
+    checkItemName();
   }, [debouncedName, item, isOpen]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    if (nameExists && name !== item?.name) {
+    if (nameExists) {
       showError("Un objet avec ce nom existe déjà.");
       setLoading(false);
       return;
@@ -130,74 +118,63 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-white text-black border-2 border-black shadow-[4px_4px_0px_#000] rounded-none p-6">
-        <DialogHeader>
-          <DialogTitle className="text-black">{item ? 'Modifier l\'objet' : 'Créer un nouvel objet'}</DialogTitle>
-          <DialogDescription className="text-gray-700">
-            {item ? 'Mettez à jour les détails de cet objet.' : 'Ajoutez un nouvel objet au jeu.'}
-          </DialogDescription>
+      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+        <DialogHeader className="text-center">
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+            {item ? 'Modifier l\'objet' : 'Créer un objet'}
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right text-black">
-                Nom
-              </Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="col-span-3 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
-                required
-                disabled={loading}
-              />
-              {checkingName && <Loader2 className="w-4 h-4 animate-spin text-black col-start-5" />}
-              {nameExists && debouncedName !== item?.name && !checkingName && (
-                <p className="col-span-4 text-right text-red-500 text-sm">Ce nom existe déjà !</p>
-              )}
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right text-black">
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="col-span-3 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
-                disabled={loading}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="icon" className="text-right text-black">
-                Icône
-              </Label>
-              <Input
-                id="icon"
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="col-span-3 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
-                placeholder="nom-du-fichier.png"
-                disabled={loading}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="stackable" className="text-right text-black">
-                Empilable
-              </Label>
-              <Checkbox
-                id="stackable"
-                checked={stackable}
-                onCheckedChange={(checked) => setStackable(!!checked)}
-                className="col-span-3 border-black data-[state=checked]:bg-black data-[state=checked]:text-white rounded-none"
-                disabled={loading}
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div>
+            <Label htmlFor="name" className="text-gray-300 font-mono">Nom</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
+              required
+              disabled={loading}
+            />
+            {checkingName && <Loader2 className="w-4 h-4 animate-spin text-white mt-1" />}
+            {nameExists && !checkingName && (
+              <p className="text-red-400 text-sm mt-1">Ce nom existe déjà !</p>
+            )}
           </div>
-          <DialogFooter>
-            <Button type="submit" disabled={loading || (nameExists && name !== item?.name) || !name.trim()} className="rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800">
+          <div>
+            <Label htmlFor="description" className="text-gray-300 font-mono">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
+            <Input
+              id="icon"
+              value={icon}
+              onChange={(e) => setIcon(e.target.value)}
+              className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
+              placeholder="ex: pomme.png"
+              disabled={loading}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="stackable"
+              checked={stackable}
+              onCheckedChange={(checked) => setStackable(!!checked)}
+              className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded"
+              disabled={loading}
+            />
+            <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button type="submit" disabled={loading || nameExists || !name.trim()} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {item ? 'Sauvegarder les modifications' : 'Créer l\'objet'}
+              {item ? 'Sauvegarder' : 'Créer l\'objet'}
             </Button>
           </DialogFooter>
         </form>

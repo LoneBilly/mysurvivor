@@ -46,35 +46,37 @@ const ZoneIconEditorModal = ({ isOpen, onClose, currentIcon, onSave }: ZoneIconE
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-white text-black border-2 border-black shadow-[4px_4px_0px_#000] rounded-none p-6">
-        <DialogHeader>
-          <DialogTitle className="text-black">Modifier l'icône de la zone</DialogTitle>
-          <DialogDescription className="text-gray-700">
-            Saisissez le nom d'une icône de la librairie Lucide React.
+      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+        <DialogHeader className="text-center">
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+            Modifier l'icône
+          </DialogTitle>
+          <DialogDescription className="text-gray-300 mt-1">
+            Saisissez un nom d'icône Lucide React.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+          <div className="py-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 flex items-center justify-center bg-gray-100 border-2 border-black">
-                <IconPreview className="w-8 h-8 text-black" />
+              <div className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/20 rounded-lg">
+                <IconPreview className="w-8 h-8 text-white" />
               </div>
               <div className="flex-1">
-                <Label htmlFor="icon-name" className="text-black">
+                <Label htmlFor="icon-name" className="text-gray-300 font-mono">
                   Nom de l'icône
                 </Label>
                 <Input
                   id="icon-name"
                   value={iconName}
                   onChange={(e) => setIconName(e.target.value)}
-                  className="bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
+                  className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
                   placeholder="Ex: Home, Shield, etc."
                 />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" className="rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800">
+            <Button type="submit" className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
               Sauvegarder
             </Button>
           </DialogFooter>

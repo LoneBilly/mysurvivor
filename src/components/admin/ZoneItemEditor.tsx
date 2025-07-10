@@ -248,13 +248,14 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                 <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400 self-start md:self-center truncate">
                   {item.name}
                 </Button>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-4">
-                  <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start sm:gap-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                  <div className="w-full sm:w-auto flex items-center justify-between gap-2">
                     <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id={`item-chance-${item.id}`}
                         type="number"
+                        inputMode="numeric"
                         min="0" max="100"
                         value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
                         onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
@@ -265,11 +266,12 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                       <span className="text-gray-400">%</span>
                     </div>
                   </div>
-                  <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start sm:gap-2">
+                  <div className="w-full sm:w-auto flex items-center justify-between gap-2">
                     <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Max</Label>
                     <Input
                       id={`item-quantity-${item.id}`}
                       type="number"
+                      inputMode="numeric"
                       min="1"
                       value={zoneItemSettings.get(item.id)?.max_quantity || '1'}
                       onChange={(e) => handleSettingChange(item.id, 'max_quantity', e.target.value)}
