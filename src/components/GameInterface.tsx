@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
@@ -80,7 +80,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
   const [justMovedTo, setJustMovedTo] = useState<MapCell | null>(null);
-  const hoverTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (currentView === 'base') {
@@ -110,9 +109,9 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
     }
   }, [gameState, currentView]);
 
-  const closeModal = useCallback(() => setModalState(prev => ({ ...prev, isOpen: false })), []);
+  const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
-  const handleExploreAction = useCallback(async (zone: { name: string; icon: string | null }) => {
+  const handleExploreAction = async (zone: { name: string; icon: string | null }) => {
     closeModal();
     if (!gameState) return;
 
@@ -123,9 +122,9 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
 
     setExplorationZone(zone);
     setCurrentView('exploration');
-  }, [gameState, saveGameState, closeModal]);
+  };
 
-  const handleBuildBase = useCallback(async () => {
+  const handleBuildBase = async () => {
     closeModal();
     if (!gameState) return;
 
@@ -140,18 +139,18 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
     });
 
     showSuccess("Votre campement a été installé !");
-  }, [gameState, saveGameState, closeModal]);
+  };
 
-  const handleEnterBase = useCallback(() => {
+  const handleEnterBase = () => {
     closeModal();
     setCurrentView('base');
-  }, [closeModal]);
+  };
 
   const handleBackToMap = () => {
     setCurrentView('map');
   };
 
-  const handleCellSelect = useCallback(async (cell: MapCell) => {
+  const handleCellSelect = async (cell: MapCell) => {
     if (!gameState) return;
 
     const { x, y, type, id } = cell;
@@ -225,7 +224,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
         ],
       });
     }
-  }, [gameState, closeModal, handleEnterBase, handleExploreAction, handleBuildBase, saveGameState]);
+  };
 
   const handleCellSelectRef = useRef(handleCellSelect);
   handleCellSelectRef.current = handleCellSelect;
@@ -237,40 +236,25 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
     }
   }, [gameState, justMovedTo]);
 
-  const handleExplorationCellHover = useCallback((x: number, y: number) => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
+  const handleExplorationCellHover = (x: number, y: number) => {
+    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
+      setExplorationPath(null);
+      return;
     }
 
-    hoverTimeoutRef.current = window.setTimeout(() => {
-      if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
-        setExplorationPath(null);
-        return;
-      }
+    const startPos = { x: gameState.exploration_x, y: gameState.exploration_y };
+    const endPos = { x, y };
 
-      const startPos = { x: gameState.exploration_x, y: gameState.exploration_y };
-      const endPos = { x, y };
+    if (startPos.x === endPos.x && startPos.y === endPos.y) {
+      setExplorationPath(null);
+      return;
+    }
 
-      if (startPos.x === endPos.x && startPos.y === endPos.y) {
-        setExplorationPath(null);
-        return;
-      }
+    const path = findPathBFS(startPos, endPos);
+    setExplorationPath(path);
+  };
 
-      const path = findPathBFS(startPos, endPos);
-      setExplorationPath(path);
-    }, 30);
-  }, [gameState]);
-
-  const confirmExitExploration = useCallback(async () => {
-    closeModal();
-    await saveGameState({
-      exploration_x: null,
-      exploration_y: null,
-    });
-    setCurrentView('map');
-  }, [saveGameState, closeModal]);
-
-  const handleExplorationCellClick = useCallback(async (x: number, y: number) => {
+  const handleExplorationCellClick = async (x: number, y: number) => {
     if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;
 
     const clickedCellIsEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
@@ -318,7 +302,16 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
         }
       }
     }
-  }, [gameState, explorationPath, saveGameState, confirmExitExploration, closeModal]);
+  };
+
+  const confirmExitExploration = async () => {
+    closeModal();
+    await saveGameState({
+      exploration_x: null,
+      exploration_y: null,
+    });
+    setCurrentView('map');
+  };
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);
