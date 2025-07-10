@@ -31,6 +31,9 @@ const ItemDetailModal = ({ isOpen, onClose, item }: ItemDetailModalProps) => {
               <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
                 {item.items?.name}
               </DialogTitle>
+              <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 capitalize">
+                {item.items?.type || 'Objet'}
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>

@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Search, Plus, PackagePlus, Percent } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, ArrowLeft, Search, Plus } from 'lucide-react';
 import * as LucideIcons from "lucide-react";
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
@@ -13,7 +13,6 @@ import ItemFormModal from './ItemFormModal';
 const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [spawnChances, setSpawnChances] = useState<Map<number, number>>(new Map());
-  const [spawnQuantities, setSpawnQuantities] = useState<Map<number, number>>(new Map());
   const initialZoneItemsRef = useRef<ZoneItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [zoneName, setZoneName] = useState(zone.type);
@@ -26,56 +25,76 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const [isItemFormModalOpen, setIsItemFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
-  const handleSaveItemSettings = useCallback(async (itemId: number) => {
-    const chance = spawnChances.get(itemId) || 0;
-    const quantity = spawnQuantities.get(itemId) || 1;
+  const handleSaveProbabilities = useCallback(async () => {
+    const initialChances = new Map(initialZoneItemsRef.current.map(i => [i.item_id, i.spawn_chance]));
+    const currentChances = new Map<number, number>();
+    for (const [key, value] of spawnChances.entries()) {
+      if (value > 0) {
+        currentChances.set(key, value);
+      }
+    }
 
-    const initialItem = initialZoneItemsRef.current.find(i => i.item_id === itemId);
-    const initialChance = initialItem?.spawn_chance ?? 0;
-    const initialQuantity = initialItem?.max_quantity ?? 1;
+    let areMapsEqual = initialChances.size === currentChances.size;
+    if (areMapsEqual) {
+      for (const [key, value] of initialChances.entries()) {
+        if (currentChances.get(key) !== value) {
+          areMapsEqual = false;
+          break;
+        }
+      }
+    }
 
-    if (chance === initialChance && quantity === initialQuantity) {
-      return; // No changes
+    if (areMapsEqual) {
+      return;
+    }
+
+    const itemsToUpsert: ZoneItem[] = [];
+    const itemIdsToDelete: number[] = [];
+
+    for (const [itemId, chance] of currentChances.entries()) {
+      if (initialChances.get(itemId) !== chance) {
+        itemsToUpsert.push({ zone_id: zone.id, item_id: itemId, spawn_chance: chance });
+      }
+    }
+
+    for (const [itemId] of initialChances.entries()) {
+      if (!currentChances.has(itemId)) {
+        itemIdsToDelete.push(itemId);
+      }
     }
 
     try {
-      if (chance > 0) {
-        const { error } = await supabase.from('zone_items').upsert({
-          zone_id: zone.id,
-          item_id: itemId,
-          spawn_chance: chance,
-          max_quantity: quantity
-        }, { onConflict: 'zone_id,item_id' });
-        if (error) throw error;
-      } else if (initialChance > 0) {
-        const { error } = await supabase.from('zone_items').delete().eq('zone_id', zone.id).eq('item_id', itemId);
-        if (error) throw error;
+      const promises = [];
+      if (itemsToUpsert.length > 0) {
+        promises.push(supabase.from('zone_items').upsert(itemsToUpsert, { onConflict: 'zone_id,item_id' }));
+      }
+      if (itemIdsToDelete.length > 0) {
+        promises.push(supabase.from('zone_items').delete().eq('zone_id', zone.id).in('item_id', itemIdsToDelete));
       }
       
-      const newItemRef = [...initialZoneItemsRef.current];
-      const index = newItemRef.findIndex(i => i.item_id === itemId);
-      if (chance > 0) {
-        const updatedItemData = { zone_id: zone.id, item_id: itemId, spawn_chance: chance, max_quantity: quantity };
-        if (index > -1) {
-          newItemRef[index] = { ...newItemRef[index], ...updatedItemData };
-        } else {
-          newItemRef.push(updatedItemData);
-        }
-      } else if (index > -1) {
-        newItemRef.splice(index, 1);
+      if (promises.length > 0) {
+        const results = await Promise.all(promises);
+        for (const res of results) { if (res.error) throw res.error; }
+        showSuccess("Probabilités sauvegardées.");
       }
-      initialZoneItemsRef.current = newItemRef;
 
-      showSuccess("Paramètres de l'objet sauvegardés.");
+      initialZoneItemsRef.current = Array.from(currentChances.entries()).map(([itemId, chance]) => ({
+        zone_id: zone.id,
+        item_id: itemId,
+        spawn_chance: chance
+      }));
+
     } catch (error: any) {
-      showError("Erreur de sauvegarde.");
+      showError("Erreur de sauvegarde des probabilités.");
       console.error(error);
     }
-  }, [zone.id, spawnChances, spawnQuantities]);
+  }, [zone.id, spawnChances]);
 
   const handleZoneNameSave = async () => {
     if (zoneName === initialZoneNameRef.current) return;
+
     const { error } = await supabase.from('map_layout').update({ type: zoneName }).eq('id', zone.id);
+
     if (error) {
       showError("Erreur de mise à jour du nom.");
       setZoneName(initialZoneNameRef.current);
@@ -87,7 +106,9 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
 
   const handleZoneIconSave = async (iconName: string) => {
     if (iconName === initialZoneIconRef.current) return;
+
     const { error } = await supabase.from('map_layout').update({ icon: iconName }).eq('id', zone.id);
+
     if (error) {
       showError("Erreur de mise à jour de l'icône.");
       setZoneIcon(initialZoneIconRef.current);
@@ -115,13 +136,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
       const initialData = zoneItemsRes.data || [];
       initialZoneItemsRef.current = initialData;
       const chancesMap = new Map<number, number>();
-      const quantitiesMap = new Map<number, number>();
-      initialData.forEach(zi => {
-        chancesMap.set(zi.item_id, zi.spawn_chance);
-        quantitiesMap.set(zi.item_id, zi.max_quantity || 1);
-      });
+      initialData.forEach(zi => chancesMap.set(zi.item_id, zi.spawn_chance));
       setSpawnChances(chancesMap);
-      setSpawnQuantities(quantitiesMap);
 
     } catch (error: any) {
       showError("Erreur de chargement.");
@@ -144,17 +160,6 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
       newChances.delete(itemId);
     }
     setSpawnChances(newChances);
-  };
-
-  const handleQuantityChange = (itemId: number, quantity: string) => {
-    const newQuantities = new Map(spawnQuantities);
-    const value = parseInt(quantity, 10);
-    if (!isNaN(value) && value >= 1) {
-      newQuantities.set(itemId, value);
-    } else if (quantity === '') {
-      newQuantities.set(itemId, 1);
-    }
-    setSpawnQuantities(newQuantities);
   };
 
   const handleEditItem = (itemToEdit: Item) => {
@@ -218,31 +223,18 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                 <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400">
                   {item.name}
                 </Button>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <PackagePlus className="w-4 h-4 text-gray-400" />
-                    <Input
-                      type="number"
-                      min="1"
-                      value={spawnQuantities.get(item.id) || ''}
-                      onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                      onBlur={() => handleSaveItemSettings(item.id)}
-                      className="w-20 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="1"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Percent className="w-4 h-4 text-gray-400" />
-                    <Input
-                      type="number"
-                      min="0" max="100"
-                      value={spawnChances.get(item.id) || ''}
-                      onChange={(e) => handleChanceChange(item.id, e.target.value)}
-                      onBlur={() => handleSaveItemSettings(item.id)}
-                      className="w-20 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0"
-                    />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id={`item-${item.id}`}
+                    type="number"
+                    min="0" max="100"
+                    value={spawnChances.get(item.id) || ''}
+                    onChange={(e) => handleChanceChange(item.id, e.target.value)}
+                    onBlur={handleSaveProbabilities}
+                    className="w-24 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="0"
+                  />
+                  <span className="text-gray-400">%</span>
                 </div>
               </div>
             ))}
