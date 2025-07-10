@@ -114,7 +114,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     ghostNode.style.width = `${node.offsetWidth}px`;
     ghostNode.style.height = `${node.offsetHeight}px`;
     ghostNode.style.transform = 'scale(1.1) rotate(3deg)';
-    ghostNode.classList.add('shadow-2xl');
+    ghostNode.classList.add('shadow-2xl', 'shadow-black');
     document.body.appendChild(ghostNode);
     draggedItemNode.current = ghostNode;
 
@@ -208,22 +208,22 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full bg-gray-900/70 backdrop-blur-xl text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
-        <DialogHeader className="text-center mb-4">
+      <DialogContent className="max-w-4xl w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-700/30 via-gray-900 to-black text-white border-2 border-neutral-700 shadow-2xl rounded-2xl p-4 sm:p-6">
+        <DialogHeader className="text-center mb-4 pb-4 border-b border-neutral-700">
           <div className="flex items-center justify-center gap-3">
-            <Package className="w-7 h-7 text-white" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire</DialogTitle>
+            <Package className="w-8 h-8 text-amber-300" />
+            <DialogTitle className="text-white font-mono tracking-widest uppercase text-2xl">Équipement</DialogTitle>
           </div>
-          <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
-            <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS DÉBLOQUÉS
+          <DialogDescription className="text-sm text-neutral-400 font-mono mt-2">
+            CAPACITÉ: <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS}
           </DialogDescription>
         </DialogHeader>
         <div
           ref={gridRef}
-          className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 bg-black/40 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
+          className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3 p-4 bg-black/50 rounded-lg border border-neutral-800 shadow-inner shadow-black/50 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
-            <div className="h-full flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+            <div className="h-48 flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>
           ) : (
             slots.map((item, index) => (
               <InventorySlot
