@@ -36,9 +36,16 @@ function App() {
         e.preventDefault();
       }
     };
+    const handleContext = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
     document.addEventListener('touchmove', preventZoom, { passive: false });
+    document.addEventListener('contextmenu', handleContext);
+
     return () => {
       document.removeEventListener('touchmove', preventZoom);
+      document.removeEventListener('contextmenu', handleContext);
     };
   }, []);
 

@@ -11,29 +11,37 @@ interface ItemIconProps {
 const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
   const [error, setError] = useState(false);
 
+  const fallbackIcon = <LucideIcons.Package className={cn("w-full h-full text-gray-400", className)} />;
+
   if (!iconName || error) {
-    return <LucideIcons.Package className={cn("w-full h-full text-gray-400", className)} />;
+    return fallbackIcon;
   }
 
   const isUrl = iconName.startsWith('http');
 
   if (isUrl) {
     return (
-      <img
-        src={iconName}
-        alt={alt}
-        className={cn("w-full h-full object-contain", className)}
-        onError={() => setError(true)}
-      />
+      <div className="absolute inset-0 p-1">
+        <img
+          src={iconName}
+          alt={alt}
+          className={cn("w-full h-full object-contain", className)}
+          onError={() => setError(true)}
+        />
+      </div>
     );
   }
 
   const LucideIcon = (LucideIcons as any)[iconName];
   if (LucideIcon) {
-    return <LucideIcon className={cn("w-full h-full", className)} />;
+    return (
+      <div className="absolute inset-0 p-1">
+        <LucideIcon className={cn("w-full h-full", className)} />
+      </div>
+    );
   }
 
-  return <LucideIcons.HelpCircle className={cn("w-full h-full text-gray-400", className)} />;
+  return fallbackIcon;
 };
 
 export default ItemIcon;

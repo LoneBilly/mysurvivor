@@ -3,6 +3,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Package, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
@@ -148,16 +149,16 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl w-full bg-black/70 backdrop-blur-xl border-2 border-neutral-700/50 shadow-2xl rounded-2xl p-4 sm:p-6">
-        <DialogHeader className="flex-row items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+        <DialogHeader className="text-center mb-4">
+          <div className="flex items-center justify-center gap-3">
             <Package className="w-7 h-7 text-white" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
               Inventaire
             </DialogTitle>
           </div>
-          <div className="text-sm text-neutral-400 font-mono">
-            <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS
-          </div>
+          <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
+            <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS DÉBLOQUÉS
+          </DialogDescription>
         </DialogHeader>
         
         <div 

@@ -79,8 +79,9 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onDrop, isBeingDr
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            style={{ touchAction: 'none' }} // Améliore la réactivité sur mobile
             className={cn(
-              "relative aspect-square flex items-center justify-center p-1 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing",
+              "relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing",
               "bg-sky-900/50 border-sky-700/60",
               isBeingDragged && "opacity-30",
               isDragOver && "bg-white/10 ring-2 ring-sky-400"
