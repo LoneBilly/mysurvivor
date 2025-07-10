@@ -1,43 +1,52 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameState, GameStats, InventoryItem, BaseConstruction } from '@/types/game';
+import { GameState, GameStats, InventoryItem, BaseConstruction, MapCell } from '@/types/game';
 import { showError } from '@/utils/toast';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 
 export const useGameState = () => {
   const { user } = useAuth();
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
+  const [loadingState, setLoadingState] = useState({ isLoading: true, message: 'Initialisation...' });
 
   const loadGameState = useCallback(async () => {
     if (!user) {
-      setLoading(false);
+      setLoadingState({ isLoading: false, message: '' });
       return;
     }
     
-    setLoading(true);
+    setLoadingState({ isLoading: true, message: 'Connexion au serveur...' });
 
     try {
-      const [playerStateRes, inventoryRes, baseRes] = await Promise.all([
-        supabase
-          .from('player_states')
-          .select(`
-            *,
-            current_zone:map_layout!fk_current_zone(x, y),
-            base_zone:map_layout!fk_base_zone(x, y)
-          `)
-          .eq('id', user.id)
-          .single(),
-        supabase
-          .from('inventories')
-          .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
-          .eq('player_id', user.id),
-        supabase
-          .from('base_constructions')
-          .select('x, y, type')
-          .eq('player_id', user.id)
-      ]);
+      setLoadingState(prev => ({ ...prev, message: 'Chargement des zones...' }));
+      const mapLayoutRes = await supabase.from('map_layout').select('*').order('y').order('x');
+      if (mapLayoutRes.error) throw mapLayoutRes.error;
+      setMapLayout(mapLayoutRes.data as MapCell[]);
+
+      setLoadingState(prev => ({ ...prev, message: 'Chargement de l\'état du joueur...' }));
+      const playerStateRes = await supabase
+        .from('player_states')
+        .select(`
+          *,
+          current_zone:map_layout!fk_current_zone(x, y),
+          base_zone:map_layout!fk_base_zone(x, y)
+        `)
+        .eq('id', user.id)
+        .single();
+
+      setLoadingState(prev => ({ ...prev, message: 'Chargement de l\'inventaire...' }));
+      const inventoryRes = await supabase
+        .from('inventories')
+        .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
+        .eq('player_id', user.id);
+
+      setLoadingState(prev => ({ ...prev, message: 'Chargement du campement...' }));
+      const baseRes = await supabase
+        .from('base_constructions')
+        .select('x, y, type')
+        .eq('player_id', user.id);
 
       if (playerStateRes.error && playerStateRes.error.code !== 'PGRST116') throw playerStateRes.error;
       if (inventoryRes.error) throw inventoryRes.error;
@@ -46,6 +55,7 @@ export const useGameState = () => {
       if (playerStateRes.data) {
         const { current_zone, base_zone, ...restOfData } = playerStateRes.data;
         
+        setLoadingState(prev => ({ ...prev, message: 'Préparation des objets...' }));
         const inventoryData = inventoryRes.data || [];
         const inventoryWithUrls = await Promise.all(
           inventoryData.map(async (item) => {
@@ -59,7 +69,6 @@ export const useGameState = () => {
           })
         );
 
-        // Preload item images
         inventoryWithUrls.forEach(item => {
           if (item.items?.signedIconUrl) {
             const img = new Image();
@@ -67,6 +76,7 @@ export const useGameState = () => {
           }
         });
 
+        setLoadingState(prev => ({ ...prev, message: 'Finalisation...' }));
         const transformedState: GameState = {
           ...restOfData,
           id: restOfData.id,
@@ -90,7 +100,7 @@ export const useGameState = () => {
       console.error('Erreur lors du chargement de l\'état du jeu:', err);
       showError('Erreur de chargement des données du jeu.');
     } finally {
-      setLoading(false);
+      setLoadingState({ isLoading: false, message: '' });
     }
   }, [user]);
 
@@ -146,7 +156,8 @@ export const useGameState = () => {
 
   return {
     gameState,
-    loading,
+    mapLayout,
+    loadingState,
     saveGameState,
     updateStats,
     reload: loadGameState,
