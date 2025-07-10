@@ -15,6 +15,7 @@ import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -73,6 +74,8 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
+  const [hoveredExplorationCell, setHoveredExplorationCell] = useState<{x: number, y: number} | null>(null);
+  const debouncedHoveredCell = useDebounce(hoveredExplorationCell, 50);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -237,13 +240,21 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
   }, [gameState, justMovedTo]);
 
   const handleExplorationCellHover = (x: number, y: number) => {
-    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
+    if (x < 0 || y < 0) {
+      setHoveredExplorationCell(null);
+    } else {
+      setHoveredExplorationCell({ x, y });
+    }
+  };
+
+  useEffect(() => {
+    if (!debouncedHoveredCell || !gameState || gameState.exploration_x === null || gameState.exploration_y === null) {
       setExplorationPath(null);
       return;
     }
 
     const startPos = { x: gameState.exploration_x, y: gameState.exploration_y };
-    const endPos = { x, y };
+    const endPos = debouncedHoveredCell;
 
     if (startPos.x === endPos.x && startPos.y === endPos.y) {
       setExplorationPath(null);
@@ -252,7 +263,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
 
     const path = findPathBFS(startPos, endPos);
     setExplorationPath(path);
-  };
+  }, [debouncedHoveredCell, gameState?.exploration_x, gameState?.exploration_y]);
 
   const handleExplorationCellClick = async (x: number, y: number) => {
     if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;

@@ -22,6 +22,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
   const hasCentered = useRef(false);
+  const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
 
   const centerViewport = useCallback((x: number, y: number, behavior: 'auto' | 'smooth' = 'auto') => {
     if (viewportRef.current) {
@@ -92,7 +93,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   }, [playerPosition, updateIndicators]);
 
   return (
-    <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
+    <div className="relative w-full h-full" onMouseLeave={() => { onCellHover(-1, -1); setHoveredCell(null); }}>
       <div
         ref={viewportRef}
         onScroll={updateIndicators}
@@ -125,11 +126,12 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
               );
               
               const isClickable = (isTarget && canAffordMove) || canClickEntrance;
+              const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
 
               return (
                 <button
                   key={`${x}-${y}`}
-                  onMouseEnter={() => onCellHover(x, y)}
+                  onMouseEnter={() => { onCellHover(x, y); setHoveredCell({x, y}); }}
                   onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
                     "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
@@ -142,6 +144,9 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                     isAffordablePath && "bg-sky-400/30 border-sky-400/50",
                     isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
                     
+                    // Hover style
+                    isHovered && !isPath && !isTarget && "bg-white/20 border-white/40",
+
                     // Target styles
                     isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
                     isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
