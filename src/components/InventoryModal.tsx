@@ -7,17 +7,18 @@ import {
 } from "@/components/ui/dialog";
 import { Package, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
 import { GameState } from "@/types/game";
-import { getCachedSignedUrl } from "@/utils/iconCache";
 
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   gameState: GameState | null;
+  items: InventoryItem[] | null;
+  loading: boolean;
+  onInventoryChange: () => void;
 }
 
 export interface InventoryItem {
@@ -36,10 +37,8 @@ export interface InventoryItem {
 
 const TOTAL_SLOTS = 50;
 
-const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => {
-  const { user } = useAuth();
+const InventoryModal = ({ isOpen, onClose, gameState, items, loading, onInventoryChange }: InventoryModalProps) => {
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
-  const [loading, setLoading] = useState(true);
   
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -49,52 +48,17 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   const unlockedSlots = gameState?.unlocked_slots ?? 0;
 
-  const fetchInventory = useCallback(async () => {
-    if (!user) return;
-
-    const { data: inventoryData, error } = await supabase
-      .from('inventories')
-      .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
-      .eq('player_id', user.id);
-
-    if (error) {
-      console.error("Error fetching inventory:", error);
-      setLoading(false);
-      return;
-    }
-
-    const itemsWithSignedUrls = await Promise.all(
-      inventoryData.map(async (item) => {
-        if (item.items && item.items.icon && item.items.icon.includes('.')) {
-          const signedUrl = await getCachedSignedUrl(item.items.icon);
-          if (signedUrl) {
-            return { ...item, items: { ...item.items, signedIconUrl: signedUrl } };
-          }
-        }
-        return item;
-      })
-    );
-
+  useEffect(() => {
     const newSlots = Array(TOTAL_SLOTS).fill(null);
-    itemsWithSignedUrls.forEach((item) => {
-      if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
-        newSlots[item.slot_position] = item;
-      }
-    });
-    setSlots(newSlots);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchInventory();
+    if (items) {
+      items.forEach((item) => {
+        if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
+          newSlots[item.slot_position] = item;
+        }
+      });
     }
-  }, [isOpen, fetchInventory]);
-
-  useEffect(() => {
-    setSlots(Array(TOTAL_SLOTS).fill(null));
-    setLoading(true);
-  }, [user]);
+    setSlots(newSlots);
+  }, [items]);
 
   const stopAutoScroll = useCallback(() => {
     if (scrollIntervalRef.current) {
@@ -136,9 +100,11 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       if (results.some(res => res.error)) {
         showError("Erreur de mise à jour de l'inventaire.");
         setSlots(originalSlots);
+      } else {
+        onInventoryChange();
       }
     }
-  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll]);
+  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, onInventoryChange]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
