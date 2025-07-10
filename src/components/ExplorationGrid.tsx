@@ -1,9 +1,9 @@
-import { useLayoutEffect, useRef, useState, useCallback, useEffect, useMemo } from "react";
-import { cn } from "@/lib/utils";
+import { useLayoutEffect, useRef, useState, useCallback, useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useDebounce } from "@/hooks/useDebounce";
 import ExplorationCell from "./ExplorationCell";
+import ExplorationPathOverlay from "./ExplorationPathOverlay";
 
 const GRID_SIZE = 51;
 const CELL_SIZE_PX = 40;
@@ -93,11 +93,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
     }
   }, [debouncedHoveredCell, playerPosition]);
 
-  const pathSet = useMemo(() => {
-    if (!currentPath) return new Set<string>();
-    return new Set(currentPath.map(p => `${p.x},${p.y}`));
-  }, [currentPath]);
-
   const handleCellHover = useCallback((x: number, y: number) => {
     setHoveredCell({ x, y });
   }, []);
@@ -176,6 +171,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
     <div className="relative w-full h-full" onMouseLeave={() => setHoveredCell(null)}>
       <div ref={viewportRef} className="w-full h-full overflow-auto no-scrollbar">
         <div className="relative" style={{ width: `${colVirtualizer.getTotalSize()}px`, height: `${rowVirtualizer.getTotalSize()}px` }}>
+          <ExplorationPathOverlay path={currentPath} currentEnergy={currentEnergy} />
           {rowVirtualizer.getVirtualItems().map(virtualRow => (
             colVirtualizer.getVirtualItems().map(virtualColumn => {
               const y = virtualRow.index;
@@ -186,17 +182,9 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
               const isPlayerOnCell = playerPosition?.x === x && playerPosition?.y === y;
               const canClickEntrance = isEntrance && playerPosition && (isPlayerOnCell || (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1));
 
-              const isOnPath = pathSet.has(key);
-              let pathInfo = null;
-              if (isOnPath && currentPath && currentPath.length > 1) {
-                const cost = currentPath.length - 1;
-                pathInfo = {
-                  isOnPath: true,
-                  isPathTarget: currentPath[cost].x === x && currentPath[cost].y === y,
-                  canAfford: cost <= currentEnergy,
-                  cost: cost,
-                };
-              }
+              const isPathTarget = !!currentPath && currentPath.length > 1 && currentPath[currentPath.length - 1].x === x && currentPath[currentPath.length - 1].y === y;
+              const pathCost = currentPath ? currentPath.length - 1 : 0;
+              const canAffordPath = pathCost <= currentEnergy;
 
               return (
                 <ExplorationCell
@@ -206,7 +194,9 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
                   isEntrance={isEntrance}
                   isPlayerOnCell={!!isPlayerOnCell}
                   canClickEntrance={!!canClickEntrance}
-                  pathInfo={pathInfo}
+                  isPathTarget={isPathTarget}
+                  pathCost={pathCost}
+                  canAffordPath={canAffordPath}
                   onMouseEnter={handleCellHover}
                   onClick={handleCellClick}
                   style={{
