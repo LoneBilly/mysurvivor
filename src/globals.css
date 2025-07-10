@@ -100,18 +100,3 @@
       radial-gradient(at 79% 53%, hsla(343, 68%, 79%, 0.1) 0px, transparent 50%);
   background-attachment: fixed;
 }
-
-@layer components {
-  .path-affordable {
-    @apply bg-sky-400/30 border-sky-400/50;
-  }
-  .path-unaffordable {
-    @apply bg-amber-500/30 border-amber-500/50;
-  }
-  .path-target-affordable {
-    @apply bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80;
-  }
-  .path-target-unaffordable {
-    @apply bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80;
-  }
-}
