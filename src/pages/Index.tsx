@@ -4,7 +4,7 @@ import { useGameState } from "@/hooks/useGameState";
 import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const { gameState, mapLayout, loading, loadingMessage, saveGameState } = useGameState();
+  const { gameState, mapLayout, loading, loadingMessage, saveGameState, reload } = useGameState();
 
   useEffect(() => {
     document.body.classList.add('landing-page-bg');
@@ -45,6 +45,7 @@ const Index = () => {
       gameState={gameState}
       mapLayout={mapLayout}
       saveGameState={saveGameState}
+      reloadGameState={reload}
     />
   );
 };

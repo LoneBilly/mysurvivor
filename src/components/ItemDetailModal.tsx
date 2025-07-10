@@ -9,14 +9,18 @@ import {
 import { Button } from "@/components/ui/button";
 import ItemIcon from "./ItemIcon";
 import { InventoryItem } from "@/types/game";
+import { cn } from "@/lib/utils";
 
 interface ItemDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: InventoryItem | null;
+  onUse: () => void;
+  onDropOne: () => void;
+  onDropAll: () => void;
 }
 
-const ItemDetailModal = ({ isOpen, onClose, item }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }: ItemDetailModalProps) => {
   if (!item) return null;
 
   return (
@@ -31,9 +35,6 @@ const ItemDetailModal = ({ isOpen, onClose, item }: ItemDetailModalProps) => {
               <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
                 {item.items?.name}
               </DialogTitle>
-              <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 capitalize">
-                {item.items?.type || 'Objet'}
-              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -43,10 +44,18 @@ const ItemDetailModal = ({ isOpen, onClose, item }: ItemDetailModalProps) => {
           )}
           <p className="text-gray-400">Quantité: <span className="font-bold text-white">{item.quantity}</span></p>
         </div>
-        <DialogFooter>
-          <Button onClick={onClose} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
-            Fermer
+        <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+          <Button onClick={onUse} disabled className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20 disabled:opacity-50">
+            Utiliser
           </Button>
+          <div className="flex w-full gap-2">
+            <Button onClick={onDropOne} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
+              Jeter x1
+            </Button>
+            <Button onClick={onDropAll} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
+              Jeter tout
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

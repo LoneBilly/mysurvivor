@@ -6,23 +6,26 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Package, Loader2 } from "lucide-react";
-import { useEffect, useState, useCallback, useRef, MouseEvent, TouchEvent } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { InventoryItem } from "@/types/game";
 import ItemDetailModal from "./ItemDetailModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   inventory: InventoryItem[];
   unlockedSlots: number;
+  onUpdate: (silent?: boolean) => Promise<void>;
 }
 
 const TOTAL_SLOTS = 50;
 
-const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: InventoryModalProps) => {
+const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }: InventoryModalProps) => {
+  const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
@@ -54,18 +57,18 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
 
   const handleDragEnd = useCallback(async () => {
     stopAutoScroll();
-    const fromIndex = draggedItemIndex;
-    const toIndex = dragOverIndex;
-
     if (draggedItemNode.current) {
       document.body.removeChild(draggedItemNode.current);
       draggedItemNode.current = null;
     }
 
+    const fromIndex = draggedItemIndex;
+    const toIndex = dragOverIndex;
+
     setDraggedItemIndex(null);
     setDragOverIndex(null);
 
-    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex || !user) return;
     if (toIndex >= unlockedSlots) {
       showError("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
       return;
@@ -73,21 +76,26 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
 
     const originalSlots = [...slots];
     const newSlots = [...slots];
-    [newSlots[fromIndex], newSlots[toIndex]] = [newSlots[toIndex], newSlots[fromIndex]];
+    const itemFrom = newSlots[fromIndex];
+    
+    if (!itemFrom) return;
+
+    const itemTo = newSlots[toIndex];
+    newSlots[fromIndex] = itemTo;
+    newSlots[toIndex] = itemFrom;
     setSlots(newSlots);
 
-    const updates = [];
-    if (newSlots[toIndex]) updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', newSlots[toIndex]!.id));
-    if (newSlots[fromIndex]) updates.push(supabase.from('inventories').update({ slot_position: fromIndex }).eq('id', newSlots[fromIndex]!.id));
+    const { error } = await supabase.rpc('swap_inventory_items', {
+        p_from_slot: fromIndex,
+        p_to_slot: toIndex
+    });
 
-    if (updates.length > 0) {
-      const results = await Promise.all(updates);
-      if (results.some(res => res.error)) {
+    if (error) {
         showError("Erreur de mise à jour de l'inventaire.");
+        console.error(error);
         setSlots(originalSlots);
-      }
     }
-  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll]);
+  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
@@ -154,6 +162,52 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
 
   const handleItemClick = (item: InventoryItem) => {
     setDetailedItem(item);
+  };
+
+  const handleUseItem = () => {
+    showError("Cette fonctionnalité n'est pas encore disponible.");
+  };
+
+  const handleDropOneItem = async () => {
+    if (!detailedItem) return;
+
+    let error;
+    if (detailedItem.quantity > 1) {
+      ({ error } = await supabase
+        .from('inventories')
+        .update({ quantity: detailedItem.quantity - 1 })
+        .eq('id', detailedItem.id));
+    } else {
+      ({ error } = await supabase
+        .from('inventories')
+        .delete()
+        .eq('id', detailedItem.id));
+    }
+
+    if (error) {
+      showError("Erreur lors de la suppression de l'objet.");
+    } else {
+      showSuccess("Objet jeté.");
+      setDetailedItem(null);
+      onUpdate(true);
+    }
+  };
+
+  const handleDropAllItems = async () => {
+    if (!detailedItem) return;
+
+    const { error } = await supabase
+      .from('inventories')
+      .delete()
+      .eq('id', detailedItem.id);
+
+    if (error) {
+      showError("Erreur lors de la suppression des objets.");
+    } else {
+      showSuccess("Objets jetés.");
+      setDetailedItem(null);
+      onUpdate(true);
+    }
   };
 
   useEffect(() => {
@@ -228,6 +282,9 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
           isOpen={!!detailedItem}
           onClose={() => setDetailedItem(null)}
           item={detailedItem}
+          onUse={handleUseItem}
+          onDropOne={handleDropOneItem}
+          onDropAll={handleDropAllItems}
         />
       </DialogContent>
     </Dialog>

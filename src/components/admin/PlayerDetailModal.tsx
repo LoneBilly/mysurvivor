@@ -1,169 +1,173 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from '@/integrations/supabase/client';
-import { PlayerProfile } from '@/types/admin';
-import { Loader2, Home, ShieldBan, ShieldCheck, KeyRound } from 'lucide-react';
+import { PlayerProfile } from './PlayerManager';
+import { Loader2, Ban, CheckCircle, Home, User, Package, Calendar } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { MapCell } from '@/types/game';
+import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
+import AdminBaseViewer from './AdminBaseViewer';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   player: PlayerProfile;
+  onPlayerUpdate: (player: PlayerProfile) => void;
 }
 
-interface PlayerDetails extends PlayerProfile {
-  base_zone_id: number | null;
-  base_location: string;
-}
-
-const PlayerDetailModal = ({ isOpen, onClose, player }: PlayerDetailModalProps) => {
-  const [details, setDetails] = useState<PlayerDetails | null>(null);
+const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
+  const [baseLocation, setBaseLocation] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
-  const [mapZones, setMapZones] = useState<MapCell[]>([]);
-  const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
-
-  const fetchDetails = useCallback(async () => {
-    if (!isOpen) return;
-    setLoadingDetails(true);
-
-    const { data: playerState, error } = await supabase
-      .from('player_states')
-      .select('base_zone_id')
-      .eq('id', player.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      showError("Erreur de chargement des détails du joueur.");
-      console.error(error);
-      setLoadingDetails(false);
-      return;
-    }
-
-    let baseLocation = "Aucune";
-    let baseZoneId = playerState?.base_zone_id || null;
-
-    if (baseZoneId) {
-      const { data: zoneData } = await supabase
-        .from('map_layout')
-        .select('type')
-        .eq('id', baseZoneId)
-        .single();
-      if (zoneData) {
-        baseLocation = zoneData.type;
-      }
-    }
-
-    setDetails({
-      ...player,
-      base_zone_id: baseZoneId,
-      base_location: baseLocation,
-    });
-    setLoadingDetails(false);
-  }, [isOpen, player]);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
+  const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
+  const [banReason, setBanReason] = useState('');
 
   useEffect(() => {
-    fetchDetails();
     if (isOpen) {
-      const fetchMapZones = async () => {
-        const { data, error } = await supabase.from('map_layout').select('id, type').order('type');
-        if (error) {
-          showError("Impossible de charger les zones de la carte.");
+      const fetchDetails = async () => {
+        setLoadingDetails(true);
+        const { data, error } = await supabase
+          .from('player_states')
+          .select('base_zone_id')
+          .eq('id', player.id)
+          .single();
+        
+        if (error || !data?.base_zone_id) {
+          setBaseLocation('Aucune');
         } else {
-          setMapZones(data as MapCell[]);
+          const { data: zoneData, error: zoneError } = await supabase
+            .from('map_layout')
+            .select('type')
+            .eq('id', data.base_zone_id)
+            .single();
+          
+          if (zoneError) {
+            setBaseLocation('Inconnue');
+          } else {
+            setBaseLocation(zoneData.type);
+          }
         }
+        setLoadingDetails(false);
       };
-      fetchMapZones();
+      fetchDetails();
     }
-  }, [fetchDetails, isOpen]);
+  }, [isOpen, player.id]);
 
-  const handleBaseLocationChange = async (newZoneIdStr: string) => {
-    const newZoneId = newZoneIdStr ? parseInt(newZoneIdStr, 10) : null;
-    
+  const handleToggleBan = async () => {
+    const newBanStatus = !player.is_banned;
     const { error } = await supabase
-      .from('player_states')
-      .update({ base_zone_id: newZoneId })
+      .from('profiles')
+      .update({ is_banned: newBanStatus, ban_reason: newBanStatus ? banReason : null })
       .eq('id', player.id);
 
     if (error) {
-      showError("Erreur lors de la mise à jour de la base.");
-      console.error(error);
+      showError(`Erreur lors de la modification du statut de ${player.username}.`);
     } else {
-      showSuccess("Emplacement de la base mis à jour.");
-      fetchDetails(); // Refresh details
+      showSuccess(`Le statut de ${player.username} a été mis à jour.`);
+      onPlayerUpdate({ ...player, is_banned: newBanStatus });
     }
+    setModalState({ ...modalState, isOpen: false });
+    setBanReason('');
+  };
+
+  const openBanModal = () => {
+    setModalState({
+      isOpen: true,
+      title: `${player.is_banned ? 'Lever le bannissement' : 'Bannir'} ${player.username}`,
+      description: (
+        <div className="space-y-2 mt-4">
+          <p>{`Êtes-vous sûr de vouloir ${player.is_banned ? 'autoriser de nouveau' : 'bannir'} ce joueur ?`}</p>
+          {!player.is_banned && (
+            <Textarea
+              placeholder="Raison du bannissement (optionnel)"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              className="bg-white/5 border-white/20"
+            />
+          )}
+        </div>
+      ),
+      onConfirm: handleToggleBan,
+    });
   };
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+          <DialogHeader className="text-center">
+            <User className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
-              Détails de {player.username || 'Joueur'}
+              {player.username || 'Joueur Anonyme'}
             </DialogTitle>
-            <DialogDescription className="text-gray-400 font-mono">{player.id}</DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-4">
+          <div className="py-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-gray-400" />
+              <span>Inscrit le: <span className="font-bold">{new Date(player.created_at).toLocaleDateString()}</span></span>
+            </div>
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
-              <span>Base:</span>
-              {loadingDetails ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Select
-                  value={details?.base_zone_id?.toString() || ''}
-                  onValueChange={handleBaseLocationChange}
-                >
-                  <SelectTrigger className="w-[200px] bg-white/5 border-white/20">
-                    <SelectValue placeholder="Choisir une zone..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-800 text-white border-slate-700">
-                    <SelectItem value="">Aucune</SelectItem>
-                    {mapZones.map(zone => (
-                      <SelectItem key={zone.id} value={String(zone.id)}>
-                        {zone.type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <span>Base: {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="font-bold">{baseLocation}</span>}</span>
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (
-                <ShieldBan className="w-5 h-5 text-red-400" />
+                <>
+                  <Ban className="w-5 h-5 text-red-400" />
+                  <span className="text-red-400">Statut: Banni</span>
+                </>
               ) : (
-                <ShieldCheck className="w-5 h-5 text-green-400" />
+                <>
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                  <span className="text-green-400">Statut: Actif</span>
+                </>
               )}
-              <span>Status: <span className={player.is_banned ? 'font-bold text-red-400' : 'font-bold text-green-400'}>{player.is_banned ? 'Banni' : 'Actif'}</span></span>
-            </div>
-            <div className="flex items-center gap-3">
-              <KeyRound className="w-5 h-5 text-gray-400" />
-              <span>Rôle: <span className="font-bold">{player.role}</span></span>
             </div>
           </div>
-          <div className="flex flex-col gap-2 mt-4">
-            <Button onClick={() => setIsInventoryModalOpen(true)}>Gérer l'inventaire</Button>
-            <Button variant="destructive" disabled>Bannir le joueur</Button>
-          </div>
+          <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+            <Button onClick={() => setIsBaseViewerOpen(true)} className="w-full flex items-center gap-2">
+              <Home className="w-4 h-4" />
+              Voir la base
+            </Button>
+            <Button onClick={() => setIsInventoryOpen(true)} className="w-full flex items-center gap-2">
+              <Package className="w-4 h-4" /> Voir l'inventaire
+            </Button>
+            <Button onClick={openBanModal} variant={player.is_banned ? 'default' : 'destructive'} className="w-full">
+              {player.is_banned ? 'Lever le bannissement' : 'Bannir le joueur'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-      {details && (
-        <AdminInventoryModal
-          isOpen={isInventoryModalOpen}
-          onClose={() => setIsInventoryModalOpen(false)}
-          player={details}
-        />
-      )}
+      <ActionModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+        title={modalState.title}
+        description={modalState.description}
+        actions={[
+          { label: "Confirmer", onClick: modalState.onConfirm, variant: "destructive" },
+          { label: "Annuler", onClick: () => setModalState({ ...modalState, isOpen: false }), variant: "secondary" },
+        ]}
+      />
+      <AdminInventoryModal 
+        isOpen={isInventoryOpen}
+        onClose={() => setIsInventoryOpen(false)}
+        player={player}
+      />
+      <AdminBaseViewer
+        isOpen={isBaseViewerOpen}
+        onClose={() => setIsBaseViewerOpen(false)}
+        playerId={player.id}
+        playerUsername={player.username}
+      />
     </>
   );
 };
