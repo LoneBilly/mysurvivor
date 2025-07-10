@@ -20,15 +20,15 @@ interface InventorySlotProps {
 
 const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, isDragOver }: InventorySlotProps) => {
   const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (item) {
+    if (item && isUnlocked) {
       onDragStart(index, e.currentTarget, e);
     }
   };
 
   if (!isUnlocked) {
     return (
-      <div className="relative aspect-square flex items-center justify-center rounded-lg border bg-black/20 border-white/10 cursor-not-allowed">
-        <Lock className="w-5 h-5 text-gray-500" />
+      <div className="relative aspect-square flex items-center justify-center rounded-lg bg-black/50 border border-neutral-800 cursor-not-allowed">
+        <Lock className="w-5 h-5 text-neutral-600" />
       </div>
     );
   }
@@ -41,9 +41,9 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       style={{ touchAction: 'none' }}
       className={cn(
         "relative aspect-square rounded-lg border transition-all duration-200",
-        "bg-white/5 border-white/10 shadow-inner shadow-black/20",
-        isDragOver && "bg-white/20 ring-2 ring-sky-400 scale-105",
-        isBeingDragged && "opacity-20 scale-95",
+        "bg-black/30 border-white/10 shadow-inner shadow-black/50",
+        isDragOver && "bg-green-400/20 ring-2 ring-green-400 scale-105 border-green-400/50",
+        isBeingDragged && "opacity-30 scale-95",
         item && "cursor-grab active:cursor-grabbing"
       )}
     >

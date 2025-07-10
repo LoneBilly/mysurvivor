@@ -114,6 +114,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     ghostNode.style.width = `${node.offsetWidth}px`;
     ghostNode.style.height = `${node.offsetHeight}px`;
     ghostNode.style.transform = 'scale(1.1) rotate(3deg)';
+    ghostNode.classList.add('shadow-2xl');
     document.body.appendChild(ghostNode);
     draggedItemNode.current = ghostNode;
 
@@ -157,6 +158,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       return;
     }
 
+    const originalSlots = [...slots];
     const newSlots = [...slots];
     const itemToMove = newSlots[fromIndex];
     const itemAtTarget = newSlots[toIndex];
@@ -177,7 +179,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       const results = await Promise.all(updates);
       if (results.some(res => res.error)) {
         showError("Erreur de mise à jour de l'inventaire.");
-        fetchInventory();
+        setSlots(originalSlots);
       }
     }
   };
@@ -206,7 +208,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-full bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
+      <DialogContent className="max-w-3xl w-full bg-gray-900/70 backdrop-blur-xl text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center mb-4">
           <div className="flex items-center justify-center gap-3">
             <Package className="w-7 h-7 text-white" />
@@ -218,7 +220,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
         </DialogHeader>
         <div
           ref={gridRef}
-          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4 bg-black/20 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
+          className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 bg-black/40 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
             <div className="h-full flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
