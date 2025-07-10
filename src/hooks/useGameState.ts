@@ -19,46 +19,44 @@ export const useGameState = () => {
     }
     
     setLoading(true);
+    setLoadingMessage("Chargement des données du jeu...");
 
     try {
-      setLoadingMessage("Chargement des zones...");
-      const { data: mapData, error: mapError } = await supabase.from('map_layout').select('*').order('y').order('x');
-      if (mapError) throw mapError;
-      setMapLayout(mapData as MapCell[]);
+      const [mapRes, playerStateRes, inventoryRes, baseRes] = await Promise.all([
+        supabase.from('map_layout').select('*').order('y').order('x'),
+        supabase
+          .from('player_states')
+          .select(`
+            *,
+            current_zone:map_layout!fk_current_zone(x, y),
+            base_zone:map_layout!fk_base_zone(x, y)
+          `)
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('inventories')
+          .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
+          .eq('player_id', user.id),
+        supabase
+          .from('base_constructions')
+          .select('x, y, type')
+          .eq('player_id', user.id)
+      ]);
 
-      setLoadingMessage("Chargement de votre état...");
-      const { data: playerStateData, error: playerStateError } = await supabase
-        .from('player_states')
-        .select(`
-          *,
-          current_zone:map_layout!fk_current_zone(x, y),
-          base_zone:map_layout!fk_base_zone(x, y)
-        `)
-        .eq('id', user.id)
-        .single();
+      if (mapRes.error) throw mapRes.error;
+      if (playerStateRes.error && playerStateRes.error.code !== 'PGRST116') throw playerStateRes.error;
+      if (inventoryRes.error) throw inventoryRes.error;
+      if (baseRes.error) throw baseRes.error;
+
+      setMapLayout(mapRes.data as MapCell[]);
       
-      if (playerStateError && playerStateError.code !== 'PGRST116') throw playerStateError;
-
-      setLoadingMessage("Inspection de l'inventaire...");
-      const { data: inventoryData, error: inventoryError } = await supabase
-        .from('inventories')
-        .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
-        .eq('player_id', user.id);
-      if (inventoryError) throw inventoryError;
-
-      setLoadingMessage("Analyse du campement...");
-      const { data: baseData, error: baseError } = await supabase
-        .from('base_constructions')
-        .select('x, y, type')
-        .eq('player_id', user.id);
-      if (baseError) throw baseError;
-
-      if (playerStateData) {
-        const { current_zone, base_zone, ...restOfData } = playerStateData;
+      if (playerStateRes.data) {
+        setLoadingMessage("Préparation de votre aventure...");
+        const { current_zone, base_zone, ...restOfData } = playerStateRes.data;
         
-        setLoadingMessage("Pré-chargement des ressources...");
+        const inventoryData = inventoryRes.data || [];
         const inventoryWithUrls = await Promise.all(
-          (inventoryData || []).map(async (item) => {
+          inventoryData.map(async (item) => {
             if (item.items && item.items.icon && item.items.icon.includes('.')) {
               const signedUrl = await getCachedSignedUrl(item.items.icon);
               if (signedUrl) {
@@ -85,13 +83,13 @@ export const useGameState = () => {
           base_position_y: base_zone?.y ?? null,
           zones_decouvertes: restOfData.zones_decouvertes || [],
           inventaire: inventoryWithUrls as InventoryItem[],
-          base_constructions: (baseData || []) as BaseConstruction[],
+          base_constructions: (baseRes.data || []) as BaseConstruction[],
           exploration_x: restOfData.exploration_x,
           exploration_y: restOfData.exploration_y,
           unlocked_slots: restOfData.unlocked_slots,
         };
         setGameState(transformedState);
-      } else if (playerStateError && playerStateError.code === 'PGRST116') {
+      } else if (playerStateRes.error && playerStateRes.error.code === 'PGRST116') {
         setLoadingMessage("Création de votre survivant...");
         setTimeout(loadGameState, 2000);
         return;
