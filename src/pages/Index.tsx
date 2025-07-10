@@ -15,7 +15,7 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-950">
+      <div className="h-full flex items-center justify-center landing-page-bg">
         <div className="text-center text-white">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
           <p className="text-gray-400">{loadingMessage}</p>
@@ -26,7 +26,7 @@ const Index = () => {
 
   if (!gameState) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-950">
+      <div className="h-full flex items-center justify-center landing-page-bg">
         <div className="text-center">
           <p className="text-gray-400 mb-4">Erreur lors du chargement des données du joueur.</p>
           <button 
