@@ -12,14 +12,16 @@ export const useGameState = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState("Chargement du monde...");
 
-  const loadGameState = useCallback(async () => {
+  const loadGameState = useCallback(async (silent = false) => {
     if (!user) {
-      setLoading(false);
+      if (!silent) setLoading(false);
       return;
     }
     
-    setLoading(true);
-    setLoadingMessage("Chargement du monde...");
+    if (!silent) {
+      setLoading(true);
+      setLoadingMessage("Chargement du monde...");
+    }
 
     try {
       const [mapRes, fullPlayerDataRes] = await Promise.all([
@@ -35,7 +37,7 @@ export const useGameState = () => {
       const playerData = fullPlayerDataRes.data;
 
       if (playerData && playerData.playerState) {
-        setLoadingMessage("Préparation de votre aventure...");
+        if (!silent) setLoadingMessage("Préparation de votre aventure...");
         
         const inventoryData = playerData.inventory || [];
         const inventoryWithUrls = await Promise.all(
@@ -74,15 +76,17 @@ export const useGameState = () => {
         };
         setGameState(transformedState);
       } else {
-        setLoadingMessage("Création de votre survivant...");
-        setTimeout(loadGameState, 2000);
+        if (!silent) setLoadingMessage("Création de votre survivant...");
+        setTimeout(() => loadGameState(silent), 2000);
         return;
       }
     } catch (err) {
       console.error('Erreur lors du chargement de l\'état du jeu:', err);
       showError('Erreur de chargement des données du jeu.');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [user]);
 
@@ -132,13 +136,10 @@ export const useGameState = () => {
 
   useEffect(() => {
     if (user) {
-      // On ne charge les données que s'il n'y a pas d'état de jeu
-      // ou si l'utilisateur connecté a changé.
       if (!gameState || gameState.id !== user.id) {
         loadGameState();
       }
     } else {
-      // Si l'utilisateur se déconnecte, on réinitialise tout.
       setGameState(null);
       setMapLayout([]);
       setLoading(false);

@@ -168,13 +168,15 @@ const AdminBaseViewer = ({ isOpen, onClose, playerId, playerUsername }: AdminBas
       <ActionModal
         isOpen={actionModalState.isOpen}
         onClose={() => setActionModalState({ isOpen: false, cell: null })}
-        title={`Modifier la case (${actionModalState.cell?.x}, ${actionModalState.cell?.y})`}
-        description="Choisissez une action pour cette case."
-        actions={[
-          ...(actionModalState.cell?.type !== 'empty' ? [{ label: `Supprimer ${actionModalState.cell?.type}`, onClick: handleDeleteConstruction, variant: 'destructive' as const }] : []),
-          ...(actionModalState.cell?.type === 'empty' ? [{ label: 'Construire une fondation', onClick: handleBuildFoundation, variant: 'default' as const }] : []),
-          { label: 'Annuler', onClick: () => setActionModalState({ isOpen: false, cell: null }), variant: 'secondary' as const }
-        ]}
+        title={actionModalState.cell ? `Modifier la case (${actionModalState.cell.x}, ${actionModalState.cell.y})` : ''}
+        description={actionModalState.cell ? "Choisissez une action pour cette case." : ""}
+        actions={
+          actionModalState.cell ? [
+            ...(actionModalState.cell.type !== 'empty' ? [{ label: `Supprimer ${actionModalState.cell.type}`, onClick: handleDeleteConstruction, variant: 'destructive' as const }] : []),
+            ...(actionModalState.cell.type === 'empty' ? [{ label: 'Construire une fondation', onClick: handleBuildFoundation, variant: 'default' as const }] : []),
+            { label: 'Annuler', onClick: () => setActionModalState({ isOpen: false, cell: null }), variant: 'secondary' as const }
+          ] : []
+        }
       />
     </>
   );

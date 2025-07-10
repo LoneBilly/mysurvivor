@@ -63,14 +63,16 @@ interface GameInterfaceProps {
   gameState: GameState;
   mapLayout: MapCell[];
   saveGameState: (updates: Partial<Omit<GameState, 'id'>>) => Promise<void>;
+  reloadGameState: (silent?: boolean) => Promise<void>;
 }
 
-const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfaceProps) => {
+const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }: GameInterfaceProps) => {
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isInventoryLoading, setIsInventoryLoading] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -315,7 +317,13 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);
-  const handleInventaire = () => setIsInventoryOpen(true);
+  
+  const handleInventaire = async () => {
+    setIsInventoryLoading(true);
+    await reloadGameState(true);
+    setIsInventoryLoading(false);
+    setIsInventoryOpen(true);
+  };
 
   if (!isViewReady) {
     return (
@@ -392,6 +400,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
           energie: gameState.energie,
         }}
         onInventaire={handleInventaire}
+        isInventoryLoading={isInventoryLoading}
       />
 
       <ActionModal
