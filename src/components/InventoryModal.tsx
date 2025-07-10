@@ -6,12 +6,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Package, Loader2 } from "lucide-react";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
 import { GameState } from "@/types/game";
+import { useQuery } from '@tanstack/react-query';
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -37,8 +38,6 @@ const TOTAL_SLOTS = 50;
 
 const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => {
   const { user } = useAuth();
-  const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
-  const [loading, setLoading] = useState(true);
   
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -47,63 +46,62 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   const unlockedSlots = gameState?.unlocked_slots ?? 0;
 
-  const fetchInventory = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+  const { data: inventoryData, isLoading, error, refetch } = useQuery<InventoryItem[], Error>({
+    queryKey: ['inventory', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
 
-    const { data: inventoryData, error } = await supabase
-      .from('inventories')
-      .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
-      .eq('player_id', user.id);
+      const { data: inventoryRes, error: inventoryError } = await supabase
+        .from('inventories')
+        .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
+        .eq('player_id', user.id);
 
-    if (error) {
-      console.error("Error fetching inventory:", error);
-      setLoading(false);
-      return;
-    }
+      if (inventoryError) throw inventoryError;
 
-    const itemsWithSignedUrls = await Promise.all(
-      inventoryData.map(async (item) => {
-        if (item.items && item.items.icon && item.items.icon.includes('.')) {
-          try {
-            const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
-              body: { itemName: item.items.icon },
-            });
-            if (funcError) throw funcError;
-            return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
-          } catch (e) {
-            console.error(`Failed to get signed URL for ${item.items.icon}`, e);
-            return item;
+      const itemsWithSignedUrls = await Promise.all(
+        (inventoryRes || []).map(async (item) => {
+          if (item.items && item.items.icon && item.items.icon.includes('.')) {
+            try {
+              const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
+                body: { itemName: item.items.icon },
+              });
+              if (funcError) throw funcError;
+              return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
+            } catch (e) {
+              console.error(`Failed to get signed URL for ${item.items.icon}`, e);
+              return item;
+            }
           }
+          return item;
+        })
+      );
+      return itemsWithSignedUrls as InventoryItem[];
+    },
+    enabled: isOpen && !!user,
+    staleTime: 5 * 60 * 1000, // Data is considered fresh for 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  const slots = useMemo(() => {
+    const newSlots = Array(TOTAL_SLOTS).fill(null) as (InventoryItem | null)[];
+    if (inventoryData) {
+      inventoryData.forEach((item) => {
+        if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
+          newSlots[item.slot_position] = item;
         }
-        return item;
-      })
-    );
-
-    const newSlots = Array(TOTAL_SLOTS).fill(null);
-    itemsWithSignedUrls.forEach((item) => {
-      if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
-        newSlots[item.slot_position] = item;
-      }
-    });
-    setSlots(newSlots);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchInventory();
+      });
     }
-  }, [isOpen, fetchInventory]);
+    return newSlots;
+  }, [inventoryData]);
 
   useEffect(() => {
-    // Reset on user change, to refetch for new user
-    setSlots(Array(TOTAL_SLOTS).fill(null));
-    setLoading(true);
-  }, [user]);
+    if (error) {
+      showError("Erreur de chargement de l'inventaire.");
+      console.error(error);
+    }
+  }, [error]);
 
   useEffect(() => {
-    // Cleanup drag state when modal is closed
     if (!isOpen) {
       if (draggedItemNode.current) {
         document.body.removeChild(draggedItemNode.current);
@@ -179,16 +177,10 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       return;
     }
 
-    const originalSlots = [...slots];
-    const newSlots = [...slots];
-    const itemToMove = newSlots[fromIndex];
-    const itemAtTarget = newSlots[toIndex];
-
-    newSlots[toIndex] = itemToMove;
-    newSlots[fromIndex] = itemAtTarget;
-    setSlots(newSlots);
-
     const updates = [];
+    const itemToMove = slots[fromIndex];
+    const itemAtTarget = slots[toIndex];
+
     if (itemToMove) {
       updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', itemToMove.id));
     }
@@ -200,7 +192,8 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       const results = await Promise.all(updates);
       if (results.some(res => res.error)) {
         showError("Erreur de mise à jour de l'inventaire.");
-        setSlots(originalSlots);
+      } else {
+        refetch(); 
       }
     }
   };
@@ -243,7 +236,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
           ref={gridRef}
           className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-2 p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[60vh] overflow-y-auto"
         >
-          {loading ? (
+          {isLoading ? (
             <div className="h-full w-full flex items-center justify-center col-span-full row-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (
             slots.map((item, index) => (
