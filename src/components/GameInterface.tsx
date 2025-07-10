@@ -145,6 +145,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handleEnterBase = () => {
     closeModal();
     setCurrentView('base');
+    reloadGameState(true);
   };
 
   const handleBackToMap = () => {
