@@ -63,9 +63,10 @@ interface GameInterfaceProps {
   gameState: GameState;
   mapLayout: MapCell[];
   saveGameState: (updates: Partial<Omit<GameState, 'id'>>) => Promise<void>;
+  reloadGameState: () => Promise<void>;
 }
 
-const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfaceProps) => {
+const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }: GameInterfaceProps) => {
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -315,7 +316,10 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);
-  const handleInventaire = () => setIsInventoryOpen(true);
+  const handleInventaire = () => {
+    reloadGameState();
+    setIsInventoryOpen(true);
+  };
 
   if (!isViewReady) {
     return (
