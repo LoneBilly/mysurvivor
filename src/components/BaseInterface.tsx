@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction } from "@/types/game";
 
 interface BaseCell {
   x: number;
@@ -14,17 +13,21 @@ interface BaseCell {
   canBuild?: boolean;
 }
 
+interface BaseConstruction {
+  x: number;
+  y: number;
+  type: string;
+}
+
 const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
 interface BaseInterfaceProps {
   isActive: boolean;
-  constructions: BaseConstruction[] | null;
-  onConstructionChange: () => void;
 }
 
-const BaseInterface = ({ isActive, constructions, onConstructionChange }: BaseInterfaceProps) => {
+const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,21 +56,29 @@ const BaseInterface = ({ isActive, constructions, onConstructionChange }: BaseIn
   };
 
   const initializeGrid = useCallback(async () => {
-    if (!user || constructions === null) {
-      setLoading(true);
-      return;
-    }
+    if (!user) return;
     setLoading(true);
     hasCentered.current = false;
 
-    let currentConstructions = [...constructions];
+    let { data: constructions, error } = await supabase
+      .from('base_constructions')
+      .select('x, y, type')
+      .eq('player_id', user.id);
 
-    const campfire = currentConstructions.find(c => c.type === 'campfire');
+    if (error) {
+      showError("Erreur lors du chargement de la base.");
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    const campfire = constructions.find(c => c.type === 'campfire');
     const isCampfireInvalid = !campfire || campfire.x >= GRID_SIZE || campfire.y >= GRID_SIZE;
 
-    if (isCampfireInvalid && currentConstructions.length > 0) {
+    if (isCampfireInvalid && constructions.length > 0) {
       await supabase.from('base_constructions').delete().eq('player_id', user.id);
-      currentConstructions = [];
+      const { data: newConstructions } = await supabase.from('base_constructions').select('*').eq('player_id', user.id);
+      constructions = newConstructions || [];
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
@@ -76,7 +87,7 @@ const BaseInterface = ({ isActive, constructions, onConstructionChange }: BaseIn
 
     let campPos: { x: number; y: number } | null = null;
 
-    if (currentConstructions.length === 0) {
+    if (constructions.length === 0) {
       const newCampX = Math.floor(GRID_SIZE / 2);
       const newCampY = Math.floor(GRID_SIZE / 2);
       
@@ -92,9 +103,8 @@ const BaseInterface = ({ isActive, constructions, onConstructionChange }: BaseIn
       
       newGrid[newCampY][newCampX].type = 'campfire';
       campPos = { x: newCampX, y: newCampY };
-      onConstructionChange(); // Notify parent that data has changed
     } else {
-      currentConstructions.forEach((c: BaseConstruction) => {
+      constructions.forEach((c: BaseConstruction) => {
         if (newGrid[c.y]?.[c.x]) {
           newGrid[c.y][c.x].type = c.type as 'campfire' | 'foundation';
           if (c.type === 'campfire') {
@@ -108,7 +118,7 @@ const BaseInterface = ({ isActive, constructions, onConstructionChange }: BaseIn
     setGridData(finalGrid);
     setCampfirePosition(campPos);
     setLoading(false);
-  }, [user, constructions, onConstructionChange]);
+  }, [user]);
 
   useEffect(() => {
     if (isActive) {
@@ -165,9 +175,7 @@ const BaseInterface = ({ isActive, constructions, onConstructionChange }: BaseIn
     if (error) {
       showError("Erreur lors de la construction.");
       console.error(error);
-      onConstructionChange(); // Refetch on error
-    } else {
-      onConstructionChange(); // Refetch on success
+      initializeGrid();
     }
   };
 

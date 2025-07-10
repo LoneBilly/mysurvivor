@@ -37,9 +37,3 @@ export interface MapCell {
   type: string; // Type est maintenant plus générique
   icon: string | null;
 }
-
-export interface BaseConstruction {
-  x: number;
-  y: number;
-  type: string;
-}

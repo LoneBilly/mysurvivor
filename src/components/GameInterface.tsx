@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
@@ -7,16 +7,14 @@ import BaseInterface from "./BaseInterface";
 import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
 import OptionsModal from "./OptionsModal";
-import InventoryModal, { InventoryItem } from "./InventoryModal";
+import InventoryModal from "./InventoryModal";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
-import { GameState, MapCell, BaseConstruction } from "@/types/game";
+import { GameState, MapCell } from "@/types/game";
 import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
-import { getCachedSignedUrl } from "@/utils/iconCache";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -68,7 +66,6 @@ interface GameInterfaceProps {
 }
 
 const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfaceProps) => {
-  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -76,53 +73,12 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
-  
-  const [baseConstructions, setBaseConstructions] = useState<BaseConstruction[] | null>(null);
-  const [inventory, setInventory] = useState<InventoryItem[] | null>(null);
-  const [preloading, setPreloading] = useState(true);
-
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
     description: React.ReactNode;
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
-
-  const preloadGameData = useCallback(async () => {
-    if (!user) return;
-    setPreloading(true);
-
-    const [baseRes, inventoryRes] = await Promise.all([
-      supabase.from('base_constructions').select('x, y, type').eq('player_id', user.id),
-      supabase.from('inventories').select('id, item_id, quantity, slot_position, items(name, description, icon, type)').eq('player_id', user.id)
-    ]);
-
-    if (baseRes.error) showError("Erreur de chargement de la base.");
-    else setBaseConstructions(baseRes.data);
-
-    if (inventoryRes.error) {
-      showError("Erreur de chargement de l'inventaire.");
-    } else {
-      const itemsWithSignedUrls = await Promise.all(
-        inventoryRes.data.map(async (item) => {
-          if (item.items && item.items.icon && item.items.icon.includes('.')) {
-            const signedUrl = await getCachedSignedUrl(item.items.icon);
-            if (signedUrl) {
-              return { ...item, items: { ...item.items, signedIconUrl: signedUrl } };
-            }
-          }
-          return item;
-        })
-      );
-      setInventory(itemsWithSignedUrls as InventoryItem[]);
-    }
-
-    setPreloading(false);
-  }, [user]);
-
-  useEffect(() => {
-    preloadGameData();
-  }, [preloadGameData]);
 
   useEffect(() => {
     if (currentView === 'base') {
@@ -390,11 +346,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
               components: gameState.components,
             }}
           />
-          <BaseInterface 
-            isActive={currentView === 'base'} 
-            constructions={baseConstructions}
-            onConstructionChange={preloadGameData}
-          />
+          <BaseInterface isActive={currentView === 'base'} />
         </div>
 
         <div className={cn("relative w-full h-full", currentView !== 'exploration' && "hidden")}>
@@ -450,9 +402,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
         gameState={gameState}
-        items={inventory}
-        loading={preloading}
-        onInventoryChange={preloadGameData}
       />
     </div>
   );
