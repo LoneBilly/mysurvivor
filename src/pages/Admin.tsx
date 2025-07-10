@@ -6,7 +6,9 @@ import ZoneItemEditor from "@/components/admin/ZoneItemEditor";
 import { MapCell } from "@/types/game";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Map, Users } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PlayerManager from "@/components/admin/PlayerManager";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -50,7 +52,7 @@ const Admin = () => {
   const handleZoneSelect = (zone: MapCell) => setSelectedZone(zone);
   const handleBackToGrid = () => setSelectedZone(null);
 
-  if (loading) {
+  if (loading && !selectedZone) {
     return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
   }
 
@@ -64,16 +66,27 @@ const Admin = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold">Panel Admin</h1>
-              <p className="text-gray-400 mt-1">Gérez la carte et les objets du jeu.</p>
+              <p className="text-gray-400 mt-1">Gérez la carte, les objets et les joueurs.</p>
             </div>
           </div>
         </div>
 
-        {selectedZone ? (
-          <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
-        ) : (
-          <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
-        )}
+        <Tabs defaultValue="map" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-800/50">
+            <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte & Objets</TabsTrigger>
+            <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
+          </TabsList>
+          <TabsContent value="map" className="mt-6">
+            {selectedZone ? (
+              <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
+            ) : (
+              <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
+            )}
+          </TabsContent>
+          <TabsContent value="players" className="mt-6">
+            <PlayerManager />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
