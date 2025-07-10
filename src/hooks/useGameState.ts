@@ -10,7 +10,7 @@ export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState("Initialisation...");
+  const [loadingMessage, setLoadingMessage] = useState("Chargement du monde...");
 
   const loadGameState = useCallback(async () => {
     if (!user) {
@@ -22,41 +22,24 @@ export const useGameState = () => {
     setLoadingMessage("Chargement du monde...");
 
     try {
-      const [mapRes, playerStateRes, inventoryRes, baseRes] = await Promise.all([
+      const [mapRes, fullPlayerDataRes] = await Promise.all([
         supabase.from('map_layout').select('*').order('y').order('x'),
-        supabase
-          .from('player_states')
-          .select(`
-            *,
-            current_zone:map_layout!fk_current_zone(x, y),
-            base_zone:map_layout!fk_base_zone(x, y)
-          `)
-          .eq('id', user.id)
-          .single(),
-        supabase
-          .from('inventories')
-          .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
-          .eq('player_id', user.id),
-        supabase
-          .from('base_constructions')
-          .select('x, y, type')
-          .eq('player_id', user.id)
+        supabase.rpc('get_full_player_data', { p_user_id: user.id })
       ]);
 
       if (mapRes.error) throw mapRes.error;
-      if (playerStateRes.error && playerStateRes.error.code !== 'PGRST116') throw playerStateRes.error;
-      if (inventoryRes.error) throw inventoryRes.error;
-      if (baseRes.error) throw baseRes.error;
+      if (fullPlayerDataRes.error) throw fullPlayerDataRes.error;
 
       setMapLayout(mapRes.data as MapCell[]);
       
-      if (playerStateRes.data) {
+      const playerData = fullPlayerDataRes.data;
+
+      if (playerData && playerData.playerState) {
         setLoadingMessage("Préparation de votre aventure...");
-        const { current_zone, base_zone, ...restOfData } = playerStateRes.data;
         
-        const inventoryData = inventoryRes.data || [];
+        const inventoryData = playerData.inventory || [];
         const inventoryWithUrls = await Promise.all(
-          inventoryData.map(async (item) => {
+          inventoryData.map(async (item: InventoryItem) => {
             if (item.items && item.items.icon && item.items.icon.includes('.')) {
               const signedUrl = await getCachedSignedUrl(item.items.icon);
               if (signedUrl) {
@@ -67,29 +50,30 @@ export const useGameState = () => {
           })
         );
 
-        inventoryWithUrls.forEach(item => {
+        inventoryWithUrls.forEach((item: InventoryItem) => {
           if (item.items?.signedIconUrl) {
             const img = new Image();
             img.src = item.items.signedIconUrl;
           }
         });
 
+        const { playerState, baseConstructions } = playerData;
         const transformedState: GameState = {
-          ...restOfData,
-          id: restOfData.id,
-          position_x: current_zone.x,
-          position_y: current_zone.y,
-          base_position_x: base_zone?.x ?? null,
-          base_position_y: base_zone?.y ?? null,
-          zones_decouvertes: restOfData.zones_decouvertes || [],
+          ...playerState,
+          id: playerState.id,
+          position_x: playerState.position_x,
+          position_y: playerState.position_y,
+          base_position_x: playerState.base_position_x,
+          base_position_y: playerState.base_position_y,
+          zones_decouvertes: playerState.zones_decouvertes || [],
           inventaire: inventoryWithUrls as InventoryItem[],
-          base_constructions: (baseRes.data || []) as BaseConstruction[],
-          exploration_x: restOfData.exploration_x,
-          exploration_y: restOfData.exploration_y,
-          unlocked_slots: restOfData.unlocked_slots,
+          base_constructions: (baseConstructions || []) as BaseConstruction[],
+          exploration_x: playerState.exploration_x,
+          exploration_y: playerState.exploration_y,
+          unlocked_slots: playerState.unlocked_slots,
         };
         setGameState(transformedState);
-      } else if (playerStateRes.error && playerStateRes.error.code === 'PGRST116') {
+      } else {
         setLoadingMessage("Création de votre survivant...");
         setTimeout(loadGameState, 2000);
         return;
