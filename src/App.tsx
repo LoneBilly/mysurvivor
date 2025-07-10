@@ -17,10 +17,10 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center text-black">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-black" />
-          <p className="text-gray-600">Chargement de votre aventure...</p>
+      <div className="h-full flex items-center justify-center bg-gray-950">
+        <div className="text-center text-white">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Vérification de la session...</p>
         </div>
       </div>
     );
