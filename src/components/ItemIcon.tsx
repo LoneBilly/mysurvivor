@@ -12,10 +12,9 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
   const [error, setError] = useState(false);
 
   if (!iconName || error) {
-    return <LucideIcons.Package className={cn("w-full h-full text-gray-400", className)} />;
+    return <LucideIcons.Package className={cn("w-1/2 h-1/2 text-gray-400", className)} />;
   }
 
-  // Si iconName est une URL complète, on l'utilise directement.
   const isUrl = iconName.startsWith('http');
 
   if (isUrl) {
@@ -23,7 +22,7 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
       <img
         src={iconName}
         alt={alt}
-        className={cn("w-full h-full object-contain p-1", className)}
+        className={cn("w-1/2 h-1/2 object-contain", className)}
         onError={() => setError(true)}
       />
     );
@@ -31,11 +30,10 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
 
   const LucideIcon = (LucideIcons as any)[iconName];
   if (LucideIcon) {
-    return <LucideIcon className={cn("w-full h-full", className)} />;
+    return <LucideIcon className={cn("w-1/2 h-1/2", className)} />;
   }
 
-  // Icône de secours si l'icône Lucide n'est pas trouvée
-  return <LucideIcons.HelpCircle className={cn("w-full h-full text-gray-400", className)} />;
+  return <LucideIcons.HelpCircle className={cn("w-1/2 h-1/2 text-gray-400", className)} />;
 };
 
 export default ItemIcon;
