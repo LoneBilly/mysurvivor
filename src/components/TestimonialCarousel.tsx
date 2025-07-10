@@ -47,15 +47,15 @@ const TestimonialCarousel = () => {
         {testimonials.map((testimonial, index) => (
           <CarouselItem key={index}>
             <div className="p-1">
-              <Card className="bg-white border-2 border-black rounded-none shadow-[4px_4px_0px_#000]">
+              <Card className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg text-white h-full">
                 <CardContent className="flex flex-col items-center justify-center p-6 text-center gap-4">
-                  <p className="text-base md:text-lg text-gray-800 italic">"{testimonial.quote}"</p>
+                  <p className="text-base md:text-lg text-gray-200 italic">"{testimonial.quote}"</p>
                   <div className="flex items-center gap-3 mt-2">
-                    <Avatar className="w-10 h-10 border-2 border-black">
+                    <Avatar className="w-10 h-10 border-2 border-white/20">
                       <AvatarImage src={`https://api.dicebear.com/8.x/pixel-art/svg?seed=${testimonial.name}`} />
-                      <AvatarFallback>{testimonial.avatar}</AvatarFallback>
+                      <AvatarFallback className="bg-white/10">{testimonial.avatar}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-bold text-black font-mono">{testimonial.name}</span>
+                    <span className="text-sm font-bold text-white font-mono">{testimonial.name}</span>
                   </div>
                 </CardContent>
               </Card>

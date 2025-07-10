@@ -12,6 +12,13 @@ const Landing = () => {
   const [playerCount, setPlayerCount] = useState<number | null>(null);
 
   useEffect(() => {
+    document.body.classList.add('landing-page-bg');
+    return () => {
+      document.body.classList.remove('landing-page-bg');
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchLandingData = async () => {
       // Fetch player count
       const { count, error: countError } = await supabase
@@ -32,21 +39,21 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 text-black flex flex-col items-center p-4 sm:p-6 lg:p-8 overflow-x-hidden pb-28 sm:pb-24">
+    <div className="min-h-screen text-white flex flex-col items-center p-4 sm:p-6 lg:p-8 overflow-x-hidden pb-28 sm:pb-24">
       
       {/* Hero Section */}
       <section className="w-full max-w-5xl text-center py-16 sm:py-24">
-        <ShieldAlert className="w-16 h-16 mx-auto text-black mb-6 animate-pulse" />
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-black font-mono tracking-wider uppercase">
+        <ShieldAlert className="w-16 h-16 mx-auto text-white mb-6 animate-pulse" />
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white font-mono tracking-wider uppercase">
           SURVIVE THE XTINCTION
         </h1>
-        <p className="text-gray-700 mt-4 text-lg max-w-3xl mx-auto">
+        <p className="text-gray-300 mt-4 text-lg max-w-3xl mx-auto">
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
             onClick={() => navigate('/login')}
-            className="w-full sm:w-auto rounded-none border-2 border-black shadow-[4px_4px_0px_#000] bg-red-500 text-white font-bold text-lg px-10 py-6 transition-all hover:bg-red-600 hover:shadow-[6px_6px_0px_#000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
+            className="w-full sm:w-auto rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-lg px-10 py-6 transition-all hover:bg-white/20"
           >
             COMMENCER L'AVENTURE
           </Button>
@@ -60,10 +67,10 @@ const Landing = () => {
       <section className="w-full max-w-6xl py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
-            <div key={index} className="text-center p-6 bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-              <feature.icon className="w-12 h-12 mx-auto text-black mb-4" />
-              <h3 className="text-xl font-bold font-mono uppercase text-black">{feature.title}</h3>
-              <p className="text-gray-600 mt-2">{feature.description}</p>
+            <div key={index} className="text-center p-6 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg h-full">
+              <feature.icon className="w-12 h-12 mx-auto text-white mb-4" />
+              <h3 className="text-xl font-bold font-mono uppercase text-white">{feature.title}</h3>
+              <p className="text-gray-400 mt-2">{feature.description}</p>
             </div>
           ))}
         </div>
@@ -72,21 +79,21 @@ const Landing = () => {
       {/* Testimonials Section */}
       <section className="w-full flex flex-col items-center py-16">
         <h2 className="text-3xl font-bold text-center mb-2 font-mono uppercase">Échos des Terres Désolées</h2>
-        <p className="text-gray-600 text-center mb-12">Ils ont survécu. Pour l'instant.</p>
+        <p className="text-gray-400 text-center mb-12">Ils ont survécu. Pour l'instant.</p>
         <TestimonialCarousel />
       </section>
 
       {/* Final CTA Section */}
       <section className="w-full max-w-5xl text-center py-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-black font-mono tracking-wider uppercase">
+        <h2 className="text-3xl md:text-4xl font-bold text-white font-mono tracking-wider uppercase">
           Prêt à laisser votre marque ?
         </h2>
-        <p className="text-gray-700 mt-4 text-lg max-w-2xl mx-auto">
+        <p className="text-gray-300 mt-4 text-lg max-w-2xl mx-auto">
           Le monde ne vous attendra pas. Chaque seconde compte. Rejoignez les rangs des survivants et forgez votre propre légende.
         </p>
         <Button 
           onClick={() => navigate('/login')}
-          className="mt-8 rounded-none border-2 border-black shadow-[4px_4px_0px_#000] bg-red-500 text-white font-bold text-lg px-12 py-6 transition-all hover:bg-red-600 hover:shadow-[6px_6px_0px_#000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
+          className="mt-8 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-lg px-12 py-6 transition-all hover:bg-white/20"
         >
           JOUER MAINTENANT
         </Button>
