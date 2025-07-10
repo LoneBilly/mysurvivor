@@ -21,7 +21,8 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
   const isFile = iconName.includes('.');
 
   if (isFile) {
-    const imageUrl = `${SUPABASE_STORAGE_URL}/${iconName}`;
+    // Ajout d'un timestamp pour forcer le navigateur à ignorer le cache
+    const imageUrl = `${SUPABASE_STORAGE_URL}/${iconName}?t=${new Date().getTime()}`;
     return (
       <img
         src={imageUrl}
