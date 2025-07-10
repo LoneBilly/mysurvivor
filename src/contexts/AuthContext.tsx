@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, ReactNode, useMemo, use
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { showError } from '@/utils/toast';
 
 interface AuthContextType {
   user: User | null;
@@ -34,17 +33,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  }, [navigate]);
-
   useEffect(() => {
     const checkUserAndProfile = async (session: Session | null) => {
       if (session?.user) {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('username, role, is_banned, ban_reason')
+          .select('username, role')
           .eq('id', session.user.id)
           .single();
 
@@ -53,13 +47,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         if (profile) {
-          if (profile.is_banned) {
-            await signOut();
-            const reason = profile.ban_reason ? `Raison : ${profile.ban_reason}` : "Aucune raison spécifiée.";
-            showError(`Votre compte a été banni. ${reason}`);
-            return;
-          }
-
           setRole(profile.role);
           if (profile.username === null && location.pathname !== '/create-profile') {
             navigate('/create-profile');
@@ -88,7 +75,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate, location.pathname, signOut]);
+  }, [navigate, location.pathname]);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  }, [navigate]);
 
   const value = useMemo(() => ({
     user,

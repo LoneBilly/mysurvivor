@@ -63,10 +63,9 @@ interface GameInterfaceProps {
   gameState: GameState;
   mapLayout: MapCell[];
   saveGameState: (updates: Partial<Omit<GameState, 'id'>>) => Promise<void>;
-  reloadGameState: (silent?: boolean) => Promise<void>;
 }
 
-const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }: GameInterfaceProps) => {
+const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfaceProps) => {
   const [currentView, setCurrentView] = useState<'map' | 'base' | 'exploration'>('map');
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -145,7 +144,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handleEnterBase = () => {
     closeModal();
     setCurrentView('base');
-    reloadGameState(true);
   };
 
   const handleBackToMap = () => {
@@ -317,11 +315,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);
-  
-  const handleInventaire = () => {
-    setIsInventoryOpen(true);
-    reloadGameState(true);
-  };
+  const handleInventaire = () => setIsInventoryOpen(true);
 
   if (!isViewReady) {
     return (
@@ -423,7 +417,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         onClose={() => setIsInventoryOpen(false)}
         inventory={gameState.inventaire}
         unlockedSlots={gameState.unlocked_slots}
-        onUpdate={reloadGameState}
       />
     </div>
   );

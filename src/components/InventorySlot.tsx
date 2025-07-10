@@ -89,9 +89,9 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
             <TooltipTrigger asChild>
               <div className={cn("absolute inset-0 item-visual", isBeingDragged && "opacity-0")}>
                 <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
-                {item.quantity > 0 && (
+                {item.quantity > 1 && (
                   <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
-                    x{item.quantity}
+                    {item.quantity}
                   </span>
                 )}
               </div>
