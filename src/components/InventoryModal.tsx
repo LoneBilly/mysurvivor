@@ -8,7 +8,7 @@ import {
 import { Package, Lock, Backpack, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "./ui/scroll-area";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import ItemIcon from "./ItemIcon";
@@ -18,7 +18,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { showSuccess, showError } from "@/utils/toast";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -26,7 +27,9 @@ interface InventoryModalProps {
 }
 
 interface InventoryItem {
+  id: number; // ID de l'entrée dans la table inventories
   quantity: number;
+  slot_position: number;
   items: {
     id: number;
     name: string;
@@ -44,16 +47,13 @@ interface InventorySlotProps {
   item?: InventoryItem | null;
   index: number;
   isLocked: boolean;
-  onDragStart: (index: number) => void;
-  onDrop: (targetIndex: number) => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>, index: number) => void;
+  onDrop: (e: React.DragEvent<HTMLDivElement>, targetIndex: number) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging: boolean;
 }
 
-const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, isDragging }: InventorySlotProps) => {
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
-
+const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, onDragOver, isDragging }: InventorySlotProps) => {
   if (isLocked) {
     return (
       <div className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-black/20 border-white/10 cursor-not-allowed">
@@ -65,8 +65,8 @@ const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, isDragging 
   if (!item || !item.items) {
     return (
       <div
-        onDragOver={handleDragOver}
-        onDrop={() => onDrop(index)}
+        onDragOver={onDragOver}
+        onDrop={(e) => onDrop(e, index)}
         className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-white/10 border-white/20"
       />
     );
@@ -78,9 +78,9 @@ const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, isDragging 
         <TooltipTrigger asChild>
           <div
             draggable
-            onDragStart={() => onDragStart(index)}
-            onDragOver={handleDragOver}
-            onDrop={() => onDrop(index)}
+            onDragStart={(e) => onDragStart(e, index)}
+            onDrop={(e) => onDrop(e, index)}
+            onDragOver={onDragOver}
             className={cn(
               "relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing",
               "bg-sky-400/20 border-sky-400/40",
@@ -107,8 +107,8 @@ const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, isDragging 
 // --- Composant Modal Principal ---
 const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
   const { user } = useAuth();
-  const [inventory, setInventory] = useState<(InventoryItem | null)[]>([]);
-  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  const [inventory, setInventory] = useState<(InventoryItem | null)[]>(Array(UNLOCKED_SLOTS).fill(null));
 
   const fetchInventory = async () => {
     if (!user) return [];
@@ -116,7 +116,9 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     const { data: inventoryData, error } = await supabase
       .from('inventories')
       .select(`
+        id,
         quantity,
+        slot_position,
         items (
           id,
           name,
@@ -124,7 +126,8 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
           icon
         )
       `)
-      .eq('player_id', user.id);
+      .eq('player_id', user.id)
+      .order('slot_position');
 
     if (error) {
       console.error("Error fetching inventory:", error);
@@ -150,9 +153,9 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     );
     
     const filledInventory = Array(UNLOCKED_SLOTS).fill(null);
-    itemsWithSignedUrls.forEach((item, index) => {
-      if (index < UNLOCKED_SLOTS) {
-        filledInventory[index] = item;
+    itemsWithSignedUrls.forEach((item) => {
+      if (item.slot_position !== null && item.slot_position < UNLOCKED_SLOTS) {
+        filledInventory[item.slot_position] = item;
       }
     });
     return filledInventory;
@@ -165,27 +168,52 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     onSuccess: (data) => {
       setInventory(data);
     },
-    refetchOnWindowFocus: false, // Empêche le rechargement au changement d'onglet
+    refetchOnWindowFocus: false,
   });
 
-  const handleDragStart = (index: number) => {
-    setDraggedItemIndex(index);
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
   };
 
-  const handleDrop = (targetIndex: number) => {
-    if (draggedItemIndex === null || draggedItemIndex === targetIndex) {
-      setDraggedItemIndex(null);
-      return;
-    }
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetIndex: number) => {
+    e.preventDefault();
+    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+
+    if (draggedIndex === targetIndex) return;
 
     const newInventory = [...inventory];
-    const draggedItem = newInventory[draggedItemIndex];
-    newInventory[draggedItemIndex] = newInventory[targetIndex];
+    const draggedItem = newInventory[draggedIndex];
+    const targetItem = newInventory[targetIndex];
+
+    newInventory[draggedIndex] = targetItem;
     newInventory[targetIndex] = draggedItem;
     
     setInventory(newInventory);
-    setDraggedItemIndex(null);
-    // Note: La persistance de l'ordre nécessiterait une mise à jour de la base de données.
+
+    const updates = [];
+    if (draggedItem) {
+      updates.push({ id: draggedItem.id, slot_position: targetIndex });
+    }
+    if (targetItem) {
+      updates.push({ id: targetItem.id, slot_position: draggedIndex });
+    }
+
+    if (updates.length > 0) {
+      const { error } = await supabase.from('inventories').upsert(updates);
+      if (error) {
+        showError("Erreur lors de la mise à jour de l'inventaire.");
+        console.error(error);
+        queryClient.invalidateQueries({ queryKey: ['inventory', user?.id] }); // Revert on error
+      } else {
+        showSuccess("Inventaire mis à jour.");
+        // Mettre à jour le cache de useQuery avec le nouvel état
+        queryClient.setQueryData(['inventory', user?.id], newInventory);
+      }
+    }
   };
 
   const renderSlots = () => {
@@ -209,7 +237,8 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
           isLocked={isLocked}
           onDragStart={handleDragStart}
           onDrop={handleDrop}
-          isDragging={draggedItemIndex === i}
+          onDragOver={handleDragOver}
+          isDragging={false} // L'effet visuel du drag est géré par le navigateur
         />
       );
     }
@@ -239,10 +268,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
 
           <ScrollArea className="flex-1">
             <div className="p-4 rounded-lg bg-white/5 border border-white/10 h-full">
-              <div
-                className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2"
-                onDragEnd={() => setDraggedItemIndex(null)}
-              >
+              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
                 {renderSlots()}
               </div>
             </div>
