@@ -203,7 +203,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
         className="w-full h-full overflow-auto no-scrollbar"
       >
         <div
-          className="relative"
+          className="relative border border-white/20"
           style={{
             width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
             height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
@@ -214,7 +214,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       </div>
       {/* Indicateur de sortie */}
       <div
-        className="absolute z-20 text-white transition-opacity pointer-events-none"
+        className="absolute z-20 text-white pointer-events-none transition-all duration-100 ease-linear"
         style={{
           opacity: exitIndicator.visible ? 1 : 0,
           top: `${exitIndicator.y}px`,
@@ -226,7 +226,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       </div>
       {/* Indicateur de joueur */}
       <div
-        className="absolute z-20 text-white transition-opacity pointer-events-none"
+        className="absolute z-20 text-white pointer-events-none transition-all duration-100 ease-linear"
         style={{
           opacity: playerIndicator.visible ? 1 : 0,
           top: '50%',
