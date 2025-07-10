@@ -29,7 +29,7 @@ interface InventoryModalProps {
 interface InventoryItem {
   id: number; // ID de l'entrée dans la table inventories
   quantity: number;
-  slot_position: number;
+  slot_position: number | null;
   items: {
     id: number;
     name: string;
@@ -110,7 +110,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
   const queryClient = useQueryClient();
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(Array(UNLOCKED_SLOTS).fill(null));
 
-  const fetchInventory = async () => {
+  const fetchAndRepairInventory = async () => {
     if (!user) return [];
     
     const { data: inventoryData, error } = await supabase
@@ -119,15 +119,9 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
         id,
         quantity,
         slot_position,
-        items (
-          id,
-          name,
-          description,
-          icon
-        )
+        items ( id, name, description, icon )
       `)
-      .eq('player_id', user.id)
-      .order('slot_position');
+      .eq('player_id', user.id);
 
     if (error) {
       console.error("Error fetching inventory:", error);
@@ -153,17 +147,42 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     );
     
     const filledInventory = Array(UNLOCKED_SLOTS).fill(null);
+    const unslottedItems: InventoryItem[] = [];
+    const updatesToPersist: { id: number; slot_position: number }[] = [];
+
     itemsWithSignedUrls.forEach((item) => {
-      if (item.slot_position !== null && item.slot_position < UNLOCKED_SLOTS) {
-        filledInventory[item.slot_position] = item;
+      const pos = item.slot_position;
+      if (pos !== null && pos >= 0 && pos < UNLOCKED_SLOTS && !filledInventory[pos]) {
+        filledInventory[pos] = item;
+      } else {
+        unslottedItems.push(item);
       }
     });
+
+    unslottedItems.forEach((item) => {
+      const emptySlotIndex = filledInventory.findIndex(slot => slot === null);
+      if (emptySlotIndex !== -1) {
+        filledInventory[emptySlotIndex] = item;
+        updatesToPersist.push({ id: item.id, slot_position: emptySlotIndex });
+      }
+    });
+
+    if (updatesToPersist.length > 0) {
+      console.log("Repairing inventory slots...", updatesToPersist);
+      const { error: updateError } = await supabase.from('inventories').upsert(updatesToPersist);
+      if (updateError) {
+        console.error("Failed to repair inventory slots:", updateError);
+      } else {
+        showSuccess("Inventaire corrigé et synchronisé.");
+      }
+    }
+    
     return filledInventory;
   };
 
   const { isLoading } = useQuery({
     queryKey: ['inventory', user?.id],
-    queryFn: fetchInventory,
+    queryFn: fetchAndRepairInventory,
     enabled: !!user && isOpen,
     onSuccess: (data) => {
       setInventory(data);
@@ -205,12 +224,10 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     if (updates.length > 0) {
       const { error } = await supabase.from('inventories').upsert(updates);
       if (error) {
-        showError("Erreur lors de la mise à jour de l'inventaire.");
+        showError("Erreur de mise à jour de l'inventaire.");
         console.error(error);
-        queryClient.invalidateQueries({ queryKey: ['inventory', user?.id] }); // Revert on error
+        queryClient.invalidateQueries({ queryKey: ['inventory', user?.id] });
       } else {
-        showSuccess("Inventaire mis à jour.");
-        // Mettre à jour le cache de useQuery avec le nouvel état
         queryClient.setQueryData(['inventory', user?.id], newInventory);
       }
     }
@@ -238,7 +255,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
           onDragStart={handleDragStart}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
-          isDragging={false} // L'effet visuel du drag est géré par le navigateur
+          isDragging={false}
         />
       );
     }
