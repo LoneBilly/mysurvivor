@@ -99,7 +99,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
         className="w-full h-full overflow-auto no-scrollbar"
       >
         <div
-          className="relative border-2 border-white/20"
+          className="relative"
           style={{
             width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
             height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
@@ -143,8 +143,8 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                     isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
                     
                     // Target styles
-                    isTarget && canAffordMove && "bg-sky-400/40 border-2 border-sky-400/80",
-                    isTarget && !canAffordMove && "bg-amber-500/40 border-2 border-amber-500/80",
+                    isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
+                    isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
 
                     // Interactivity
                     isClickable ? "cursor-pointer" : "cursor-default",
