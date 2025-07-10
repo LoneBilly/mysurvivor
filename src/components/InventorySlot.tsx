@@ -27,8 +27,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
 
   if (!isUnlocked) {
     return (
-      <div className="relative aspect-square flex items-center justify-center rounded-lg border bg-black/50 border-neutral-800 cursor-not-allowed">
-        <Lock className="w-5 h-5 text-neutral-600" />
+      <div className="relative aspect-square flex items-center justify-center rounded-lg border bg-black/20 border-white/10 cursor-not-allowed">
+        <Lock className="w-5 h-5 text-gray-500" />
       </div>
     );
   }
@@ -42,8 +42,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       className={cn(
         "relative aspect-square rounded-lg border transition-all duration-200",
         "bg-white/5 border-white/10 shadow-inner shadow-black/20",
-        item && "bg-sky-400/5 border-sky-400/20",
-        isDragOver && "bg-white/20 ring-2 ring-white scale-105",
+        isDragOver && "bg-white/20 ring-2 ring-sky-400 scale-105",
         isBeingDragged && "opacity-20 scale-95",
         item && "cursor-grab active:cursor-grabbing"
       )}

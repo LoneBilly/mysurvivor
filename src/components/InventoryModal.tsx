@@ -10,7 +10,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
-import { showError, showSuccess } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { GameState } from "@/types/game";
 
 interface InventoryModalProps {
@@ -142,31 +142,44 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   };
 
   const handleDragEnd = async () => {
+    const fromIndex = draggedItemIndex;
+    const toIndex = dragOverIndex;
+
     if (draggedItemNode.current) {
       document.body.removeChild(draggedItemNode.current);
       draggedItemNode.current = null;
     }
 
-    if (draggedItemIndex !== null && dragOverIndex !== null && draggedItemIndex !== dragOverIndex && dragOverIndex < unlockedSlots) {
-      const newSlots = [...slots];
-      [newSlots[draggedItemIndex], newSlots[dragOverIndex]] = [newSlots[dragOverIndex], newSlots[draggedItemIndex]];
-      setSlots(newSlots);
+    setDraggedItemIndex(null);
+    setDragOverIndex(null);
 
-      const updates = [];
-      const draggedItem = slots[draggedItemIndex];
-      const targetItem = slots[dragOverIndex];
-      if (draggedItem) updates.push(supabase.from('inventories').update({ slot_position: dragOverIndex }).eq('id', draggedItem.id));
-      if (targetItem) updates.push(supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id));
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex || toIndex >= unlockedSlots) {
+      return;
+    }
 
+    const newSlots = [...slots];
+    const itemToMove = newSlots[fromIndex];
+    const itemAtTarget = newSlots[toIndex];
+
+    newSlots[toIndex] = itemToMove;
+    newSlots[fromIndex] = itemAtTarget;
+    setSlots(newSlots);
+
+    const updates = [];
+    if (itemToMove) {
+      updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', itemToMove.id));
+    }
+    if (itemAtTarget) {
+      updates.push(supabase.from('inventories').update({ slot_position: fromIndex }).eq('id', itemAtTarget.id));
+    }
+
+    if (updates.length > 0) {
       const results = await Promise.all(updates);
       if (results.some(res => res.error)) {
-        showError("Erreur de mise à jour.");
+        showError("Erreur de mise à jour de l'inventaire.");
         fetchInventory();
       }
     }
-
-    setDraggedItemIndex(null);
-    setDragOverIndex(null);
   };
 
   useEffect(() => {
@@ -189,7 +202,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       window.removeEventListener('touchmove', moveHandler);
       window.removeEventListener('touchend', endHandler);
     };
-  }, [draggedItemIndex]);
+  }, [draggedItemIndex, dragOverIndex, slots]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -205,7 +218,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
         </DialogHeader>
         <div
           ref={gridRef}
-          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4 bg-black/30 rounded-lg border border-neutral-800 max-h-[60vh] overflow-y-auto"
+          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4 bg-black/20 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
             <div className="h-full flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
