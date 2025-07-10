@@ -162,7 +162,8 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
       <AdminBaseViewer
         isOpen={isBaseViewerOpen}
         onClose={() => setIsBaseViewerOpen(false)}
-        player={player}
+        playerId={player.id}
+        playerUsername={player.username}
       />
     </>
   );

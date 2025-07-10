@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LocateFixed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { PlayerProfile } from './PlayerManager';
 import { BaseConstruction } from "@/types/game";
 import { showError } from "@/utils/toast";
 
@@ -21,10 +20,11 @@ interface BaseCell {
 interface AdminBaseViewerProps {
   isOpen: boolean;
   onClose: () => void;
-  player: PlayerProfile;
+  playerId: string;
+  playerUsername: string | null;
 }
 
-const AdminBaseViewer = ({ isOpen, onClose, player }: AdminBaseViewerProps) => {
+const AdminBaseViewer = ({ isOpen, onClose, playerId, playerUsername }: AdminBaseViewerProps) => {
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const [loading, setLoading] = useState(true);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -59,7 +59,7 @@ const AdminBaseViewer = ({ isOpen, onClose, player }: AdminBaseViewerProps) => {
         const { data, error } = await supabase
           .from('base_constructions')
           .select('x, y, type')
-          .eq('player_id', player.id);
+          .eq('player_id', playerId);
         
         if (error) {
           showError("Impossible de charger les données de la base.");
@@ -70,7 +70,7 @@ const AdminBaseViewer = ({ isOpen, onClose, player }: AdminBaseViewerProps) => {
       };
       fetchConstructions();
     }
-  }, [isOpen, player.id, initializeGrid]);
+  }, [isOpen, playerId, initializeGrid]);
 
   const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -111,57 +111,59 @@ const AdminBaseViewer = ({ isOpen, onClose, player }: AdminBaseViewerProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl p-6 flex flex-col">
+      <DialogContent className="max-w-4xl w-full h-[90vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl p-6 flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Base de {player.username}</DialogTitle>
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Base de {playerUsername || 'Joueur'}</DialogTitle>
         </DialogHeader>
-        <div className="relative flex-1 mt-4 min-h-0">
+        <div className="relative flex-grow mt-4 min-h-0">
           {loading ? (
-            <div className="w-full h-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
+            <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (
-            <div
-              ref={viewportRef}
-              className="w-full h-full overflow-auto no-scrollbar rounded-lg"
-            >
+            <>
               <div
-                className="relative"
-                style={{
-                  width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
-                  height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
-                }}
+                ref={viewportRef}
+                className="absolute inset-0 overflow-auto no-scrollbar rounded-lg"
               >
-                {gridData?.map((row, y) =>
-                  row.map((cell, x) => (
-                    <div
-                      key={`${x}-${y}`}
-                      className={cn(
-                        "absolute flex items-center justify-center text-2xl font-bold rounded-lg border",
-                        getCellStyle(cell)
-                      )}
-                      style={{
-                        left: x * (CELL_SIZE_PX + CELL_GAP),
-                        top: y * (CELL_SIZE_PX + CELL_GAP),
-                        width: CELL_SIZE_PX,
-                        height: CELL_SIZE_PX,
-                      }}
-                    >
-                      {getCellContent(cell)}
-                    </div>
-                  ))
-                )}
+                <div
+                  className="relative"
+                  style={{
+                    width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
+                    height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
+                  }}
+                >
+                  {gridData?.map((row, y) =>
+                    row.map((cell, x) => (
+                      <div
+                        key={`${x}-${y}`}
+                        className={cn(
+                          "absolute flex items-center justify-center text-2xl font-bold rounded-lg border",
+                          getCellStyle(cell)
+                        )}
+                        style={{
+                          left: x * (CELL_SIZE_PX + CELL_GAP),
+                          top: y * (CELL_SIZE_PX + CELL_GAP),
+                          width: CELL_SIZE_PX,
+                          height: CELL_SIZE_PX,
+                        }}
+                      >
+                        {getCellContent(cell)}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+              <Button
+                onClick={() => {
+                  if (campfirePosition) centerViewport(campfirePosition.x, campfirePosition.y);
+                }}
+                variant="secondary"
+                size="icon"
+                className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
+              >
+                <LocateFixed className="w-5 h-5" />
+              </Button>
+            </>
           )}
-          <Button
-            onClick={() => {
-              if (campfirePosition) centerViewport(campfirePosition.x, campfirePosition.y);
-            }}
-            variant="secondary"
-            size="icon"
-            className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
-          >
-            <LocateFixed className="w-5 h-5" />
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

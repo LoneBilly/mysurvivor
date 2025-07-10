@@ -6,7 +6,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Package, Loader2 } from "lucide-react";
-import { useEffect, useState, useCallback, useRef, MouseEvent, TouchEvent } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
@@ -54,13 +54,13 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
 
   const handleDragEnd = useCallback(async () => {
     stopAutoScroll();
-    const fromIndex = draggedItemIndex;
-    const toIndex = dragOverIndex;
-
     if (draggedItemNode.current) {
       document.body.removeChild(draggedItemNode.current);
       draggedItemNode.current = null;
     }
+
+    const fromIndex = draggedItemIndex;
+    const toIndex = dragOverIndex;
 
     setDraggedItemIndex(null);
     setDragOverIndex(null);
@@ -73,12 +73,20 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
 
     const originalSlots = [...slots];
     const newSlots = [...slots];
-    [newSlots[fromIndex], newSlots[toIndex]] = [newSlots[toIndex], newSlots[fromIndex]];
+    const itemFrom = newSlots[fromIndex];
+    const itemTo = newSlots[toIndex];
+
+    newSlots[fromIndex] = itemTo;
+    newSlots[toIndex] = itemFrom;
     setSlots(newSlots);
 
     const updates = [];
-    if (newSlots[toIndex]) updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', newSlots[toIndex]!.id));
-    if (newSlots[fromIndex]) updates.push(supabase.from('inventories').update({ slot_position: fromIndex }).eq('id', newSlots[fromIndex]!.id));
+    if (itemTo) {
+      updates.push(supabase.from('inventories').update({ slot_position: fromIndex }).eq('id', itemTo.id));
+    }
+    if (itemFrom) {
+      updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', itemFrom.id));
+    }
 
     if (updates.length > 0) {
       const results = await Promise.all(updates);
