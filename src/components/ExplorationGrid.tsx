@@ -19,6 +19,7 @@ interface ExplorationGridProps {
 
 const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
   const hasCentered = useRef(false);
@@ -80,6 +81,14 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
     }
   }, [playerPosition]);
 
+  const handleScroll = useCallback(() => {
+    if (scrollTimeoutRef.current) return;
+    scrollTimeoutRef.current = window.setTimeout(() => {
+      updateIndicators();
+      scrollTimeoutRef.current = null;
+    }, 100); // Throttle to 100ms
+  }, [updateIndicators]);
+
   useLayoutEffect(() => {
     if (playerPosition && !hasCentered.current) {
       centerViewport(playerPosition.x, playerPosition.y, 'auto');
@@ -90,13 +99,18 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
 
   useEffect(() => {
     updateIndicators();
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [playerPosition, updateIndicators]);
 
   return (
     <div className="relative w-full h-full">
       <div
         ref={viewportRef}
-        onScroll={updateIndicators}
+        onScroll={handleScroll}
         className="w-full h-full overflow-auto no-scrollbar"
       >
         <div
@@ -138,23 +152,14 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                   onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
                     "relative flex items-center justify-center rounded-lg border transition-all duration-100",
-                    // Base styles
                     isEntrance 
                       ? "bg-white/20 border-white/30" 
                       : "bg-white/10 border-white/20",
-                    
-                    // Path styles
                     isAffordablePath && "bg-sky-400/30 border-sky-400/50",
                     isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
-                    
-                    // Target styles
                     isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
                     isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
-
-                    // Immediate hover style
                     isHovered && !isPath && "bg-white/20 border-white/30",
-
-                    // Interactivity
                     isClickable ? "cursor-pointer" : "cursor-default",
                     canClickEntrance && "hover:bg-white/30"
                   )}
@@ -194,7 +199,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
           )}
         </div>
       </div>
-      {/* Exit Indicator */}
       <div
         className="absolute z-20 text-white transition-opacity pointer-events-none"
         style={{
@@ -206,7 +210,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       >
         <ArrowRight className="w-6 h-6" />
       </div>
-      {/* Player Indicator */}
       <div
         className="absolute z-20 text-white transition-opacity pointer-events-none"
         style={{
