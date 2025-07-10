@@ -133,16 +133,20 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                   onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
                     "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
+                    // Base styles
                     isEntrance 
                       ? "bg-white/20 border-white/30" 
                       : "bg-white/10 border-white/20",
                     
-                    isAffordablePath && "bg-blue-400/20 border-blue-400/40",
-                    isUnaffordablePath && "bg-orange-400/20 border-orange-400/40",
+                    // Path styles
+                    isAffordablePath && "bg-sky-400/30 border-sky-400/50",
+                    isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
                     
-                    isTarget && canAffordMove && "bg-blue-400/30 border-blue-400/50",
-                    isTarget && !canAffordMove && "bg-orange-400/30 border-orange-400/50",
+                    // Target styles
+                    isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
+                    isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
 
+                    // Interactivity
                     isClickable ? "cursor-pointer" : "cursor-default",
                     canClickEntrance && "hover:bg-white/30"
                   )}
@@ -160,6 +164,12 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                   )}
                   {isPlayerOnCell && (
                     <div className="relative w-1/2 h-1/2 rounded-full bg-sky-400 shadow-lg"></div>
+                  )}
+                  {isAffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-sky-300/70"></div>
+                  )}
+                  {isUnaffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400/70"></div>
                   )}
                   {isTarget && energyCost > 0 && (
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
