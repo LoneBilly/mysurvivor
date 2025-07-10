@@ -40,7 +40,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       onTouchStart={handleInteractionStart}
       style={{ touchAction: 'none' }}
       className={cn(
-        "relative w-full aspect-square rounded-lg border transition-all duration-200",
+        "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
         "bg-slate-700/50 border-slate-600",
         isDragOver && "bg-slate-600/70 ring-2 ring-slate-400 border-slate-400",
         isBeingDragged && "bg-transparent border-dashed border-slate-500",

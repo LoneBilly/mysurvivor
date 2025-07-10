@@ -147,7 +147,10 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       for (const slot of slotElements) {
         const rect = slot.getBoundingClientRect();
         if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-          newDragOverIndex = parseInt((slot as HTMLElement).dataset.slotIndex || '-1', 10);
+          const potentialIndex = parseInt((slot as HTMLElement).dataset.slotIndex || '-1', 10);
+          if (potentialIndex !== -1 && potentialIndex < unlockedSlots) {
+            newDragOverIndex = potentialIndex;
+          }
           break;
         }
       }
@@ -251,7 +254,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
                 isUnlocked={index < unlockedSlots}
                 onDragStart={handleDragStart}
                 isBeingDragged={draggedItemIndex === index}
-                isDragOver={dragOverIndex === index && index < unlockedSlots}
+                isDragOver={dragOverIndex === index}
               />
             ))
           )}
