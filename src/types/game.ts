@@ -27,7 +27,6 @@ export interface GameState {
   metal: number;
   components: number;
   spawn_date: string;
-  unlocked_slots: number; // Ajout de la nouvelle propriété
 }
 
 export interface MapCell {

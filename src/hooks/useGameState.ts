@@ -15,6 +15,8 @@ export const useGameState = () => {
       return;
     }
     
+    // Affiche le chargement complet uniquement s'il n'y a pas encore d'état de jeu.
+    // Les rechargements suivants se feront en arrière-plan.
     if (!gameState) {
       setLoading(true);
     }
@@ -47,7 +49,6 @@ export const useGameState = () => {
           inventaire: [],
           exploration_x: data.exploration_x,
           exploration_y: data.exploration_y,
-          unlocked_slots: data.unlocked_slots, // Chargement de la nouvelle donnée
         };
         setGameState(transformedState);
       } else if (error && error.code === 'PGRST116') {
@@ -60,7 +61,7 @@ export const useGameState = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, gameState]);
+  }, [user, gameState]); // Ajout de gameState pour la condition de chargement
 
   const saveGameState = async (updates: Partial<Omit<GameState, 'id'>>) => {
     if (!user || !gameState) return;
@@ -110,7 +111,7 @@ export const useGameState = () => {
     if (user) {
       loadGameState();
     }
-  }, [user]);
+  }, [user]); // Retrait de loadGameState pour éviter une boucle infinie
 
   return {
     gameState,
