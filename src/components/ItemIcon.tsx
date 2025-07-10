@@ -21,7 +21,7 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
 
   if (isUrl) {
     return (
-      <div className="absolute inset-0 p-1">
+      <div className="absolute inset-0 p-1 pointer-events-none">
         <img
           src={iconName}
           alt={alt}
@@ -35,7 +35,7 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
   const LucideIcon = (LucideIcons as any)[iconName];
   if (LucideIcon) {
     return (
-      <div className="absolute inset-0 p-1">
+      <div className="absolute inset-0 p-1 pointer-events-none">
         <LucideIcon className={cn("w-full h-full", className)} />
       </div>
     );
