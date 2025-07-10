@@ -1,0 +1,189 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { supabase } from '@/integrations/supabase/client';
+import { PlayerProfile } from './PlayerManager';
+import { InventoryItem } from '@/types/game';
+import { Item } from '@/types/admin';
+import { Loader2, Package, Trash2, Edit, PlusCircle } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
+import ItemIcon from '@/components/ItemIcon';
+import ActionModal from '@/components/ActionModal';
+
+interface AdminInventoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  player: PlayerProfile;
+}
+
+const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalProps) => {
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [allItems, setAllItems] = useState<Item[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [actionModal, setActionModal] = useState<{
+    isOpen: boolean;
+    type: 'delete' | 'edit';
+    item: InventoryItem | null;
+    newQuantity?: string;
+  }>({ isOpen: false, type: 'delete', item: null });
+
+  const fetchInventory = useCallback(async () => {
+    if (!isOpen) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('inventories')
+      .select('*, items(*)')
+      .eq('player_id', player.id);
+    
+    if (error) {
+      showError("Erreur de chargement de l'inventaire.");
+    } else {
+      setInventory(data as InventoryItem[]);
+    }
+    setLoading(false);
+  }, [isOpen, player.id]);
+
+  useEffect(() => {
+    fetchInventory();
+    const fetchAllItems = async () => {
+      const { data } = await supabase.from('items').select('*');
+      setAllItems(data || []);
+    };
+    fetchAllItems();
+  }, [fetchInventory]);
+
+  const handleItemAction = (item: InventoryItem, type: 'delete' | 'edit') => {
+    setActionModal({ isOpen: true, type, item, newQuantity: String(item.quantity) });
+  };
+
+  const confirmDeleteItem = async () => {
+    if (!actionModal.item) return;
+    const { error } = await supabase.from('inventories').delete().eq('id', actionModal.item.id);
+    if (error) {
+      showError("Erreur de suppression.");
+    } else {
+      showSuccess("Objet supprimé.");
+      fetchInventory();
+    }
+    setActionModal({ isOpen: false, type: 'delete', item: null });
+  };
+
+  const confirmEditQuantity = async () => {
+    if (!actionModal.item || !actionModal.newQuantity) return;
+    const quantity = parseInt(actionModal.newQuantity, 10);
+    if (isNaN(quantity) || quantity <= 0) {
+      showError("Quantité invalide.");
+      return;
+    }
+    const { error } = await supabase.from('inventories').update({ quantity }).eq('id', actionModal.item.id);
+    if (error) {
+      showError("Erreur de mise à jour.");
+    } else {
+      showSuccess("Quantité mise à jour.");
+      fetchInventory();
+    }
+    setActionModal({ isOpen: false, type: 'edit', item: null });
+  };
+
+  const handleAddItem = async (item: Item) => {
+    setIsAddModalOpen(false);
+    const { error } = await supabase.from('inventories').insert({
+      player_id: player.id,
+      item_id: item.id,
+      quantity: 1,
+      // Note: This doesn't handle slot position, it will be null.
+    });
+    if (error) {
+      showError("Erreur lors de l'ajout de l'objet.");
+    } else {
+      showSuccess(`${item.name} ajouté à l'inventaire.`);
+      fetchInventory();
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire de {player.username}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {loading ? (
+              <div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
+            ) : (
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {inventory.map(invItem => (
+                    <div key={invItem.id} className="relative group bg-slate-700/50 p-2 rounded-lg border border-slate-600 aspect-square flex flex-col items-center justify-center text-center">
+                      <div className="absolute inset-0">
+                        <ItemIcon iconName={invItem.items?.icon} alt={invItem.items?.name || ''} />
+                      </div>
+                      {invItem.quantity > 1 && (
+                        <span className="absolute bottom-1 right-1.5 text-sm font-bold" style={{ textShadow: '1px 1px 2px black' }}>{invItem.quantity}</span>
+                      )}
+                      <p className="absolute top-1 text-xs font-semibold truncate w-full px-1" style={{ textShadow: '1px 1px 2px black' }}>{invItem.items?.name}</p>
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <Button size="icon" variant="destructive" onClick={() => handleItemAction(invItem, 'delete')}><Trash2 className="w-4 h-4" /></Button>
+                        <Button size="icon" onClick={() => handleItemAction(invItem, 'edit')}><Edit className="w-4 h-4" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => setIsAddModalOpen(true)} className="border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:bg-slate-700/50 hover:text-white transition-colors">
+                    <PlusCircle className="w-8 h-8 mb-2" />
+                    <span className="text-sm font-bold">Ajouter</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <CommandDialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <CommandInput placeholder="Chercher un objet..." />
+        <CommandList>
+          <CommandEmpty>Aucun objet trouvé.</CommandEmpty>
+          <CommandGroup>
+            {allItems.map((item) => (
+              <CommandItem key={item.id} onSelect={() => handleAddItem(item)} value={item.name}>
+                {item.name}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+
+      <ActionModal
+        isOpen={actionModal.isOpen}
+        onClose={() => setActionModal({ ...actionModal, isOpen: false })}
+        title={actionModal.type === 'delete' ? "Supprimer l'objet" : "Modifier la quantité"}
+        description={
+          actionModal.type === 'delete' ? `Voulez-vous vraiment supprimer "${actionModal.item?.items?.name}" ?` :
+          <Input
+            type="number"
+            value={actionModal.newQuantity}
+            onChange={(e) => setActionModal({ ...actionModal, newQuantity: e.target.value })}
+            className="mt-4 bg-white/5 border-white/20"
+          />
+        }
+        actions={[
+          { label: "Confirmer", onClick: actionModal.type === 'delete' ? confirmDeleteItem : confirmEditQuantity, variant: "destructive" },
+          { label: "Annuler", onClick: () => setActionModal({ ...actionModal, isOpen: false }), variant: "secondary" },
+        ]}
+      />
+    </>
+  );
+};
+
+export default AdminInventoryModal;

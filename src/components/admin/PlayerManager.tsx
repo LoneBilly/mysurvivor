@@ -14,14 +14,14 @@ export interface PlayerProfile {
   is_banned: boolean;
 }
 
-type SortableKeys = 'username' | 'created_at' | 'is_banned';
+type SortableKeys = 'username' | 'is_banned';
 
 const PlayerManager = () => {
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerProfile | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' }>({ key: 'created_at', direction: 'descending' });
+  const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' }>({ key: 'username', direction: 'ascending' });
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
@@ -44,6 +44,9 @@ const PlayerManager = () => {
 
   const handlePlayerUpdate = (updatedPlayer: PlayerProfile) => {
     setPlayers(players.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
+    if (selectedPlayer && selectedPlayer.id === updatedPlayer.id) {
+      setSelectedPlayer(updatedPlayer);
+    }
   };
 
   const requestSort = (key: SortableKeys) => {
@@ -106,11 +109,6 @@ const PlayerManager = () => {
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort('created_at')}>
-                      Inscrit le <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>
                     <Button variant="ghost" onClick={() => requestSort('is_banned')}>
                       Statut <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
@@ -119,9 +117,8 @@ const PlayerManager = () => {
               </TableHeader>
               <TableBody>
                 {sortedPlayers.map(player => (
-                  <TableRow key={player.id} onClick={() => setSelectedPlayer(player)} className="cursor-pointer">
+                  <TableRow key={player.id} onClick={() => setSelectedPlayer(player)} className="cursor-pointer hover:bg-gray-700/50">
                     <TableCell className="font-medium">{player.username || 'N/A'}</TableCell>
-                    <TableCell>{new Date(player.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       {player.is_banned ? (
                         <span className="flex items-center text-red-400"><Ban className="w-4 h-4 mr-2" /> Banni</span>

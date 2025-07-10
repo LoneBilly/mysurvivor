@@ -41,30 +41,50 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [iconExists, setIconExists] = useState<boolean | null>(null);
   const debouncedIcon = useDebounce(icon, 500);
 
+  // Effect to reset state and validate initial icon on open
   useEffect(() => {
-    if (isOpen) {
-      if (item) {
-        setName(item.name);
-        setDescription(item.description || '');
-        setIcon(item.icon || '');
-        setStackable(item.stackable);
-      } else {
-        setName('');
-        setDescription('');
-        setIcon('');
-        setStackable(true);
-      }
-      setNameExists(false);
-      setPreviewUrl(null);
-      setIconExists(null);
-    }
-  }, [item, isOpen]);
-
-  useEffect(() => {
-    const checkItemName = async () => {
-      if (!isOpen || debouncedName.trim() === '' || (item && debouncedName === item.name)) {
+    const initializeAndValidate = async () => {
+      if (isOpen) {
+        const initialName = item?.name || '';
+        const initialIcon = item?.icon || '';
+        
+        setName(initialName);
+        setDescription(item?.description || '');
+        setIcon(initialIcon);
+        setStackable(item?.stackable ?? true);
         setNameExists(false);
-        setCheckingName(false);
+        setPreviewUrl(null);
+        setIconExists(null);
+
+        if (initialIcon) {
+          setIsValidatingIcon(true);
+          try {
+            const { data, error } = await supabase.functions.invoke('check-file-exists', { body: { bucket: 'items.icons', path: initialIcon } });
+            if (error) throw error;
+            setIconExists(data.exists);
+            if (data.exists) {
+              const url = await getCachedSignedUrl(initialIcon);
+              setPreviewUrl(url);
+            }
+          } catch (e) {
+            console.error("Error validating icon:", e);
+            setIconExists(false);
+          } finally {
+            setIsValidatingIcon(false);
+          }
+        }
+      }
+    };
+    initializeAndValidate();
+  }, [isOpen, item]);
+
+  // Effect for debounced validation of name and icon while typing
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const checkName = async () => {
+      if (debouncedName.trim() === '' || (item && debouncedName === item.name)) {
+        setNameExists(false);
         return;
       }
       setCheckingName(true);
@@ -72,24 +92,20 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setNameExists(data && data.length > 0);
       setCheckingName(false);
     };
-    checkItemName();
-  }, [debouncedName, item, isOpen]);
 
-  useEffect(() => {
-    const validateAndPreviewIcon = async () => {
+    const validateIcon = async () => {
+      if (debouncedIcon === (item?.icon || '')) {
+        return;
+      }
       if (!debouncedIcon) {
         setPreviewUrl(null);
         setIconExists(null);
-        setIsValidatingIcon(false);
         return;
       }
       setIsValidatingIcon(true);
       try {
-        const { data, error } = await supabase.functions.invoke('check-file-exists', {
-          body: { bucket: 'items.icons', path: debouncedIcon },
-        });
+        const { data, error } = await supabase.functions.invoke('check-file-exists', { body: { bucket: 'items.icons', path: debouncedIcon } });
         if (error) throw error;
-        
         setIconExists(data.exists);
         if (data.exists) {
           const url = await getCachedSignedUrl(debouncedIcon);
@@ -100,13 +116,14 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       } catch (e) {
         console.error("Error validating icon:", e);
         setIconExists(false);
-        setPreviewUrl(null);
       } finally {
         setIsValidatingIcon(false);
       }
     };
-    validateAndPreviewIcon();
-  }, [debouncedIcon]);
+
+    checkName();
+    validateIcon();
+  }, [debouncedName, debouncedIcon, item, isOpen]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
