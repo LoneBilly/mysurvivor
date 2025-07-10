@@ -15,8 +15,6 @@ import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapCell } from '@/types/game';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
@@ -26,58 +24,43 @@ interface PlayerDetailModalProps {
 }
 
 const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
+  const [baseLocation, setBaseLocation] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
-  const [allZones, setAllZones] = useState<MapCell[]>([]);
-  const [baseZoneId, setBaseZoneId] = useState<number | null>(null);
-
   useEffect(() => {
     if (isOpen) {
       const fetchDetails = async () => {
         setLoadingDetails(true);
+        const { data, error } = await supabase
+          .from('player_states')
+          .select('base_zone_id')
+          .eq('id', player.id)
+          .single();
         
-        const [playerStateRes, allZonesRes] = await Promise.all([
-            supabase.from('player_states').select('base_zone_id').eq('id', player.id).single(),
-            supabase.from('map_layout').select('id, type').order('type')
-        ]);
-
-        if (playerStateRes.error && playerStateRes.error.code !== 'PGRST116') {
-            showError("Erreur de chargement de l'état du joueur.");
-        } else if (playerStateRes.data) {
-            setBaseZoneId(playerStateRes.data.base_zone_id);
-        }
-
-        if (allZonesRes.error) {
-            showError("Erreur de chargement des zones.");
+        if (error || !data?.base_zone_id) {
+          setBaseLocation('Aucune');
         } else {
-            setAllZones((allZonesRes.data as MapCell[]).filter(z => z.type !== 'unknown'));
+          const { data: zoneData, error: zoneError } = await supabase
+            .from('map_layout')
+            .select('type')
+            .eq('id', data.base_zone_id)
+            .single();
+          
+          if (zoneError) {
+            setBaseLocation('Inconnue');
+          } else {
+            setBaseLocation(zoneData.type);
+          }
         }
-
         setLoadingDetails(false);
       };
       fetchDetails();
     }
   }, [isOpen, player.id]);
-
-  const handleBaseLocationChange = async (newZoneIdStr: string) => {
-    const newZoneId = newZoneIdStr ? parseInt(newZoneIdStr, 10) : null;
-
-    const { error } = await supabase
-        .from('player_states')
-        .update({ base_zone_id: newZoneId })
-        .eq('id', player.id);
-
-    if (error) {
-        showError("Erreur lors de la mise à jour de la base.");
-    } else {
-        showSuccess("Emplacement de la base mis à jour.");
-        setBaseZoneId(newZoneId);
-    }
-  };
 
   const handleToggleBan = async () => {
     const newBanStatus = !player.is_banned;
@@ -133,26 +116,8 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
               <span>Inscrit le: <span className="font-bold">{new Date(player.created_at).toLocaleDateString()}</span></span>
             </div>
             <div className="flex items-center gap-3">
-              <Home className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              <span className="flex-shrink-0">Base:</span>
-              {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                <Select
-                    value={baseZoneId?.toString() || ''}
-                    onValueChange={handleBaseLocationChange}
-                >
-                    <SelectTrigger className="w-full bg-white/5 border-white/20">
-                        <SelectValue placeholder="Choisir une zone..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="">Aucune</SelectItem>
-                        {allZones.map(zone => (
-                            <SelectItem key={zone.id} value={zone.id.toString()}>
-                                {zone.type}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-              )}
+              <Home className="w-5 h-5 text-gray-400" />
+              <span>Base: {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="font-bold">{baseLocation}</span>}</span>
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (
