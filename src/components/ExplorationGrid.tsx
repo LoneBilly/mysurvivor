@@ -22,7 +22,6 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
   const hasCentered = useRef(false);
-  const [hoveredCoords, setHoveredCoords] = useState<{x: number, y: number} | null>(null);
 
   const centerViewport = useCallback((x: number, y: number, behavior: 'auto' | 'smooth' = 'auto') => {
     if (viewportRef.current) {
@@ -93,24 +92,21 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   }, [playerPosition, updateIndicators]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
       <div
         ref={viewportRef}
         onScroll={updateIndicators}
         className="w-full h-full overflow-auto no-scrollbar"
       >
         <div
-          className="grid"
+          className="relative"
           style={{
-            gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_SIZE_PX}px)`,
-            gridAutoRows: `${CELL_SIZE_PX}px`,
-            gap: `${CELL_GAP}px`,
+            width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
+            height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
           }}
-          onMouseLeave={() => { onCellHover(-1, -1); setHoveredCoords(null); }}
         >
-          {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
-              const x = index % GRID_SIZE;
-              const y = Math.floor(index / GRID_SIZE);
+          {Array.from({ length: GRID_SIZE }).map((_, y) =>
+            Array.from({ length: GRID_SIZE }).map((_, x) => {
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
               const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
               
@@ -129,27 +125,34 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
               );
               
               const isClickable = (isTarget && canAffordMove) || canClickEntrance;
-              const isHovered = hoveredCoords?.x === x && hoveredCoords?.y === y;
 
               return (
                 <button
                   key={`${x}-${y}`}
-                  onMouseEnter={() => { onCellHover(x, y); setHoveredCoords({x, y}); }}
+                  onMouseEnter={() => onCellHover(x, y)}
                   onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
-                    "relative flex items-center justify-center rounded-lg border transition-all duration-100",
+                    "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
+                    // Base styles
                     isEntrance 
                       ? "bg-white/20 border-white/30" 
                       : "bg-white/10 border-white/20",
+                    
+                    // Path styles
                     isAffordablePath && "bg-sky-400/30 border-sky-400/50",
                     isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
+                    
+                    // Target styles
                     isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
                     isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
-                    isHovered && !isPath && "bg-white/20 border-white/30",
+
+                    // Interactivity
                     isClickable ? "cursor-pointer" : "cursor-default",
                     canClickEntrance && "hover:bg-white/30"
                   )}
                   style={{
+                    left: x * (CELL_SIZE_PX + CELL_GAP),
+                    top: y * (CELL_SIZE_PX + CELL_GAP),
                     width: CELL_SIZE_PX,
                     height: CELL_SIZE_PX,
                   }}
@@ -185,6 +188,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
           )}
         </div>
       </div>
+      {/* Exit Indicator */}
       <div
         className="absolute z-20 text-white transition-opacity pointer-events-none"
         style={{
@@ -196,6 +200,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
       >
         <ArrowRight className="w-6 h-6" />
       </div>
+      {/* Player Indicator */}
       <div
         className="absolute z-20 text-white transition-opacity pointer-events-none"
         style={{
