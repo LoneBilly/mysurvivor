@@ -6,11 +6,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Package, Loader2 } from "lucide-react";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, MouseEvent, TouchEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
 import { InventoryItem } from "@/types/game";
+import ItemDetailModal from "./ItemDetailModal";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ const TOTAL_SLOTS = 50;
 const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: InventoryModalProps) => {
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
+  const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -150,6 +152,10 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
     handleDragMove(clientX, clientY);
   }, [handleDragMove]);
 
+  const handleItemClick = (item: InventoryItem) => {
+    setDetailedItem(item);
+  };
+
   useEffect(() => {
     const moveHandler = (e: MouseEvent | TouchEvent) => {
       const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
@@ -211,12 +217,18 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
                 index={index}
                 isUnlocked={index < unlockedSlots}
                 onDragStart={handleDragStart}
+                onItemClick={handleItemClick}
                 isBeingDragged={draggedItemIndex === index}
                 isDragOver={dragOverIndex === index}
               />
             ))
           )}
         </div>
+        <ItemDetailModal
+          isOpen={!!detailedItem}
+          onClose={() => setDetailedItem(null)}
+          item={detailedItem}
+        />
       </DialogContent>
     </Dialog>
   );

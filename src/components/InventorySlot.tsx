@@ -1,28 +1,59 @@
 import { cn } from "@/lib/utils";
 import { Lock } from "lucide-react";
 import ItemIcon from "./ItemIcon";
-import { InventoryItem } from "./InventoryModal";
+import { InventoryItem } from "@/types/game";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useRef } from "react";
 
 interface InventorySlotProps {
   item: InventoryItem | null;
   index: number;
   isUnlocked: boolean;
   onDragStart: (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => void;
+  onItemClick: (item: InventoryItem) => void;
   isBeingDragged: boolean;
   isDragOver: boolean;
 }
 
-const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, isDragOver }: InventorySlotProps) => {
+const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver }: InventorySlotProps) => {
+  const interactionState = useRef<{
+    startPos: { x: number, y: number };
+    isDragging: boolean;
+  } | null>(null);
+
   const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (item && isUnlocked) {
-      onDragStart(index, e.currentTarget, e);
+    if (item && isUnlocked && !isBeingDragged) {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      interactionState.current = {
+        startPos: { x: clientX, y: clientY },
+        isDragging: false,
+      };
     }
+  };
+
+  const handleInteractionMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (interactionState.current && !interactionState.current.isDragging) {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      const dx = Math.abs(clientX - interactionState.current.startPos.x);
+      const dy = Math.abs(clientY - interactionState.current.startPos.y);
+
+      if (dx > 5 || dy > 5) { // Threshold for movement
+        interactionState.current.isDragging = true;
+        onDragStart(index, e.currentTarget, e);
+      }
+    }
+  };
+
+  const handleInteractionEnd = () => {
+    if (interactionState.current && !interactionState.current.isDragging) {
+      onItemClick(item!);
+    }
+    interactionState.current = null;
   };
 
   if (!isUnlocked) {
@@ -38,6 +69,11 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       data-slot-index={index}
       onMouseDown={handleInteractionStart}
       onTouchStart={handleInteractionStart}
+      onMouseMove={handleInteractionMove}
+      onTouchMove={handleInteractionMove}
+      onMouseUp={handleInteractionEnd}
+      onTouchEnd={handleInteractionEnd}
+      onMouseLeave={() => { interactionState.current = null; }}
       style={{ touchAction: 'none' }}
       className={cn(
         "relative w-14 h-14 rounded-lg border transition-all duration-200 flex items-center justify-center flex-shrink-0",
