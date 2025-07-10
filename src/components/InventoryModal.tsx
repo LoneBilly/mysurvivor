@@ -87,7 +87,11 @@ const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, onDragOver,
               isDragging && "opacity-30"
             )}
           >
-            <ItemIcon iconName={item.items.signedIconUrl || item.items.icon} alt={item.items.name} />
+            <ItemIcon
+              iconName={item.items.signedIconUrl || item.items.icon}
+              alt={item.items.name}
+              className="w-1/2 h-1/2"
+            />
             {item.quantity > 1 && (
               <span className="absolute bottom-0 right-1 text-xs font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
                 {item.quantity}
