@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ interface AdminInventoryModalProps {
 
 const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalProps) => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [unlockedSlots, setUnlockedSlots] = useState(0);
   const [loading, setLoading] = useState(true);
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -36,48 +38,51 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     newQuantity?: string;
   }>({ isOpen: false, type: 'delete', item: null });
 
-  const fetchInventory = useCallback(async () => {
+  const fetchInventoryAndSlots = useCallback(async () => {
     if (!isOpen) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('inventories')
-      .select('*, items(*)')
-      .eq('player_id', player.id);
+
+    const [inventoryRes, playerStateRes] = await Promise.all([
+      supabase.from('inventories').select('*, items(*)').eq('player_id', player.id),
+      supabase.from('player_states').select('unlocked_slots').eq('id', player.id).single()
+    ]);
     
-    if (error) {
+    if (inventoryRes.error) {
       showError("Erreur de chargement de l'inventaire.");
       setInventory([]);
     } else {
       const inventoryWithUrls = await Promise.all(
-        (data as InventoryItem[]).map(async (invItem) => {
+        (inventoryRes.data as InventoryItem[]).map(async (invItem) => {
           if (invItem.items && invItem.items.icon && invItem.items.icon.includes('.')) {
             const signedUrl = await getCachedSignedUrl(invItem.items.icon);
-            return {
-              ...invItem,
-              items: {
-                ...invItem.items,
-                signedIconUrl: signedUrl || undefined,
-              },
-            };
+            return { ...invItem, items: { ...invItem.items, signedIconUrl: signedUrl || undefined } };
           }
           return invItem;
         })
       );
       setInventory(inventoryWithUrls);
     }
+
+    if (playerStateRes.error) {
+      showError("Erreur de chargement des slots du joueur.");
+      setUnlockedSlots(0);
+    } else if (playerStateRes.data) {
+      setUnlockedSlots(playerStateRes.data.unlocked_slots);
+    }
+
     setLoading(false);
   }, [isOpen, player.id]);
 
   useEffect(() => {
     if (isOpen) {
-      fetchInventory();
+      fetchInventoryAndSlots();
       const fetchAllItems = async () => {
         const { data } = await supabase.from('items').select('*');
         setAllItems(data || []);
       };
       fetchAllItems();
     }
-  }, [isOpen, fetchInventory]);
+  }, [isOpen, fetchInventoryAndSlots]);
 
   const handleItemAction = (item: InventoryItem, type: 'delete' | 'edit') => {
     setActionModal({ isOpen: true, type, item, newQuantity: String(item.quantity) });
@@ -90,7 +95,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       showError("Erreur de suppression.");
     } else {
       showSuccess("Objet supprimé.");
-      fetchInventory();
+      fetchInventoryAndSlots();
     }
     setActionModal({ isOpen: false, type: 'delete', item: null });
   };
@@ -107,7 +112,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       showError("Erreur de mise à jour.");
     } else {
       showSuccess("Quantité mise à jour.");
-      fetchInventory();
+      fetchInventoryAndSlots();
     }
     setActionModal({ isOpen: false, type: 'edit', item: null });
   };
@@ -123,7 +128,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       showError("Erreur lors de l'ajout de l'objet.");
     } else {
       showSuccess(`${item.name} ajouté à l'inventaire.`);
-      fetchInventory();
+      fetchInventoryAndSlots();
     }
   };
 
@@ -131,8 +136,11 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
-          <DialogHeader>
+          <DialogHeader className="text-center">
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire de {player.username}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {inventory.length} / {unlockedSlots} emplacements utilisés
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             {loading ? (

@@ -9,10 +9,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
-import { Loader2, Ban, CheckCircle, Home, User, Package } from 'lucide-react';
+import { Loader2, Ban, CheckCircle, Home, User, Package, Calendar } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
+import AdminBaseViewer from './AdminBaseViewer';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
   const [baseLocation, setBaseLocation] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
 
   useEffect(() => {
@@ -95,6 +97,10 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
           </DialogHeader>
           <div className="py-4 space-y-3">
             <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-gray-400" />
+              <span>Inscrit le: <span className="font-bold">{new Date(player.created_at).toLocaleDateString()}</span></span>
+            </div>
+            <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span>Base: {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="font-bold">{baseLocation}</span>}</span>
             </div>
@@ -113,6 +119,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+            <Button onClick={() => setIsBaseViewerOpen(true)} className="w-full">Voir la base</Button>
             <Button onClick={() => setIsInventoryOpen(true)} className="w-full flex items-center gap-2">
               <Package className="w-4 h-4" /> Voir l'inventaire
             </Button>
@@ -135,6 +142,11 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
       <AdminInventoryModal 
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
+        player={player}
+      />
+      <AdminBaseViewer
+        isOpen={isBaseViewerOpen}
+        onClose={() => setIsBaseViewerOpen(false)}
         player={player}
       />
     </>

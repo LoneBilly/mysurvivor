@@ -54,8 +54,8 @@ const Admin = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-900 text-white p-4 sm:p-8 flex flex-col">
-      <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0">
+    <div className="h-screen bg-gray-900 text-white flex flex-col">
+      <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0 p-4 sm:p-8">
         <div className="flex items-center justify-between mb-8 gap-4 flex-shrink-0">
           <div className="flex items-center gap-4">
             <Button onClick={() => navigate('/game')} variant="outline" size="icon" className="bg-gray-800 border-gray-700 hover:bg-gray-700">
