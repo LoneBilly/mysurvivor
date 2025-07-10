@@ -45,6 +45,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
 
   const unlockedSlots = gameState?.unlocked_slots ?? 0;
 
@@ -92,24 +93,97 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   }, [isOpen, fetchInventory]);
 
   useEffect(() => {
-    // Reset on user change, to refetch for new user
     setSlots(Array(TOTAL_SLOTS).fill(null));
     setLoading(true);
   }, [user]);
 
-  useEffect(() => {
-    // Cleanup drag state when modal is closed
-    if (!isOpen) {
-      if (draggedItemNode.current) {
-        document.body.removeChild(draggedItemNode.current);
-        draggedItemNode.current = null;
-      }
-      setDraggedItemIndex(null);
-      setDragOverIndex(null);
+  const stopAutoScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
     }
-  }, [isOpen]);
+  }, []);
 
-  const handleDragStart = (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+  const handleDragEnd = useCallback(async () => {
+    stopAutoScroll();
+    const fromIndex = draggedItemIndex;
+    const toIndex = dragOverIndex;
+
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+
+    setDraggedItemIndex(null);
+    setDragOverIndex(null);
+
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+    if (toIndex >= unlockedSlots) {
+      showError("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
+      return;
+    }
+
+    const originalSlots = [...slots];
+    const newSlots = [...slots];
+    [newSlots[fromIndex], newSlots[toIndex]] = [newSlots[toIndex], newSlots[fromIndex]];
+    setSlots(newSlots);
+
+    const updates = [];
+    if (newSlots[toIndex]) updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', newSlots[toIndex]!.id));
+    if (newSlots[fromIndex]) updates.push(supabase.from('inventories').update({ slot_position: fromIndex }).eq('id', newSlots[fromIndex]!.id));
+
+    if (updates.length > 0) {
+      const results = await Promise.all(updates);
+      if (results.some(res => res.error)) {
+        showError("Erreur de mise à jour de l'inventaire.");
+        setSlots(originalSlots);
+      }
+    }
+  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll]);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    let newDragOverIndex: number | null = null;
+    if (gridRef.current) {
+      const slotElements = Array.from(gridRef.current.children);
+      for (const slot of slotElements) {
+        const rect = slot.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          const potentialIndex = parseInt((slot as HTMLElement).dataset.slotIndex || '-1', 10);
+          if (potentialIndex !== -1 && potentialIndex < unlockedSlots) newDragOverIndex = potentialIndex;
+          break;
+        }
+      }
+    }
+    setDragOverIndex(newDragOverIndex);
+
+    const gridEl = gridRef.current;
+    if (!gridEl) return;
+    const rect = gridEl.getBoundingClientRect();
+    const scrollThreshold = 60;
+
+    stopAutoScroll();
+
+    if (clientY < rect.top + scrollThreshold) {
+      const scroll = () => {
+        gridEl.scrollTop -= 10;
+        scrollIntervalRef.current = requestAnimationFrame(scroll);
+      };
+      scroll();
+    } else if (clientY > rect.bottom - scrollThreshold) {
+      const scroll = () => {
+        gridEl.scrollTop += 10;
+        scrollIntervalRef.current = requestAnimationFrame(scroll);
+      };
+      scroll();
+    }
+  }, [unlockedSlots, stopAutoScroll]);
+
+  const handleDragStart = useCallback((index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     setDraggedItemIndex(index);
     
@@ -128,77 +202,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
     const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
     handleDragMove(clientX, clientY);
-  };
-
-  const handleDragMove = (clientX: number, clientY: number) => {
-    if (draggedItemNode.current) {
-      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
-      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
-    }
-
-    let newDragOverIndex: number | null = null;
-    if (gridRef.current) {
-      const slotElements = Array.from(gridRef.current.children);
-      for (const slot of slotElements) {
-        const rect = slot.getBoundingClientRect();
-        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-          const potentialIndex = parseInt((slot as HTMLElement).dataset.slotIndex || '-1', 10);
-          if (potentialIndex !== -1 && potentialIndex < unlockedSlots) {
-            newDragOverIndex = potentialIndex;
-          }
-          break;
-        }
-      }
-    }
-    setDragOverIndex(newDragOverIndex);
-  };
-
-  const handleDragEnd = async () => {
-    const fromIndex = draggedItemIndex;
-    const toIndex = dragOverIndex;
-
-    if (draggedItemNode.current) {
-      document.body.removeChild(draggedItemNode.current);
-      draggedItemNode.current = null;
-    }
-
-    setDraggedItemIndex(null);
-    setDragOverIndex(null);
-
-    if (fromIndex === null || toIndex === null || fromIndex === toIndex) {
-      return;
-    }
-
-    if (toIndex >= unlockedSlots) {
-      showError("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
-      return;
-    }
-
-    const originalSlots = [...slots];
-    const newSlots = [...slots];
-    const itemToMove = newSlots[fromIndex];
-    const itemAtTarget = newSlots[toIndex];
-
-    newSlots[toIndex] = itemToMove;
-    newSlots[fromIndex] = itemAtTarget;
-    setSlots(newSlots);
-
-    const updates = [];
-    if (itemToMove) {
-      updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', itemToMove.id));
-    }
-    if (itemAtTarget) {
-      updates.push(supabase.from('inventories').update({ slot_position: fromIndex }).eq('id', itemAtTarget.id));
-    }
-
-    if (updates.length > 0) {
-      const results = await Promise.all(updates);
-      if (results.some(res => res.error)) {
-        showError("Erreur de mise à jour de l'inventaire.");
-        setSlots(originalSlots);
-      }
-    }
-  };
+  }, [handleDragMove]);
 
   useEffect(() => {
     const moveHandler = (e: MouseEvent | TouchEvent) => {
@@ -219,8 +223,21 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       window.removeEventListener('mouseup', endHandler);
       window.removeEventListener('touchmove', moveHandler);
       window.removeEventListener('touchend', endHandler);
+      stopAutoScroll();
     };
-  }, [draggedItemIndex, dragOverIndex, slots]);
+  }, [draggedItemIndex, handleDragMove, handleDragEnd, stopAutoScroll]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (draggedItemNode.current) {
+        document.body.removeChild(draggedItemNode.current);
+        draggedItemNode.current = null;
+      }
+      setDraggedItemIndex(null);
+      setDragOverIndex(null);
+      stopAutoScroll();
+    }
+  }, [isOpen, stopAutoScroll]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
