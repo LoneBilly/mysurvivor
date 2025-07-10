@@ -8,7 +8,7 @@ import {
 import { Package, Lock, Backpack, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "./ui/scroll-area";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import ItemIcon from "./ItemIcon";
@@ -18,8 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { showSuccess, showError } from "@/utils/toast";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -27,48 +25,22 @@ interface InventoryModalProps {
 }
 
 interface InventoryItem {
-  id: number; // ID de l'entrée dans la table inventories
   quantity: number;
-  slot_position: number | null;
   items: {
-    id: number;
     name: string;
     description: string | null;
     icon: string | null;
-    signedIconUrl?: string;
+    signedIconUrl?: string; // Ajout pour l'URL signée
   } | null;
 }
 
 const TOTAL_SLOTS = 50;
 const UNLOCKED_SLOTS = 5;
 
-// --- Composant Slot ---
-interface InventorySlotProps {
-  item?: InventoryItem | null;
-  index: number;
-  isLocked: boolean;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>, index: number) => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>, targetIndex: number) => void;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  isDragging: boolean;
-}
-
-const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, onDragOver, isDragging }: InventorySlotProps) => {
-  if (isLocked) {
-    return (
-      <div className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-black/20 border-white/10 cursor-not-allowed">
-        <Lock className="w-5 h-5 text-gray-500" />
-      </div>
-    );
-  }
-
+const InventorySlot = ({ item }: { item?: InventoryItem }) => {
   if (!item || !item.items) {
     return (
-      <div
-        onDragOver={onDragOver}
-        onDrop={(e) => onDrop(e, index)}
-        className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-white/10 border-white/20"
-      />
+      <div className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-white/10 border-white/20" />
     );
   }
 
@@ -77,21 +49,12 @@ const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, onDragOver,
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            draggable
-            onDragStart={(e) => onDragStart(e, index)}
-            onDrop={(e) => onDrop(e, index)}
-            onDragOver={onDragOver}
             className={cn(
-              "relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing",
-              "bg-sky-400/20 border-sky-400/40",
-              isDragging && "opacity-30"
+              "relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200",
+              "bg-sky-400/20 border-sky-400/40 cursor-pointer"
             )}
           >
-            <ItemIcon
-              iconName={item.items.signedIconUrl || item.items.icon}
-              alt={item.items.name}
-              className="w-1/2 h-1/2"
-            />
+            <ItemIcon iconName={item.items.signedIconUrl || item.items.icon} alt={item.items.name} />
             {item.quantity > 1 && (
               <span className="absolute bottom-0 right-1 text-xs font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
                 {item.quantity}
@@ -108,137 +71,69 @@ const InventorySlot = ({ item, index, isLocked, onDragStart, onDrop, onDragOver,
   );
 };
 
-// --- Composant Modal Principal ---
+const LockedSlot = () => (
+  <div className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-black/20 border-white/10 cursor-not-allowed">
+    <Lock className="w-5 h-5 text-gray-500" />
+  </div>
+);
+
 const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [inventory, setInventory] = useState<(InventoryItem | null)[]>(Array(UNLOCKED_SLOTS).fill(null));
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchAndRepairInventory = async () => {
-    if (!user) return [];
-    
-    const { data: inventoryData, error } = await supabase
-      .from('inventories')
-      .select(`
-        id,
-        quantity,
-        slot_position,
-        items ( id, name, description, icon )
-      `)
-      .eq('player_id', user.id);
+  useEffect(() => {
+    const fetchInventory = async () => {
+      if (!user || !isOpen) return;
+      setLoading(true);
+      
+      const { data: inventoryData, error } = await supabase
+        .from('inventories')
+        .select(`
+          quantity,
+          items (
+            name,
+            description,
+            icon
+          )
+        `)
+        .eq('player_id', user.id);
 
-    if (error) {
-      console.error("Error fetching inventory:", error);
-      throw new Error("Failed to fetch inventory");
-    }
-
-    const itemsWithSignedUrls = await Promise.all(
-      (inventoryData as InventoryItem[]).map(async (item) => {
-        if (item.items && item.items.icon && item.items.icon.includes('.')) {
-          try {
-            const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
-              body: { itemName: item.items.icon },
-            });
-            if (funcError) throw funcError;
-            return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
-          } catch (e) {
-            console.error(`Failed to get signed URL for ${item.items.icon}`, e);
-            return item;
-          }
-        }
-        return item;
-      })
-    );
-    
-    const filledInventory = Array(UNLOCKED_SLOTS).fill(null);
-    const unslottedItems: InventoryItem[] = [];
-    const updatesToPersist: { id: number; slot_position: number }[] = [];
-
-    itemsWithSignedUrls.forEach((item) => {
-      const pos = item.slot_position;
-      if (pos !== null && pos >= 0 && pos < UNLOCKED_SLOTS && !filledInventory[pos]) {
-        filledInventory[pos] = item;
-      } else {
-        unslottedItems.push(item);
-      }
-    });
-
-    unslottedItems.forEach((item) => {
-      const emptySlotIndex = filledInventory.findIndex(slot => slot === null);
-      if (emptySlotIndex !== -1) {
-        filledInventory[emptySlotIndex] = item;
-        updatesToPersist.push({ id: item.id, slot_position: emptySlotIndex });
-      }
-    });
-
-    if (updatesToPersist.length > 0) {
-      console.log("Repairing inventory slots...", updatesToPersist);
-      const { error: updateError } = await supabase.from('inventories').upsert(updatesToPersist);
-      if (updateError) {
-        console.error("Failed to repair inventory slots:", updateError);
-      } else {
-        showSuccess("Inventaire corrigé et synchronisé.");
-      }
-    }
-    
-    return filledInventory;
-  };
-
-  const { isLoading } = useQuery({
-    queryKey: ['inventory', user?.id],
-    queryFn: fetchAndRepairInventory,
-    enabled: !!user && isOpen,
-    onSuccess: (data) => {
-      setInventory(data);
-    },
-    refetchOnWindowFocus: false,
-  });
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetIndex: number) => {
-    e.preventDefault();
-    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-
-    if (draggedIndex === targetIndex) return;
-
-    const newInventory = [...inventory];
-    const draggedItem = newInventory[draggedIndex];
-    const targetItem = newInventory[targetIndex];
-
-    newInventory[draggedIndex] = targetItem;
-    newInventory[targetIndex] = draggedItem;
-    
-    setInventory(newInventory);
-
-    const updates = [];
-    if (draggedItem) {
-      updates.push({ id: draggedItem.id, slot_position: targetIndex });
-    }
-    if (targetItem) {
-      updates.push({ id: targetItem.id, slot_position: draggedIndex });
-    }
-
-    if (updates.length > 0) {
-      const { error } = await supabase.from('inventories').upsert(updates);
       if (error) {
-        showError("Erreur de mise à jour de l'inventaire.");
-        console.error(error);
-        queryClient.invalidateQueries({ queryKey: ['inventory', user?.id] });
-      } else {
-        queryClient.setQueryData(['inventory', user?.id], newInventory);
+        console.error("Error fetching inventory:", error);
+        setInventory([]);
+        setLoading(false);
+        return;
       }
-    }
-  };
+
+      // Pour chaque objet avec une icône de type fichier, on récupère une URL signée
+      const itemsWithSignedUrls = await Promise.all(
+        (inventoryData as InventoryItem[]).map(async (item) => {
+          if (item.items && item.items.icon && item.items.icon.includes('.')) {
+            try {
+              const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
+                body: { itemName: item.items.icon },
+              });
+              if (funcError) throw funcError;
+              return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
+            } catch (e) {
+              console.error(`Failed to get signed URL for ${item.items.icon}`, e);
+              return item; // Retourne l'objet original en cas d'erreur
+            }
+          }
+          return item;
+        })
+      );
+
+      setInventory(itemsWithSignedUrls);
+      setLoading(false);
+    };
+
+    fetchInventory();
+  }, [user, isOpen]);
 
   const renderSlots = () => {
-    if (isLoading) {
+    if (loading) {
       return (
         <div className="h-full flex items-center justify-center col-span-full row-span-full">
           <Loader2 className="w-8 h-8 animate-spin" />
@@ -247,21 +142,11 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     }
 
     const slots = [];
-    for (let i = 0; i < TOTAL_SLOTS; i++) {
-      const isLocked = i >= UNLOCKED_SLOTS;
-      const item = isLocked ? null : inventory[i];
-      slots.push(
-        <InventorySlot
-          key={i}
-          index={i}
-          item={item}
-          isLocked={isLocked}
-          onDragStart={handleDragStart}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          isDragging={false}
-        />
-      );
+    for (let i = 0; i < UNLOCKED_SLOTS; i++) {
+      slots.push(<InventorySlot key={`item-${i}`} item={inventory[i]} />);
+    }
+    for (let i = UNLOCKED_SLOTS; i < TOTAL_SLOTS; i++) {
+      slots.push(<LockedSlot key={`locked-${i}`} />);
     }
     return slots;
   };
