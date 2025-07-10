@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
@@ -26,12 +25,10 @@ interface ItemFormModalProps {
   onSave: () => void; // Callback to refresh item list
 }
 
-const itemTypes = ['resource', 'tool', 'consumable', 'weapon', 'armor', 'material', 'other'];
-
 const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) => {
   const [name, setName] = useState(item?.name || '');
   const [description, setDescription] = useState(item?.description || '');
-  const [type, setType] = useState(item?.type || '');
+  const [icon, setIcon] = useState(item?.icon || '');
   const [stackable, setStackable] = useState(item?.stackable ?? true);
   const [loading, setLoading] = useState(false);
   const [nameExists, setNameExists] = useState(false);
@@ -43,12 +40,12 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     if (item) {
       setName(item.name);
       setDescription(item.description || '');
-      setType(item.type);
+      setIcon(item.icon || '');
       setStackable(item.stackable);
     } else {
       setName('');
       setDescription('');
-      setType('');
+      setIcon('');
       setStackable(true);
     }
     setNameExists(false); // Reset on modal open/item change
@@ -93,7 +90,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       return;
     }
 
-    const itemData = { name, description, type, stackable };
+    const itemData = { name, description, stackable, icon };
     let error = null;
 
     if (item) {
@@ -163,19 +160,17 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="type" className="text-right text-black">
-                Type
+              <Label htmlFor="icon" className="text-right text-black">
+                Icône
               </Label>
-              <Select value={type} onValueChange={setType} disabled={loading}>
-                <SelectTrigger className="col-span-3 bg-white border-2 border-black rounded-none text-black focus:ring-0">
-                  <SelectValue placeholder="Sélectionner un type" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-2 border-black rounded-none text-black">
-                  {itemTypes.map(t => (
-                    <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="icon"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                className="col-span-3 bg-white border-2 border-black rounded-none focus:ring-0 focus:border-black"
+                placeholder="nom_icone.png ou NomLucideIcon"
+                disabled={loading}
+              />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="stackable" className="text-right text-black">
@@ -191,7 +186,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={loading || nameExists && name !== item?.name || !name.trim() || !type.trim()} className="rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800">
+            <Button type="submit" disabled={loading || nameExists && name !== item?.name || !name.trim()} className="rounded-none border-2 border-black shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-black text-white hover:bg-gray-800">
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {item ? 'Sauvegarder les modifications' : 'Créer l\'objet'}
             </Button>

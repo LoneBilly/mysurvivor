@@ -14,7 +14,6 @@ export interface InventoryItem {
     name: string;
     description: string | null;
     icon: string | null;
-    type: string;
     signedIconUrl?: string;
   } | null;
 }
