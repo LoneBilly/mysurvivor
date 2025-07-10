@@ -11,19 +11,51 @@ const ENTRANCE_X = 25;
 const ENTRANCE_Y = 50;
 const ORBIT_RADIUS_PX = 40;
 
+const findPathBFS = (start: {x: number, y: number}, end: {x: number, y: number}): {x: number, y: number}[] | null => {
+    const queue: {pos: {x: number, y: number}, path: {x: number, y: number}[]}[] = [{pos: start, path: [start]}];
+    const visited = new Set<string>([`${start.x},${start.y}`]);
+
+    while (queue.length > 0) {
+        const { pos, path } = queue.shift()!;
+
+        if (pos.x === end.x && pos.y === end.y) {
+            return path;
+        }
+
+        const neighbors = [
+            { x: pos.x + 1, y: pos.y }, { x: pos.x - 1, y: pos.y },
+            { x: pos.x, y: pos.y + 1 }, { x: pos.x, y: pos.y - 1 },
+        ];
+
+        for (const neighbor of neighbors) {
+            const key = `${neighbor.x},${neighbor.y}`;
+            if (
+                neighbor.x >= 0 && neighbor.x < GRID_SIZE &&
+                neighbor.y >= 0 && neighbor.y < GRID_SIZE &&
+                !visited.has(key)
+            ) {
+                visited.add(key);
+                const newPath = [...path, neighbor];
+                queue.push({ pos: neighbor, path: newPath });
+            }
+        }
+    }
+    return null;
+};
+
 interface ExplorationGridProps {
   playerPosition: { x: number; y: number } | null;
-  onCellClick: (x: number, y: number) => void;
-  onCellHover: (x: number, y: number) => void;
-  path: { x: number; y: number }[] | null;
+  onCellClick: (x: number, y: number, path: {x: number, y: number}[] | null) => void;
   currentEnergy: number;
 }
 
-const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
+const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
   const hasCentered = useRef(false);
+  const cellElementsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const lastPathRef = useRef<{ x: number; y: number }[] | null>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: GRID_SIZE,
@@ -45,48 +77,90 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
     colVirtualizer.scrollToIndex(x, { align: 'center', behavior });
   }, [rowVirtualizer, colVirtualizer]);
 
-  const updateIndicators = useCallback(() => {
-    if (!viewportRef.current || !playerPosition) {
-      setExitIndicator({ visible: false, angle: 0, x: 0, y: 0 });
-      setPlayerIndicator({ visible: false, angle: 0 });
+  const drawPath = useCallback((path: { x: number; y: number }[] | null) => {
+    const cells = cellElementsRef.current;
+
+    if (lastPathRef.current) {
+      for (const segment of lastPathRef.current) {
+        const key = `${segment.x},${segment.y}`;
+        const cell = cells.get(key);
+        if (cell) {
+          cell.classList.remove('path-affordable', 'path-unaffordable', 'path-target-affordable', 'path-target-unaffordable', 'transition-none');
+          const costEl = cell.querySelector<HTMLElement>('.path-cost');
+          if (costEl) costEl.classList.add('hidden');
+          const dotEl = cell.querySelector<HTMLElement>('.path-dot');
+          if (dotEl) dotEl.classList.add('hidden');
+        }
+      }
+    }
+
+    if (path && path.length > 1) {
+      const energyCost = path.length - 1;
+      const canAfford = energyCost <= currentEnergy;
+
+      path.forEach((segment, index) => {
+        if (index === 0) return;
+        const key = `${segment.x},${segment.y}`;
+        const cell = cells.get(key);
+        if (cell) {
+          const isTarget = index === path.length - 1;
+          cell.classList.add('transition-none');
+
+          if (isTarget) {
+            cell.classList.add(canAfford ? 'path-target-affordable' : 'path-target-unaffordable');
+            const costEl = cell.querySelector<HTMLElement>('.path-cost');
+            const costSpan = cell.querySelector<HTMLElement>('.path-cost-value');
+            if (costEl && costSpan) {
+              costSpan.textContent = energyCost.toString();
+              costEl.classList.toggle('text-red-400', !canAfford);
+              costEl.classList.remove('hidden');
+            }
+          } else {
+            cell.classList.add(canAfford ? 'path-affordable' : 'path-unaffordable');
+            const dotEl = cell.querySelector<HTMLElement>('.path-dot');
+            if (dotEl) {
+              dotEl.classList.toggle('bg-sky-300/70', canAfford);
+              dotEl.classList.toggle('bg-amber-400/70', !canAfford);
+              dotEl.classList.remove('hidden');
+            }
+          }
+        }
+      });
+    }
+    lastPathRef.current = path;
+  }, [currentEnergy]);
+
+  const handleCellHover = (x: number, y: number) => {
+    if (!playerPosition || (x === -1 && y === -1)) {
+      drawPath(null);
       return;
     }
+    const path = findPathBFS(playerPosition, { x, y });
+    drawPath(path);
+  };
 
-    const viewport = viewportRef.current;
-    const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewport;
-
+  const updateIndicators = useCallback(() => {
+    if (!viewportRef.current || !playerPosition) return;
+    const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewportRef.current;
     const playerPixelX = playerPosition.x * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
     const playerPixelY = playerPosition.y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
-
     const exitPixelX = ENTRANCE_X * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
     const exitPixelY = ENTRANCE_Y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
-    const isExitVisible = exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight;
     
-    if (isExitVisible) {
-      setExitIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
-    } else {
-      const playerScreenX = playerPixelX - scrollLeft;
-      const playerScreenY = playerPixelY - scrollTop;
+    setExitIndicator(prev => ({ ...prev, visible: !(exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight) }));
+    if (exitIndicator.visible) {
       const dx = exitPixelX - playerPixelX;
       const dy = exitPixelY - playerPixelY;
-      const angleRad = Math.atan2(dy, dx);
-      const angleDeg = angleRad * (180 / Math.PI);
-      setExitIndicator({ visible: true, angle: angleDeg, x: playerScreenX, y: playerScreenY });
+      setExitIndicator(prev => ({ ...prev, angle: Math.atan2(dy, dx) * (180 / Math.PI), x: playerPixelX - scrollLeft, y: playerPixelY - scrollTop }));
     }
 
-    const isPlayerVisible = playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight;
-    if (isPlayerVisible) {
-      setPlayerIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
-    } else {
-      const viewportCenterX = scrollLeft + clientWidth / 2;
-      const viewportCenterY = scrollTop + clientHeight / 2;
-      const dx = playerPixelX - viewportCenterX;
-      const dy = playerPixelY - viewportCenterY;
-      const angleRad = Math.atan2(dy, dx);
-      const angleDeg = angleRad * (180 / Math.PI);
-      setPlayerIndicator({ visible: true, angle: angleDeg });
+    setPlayerIndicator(prev => ({ ...prev, visible: !(playerPixelX >= scrollLeft && playerPixelX <= scrollLeft + clientWidth && playerPixelY >= scrollTop && playerPixelY <= scrollTop + clientHeight) }));
+    if (playerIndicator.visible) {
+      const dx = playerPixelX - (scrollLeft + clientWidth / 2);
+      const dy = playerPixelY - (scrollTop + clientHeight / 2);
+      setPlayerIndicator(prev => ({ ...prev, angle: Math.atan2(dy, dx) * (180 / Math.PI) }));
     }
-  }, [playerPosition]);
+  }, [playerPosition, exitIndicator.visible, playerIndicator.visible]);
 
   useLayoutEffect(() => {
     if (playerPosition && !hasCentered.current) {
@@ -99,126 +173,58 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    
-    viewport.addEventListener('scroll', updateIndicators);
+    viewport.addEventListener('scroll', updateIndicators, { passive: true });
     return () => viewport.removeEventListener('scroll', updateIndicators);
   }, [updateIndicators]);
 
   return (
-    <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
-      <div
-        ref={viewportRef}
-        className="w-full h-full overflow-auto no-scrollbar"
-      >
-        <div
-          className="relative"
-          style={{
-            width: `${colVirtualizer.getTotalSize()}px`,
-            height: `${rowVirtualizer.getTotalSize()}px`,
-          }}
-        >
+    <div className="relative w-full h-full" onMouseLeave={() => handleCellHover(-1, -1)}>
+      <div ref={viewportRef} className="w-full h-full overflow-auto no-scrollbar">
+        <div className="relative" style={{ width: `${colVirtualizer.getTotalSize()}px`, height: `${rowVirtualizer.getTotalSize()}px` }}>
           {rowVirtualizer.getVirtualItems().map(virtualRow => (
             colVirtualizer.getVirtualItems().map(virtualColumn => {
               const y = virtualRow.index;
               const x = virtualColumn.index;
-
+              const key = `${x},${y}`;
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
               const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
-              
-              const pathIndex = path?.findIndex(p => p.x === x && p.y === y) ?? -1;
-              const isPath = pathIndex !== -1;
-              const isAffordablePath = isPath && pathIndex > 0 && pathIndex <= currentEnergy;
-              const isUnaffordablePath = isPath && pathIndex > 0 && pathIndex > currentEnergy;
-
-              const isTarget = path && path.length > 1 && path[path.length - 1].x === x && path[path.length - 1].y === y;
-              const energyCost = path ? path.length - 1 : 0;
-              const canAffordMove = energyCost <= currentEnergy;
-
-              const canClickEntrance = isEntrance && playerPosition && (
-                isPlayerOnCell || 
-                (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1)
-              );
-              
-              const isClickable = (isTarget && canAffordMove) || canClickEntrance;
+              const canClickEntrance = isEntrance && playerPosition && (isPlayerOnCell || (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1));
 
               return (
                 <button
-                  key={`${x}-${y}`}
-                  onMouseEnter={() => onCellHover(x, y)}
-                  onClick={() => isClickable && onCellClick(x, y)}
+                  key={key}
+                  ref={el => { if (el) cellElementsRef.current.set(key, el); else cellElementsRef.current.delete(key); }}
+                  onMouseEnter={() => handleCellHover(x, y)}
+                  onClick={() => onCellClick(x, y, lastPathRef.current)}
                   className={cn(
-                    "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
-                    isEntrance 
-                      ? "bg-white/20 border-white/30" 
-                      : "bg-white/10 border-white/20",
-                    isAffordablePath && "bg-sky-400/30 border-sky-400/50",
-                    isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
-                    isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
-                    isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
-                    isClickable ? "cursor-pointer" : "cursor-default",
-                    canClickEntrance && "hover:bg-white/30"
+                    "absolute flex items-center justify-center rounded-lg border",
+                    isEntrance ? "bg-white/20 border-white/30" : "bg-white/10 border-white/20",
+                    canClickEntrance ? "cursor-pointer hover:bg-white/30" : "cursor-default"
                   )}
                   style={{
-                    left: 0,
-                    top: 0,
-                    width: `${CELL_SIZE_PX}px`,
-                    height: `${CELL_SIZE_PX}px`,
+                    left: 0, top: 0, width: `${CELL_SIZE_PX}px`, height: `${CELL_SIZE_PX}px`,
                     transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  {isEntrance && !isPlayerOnCell && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ArrowDown className="w-6 h-6 text-white animate-bounce" style={{ animationDuration: '2s' }} />
+                  {isEntrance && !isPlayerOnCell && <ArrowDown className="w-6 h-6 text-white animate-bounce" style={{ animationDuration: '2s' }} />}
+                  {isPlayerOnCell && <div className="relative w-1/2 h-1/2 rounded-full bg-sky-400 shadow-lg"></div>}
+                  <div className="path-dot w-1.5 h-1.5 rounded-full hidden"></div>
+                  <div className="path-cost absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none hidden">
+                    <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-white/20 rounded-full px-2 py-0.5 text-xs font-bold text-white">
+                      <Zap size={12} />
+                      <span className="path-cost-value"></span>
                     </div>
-                  )}
-                  {isPlayerOnCell && (
-                    <div className="relative w-1/2 h-1/2 rounded-full bg-sky-400 shadow-lg"></div>
-                  )}
-                  {isAffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-sky-300/70"></div>
-                  )}
-                  {isUnaffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400/70"></div>
-                  )}
-                  {isTarget && energyCost > 0 && (
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-                      <div className={cn(
-                        "flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-white/20 rounded-full px-2 py-0.5 text-xs font-bold",
-                        canAffordMove ? "text-white" : "text-red-400"
-                      )}>
-                        <Zap size={12} />
-                        <span>{energyCost}</span>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </button>
               );
             })
           ))}
         </div>
       </div>
-      {/* Exit Indicator */}
-      <div
-        className="absolute z-20 text-white transition-opacity pointer-events-none"
-        style={{
-          opacity: exitIndicator.visible ? 1 : 0,
-          top: `${exitIndicator.y}px`,
-          left: `${exitIndicator.x}px`,
-          transform: `translate(-50%, -50%) rotate(${exitIndicator.angle}deg) translate(${ORBIT_RADIUS_PX}px)`,
-        }}
-      >
+      <div className="absolute z-20 text-white transition-opacity pointer-events-none" style={{ opacity: exitIndicator.visible ? 1 : 0, top: `${exitIndicator.y}px`, left: `${exitIndicator.x}px`, transform: `translate(-50%, -50%) rotate(${exitIndicator.angle}deg) translate(${ORBIT_RADIUS_PX}px)` }}>
         <ArrowRight className="w-6 h-6" />
       </div>
-      {/* Player Indicator */}
-      <div
-        className="absolute z-20 text-white transition-opacity pointer-events-none"
-        style={{
-          opacity: playerIndicator.visible ? 1 : 0,
-          top: '50%',
-          left: '50%',
-          transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))`,
-        }}
-      >
+      <div className="absolute z-20 text-white transition-opacity pointer-events-none" style={{ opacity: playerIndicator.visible ? 1 : 0, top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${playerIndicator.angle}deg) translate(clamp(40px, calc(min(25vh, 25vw) - 20px), 150px))` }}>
         <ArrowRight className="w-6 h-6" />
       </div>
     </div>
