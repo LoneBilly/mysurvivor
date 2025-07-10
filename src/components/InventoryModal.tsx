@@ -124,8 +124,8 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     ghostNode.style.position = 'fixed';
     ghostNode.style.pointerEvents = 'none';
     ghostNode.style.zIndex = '5000';
-    ghostNode.style.width = '64px';
-    ghostNode.style.height = '64px';
+    ghostNode.style.width = '40px';
+    ghostNode.style.height = '40px';
     ghostNode.style.opacity = '0.85';
     ghostNode.style.transform = 'scale(1.1)';
     document.body.appendChild(ghostNode);
