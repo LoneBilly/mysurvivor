@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameState, GameStats, InventoryItem, BaseConstruction } from '@/types/game';
+import { GameState, GameStats, InventoryItem, BaseConstruction, MapCell } from '@/types/game';
 import { showError } from '@/utils/toast';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 
 export const useGameState = () => {
   const { user } = useAuth();
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState("Initialisation...");
 
   const loadGameState = useCallback(async () => {
     if (!user) {
@@ -19,36 +21,44 @@ export const useGameState = () => {
     setLoading(true);
 
     try {
-      const [playerStateRes, inventoryRes, baseRes] = await Promise.all([
-        supabase
-          .from('player_states')
-          .select(`
-            *,
-            current_zone:map_layout!fk_current_zone(x, y),
-            base_zone:map_layout!fk_base_zone(x, y)
-          `)
-          .eq('id', user.id)
-          .single(),
-        supabase
-          .from('inventories')
-          .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
-          .eq('player_id', user.id),
-        supabase
-          .from('base_constructions')
-          .select('x, y, type')
-          .eq('player_id', user.id)
-      ]);
+      setLoadingMessage("Chargement des zones...");
+      const { data: mapData, error: mapError } = await supabase.from('map_layout').select('*').order('y').order('x');
+      if (mapError) throw mapError;
+      setMapLayout(mapData as MapCell[]);
 
-      if (playerStateRes.error && playerStateRes.error.code !== 'PGRST116') throw playerStateRes.error;
-      if (inventoryRes.error) throw inventoryRes.error;
-      if (baseRes.error) throw baseRes.error;
+      setLoadingMessage("Chargement de votre état...");
+      const { data: playerStateData, error: playerStateError } = await supabase
+        .from('player_states')
+        .select(`
+          *,
+          current_zone:map_layout!fk_current_zone(x, y),
+          base_zone:map_layout!fk_base_zone(x, y)
+        `)
+        .eq('id', user.id)
+        .single();
+      
+      if (playerStateError && playerStateError.code !== 'PGRST116') throw playerStateError;
 
-      if (playerStateRes.data) {
-        const { current_zone, base_zone, ...restOfData } = playerStateRes.data;
+      setLoadingMessage("Inspection de l'inventaire...");
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventories')
+        .select('id, item_id, quantity, slot_position, items(name, description, icon, type)')
+        .eq('player_id', user.id);
+      if (inventoryError) throw inventoryError;
+
+      setLoadingMessage("Analyse du campement...");
+      const { data: baseData, error: baseError } = await supabase
+        .from('base_constructions')
+        .select('x, y, type')
+        .eq('player_id', user.id);
+      if (baseError) throw baseError;
+
+      if (playerStateData) {
+        const { current_zone, base_zone, ...restOfData } = playerStateData;
         
-        const inventoryData = inventoryRes.data || [];
+        setLoadingMessage("Pré-chargement des ressources...");
         const inventoryWithUrls = await Promise.all(
-          inventoryData.map(async (item) => {
+          (inventoryData || []).map(async (item) => {
             if (item.items && item.items.icon && item.items.icon.includes('.')) {
               const signedUrl = await getCachedSignedUrl(item.items.icon);
               if (signedUrl) {
@@ -59,7 +69,6 @@ export const useGameState = () => {
           })
         );
 
-        // Preload item images
         inventoryWithUrls.forEach(item => {
           if (item.items?.signedIconUrl) {
             const img = new Image();
@@ -76,13 +85,14 @@ export const useGameState = () => {
           base_position_y: base_zone?.y ?? null,
           zones_decouvertes: restOfData.zones_decouvertes || [],
           inventaire: inventoryWithUrls as InventoryItem[],
-          base_constructions: (baseRes.data || []) as BaseConstruction[],
+          base_constructions: (baseData || []) as BaseConstruction[],
           exploration_x: restOfData.exploration_x,
           exploration_y: restOfData.exploration_y,
           unlocked_slots: restOfData.unlocked_slots,
         };
         setGameState(transformedState);
-      } else if (playerStateRes.error && playerStateRes.error.code === 'PGRST116') {
+      } else if (playerStateError && playerStateError.code === 'PGRST116') {
+        setLoadingMessage("Création de votre survivant...");
         setTimeout(loadGameState, 2000);
         return;
       }
@@ -146,7 +156,9 @@ export const useGameState = () => {
 
   return {
     gameState,
+    mapLayout,
     loading,
+    loadingMessage,
     saveGameState,
     updateStats,
     reload: loadGameState,
