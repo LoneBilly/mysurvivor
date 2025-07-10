@@ -1,7 +1,9 @@
-import { useLayoutEffect, useRef, useState, useCallback, useEffect } from "react";
+import { useLayoutEffect, useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowDown, ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useDebounce } from "@/hooks/useDebounce";
+import ExplorationCell from "./ExplorationCell";
 
 const GRID_SIZE = 51;
 const CELL_SIZE_PX = 40;
@@ -54,8 +56,13 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
   const exitIndicatorRef = useRef<HTMLDivElement>(null);
   const playerIndicatorRef = useRef<HTMLDivElement>(null);
   const hasCentered = useRef(false);
-  const cellElementsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const lastPathRef = useRef<{ x: number; y: number }[] | null>(null);
+
+  const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
+  const [currentPath, setCurrentPath] = useState<{x: number, y: number}[] | null>(null);
+  const debouncedHoveredCell = useDebounce(hoveredCell, 50);
+  
+  const pathRef = useRef(currentPath);
+  pathRef.current = currentPath;
 
   const rowVirtualizer = useVirtualizer({
     count: GRID_SIZE,
@@ -77,67 +84,27 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
     colVirtualizer.scrollToIndex(x, { align: 'center', behavior });
   }, [rowVirtualizer, colVirtualizer]);
 
-  const drawPath = useCallback((path: { x: number; y: number }[] | null) => {
-    const cells = cellElementsRef.current;
-
-    if (lastPathRef.current) {
-      for (const segment of lastPathRef.current) {
-        const key = `${segment.x},${segment.y}`;
-        const cell = cells.get(key);
-        if (cell) {
-          cell.classList.remove('path-affordable', 'path-unaffordable', 'path-target-affordable', 'path-target-unaffordable', 'transition-none');
-          const costEl = cell.querySelector<HTMLElement>('.path-cost');
-          if (costEl) costEl.classList.add('hidden');
-          const dotEl = cell.querySelector<HTMLElement>('.path-dot');
-          if (dotEl) dotEl.classList.add('hidden');
-        }
-      }
+  useEffect(() => {
+    if (debouncedHoveredCell && playerPosition) {
+      const path = findPathBFS(playerPosition, debouncedHoveredCell);
+      setCurrentPath(path);
+    } else {
+      setCurrentPath(null);
     }
+  }, [debouncedHoveredCell, playerPosition]);
 
-    if (path && path.length > 1) {
-      const energyCost = path.length - 1;
-      const canAfford = energyCost <= currentEnergy;
+  const pathSet = useMemo(() => {
+    if (!currentPath) return new Set<string>();
+    return new Set(currentPath.map(p => `${p.x},${p.y}`));
+  }, [currentPath]);
 
-      path.forEach((segment, index) => {
-        if (index === 0) return;
-        const key = `${segment.x},${segment.y}`;
-        const cell = cells.get(key);
-        if (cell) {
-          const isTarget = index === path.length - 1;
-          cell.classList.add('transition-none');
-
-          if (isTarget) {
-            cell.classList.add(canAfford ? 'path-target-affordable' : 'path-target-unaffordable');
-            const costEl = cell.querySelector<HTMLElement>('.path-cost');
-            const costSpan = cell.querySelector<HTMLElement>('.path-cost-value');
-            if (costEl && costSpan) {
-              costSpan.textContent = energyCost.toString();
-              costEl.classList.toggle('text-red-400', !canAfford);
-              costEl.classList.remove('hidden');
-            }
-          } else {
-            cell.classList.add(canAfford ? 'path-affordable' : 'path-unaffordable');
-            const dotEl = cell.querySelector<HTMLElement>('.path-dot');
-            if (dotEl) {
-              dotEl.classList.toggle('bg-sky-300/70', canAfford);
-              dotEl.classList.toggle('bg-amber-400/70', !canAfford);
-              dotEl.classList.remove('hidden');
-            }
-          }
-        }
-      });
-    }
-    lastPathRef.current = path;
-  }, [currentEnergy]);
-
-  const handleCellHover = (x: number, y: number) => {
-    if (!playerPosition || (x === -1 && y === -1)) {
-      drawPath(null);
-      return;
-    }
-    const path = findPathBFS(playerPosition, { x, y });
-    drawPath(path);
-  };
+  const handleCellHover = useCallback((x: number, y: number) => {
+    setHoveredCell({ x, y });
+  }, []);
+  
+  const handleCellClick = useCallback((x: number, y: number) => {
+    onCellClick(x, y, pathRef.current);
+  }, [onCellClick]);
 
   const updateIndicators = useCallback(() => {
     const viewport = viewportRef.current;
@@ -206,7 +173,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
   }, [updateIndicators]);
 
   return (
-    <div className="relative w-full h-full" onMouseLeave={() => handleCellHover(-1, -1)}>
+    <div className="relative w-full h-full" onMouseLeave={() => setHoveredCell(null)}>
       <div ref={viewportRef} className="w-full h-full overflow-auto no-scrollbar">
         <div className="relative" style={{ width: `${colVirtualizer.getTotalSize()}px`, height: `${rowVirtualizer.getTotalSize()}px` }}>
           {rowVirtualizer.getVirtualItems().map(virtualRow => (
@@ -214,36 +181,40 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
               const y = virtualRow.index;
               const x = virtualColumn.index;
               const key = `${x},${y}`;
+              
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
-              const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
+              const isPlayerOnCell = playerPosition?.x === x && playerPosition?.y === y;
               const canClickEntrance = isEntrance && playerPosition && (isPlayerOnCell || (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1));
 
+              const isOnPath = pathSet.has(key);
+              let pathInfo = null;
+              if (isOnPath && currentPath && currentPath.length > 1) {
+                const cost = currentPath.length - 1;
+                pathInfo = {
+                  isOnPath: true,
+                  isPathTarget: currentPath[cost].x === x && currentPath[cost].y === y,
+                  canAfford: cost <= currentEnergy,
+                  cost: cost,
+                };
+              }
+
               return (
-                <button
+                <ExplorationCell
                   key={key}
-                  ref={el => { if (el) cellElementsRef.current.set(key, el); else cellElementsRef.current.delete(key); }}
-                  onMouseEnter={() => handleCellHover(x, y)}
-                  onClick={() => onCellClick(x, y, lastPathRef.current)}
-                  className={cn(
-                    "absolute flex items-center justify-center rounded-lg border",
-                    isEntrance ? "bg-white/20 border-white/30" : "bg-white/10 border-white/20",
-                    canClickEntrance ? "cursor-pointer hover:bg-white/30" : "cursor-default"
-                  )}
+                  x={x}
+                  y={y}
+                  isEntrance={isEntrance}
+                  isPlayerOnCell={!!isPlayerOnCell}
+                  canClickEntrance={!!canClickEntrance}
+                  pathInfo={pathInfo}
+                  onMouseEnter={handleCellHover}
+                  onClick={handleCellClick}
                   style={{
+                    position: 'absolute',
                     left: 0, top: 0, width: `${CELL_SIZE_PX}px`, height: `${CELL_SIZE_PX}px`,
                     transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start}px)`,
                   }}
-                >
-                  {isEntrance && !isPlayerOnCell && <ArrowDown className="w-6 h-6 text-white animate-bounce" style={{ animationDuration: '2s' }} />}
-                  {isPlayerOnCell && <div className="relative w-1/2 h-1/2 rounded-full bg-sky-400 shadow-lg"></div>}
-                  <div className="path-dot w-1.5 h-1.5 rounded-full hidden"></div>
-                  <div className="path-cost absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none hidden">
-                    <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-white/20 rounded-full px-2 py-0.5 text-xs font-bold text-white">
-                      <Zap size={12} />
-                      <span className="path-cost-value"></span>
-                    </div>
-                  </div>
-                </button>
+                />
               );
             })
           ))}
