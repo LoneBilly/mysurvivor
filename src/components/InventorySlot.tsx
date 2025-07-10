@@ -49,8 +49,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onDrop, isBeingDr
 
   if (!isUnlocked) {
     return (
-      <div className="relative aspect-square flex items-center justify-center rounded-lg border bg-black/20 border-white/10 cursor-not-allowed">
-        <Lock className="w-5 h-5 text-gray-500" />
+      <div className="relative aspect-square flex items-center justify-center rounded-lg border bg-black/50 border-neutral-800 cursor-not-allowed">
+        <Lock className="w-5 h-5 text-neutral-600" />
       </div>
     );
   }
@@ -62,8 +62,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onDrop, isBeingDr
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "relative aspect-square rounded-lg border transition-all duration-200 bg-white/10 border-white/20",
-          isDragOver && "bg-white/20 ring-2 ring-sky-400"
+          "relative aspect-square rounded-lg border transition-all duration-200 bg-white/5 border-neutral-700",
+          isDragOver && "bg-white/10 ring-2 ring-sky-400"
         )}
       />
     );
@@ -81,9 +81,9 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onDrop, isBeingDr
             onDrop={handleDrop}
             className={cn(
               "relative aspect-square flex items-center justify-center p-1 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing",
-              "bg-sky-400/20 border-sky-400/40",
+              "bg-sky-900/50 border-sky-700/60",
               isBeingDragged && "opacity-30",
-              isDragOver && "bg-white/20 ring-2 ring-sky-400"
+              isDragOver && "bg-white/10 ring-2 ring-sky-400"
             )}
           >
             <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />

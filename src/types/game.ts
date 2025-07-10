@@ -27,6 +27,7 @@ export interface GameState {
   metal: number;
   components: number;
   spawn_date: string;
+  unlocked_slots: number;
 }
 
 export interface MapCell {

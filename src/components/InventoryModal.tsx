@@ -3,23 +3,23 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { Package, Backpack, Loader2 } from "lucide-react";
-import { ScrollArea } from "./ui/scroll-area";
+import { Package, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
 import { showError, showSuccess } from "@/utils/toast";
+import { GameState } from "@/types/game";
 
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  gameState: GameState | null;
 }
 
 export interface InventoryItem {
-  id: number; // L'ID de l'entrée dans la table 'inventories'
+  id: number;
   item_id: number;
   quantity: number;
   slot_position: number;
@@ -32,13 +32,14 @@ export interface InventoryItem {
 }
 
 const TOTAL_SLOTS = 50;
-const UNLOCKED_SLOTS = 10;
 
-const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
+const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => {
   const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+
+  const unlockedSlots = gameState?.unlocked_slots ?? 0;
 
   const fetchInventory = useCallback(async () => {
     if (!user || !isOpen) return;
@@ -46,17 +47,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
 
     const { data: inventoryData, error } = await supabase
       .from('inventories')
-      .select(`
-        id,
-        item_id,
-        quantity,
-        slot_position,
-        items (
-          name,
-          description,
-          icon
-        )
-      `)
+      .select('id, item_id, quantity, slot_position, items(name, description, icon)')
       .eq('player_id', user.id);
 
     if (error) {
@@ -107,30 +98,23 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     const draggedItem = newSlots[draggedItemIndex];
     const targetItem = newSlots[targetIndex];
 
-    // Swap items in the local state
     newSlots[draggedItemIndex] = targetItem;
     newSlots[targetIndex] = draggedItem;
     setSlots(newSlots);
 
-    // Update database
     const updates = [];
     if (draggedItem) {
-      updates.push(
-        supabase.from('inventories').update({ slot_position: targetIndex }).eq('id', draggedItem.id)
-      );
+      updates.push(supabase.from('inventories').update({ slot_position: targetIndex }).eq('id', draggedItem.id));
     }
     if (targetItem) {
-      updates.push(
-        supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id)
-      );
+      updates.push(supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id));
     }
 
     const results = await Promise.all(updates);
     const dbError = results.some(res => res.error);
 
     if (dbError) {
-      showError("Erreur lors de la mise à jour de l'inventaire.");
-      // Revert state if DB update fails
+      showError("Erreur de mise à jour.");
       fetchInventory();
     } else {
       showSuccess("Inventaire mis à jour.");
@@ -153,7 +137,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
         key={index}
         item={item}
         index={index}
-        isUnlocked={index < UNLOCKED_SLOTS}
+        isUnlocked={index < unlockedSlots}
         onDragStart={setDraggedItemIndex}
         onDrop={handleDrop}
         isBeingDragged={draggedItemIndex === index}
@@ -163,32 +147,24 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
-        <DialogHeader className="text-center mb-4">
-          <Package className="w-8 h-8 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
-            Inventaire
-          </DialogTitle>
-          <DialogDescription className="text-gray-300 mt-1">
-            Glissez-déposez pour organiser vos objets.
-          </DialogDescription>
+      <DialogContent className="max-w-2xl w-full bg-black/70 backdrop-blur-xl border-2 border-neutral-700/50 shadow-2xl rounded-2xl p-4 sm:p-6">
+        <DialogHeader className="flex-row items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Package className="w-7 h-7 text-white" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+              Inventaire
+            </DialogTitle>
+          </div>
+          <div className="text-sm text-neutral-400 font-mono">
+            <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS
+          </div>
         </DialogHeader>
         
-        <div className="flex flex-col md:flex-row gap-4 max-h-[60vh]">
-          <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white/5 border border-white/10">
-            <div className="relative w-20 h-20 flex items-center justify-center rounded-lg border-2 border-dashed border-white/20 bg-black/20">
-              <Backpack className="w-8 h-8 text-gray-500" />
-            </div>
-            <p className="text-xs text-gray-400 font-mono">Sac à dos</p>
-          </div>
-
-          <ScrollArea className="flex-1">
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 h-full">
-              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2" onDragEnd={() => setDraggedItemIndex(null)}>
-                {renderSlots()}
-              </div>
-            </div>
-          </ScrollArea>
+        <div 
+          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4 bg-black/30 rounded-lg border border-neutral-800 max-h-[60vh] overflow-y-auto"
+          onDragEnd={() => setDraggedItemIndex(null)}
+        >
+          {renderSlots()}
         </div>
       </DialogContent>
     </Dialog>

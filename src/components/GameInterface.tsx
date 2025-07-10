@@ -401,6 +401,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
       <InventoryModal
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
+        gameState={gameState}
       />
     </div>
   );
