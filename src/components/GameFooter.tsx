@@ -1,15 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Heart, Utensils, Droplets, Zap, Package, Loader2 } from "lucide-react";
+import { Heart, Utensils, Droplets, Zap, Package } from "lucide-react";
 import { GameStats } from "@/types/game";
 
 interface GameFooterProps {
   stats: GameStats;
   onInventaire: () => void;
-  isInventoryLoading?: boolean;
 }
 
-const GameFooter = ({ stats, onInventaire, isInventoryLoading }: GameFooterProps) => {
+const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
   const StatItem = ({ 
     icon: Icon, 
     label, 
@@ -43,11 +42,10 @@ const GameFooter = ({ stats, onInventaire, isInventoryLoading }: GameFooterProps
         </div>
         <Button
           onClick={onInventaire}
-          disabled={isInventoryLoading}
           className="w-full flex items-center justify-center space-x-2 bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all"
           variant="default"
         >
-          {isInventoryLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Package className="w-5 h-5" />}
+          <Package className="w-5 h-5" />
           <span>Inventaire</span>
         </Button>
       </div>
@@ -65,11 +63,10 @@ const GameFooter = ({ stats, onInventaire, isInventoryLoading }: GameFooterProps
         
         <Button
           onClick={onInventaire}
-          disabled={isInventoryLoading}
           className="flex items-center space-x-2 bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all px-6"
           variant="default"
         >
-          {isInventoryLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Package className="w-5 h-5 mr-2" />}
+          <Package className="w-5 h-5 mr-2" />
           <span>Inventaire</span>
         </Button>
       </div>

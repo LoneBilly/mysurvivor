@@ -72,7 +72,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [isInventoryLoading, setIsInventoryLoading] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -318,11 +317,9 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);
   
-  const handleInventaire = async () => {
-    setIsInventoryLoading(true);
-    await reloadGameState(true);
-    setIsInventoryLoading(false);
+  const handleInventaire = () => {
     setIsInventoryOpen(true);
+    reloadGameState(true);
   };
 
   if (!isViewReady) {
@@ -400,7 +397,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
           energie: gameState.energie,
         }}
         onInventaire={handleInventaire}
-        isInventoryLoading={isInventoryLoading}
       />
 
       <ActionModal
