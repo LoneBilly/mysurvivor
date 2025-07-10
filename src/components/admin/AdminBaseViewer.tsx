@@ -92,10 +92,6 @@ const AdminBaseViewer = ({ isOpen, onClose, playerId, playerUsername }: AdminBas
     setActionModalState({ isOpen: true, cell });
   };
 
-  const closeActionModal = () => {
-    setActionModalState(prev => ({ ...prev, isOpen: false }));
-  };
-
   const handleDeleteConstruction = async () => {
     const cell = actionModalState.cell;
     if (!cell) return;
@@ -107,7 +103,7 @@ const AdminBaseViewer = ({ isOpen, onClose, playerId, playerUsername }: AdminBas
       showSuccess("Construction supprimée.");
       fetchConstructions();
     }
-    closeActionModal();
+    setActionModalState({ isOpen: false, cell: null });
   };
 
   const handleBuildFoundation = async () => {
@@ -121,7 +117,7 @@ const AdminBaseViewer = ({ isOpen, onClose, playerId, playerUsername }: AdminBas
       showSuccess("Fondation construite.");
       fetchConstructions();
     }
-    closeActionModal();
+    setActionModalState({ isOpen: false, cell: null });
   };
 
   const getCellContent = (cell: BaseCell) => (cell.type === 'campfire' ? "🔥" : "");
@@ -171,13 +167,13 @@ const AdminBaseViewer = ({ isOpen, onClose, playerId, playerUsername }: AdminBas
       </Dialog>
       <ActionModal
         isOpen={actionModalState.isOpen}
-        onClose={closeActionModal}
-        title={actionModalState.cell ? `Modifier la case (${actionModalState.cell.x}, ${actionModalState.cell.y})` : ''}
+        onClose={() => setActionModalState({ isOpen: false, cell: null })}
+        title={`Modifier la case (${actionModalState.cell?.x}, ${actionModalState.cell?.y})`}
         description="Choisissez une action pour cette case."
         actions={[
           ...(actionModalState.cell?.type !== 'empty' ? [{ label: `Supprimer ${actionModalState.cell?.type}`, onClick: handleDeleteConstruction, variant: 'destructive' as const }] : []),
           ...(actionModalState.cell?.type === 'empty' ? [{ label: 'Construire une fondation', onClick: handleBuildFoundation, variant: 'default' as const }] : []),
-          { label: 'Annuler', onClick: closeActionModal, variant: 'secondary' as const }
+          { label: 'Annuler', onClick: () => setActionModalState({ isOpen: false, cell: null }), variant: 'secondary' as const }
         ]}
       />
     </>
