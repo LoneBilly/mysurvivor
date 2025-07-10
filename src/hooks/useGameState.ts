@@ -59,6 +59,14 @@ export const useGameState = () => {
           })
         );
 
+        // Preload item images
+        inventoryWithUrls.forEach(item => {
+          if (item.items?.signedIconUrl) {
+            const img = new Image();
+            img.src = item.items.signedIconUrl;
+          }
+        });
+
         const transformedState: GameState = {
           ...restOfData,
           id: restOfData.id,
