@@ -114,11 +114,11 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     ghostNode.style.position = 'fixed';
     ghostNode.style.pointerEvents = 'none';
     ghostNode.style.zIndex = '5000';
-    ghostNode.style.width = `${node.offsetWidth}px`;
-    ghostNode.style.height = `${node.offsetHeight}px`;
-    ghostNode.style.opacity = '0.8';
+    ghostNode.style.width = '64px';
+    ghostNode.style.height = '64px';
+    ghostNode.style.opacity = '0.75';
     ghostNode.style.transform = 'scale(1.1)';
-    ghostNode.classList.add('backdrop-blur-sm');
+    ghostNode.classList.add('backdrop-blur-md');
     document.body.appendChild(ghostNode);
     draggedItemNode.current = ghostNode;
 
@@ -215,7 +215,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       <DialogContent className="max-w-3xl w-full bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center mb-4">
           <div className="flex items-center justify-center gap-3">
-            <Package className="w-7 h-7 text-cyan-300" />
+            <Package className="w-7 h-7 text-white" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire</DialogTitle>
           </div>
           <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
@@ -227,7 +227,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
           className="flex flex-wrap gap-2 justify-center p-4 bg-black/20 rounded-lg border border-white/10 max-h-[60vh] overflow-y-auto"
         >
           {loading ? (
-            <div className="h-32 flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin text-cyan-400" /></div>
+            <div className="h-full w-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (
             slots.map((item, index) => (
               <InventorySlot

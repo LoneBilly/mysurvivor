@@ -28,7 +28,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
   if (!isUnlocked) {
     return (
       <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-white/10 cursor-not-allowed">
-        <Lock className="w-6 h-6 text-gray-600" />
+        <Lock className="w-5 h-5 text-gray-600" />
       </div>
     );
   }
@@ -41,10 +41,10 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       style={{ touchAction: 'none' }}
       className={cn(
         "relative w-16 h-16 flex-shrink-0 rounded-lg border transition-all duration-200",
-        "bg-cyan-400/5 border-cyan-400/20",
-        isDragOver && "bg-cyan-400/20 ring-2 ring-cyan-300 border-cyan-300 animate-pulse",
-        isBeingDragged && "bg-transparent border-dashed border-cyan-400/50",
-        item && "cursor-grab active:cursor-grabbing"
+        "bg-white/5 border-white/10",
+        isDragOver && "bg-white/20 ring-2 ring-white/50 border-white/30",
+        isBeingDragged && "bg-transparent border-dashed border-white/30",
+        item && "cursor-grab active:cursor-grabbing hover:bg-white/10 hover:border-white/20"
       )}
     >
       {item && (
@@ -60,8 +60,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
                 )}
               </div>
             </TooltipTrigger>
-            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-cyan-400/30 font-mono rounded-lg shadow-lg p-3">
-              <p className="font-bold text-lg text-cyan-300">{item.items?.name}</p>
+            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20 font-mono rounded-lg shadow-lg p-3">
+              <p className="font-bold text-lg text-white">{item.items?.name}</p>
               {item.items?.description && <p className="text-sm text-gray-300 max-w-xs mt-1">{item.items.description}</p>}
               <p className="text-xs text-gray-500 mt-2 uppercase tracking-wider">{item.items?.type || 'Objet'}</p>
             </TooltipContent>
