@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
@@ -79,6 +79,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
     description: React.ReactNode;
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
+  const [justMovedTo, setJustMovedTo] = useState<MapCell | null>(null);
 
   useEffect(() => {
     if (currentView === 'base') {
@@ -206,7 +207,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
           energie: gameState.energie - energyCost,
         });
 
-        showSuccess(`Déplacement réussi !`);
+        setJustMovedTo(cell);
       };
 
       setModalState({
@@ -219,11 +220,21 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
           </>
         ),
         actions: [
-          { label: "Se déplacer", onClick: handleMoveAction, variant: "default" },
+          { label: "Y aller", onClick: handleMoveAction, variant: "default" },
         ],
       });
     }
   };
+
+  const handleCellSelectRef = useRef(handleCellSelect);
+  handleCellSelectRef.current = handleCellSelect;
+
+  useEffect(() => {
+    if (justMovedTo && gameState && gameState.position_x === justMovedTo.x && gameState.position_y === justMovedTo.y) {
+        handleCellSelectRef.current(justMovedTo);
+        setJustMovedTo(null);
+    }
+  }, [gameState, justMovedTo]);
 
   const handleExplorationCellHover = (x: number, y: number) => {
     if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
