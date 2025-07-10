@@ -9,7 +9,7 @@ import { Package, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import InventorySlot from "./InventorySlot";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { InventoryItem } from "@/types/game";
 import ItemDetailModal from "./ItemDetailModal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,11 +19,12 @@ interface InventoryModalProps {
   onClose: () => void;
   inventory: InventoryItem[];
   unlockedSlots: number;
+  onUpdate: (silent?: boolean) => Promise<void>;
 }
 
 const TOTAL_SLOTS = 50;
 
-const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: InventoryModalProps) => {
+const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }: InventoryModalProps) => {
   const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
@@ -163,6 +164,52 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
     setDetailedItem(item);
   };
 
+  const handleUseItem = () => {
+    showError("Cette fonctionnalité n'est pas encore disponible.");
+  };
+
+  const handleDropOneItem = async () => {
+    if (!detailedItem) return;
+
+    let error;
+    if (detailedItem.quantity > 1) {
+      ({ error } = await supabase
+        .from('inventories')
+        .update({ quantity: detailedItem.quantity - 1 })
+        .eq('id', detailedItem.id));
+    } else {
+      ({ error } = await supabase
+        .from('inventories')
+        .delete()
+        .eq('id', detailedItem.id));
+    }
+
+    if (error) {
+      showError("Erreur lors de la suppression de l'objet.");
+    } else {
+      showSuccess("Objet jeté.");
+      setDetailedItem(null);
+      onUpdate(true);
+    }
+  };
+
+  const handleDropAllItems = async () => {
+    if (!detailedItem) return;
+
+    const { error } = await supabase
+      .from('inventories')
+      .delete()
+      .eq('id', detailedItem.id);
+
+    if (error) {
+      showError("Erreur lors de la suppression des objets.");
+    } else {
+      showSuccess("Objets jetés.");
+      setDetailedItem(null);
+      onUpdate(true);
+    }
+  };
+
   useEffect(() => {
     const moveHandler = (e: MouseEvent | TouchEvent) => {
       const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
@@ -235,6 +282,9 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
           isOpen={!!detailedItem}
           onClose={() => setDetailedItem(null)}
           item={detailedItem}
+          onUse={handleUseItem}
+          onDropOne={handleDropOneItem}
+          onDropAll={handleDropAllItems}
         />
       </DialogContent>
     </Dialog>

@@ -423,6 +423,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         onClose={() => setIsInventoryOpen(false)}
         inventory={gameState.inventaire}
         unlockedSlots={gameState.unlocked_slots}
+        onUpdate={reloadGameState}
       />
     </div>
   );
