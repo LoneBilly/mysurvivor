@@ -27,14 +27,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
 
   if (!isUnlocked) {
     return (
-      <div 
-        className="relative aspect-square flex items-center justify-center rounded-md border border-neutral-800 bg-neutral-900 cursor-not-allowed"
-        style={{
-          backgroundImage: "linear-gradient(45deg, rgba(0,0,0,0.2) 25%, transparent 25%, transparent 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2) 75%, transparent 75%, transparent)",
-          backgroundSize: "10px 10px"
-        }}
-      >
-        <Lock className="w-5 h-5 text-neutral-700" />
+      <div className="relative aspect-square flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-white/10 cursor-not-allowed">
+        <Lock className="w-5 h-5 text-gray-600" />
       </div>
     );
   }
@@ -46,30 +40,30 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       onTouchStart={handleInteractionStart}
       style={{ touchAction: 'none' }}
       className={cn(
-        "relative aspect-square rounded-md border transition-all duration-200",
-        "bg-neutral-800/50 border-neutral-700 shadow-inner shadow-black/60",
-        "hover:bg-neutral-700/60",
-        isDragOver && "bg-amber-400/20 ring-2 ring-amber-400 scale-105 border-amber-400/50",
-        isBeingDragged && "opacity-20 scale-95 bg-black/70",
+        "relative aspect-square rounded-lg border transition-all duration-200",
+        "bg-white/5 border-white/10",
+        isDragOver && "bg-sky-400/20 ring-2 ring-sky-400 border-sky-400/50 animate-pulse",
+        isBeingDragged && "bg-transparent border-dashed border-sky-400/50",
         item && "cursor-grab active:cursor-grabbing"
       )}
     >
       {item && (
-        <TooltipProvider delayDuration={100}>
+        <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="w-full h-full p-1">
+              <div className={cn("w-full h-full item-visual", isBeingDragged && "opacity-0")}>
                 <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
                 {item.quantity > 1 && (
-                  <span className="absolute bottom-0.5 right-1.5 text-xs font-bold text-white" style={{ textShadow: '1px 1px 3px black' }}>
+                  <span className="absolute bottom-0.5 right-1.5 text-xs font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
                     {item.quantity}
                   </span>
                 )}
               </div>
             </TooltipTrigger>
-            <TooltipContent className="bg-black text-white border-neutral-700 font-mono">
-              <p className="font-bold text-amber-300">{item.items?.name}</p>
-              {item.items?.description && <p className="text-sm text-neutral-400">{item.items.description}</p>}
+            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20 font-mono rounded-lg shadow-lg p-3">
+              <p className="font-bold text-lg text-sky-300">{item.items?.name}</p>
+              {item.items?.description && <p className="text-sm text-gray-300 max-w-xs mt-1">{item.items.description}</p>}
+              <p className="text-xs text-gray-500 mt-2 uppercase tracking-wider">{item.items?.type || 'Objet'}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
