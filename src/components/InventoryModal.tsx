@@ -12,6 +12,7 @@ import InventorySlot from "./InventorySlot";
 import { showError } from "@/utils/toast";
 import { InventoryItem } from "@/types/game";
 import ItemDetailModal from "./ItemDetailModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface InventoryModalProps {
 const TOTAL_SLOTS = 50;
 
 const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: InventoryModalProps) => {
+  const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
@@ -65,7 +67,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
     setDraggedItemIndex(null);
     setDragOverIndex(null);
 
-    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex || !user) return;
     if (toIndex >= unlockedSlots) {
       showError("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
       return;
@@ -74,28 +76,25 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots }: Inventory
     const originalSlots = [...slots];
     const newSlots = [...slots];
     const itemFrom = newSlots[fromIndex];
-    const itemTo = newSlots[toIndex];
+    
+    if (!itemFrom) return;
 
+    const itemTo = newSlots[toIndex];
     newSlots[fromIndex] = itemTo;
     newSlots[toIndex] = itemFrom;
     setSlots(newSlots);
 
-    const updates = [];
-    if (itemTo) {
-      updates.push(supabase.from('inventories').update({ slot_position: fromIndex }).eq('id', itemTo.id));
-    }
-    if (itemFrom) {
-      updates.push(supabase.from('inventories').update({ slot_position: toIndex }).eq('id', itemFrom.id));
-    }
+    const { error } = await supabase.rpc('swap_inventory_items', {
+        p_from_slot: fromIndex,
+        p_to_slot: toIndex
+    });
 
-    if (updates.length > 0) {
-      const results = await Promise.all(updates);
-      if (results.some(res => res.error)) {
+    if (error) {
         showError("Erreur de mise à jour de l'inventaire.");
+        console.error(error);
         setSlots(originalSlots);
-      }
     }
-  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll]);
+  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
