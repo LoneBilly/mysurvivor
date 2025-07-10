@@ -8,7 +8,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import React from 'react';
 
 interface InventorySlotProps {
   item: InventoryItem | null;
@@ -19,7 +18,7 @@ interface InventorySlotProps {
   isDragOver: boolean;
 }
 
-const InventorySlot = React.memo(({ item, index, isUnlocked, onDragStart, isBeingDragged, isDragOver }: InventorySlotProps) => {
+const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, isDragOver }: InventorySlotProps) => {
   const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (item && isUnlocked) {
       onDragStart(index, e.currentTarget, e);
@@ -41,7 +40,7 @@ const InventorySlot = React.memo(({ item, index, isUnlocked, onDragStart, isBein
       onTouchStart={handleInteractionStart}
       style={{ touchAction: 'none' }}
       className={cn(
-        "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center flex-shrink-0",
+        "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center flex-shrink-0", // Added flex-shrink-0
         "bg-slate-700/50 border-slate-600",
         isDragOver && "bg-slate-600/70 ring-2 ring-slate-400 border-slate-400",
         isBeingDragged && "bg-transparent border-dashed border-slate-500",
@@ -52,7 +51,7 @@ const InventorySlot = React.memo(({ item, index, isUnlocked, onDragStart, isBein
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className={cn("absolute inset-0 item-visual", isBeingDragged && "opacity-0")}>
+              <div className={cn("absolute inset-0 item-visual", isBeingDragged && "opacity-0")}> {/* Changed to absolute inset-0 */}
                 <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
                 {item.quantity > 1 && (
                   <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
@@ -71,6 +70,6 @@ const InventorySlot = React.memo(({ item, index, isUnlocked, onDragStart, isBein
       )}
     </div>
   );
-});
+};
 
 export default InventorySlot;
