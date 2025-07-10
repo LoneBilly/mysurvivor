@@ -401,6 +401,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
       <InventoryModal
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
+        unlockedSlots={gameState.unlocked_slots}
       />
     </div>
   );

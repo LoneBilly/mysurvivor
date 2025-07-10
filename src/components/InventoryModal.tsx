@@ -1,11 +1,8 @@
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { Package, Backpack, Loader2 } from "lucide-react";
+import { Package, Backpack, Loader2, User, Shield, Shirt, Hand } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,10 +13,11 @@ import { showError, showSuccess } from "@/utils/toast";
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  unlockedSlots: number;
 }
 
 export interface InventoryItem {
-  id: number; // L'ID de l'entrée dans la table 'inventories'
+  id: number;
   item_id: number;
   quantity: number;
   slot_position: number;
@@ -32,9 +30,8 @@ export interface InventoryItem {
 }
 
 const TOTAL_SLOTS = 50;
-const UNLOCKED_SLOTS = 10;
 
-const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
+const InventoryModal = ({ isOpen, onClose, unlockedSlots }: InventoryModalProps) => {
   const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
@@ -46,17 +43,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
 
     const { data: inventoryData, error } = await supabase
       .from('inventories')
-      .select(`
-        id,
-        item_id,
-        quantity,
-        slot_position,
-        items (
-          name,
-          description,
-          icon
-        )
-      `)
+      .select(`id, item_id, quantity, slot_position, items (name, description, icon)`)
       .eq('player_id', user.id);
 
     if (error) {
@@ -107,88 +94,78 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
     const draggedItem = newSlots[draggedItemIndex];
     const targetItem = newSlots[targetIndex];
 
-    // Swap items in the local state
     newSlots[draggedItemIndex] = targetItem;
     newSlots[targetIndex] = draggedItem;
     setSlots(newSlots);
 
-    // Update database
     const updates = [];
-    if (draggedItem) {
-      updates.push(
-        supabase.from('inventories').update({ slot_position: targetIndex }).eq('id', draggedItem.id)
-      );
-    }
-    if (targetItem) {
-      updates.push(
-        supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id)
-      );
-    }
+    if (draggedItem) updates.push(supabase.from('inventories').update({ slot_position: targetIndex }).eq('id', draggedItem.id));
+    if (targetItem) updates.push(supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id));
 
     const results = await Promise.all(updates);
-    const dbError = results.some(res => res.error);
-
-    if (dbError) {
-      showError("Erreur lors de la mise à jour de l'inventaire.");
-      // Revert state if DB update fails
+    if (results.some(res => res.error)) {
+      showError("Erreur de mise à jour de l'inventaire.");
       fetchInventory();
     } else {
       showSuccess("Inventaire mis à jour.");
     }
-
     setDraggedItemIndex(null);
-  };
-
-  const renderSlots = () => {
-    if (loading) {
-      return (
-        <div className="h-full flex items-center justify-center col-span-full row-span-full">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      );
-    }
-
-    return slots.map((item, index) => (
-      <InventorySlot
-        key={index}
-        item={item}
-        index={index}
-        isUnlocked={index < UNLOCKED_SLOTS}
-        onDragStart={setDraggedItemIndex}
-        onDrop={handleDrop}
-        isBeingDragged={draggedItemIndex === index}
-      />
-    ));
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
-        <DialogHeader className="text-center mb-4">
-          <Package className="w-8 h-8 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
-            Inventaire
-          </DialogTitle>
-          <DialogDescription className="text-gray-300 mt-1">
-            Glissez-déposez pour organiser vos objets.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="flex flex-col md:flex-row gap-4 max-h-[60vh]">
-          <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white/5 border border-white/10">
-            <div className="relative w-20 h-20 flex items-center justify-center rounded-lg border-2 border-dashed border-white/20 bg-black/20">
-              <Backpack className="w-8 h-8 text-gray-500" />
-            </div>
-            <p className="text-xs text-gray-400 font-mono">Sac à dos</p>
-          </div>
-
-          <ScrollArea className="flex-1">
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 h-full">
-              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2" onDragEnd={() => setDraggedItemIndex(null)}>
-                {renderSlots()}
+      <DialogContent className="max-w-4xl w-full bg-gray-900/60 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Colonne Équipement */}
+          <div className="md:col-span-1 space-y-6">
+            <div className="p-4 rounded-lg bg-black/20 border border-white/10">
+              <h3 className="font-mono text-lg text-center mb-4">Équipement</h3>
+              <div className="flex justify-center items-center">
+                <div className="grid grid-cols-3 grid-rows-3 gap-2 w-48 h-48">
+                  <div className="col-start-2 row-start-1 flex items-center justify-center"><Shield className="w-8 h-8 text-gray-600"/></div>
+                  <div className="col-start-1 row-start-2 flex items-center justify-center"><Hand className="w-8 h-8 text-gray-600"/></div>
+                  <div className="col-start-2 row-start-2 flex items-center justify-center bg-black/20 rounded-md"><User className="w-10 h-10 text-gray-500"/></div>
+                  <div className="col-start-3 row-start-2 flex items-center justify-center"><Hand className="w-8 h-8 text-gray-600"/></div>
+                  <div className="col-start-2 row-start-3 flex items-center justify-center"><Shirt className="w-8 h-8 text-gray-600"/></div>
+                </div>
               </div>
             </div>
-          </ScrollArea>
+            <div className="p-4 rounded-lg bg-black/20 border border-white/10">
+              <h3 className="font-mono text-lg text-center mb-4">Sac à dos</h3>
+              <div className="flex justify-center">
+                <div className="w-24 h-24 flex items-center justify-center rounded-lg border-2 border-dashed border-white/20 bg-black/20">
+                  <Backpack className="w-12 h-12 text-gray-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Colonne Inventaire */}
+          <div className="md:col-span-2 p-4 rounded-lg bg-black/20 border border-white/10">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-mono text-lg">Contenu du sac</h3>
+              <p className="font-mono text-sm text-gray-400">{unlockedSlots} / {TOTAL_SLOTS} slots</p>
+            </div>
+            <ScrollArea className="h-80 pr-3">
+              {loading ? (
+                <div className="h-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
+              ) : (
+                <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-8 gap-2" onDragEnd={() => setDraggedItemIndex(null)}>
+                  {slots.map((item, index) => (
+                    <InventorySlot
+                      key={index}
+                      item={item}
+                      index={index}
+                      isUnlocked={index < unlockedSlots}
+                      onDragStart={setDraggedItemIndex}
+                      onDrop={handleDrop}
+                      isBeingDragged={draggedItemIndex === index}
+                    />
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
