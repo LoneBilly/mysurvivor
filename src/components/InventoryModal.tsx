@@ -5,132 +5,139 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Package, Lock, Backpack, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Package, Backpack, Loader2 } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import ItemIcon from "./ItemIcon";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import InventorySlot from "./InventorySlot";
+import { showError, showSuccess } from "@/utils/toast";
 
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface InventoryItem {
+export interface InventoryItem {
+  id: number; // L'ID de l'entrée dans la table 'inventories'
+  item_id: number;
   quantity: number;
+  slot_position: number;
   items: {
     name: string;
     description: string | null;
     icon: string | null;
-    signedIconUrl?: string; // Ajout pour l'URL signée
+    signedIconUrl?: string;
   } | null;
 }
 
 const TOTAL_SLOTS = 50;
-const UNLOCKED_SLOTS = 5;
-
-const InventorySlot = ({ item }: { item?: InventoryItem }) => {
-  if (!item || !item.items) {
-    return (
-      <div className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-white/10 border-white/20" />
-    );
-  }
-
-  return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            className={cn(
-              "relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200",
-              "bg-sky-400/20 border-sky-400/40 cursor-pointer"
-            )}
-          >
-            <ItemIcon iconName={item.items.signedIconUrl || item.items.icon} alt={item.items.name} />
-            {item.quantity > 1 && (
-              <span className="absolute bottom-0 right-1 text-xs font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
-                {item.quantity}
-              </span>
-            )}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent className="bg-gray-900 text-white border-gray-700">
-          <p className="font-bold">{item.items.name}</p>
-          {item.items.description && <p className="text-sm text-gray-400">{item.items.description}</p>}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-};
-
-const LockedSlot = () => (
-  <div className="relative aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 bg-black/20 border-white/10 cursor-not-allowed">
-    <Lock className="w-5 h-5 text-gray-500" />
-  </div>
-);
+const UNLOCKED_SLOTS = 10;
 
 const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
   const { user } = useAuth();
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+
+  const fetchInventory = useCallback(async () => {
+    if (!user || !isOpen) return;
+    setLoading(true);
+
+    const { data: inventoryData, error } = await supabase
+      .from('inventories')
+      .select(`
+        id,
+        item_id,
+        quantity,
+        slot_position,
+        items (
+          name,
+          description,
+          icon
+        )
+      `)
+      .eq('player_id', user.id);
+
+    if (error) {
+      console.error("Error fetching inventory:", error);
+      setLoading(false);
+      return;
+    }
+
+    const itemsWithSignedUrls = await Promise.all(
+      inventoryData.map(async (item) => {
+        if (item.items && item.items.icon && item.items.icon.includes('.')) {
+          try {
+            const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
+              body: { itemName: item.items.icon },
+            });
+            if (funcError) throw funcError;
+            return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
+          } catch (e) {
+            console.error(`Failed to get signed URL for ${item.items.icon}`, e);
+            return item;
+          }
+        }
+        return item;
+      })
+    );
+
+    const newSlots = Array(TOTAL_SLOTS).fill(null);
+    itemsWithSignedUrls.forEach((item) => {
+      if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
+        newSlots[item.slot_position] = item;
+      }
+    });
+    setSlots(newSlots);
+    setLoading(false);
+  }, [user, isOpen]);
 
   useEffect(() => {
-    const fetchInventory = async () => {
-      if (!user || !isOpen) return;
-      setLoading(true);
-      
-      const { data: inventoryData, error } = await supabase
-        .from('inventories')
-        .select(`
-          quantity,
-          items (
-            name,
-            description,
-            icon
-          )
-        `)
-        .eq('player_id', user.id);
-
-      if (error) {
-        console.error("Error fetching inventory:", error);
-        setInventory([]);
-        setLoading(false);
-        return;
-      }
-
-      // Pour chaque objet avec une icône de type fichier, on récupère une URL signée
-      const itemsWithSignedUrls = await Promise.all(
-        (inventoryData as InventoryItem[]).map(async (item) => {
-          if (item.items && item.items.icon && item.items.icon.includes('.')) {
-            try {
-              const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
-                body: { itemName: item.items.icon },
-              });
-              if (funcError) throw funcError;
-              return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
-            } catch (e) {
-              console.error(`Failed to get signed URL for ${item.items.icon}`, e);
-              return item; // Retourne l'objet original en cas d'erreur
-            }
-          }
-          return item;
-        })
-      );
-
-      setInventory(itemsWithSignedUrls);
-      setLoading(false);
-    };
-
     fetchInventory();
-  }, [user, isOpen]);
+  }, [fetchInventory]);
+
+  const handleDrop = async (targetIndex: number) => {
+    if (draggedItemIndex === null || draggedItemIndex === targetIndex) {
+      setDraggedItemIndex(null);
+      return;
+    }
+
+    const newSlots = [...slots];
+    const draggedItem = newSlots[draggedItemIndex];
+    const targetItem = newSlots[targetIndex];
+
+    // Swap items in the local state
+    newSlots[draggedItemIndex] = targetItem;
+    newSlots[targetIndex] = draggedItem;
+    setSlots(newSlots);
+
+    // Update database
+    const updates = [];
+    if (draggedItem) {
+      updates.push(
+        supabase.from('inventories').update({ slot_position: targetIndex }).eq('id', draggedItem.id)
+      );
+    }
+    if (targetItem) {
+      updates.push(
+        supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id)
+      );
+    }
+
+    const results = await Promise.all(updates);
+    const dbError = results.some(res => res.error);
+
+    if (dbError) {
+      showError("Erreur lors de la mise à jour de l'inventaire.");
+      // Revert state if DB update fails
+      fetchInventory();
+    } else {
+      showSuccess("Inventaire mis à jour.");
+    }
+
+    setDraggedItemIndex(null);
+  };
 
   const renderSlots = () => {
     if (loading) {
@@ -141,14 +148,17 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
       );
     }
 
-    const slots = [];
-    for (let i = 0; i < UNLOCKED_SLOTS; i++) {
-      slots.push(<InventorySlot key={`item-${i}`} item={inventory[i]} />);
-    }
-    for (let i = UNLOCKED_SLOTS; i < TOTAL_SLOTS; i++) {
-      slots.push(<LockedSlot key={`locked-${i}`} />);
-    }
-    return slots;
+    return slots.map((item, index) => (
+      <InventorySlot
+        key={index}
+        item={item}
+        index={index}
+        isUnlocked={index < UNLOCKED_SLOTS}
+        onDragStart={setDraggedItemIndex}
+        onDrop={handleDrop}
+        isBeingDragged={draggedItemIndex === index}
+      />
+    ));
   };
 
   return (
@@ -160,7 +170,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
             Inventaire
           </DialogTitle>
           <DialogDescription className="text-gray-300 mt-1">
-            Gérez vos objets et ressources.
+            Glissez-déposez pour organiser vos objets.
           </DialogDescription>
         </DialogHeader>
         
@@ -174,7 +184,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
 
           <ScrollArea className="flex-1">
             <div className="p-4 rounded-lg bg-white/5 border border-white/10 h-full">
-              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
+              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2" onDragEnd={() => setDraggedItemIndex(null)}>
                 {renderSlots()}
               </div>
             </div>
