@@ -1,10 +1,12 @@
 import { useLayoutEffect, useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowRight, Zap } from "lucide-react";
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 const GRID_SIZE = 51;
 const CELL_SIZE_PX = 40;
 const CELL_GAP = 4;
+const CELL_TOTAL_SIZE = CELL_SIZE_PX + CELL_GAP;
 const ENTRANCE_X = 25;
 const ENTRANCE_Y = 50;
 const ORBIT_RADIUS_PX = 40;
@@ -23,18 +25,25 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
   const hasCentered = useRef(false);
 
-  const centerViewport = useCallback((x: number, y: number, behavior: 'auto' | 'smooth' = 'auto') => {
-    if (viewportRef.current) {
-      const viewport = viewportRef.current;
-      const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-      
-      const scrollLeft = cellCenterX - viewport.clientWidth / 2;
-      const scrollTop = cellCenterY - viewport.clientHeight / 2;
+  const rowVirtualizer = useVirtualizer({
+    count: GRID_SIZE,
+    getScrollElement: () => viewportRef.current,
+    estimateSize: () => CELL_TOTAL_SIZE,
+    overscan: 5,
+  });
 
-      viewport.scrollTo({ left: scrollLeft, top: scrollTop, behavior });
-    }
-  }, []);
+  const colVirtualizer = useVirtualizer({
+    horizontal: true,
+    count: GRID_SIZE,
+    getScrollElement: () => viewportRef.current,
+    estimateSize: () => CELL_TOTAL_SIZE,
+    overscan: 5,
+  });
+
+  const centerViewport = useCallback((x: number, y: number, behavior: 'auto' | 'smooth' = 'auto') => {
+    rowVirtualizer.scrollToIndex(y, { align: 'center', behavior });
+    colVirtualizer.scrollToIndex(x, { align: 'center', behavior });
+  }, [rowVirtualizer, colVirtualizer]);
 
   const updateIndicators = useCallback(() => {
     if (!viewportRef.current || !playerPosition) {
@@ -46,11 +55,11 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
     const viewport = viewportRef.current;
     const { scrollLeft, scrollTop, clientWidth, clientHeight } = viewport;
 
-    const playerPixelX = playerPosition.x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const playerPixelY = playerPosition.y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+    const playerPixelX = playerPosition.x * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
+    const playerPixelY = playerPosition.y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
 
-    const exitPixelX = ENTRANCE_X * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const exitPixelY = ENTRANCE_Y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
+    const exitPixelX = ENTRANCE_X * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
+    const exitPixelY = ENTRANCE_Y * CELL_TOTAL_SIZE + CELL_SIZE_PX / 2;
     const isExitVisible = exitPixelX >= scrollLeft && exitPixelX <= scrollLeft + clientWidth && exitPixelY >= scrollTop && exitPixelY <= scrollTop + clientHeight;
     
     if (isExitVisible) {
@@ -88,25 +97,31 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   }, [playerPosition, centerViewport, updateIndicators]);
 
   useEffect(() => {
-    updateIndicators();
-  }, [playerPosition, updateIndicators]);
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    
+    viewport.addEventListener('scroll', updateIndicators);
+    return () => viewport.removeEventListener('scroll', updateIndicators);
+  }, [updateIndicators]);
 
   return (
     <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
       <div
         ref={viewportRef}
-        onScroll={updateIndicators}
         className="w-full h-full overflow-auto no-scrollbar"
       >
         <div
           className="relative"
           style={{
-            width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
-            height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
+            width: `${colVirtualizer.getTotalSize()}px`,
+            height: `${rowVirtualizer.getTotalSize()}px`,
           }}
         >
-          {Array.from({ length: GRID_SIZE }).map((_, y) =>
-            Array.from({ length: GRID_SIZE }).map((_, x) => {
+          {rowVirtualizer.getVirtualItems().map(virtualRow => (
+            colVirtualizer.getVirtualItems().map(virtualColumn => {
+              const y = virtualRow.index;
+              const x = virtualColumn.index;
+
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
               const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
               
@@ -133,28 +148,22 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                   onClick={() => isClickable && onCellClick(x, y)}
                   className={cn(
                     "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
-                    // Base styles
                     isEntrance 
                       ? "bg-white/20 border-white/30" 
                       : "bg-white/10 border-white/20",
-                    
-                    // Path styles
                     isAffordablePath && "bg-sky-400/30 border-sky-400/50",
                     isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
-                    
-                    // Target styles
                     isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
                     isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
-
-                    // Interactivity
                     isClickable ? "cursor-pointer" : "cursor-default",
                     canClickEntrance && "hover:bg-white/30"
                   )}
                   style={{
-                    left: x * (CELL_SIZE_PX + CELL_GAP),
-                    top: y * (CELL_SIZE_PX + CELL_GAP),
-                    width: CELL_SIZE_PX,
-                    height: CELL_SIZE_PX,
+                    left: 0,
+                    top: 0,
+                    width: `${CELL_SIZE_PX}px`,
+                    height: `${CELL_SIZE_PX}px`,
+                    transform: `translateX(${virtualColumn.start}px) translateY(${virtualRow.start}px)`,
                   }}
                 >
                   {isEntrance && !isPlayerOnCell && (
@@ -185,7 +194,7 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
                 </button>
               );
             })
-          )}
+          ))}
         </div>
       </div>
       {/* Exit Indicator */}
