@@ -24,7 +24,7 @@ interface ActionModalProps {
 const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-6">
+      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
         <DialogHeader className="text-center">
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
             {title}

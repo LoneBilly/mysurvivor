@@ -44,7 +44,7 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-6">
+      <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
         <DialogHeader className="mb-4">
           <div className="flex flex-col items-center">
             <Trophy className="w-8 h-8 text-white mb-2" />
