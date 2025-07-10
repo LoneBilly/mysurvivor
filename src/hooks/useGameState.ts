@@ -40,6 +40,29 @@ export const useGameState = () => {
         if (!silent) setLoadingMessage("Préparation de votre aventure...");
         
         const inventoryData = playerData.inventory || [];
+
+        // Préchargement des images de manière bloquante
+        const imageLoadPromises = inventoryData
+          .filter((item: InventoryItem) => item.items && item.items.icon && item.items.icon.includes('.'))
+          .map(async (item: InventoryItem) => {
+            const signedUrl = await getCachedSignedUrl(item.items!.icon!);
+            if (signedUrl) {
+              return new Promise<void>((resolve) => {
+                const img = new Image();
+                img.src = signedUrl;
+                img.onload = () => resolve();
+                img.onerror = () => resolve(); // Résout même en cas d'erreur pour ne pas bloquer tout le jeu
+              });
+            }
+            return Promise.resolve();
+          });
+
+        if (imageLoadPromises.length > 0) {
+          if (!silent) setLoadingMessage("Chargement des ressources...");
+          await Promise.all(imageLoadPromises);
+        }
+
+        // Maintenant que les images sont préchargées, on ré-obtient les URLs (qui viendront du cache)
         const inventoryWithUrls = await Promise.all(
           inventoryData.map(async (item: InventoryItem) => {
             if (item.items && item.items.icon && item.items.icon.includes('.')) {
@@ -51,13 +74,6 @@ export const useGameState = () => {
             return item;
           })
         );
-
-        inventoryWithUrls.forEach((item: InventoryItem) => {
-          if (item.items?.signedIconUrl) {
-            const img = new Image();
-            img.src = item.items.signedIconUrl;
-          }
-        });
 
         const { playerState, baseConstructions } = playerData;
         const transformedState: GameState = {
