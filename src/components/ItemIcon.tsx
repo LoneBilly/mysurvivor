@@ -2,8 +2,6 @@ import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
 import React, { useState } from 'react';
 
-const SUPABASE_STORAGE_URL = "https://odnnuqgkkzhmkxfafzhp.supabase.co/storage/v1/object/public/items.icons";
-
 interface ItemIconProps {
   iconName: string | null;
   alt: string;
@@ -17,15 +15,13 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
     return <LucideIcons.Package className={cn("w-full h-full text-gray-400", className)} />;
   }
 
-  // Heuristique simple : si le nom contient un point, c'est un fichier.
-  const isFile = iconName.includes('.');
+  // Si iconName est une URL complète, on l'utilise directement.
+  const isUrl = iconName.startsWith('http');
 
-  if (isFile) {
-    // Ajout d'un timestamp pour forcer le navigateur à ignorer le cache
-    const imageUrl = `${SUPABASE_STORAGE_URL}/${iconName}?t=${new Date().getTime()}`;
+  if (isUrl) {
     return (
       <img
-        src={imageUrl}
+        src={iconName}
         alt={alt}
         className={cn("w-full h-full object-contain p-1", className)}
         onError={() => setError(true)}

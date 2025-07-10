@@ -30,6 +30,7 @@ interface InventoryItem {
     name: string;
     description: string | null;
     icon: string | null;
+    signedIconUrl?: string; // Ajout pour l'URL signée
   } | null;
 }
 
@@ -53,7 +54,7 @@ const InventorySlot = ({ item }: { item?: InventoryItem }) => {
               "bg-sky-400/20 border-sky-400/40 cursor-pointer"
             )}
           >
-            <ItemIcon iconName={item.items.icon} alt={item.items.name} />
+            <ItemIcon iconName={item.items.signedIconUrl || item.items.icon} alt={item.items.name} />
             {item.quantity > 1 && (
               <span className="absolute bottom-0 right-1 text-xs font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
                 {item.quantity}
@@ -86,7 +87,7 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
       if (!user || !isOpen) return;
       setLoading(true);
       
-      const { data, error } = await supabase
+      const { data: inventoryData, error } = await supabase
         .from('inventories')
         .select(`
           quantity,
@@ -101,9 +102,30 @@ const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
       if (error) {
         console.error("Error fetching inventory:", error);
         setInventory([]);
-      } else {
-        setInventory(data as InventoryItem[]);
+        setLoading(false);
+        return;
       }
+
+      // Pour chaque objet avec une icône de type fichier, on récupère une URL signée
+      const itemsWithSignedUrls = await Promise.all(
+        (inventoryData as InventoryItem[]).map(async (item) => {
+          if (item.items && item.items.icon && item.items.icon.includes('.')) {
+            try {
+              const { data, error: funcError } = await supabase.functions.invoke('get-item-icon-url', {
+                body: { itemName: item.items.icon },
+              });
+              if (funcError) throw funcError;
+              return { ...item, items: { ...item.items, signedIconUrl: data.signedUrl } };
+            } catch (e) {
+              console.error(`Failed to get signed URL for ${item.items.icon}`, e);
+              return item; // Retourne l'objet original en cas d'erreur
+            }
+          }
+          return item;
+        })
+      );
+
+      setInventory(itemsWithSignedUrls);
       setLoading(false);
     };
 
