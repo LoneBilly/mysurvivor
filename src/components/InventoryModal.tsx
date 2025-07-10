@@ -42,6 +42,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const unlockedSlots = gameState?.unlocked_slots ?? 0;
 
@@ -89,20 +90,35 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   }, [user, isOpen]);
 
   useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
-
-  const handleDragStart = (index: number, node: HTMLDivElement) => {
-    setDraggedItemIndex(index);
-    draggedItemNode.current = node.cloneNode(true) as HTMLDivElement;
-    if (draggedItemNode.current) {
-      draggedItemNode.current.style.position = 'fixed';
-      draggedItemNode.current.style.pointerEvents = 'none';
-      draggedItemNode.current.style.zIndex = '1000';
-      draggedItemNode.current.style.width = `${node.offsetWidth}px`;
-      draggedItemNode.current.style.height = `${node.offsetHeight}px`;
-      document.body.appendChild(draggedItemNode.current);
+    if (isOpen) {
+      fetchInventory();
     }
+    return () => {
+      if (draggedItemNode.current) {
+        document.body.removeChild(draggedItemNode.current);
+        draggedItemNode.current = null;
+      }
+      setDraggedItemIndex(null);
+      setDragOverIndex(null);
+    };
+  }, [isOpen, fetchInventory]);
+
+  const handleDragStart = (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItemIndex(index);
+    
+    const ghostNode = node.cloneNode(true) as HTMLDivElement;
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = `${node.offsetWidth}px`;
+    ghostNode.style.height = `${node.offsetHeight}px`;
+    ghostNode.style.transform = 'scale(1.1) rotate(3deg)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
   };
 
   const handleDragMove = (clientX: number, clientY: number) => {
@@ -111,9 +127,17 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
     }
 
-    const target = document.elementFromPoint(clientX, clientY);
-    const slotElement = target?.closest('[data-slot-index]');
-    const newDragOverIndex = slotElement ? parseInt(slotElement.getAttribute('data-slot-index')!, 10) : null;
+    let newDragOverIndex: number | null = null;
+    if (gridRef.current) {
+      const slotElements = Array.from(gridRef.current.children);
+      for (const slot of slotElements) {
+        const rect = slot.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          newDragOverIndex = parseInt((slot as HTMLElement).dataset.slotIndex || '-1', 10);
+          break;
+        }
+      }
+    }
     setDragOverIndex(newDragOverIndex);
   };
 
@@ -125,29 +149,19 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
     if (draggedItemIndex !== null && dragOverIndex !== null && draggedItemIndex !== dragOverIndex && dragOverIndex < unlockedSlots) {
       const newSlots = [...slots];
-      const draggedItem = newSlots[draggedItemIndex];
-      const targetItem = newSlots[dragOverIndex];
-
-      newSlots[draggedItemIndex] = targetItem;
-      newSlots[dragOverIndex] = draggedItem;
+      [newSlots[draggedItemIndex], newSlots[dragOverIndex]] = [newSlots[dragOverIndex], newSlots[draggedItemIndex]];
       setSlots(newSlots);
 
       const updates = [];
-      if (draggedItem) {
-        updates.push(supabase.from('inventories').update({ slot_position: dragOverIndex }).eq('id', draggedItem.id));
-      }
-      if (targetItem) {
-        updates.push(supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id));
-      }
+      const draggedItem = slots[draggedItemIndex];
+      const targetItem = slots[dragOverIndex];
+      if (draggedItem) updates.push(supabase.from('inventories').update({ slot_position: dragOverIndex }).eq('id', draggedItem.id));
+      if (targetItem) updates.push(supabase.from('inventories').update({ slot_position: draggedItemIndex }).eq('id', targetItem.id));
 
       const results = await Promise.all(updates);
-      const dbError = results.some(res => res.error);
-
-      if (dbError) {
+      if (results.some(res => res.error)) {
         showError("Erreur de mise à jour.");
         fetchInventory();
-      } else {
-        showSuccess("Inventaire mis à jour.");
       }
     }
 
@@ -156,42 +170,26 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   };
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => handleDragMove(e.clientX, e.clientY);
-    const handleMouseUp = () => handleDragEnd();
-    const handleTouchMove = (e: TouchEvent) => handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
-    const handleTouchEnd = () => handleDragEnd();
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
 
     if (draggedItemIndex !== null) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      window.addEventListener('touchmove', handleTouchMove);
-      window.addEventListener('touchend', handleTouchEnd);
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
     }
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
     };
   }, [draggedItemIndex]);
-
-  const renderSlots = () => {
-    if (loading) {
-      return <div className="h-full flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>;
-    }
-    return slots.map((item, index) => (
-      <InventorySlot
-        key={index}
-        item={item}
-        index={index}
-        isUnlocked={index < unlockedSlots}
-        onDragStart={handleDragStart}
-        isBeingDragged={draggedItemIndex === index}
-        isDragOver={dragOverIndex === index}
-      />
-    ));
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -205,8 +203,25 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
             <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS DÉBLOQUÉS
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4 bg-black/30 rounded-lg border border-neutral-800 max-h-[60vh] overflow-y-auto">
-          {renderSlots()}
+        <div
+          ref={gridRef}
+          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4 bg-black/30 rounded-lg border border-neutral-800 max-h-[60vh] overflow-y-auto"
+        >
+          {loading ? (
+            <div className="h-full flex items-center justify-center col-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+          ) : (
+            slots.map((item, index) => (
+              <InventorySlot
+                key={index}
+                item={item}
+                index={index}
+                isUnlocked={index < unlockedSlots}
+                onDragStart={handleDragStart}
+                isBeingDragged={draggedItemIndex === index}
+                isDragOver={dragOverIndex === index}
+              />
+            ))
+          )}
         </div>
       </DialogContent>
     </Dialog>
