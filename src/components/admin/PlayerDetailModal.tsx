@@ -134,7 +134,9 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
-            <Button onClick={() => setIsBaseViewerOpen(true)} className="w-full">Voir la base</Button>
+            <Button onClick={() => setIsBaseViewerOpen(true)} className="w-full flex items-center gap-2">
+              <Home className="w-4 h-4" /> Voir la base
+            </Button>
             <Button onClick={() => setIsInventoryOpen(true)} className="w-full flex items-center gap-2">
               <Package className="w-4 h-4" /> Voir l'inventaire
             </Button>
