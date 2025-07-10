@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef, useState, useCallback, useEffect } from "react";
+import { useLayoutEffect, useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowDown, ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import ExplorationCell from "./ExplorationCell";
 
 const GRID_SIZE = 51;
 const CELL_SIZE_PX = 40;
@@ -91,6 +92,15 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
     updateIndicators();
   }, [playerPosition, updateIndicators]);
 
+  const pathDetails = useMemo(() => {
+    if (!path) return { set: new Set<string>(), target: null, cost: 0 };
+    return {
+        set: new Set(path.map(p => `${p.x},${p.y}`)),
+        target: path.length > 1 ? path[path.length - 1] : null,
+        cost: path.length > 0 ? path.length - 1 : 0,
+    };
+  }, [path]);
+
   return (
     <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>
       <div
@@ -108,81 +118,36 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
           {Array.from({ length: GRID_SIZE }).map((_, y) =>
             Array.from({ length: GRID_SIZE }).map((_, x) => {
               const isEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
-              const isPlayerOnCell = playerPosition && playerPosition.x === x && playerPosition.y === y;
+              const isPlayerOnCell = playerPosition?.x === x && playerPosition?.y === y;
               
               const pathIndex = path?.findIndex(p => p.x === x && p.y === y) ?? -1;
               const isPath = pathIndex !== -1;
+              const isTarget = pathDetails.target?.x === x && pathDetails.target?.y === y;
+              const energyCost = pathDetails.cost;
               const isAffordablePath = isPath && pathIndex > 0 && pathIndex <= currentEnergy;
-              const isUnaffordablePath = isPath && pathIndex > 0 && pathIndex > currentEnergy;
-
-              const isTarget = path && path.length > 1 && path[path.length - 1].x === x && path[path.length - 1].y === y;
-              const energyCost = path ? path.length - 1 : 0;
-              const canAffordMove = energyCost <= currentEnergy;
 
               const canClickEntrance = isEntrance && playerPosition && (
                 isPlayerOnCell || 
                 (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1)
               );
               
-              const isClickable = (isTarget && canAffordMove) || canClickEntrance;
+              const isClickable = (isTarget && energyCost <= currentEnergy) || canClickEntrance;
 
               return (
-                <button
+                <ExplorationCell
                   key={`${x}-${y}`}
-                  onMouseEnter={() => onCellHover(x, y)}
-                  onClick={() => isClickable && onCellClick(x, y)}
-                  className={cn(
-                    "absolute flex items-center justify-center rounded-lg border transition-all duration-100",
-                    // Base styles
-                    isEntrance 
-                      ? "bg-white/20 border-white/30" 
-                      : "bg-white/10 border-white/20",
-                    
-                    // Path styles
-                    isAffordablePath && "bg-sky-400/30 border-sky-400/50",
-                    isUnaffordablePath && "bg-amber-500/30 border-amber-500/50",
-                    
-                    // Target styles
-                    isTarget && canAffordMove && "bg-sky-400/40 border-sky-400/60 ring-2 ring-sky-400/80",
-                    isTarget && !canAffordMove && "bg-amber-500/40 border-amber-500/60 ring-2 ring-amber-500/80",
-
-                    // Interactivity
-                    isClickable ? "cursor-pointer" : "cursor-default",
-                    canClickEntrance && "hover:bg-white/30"
-                  )}
-                  style={{
-                    left: x * (CELL_SIZE_PX + CELL_GAP),
-                    top: y * (CELL_SIZE_PX + CELL_GAP),
-                    width: CELL_SIZE_PX,
-                    height: CELL_SIZE_PX,
-                  }}
-                >
-                  {isEntrance && !isPlayerOnCell && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ArrowDown className="w-6 h-6 text-white animate-bounce" style={{ animationDuration: '2s' }} />
-                    </div>
-                  )}
-                  {isPlayerOnCell && (
-                    <div className="relative w-1/2 h-1/2 rounded-full bg-sky-400 shadow-lg"></div>
-                  )}
-                  {isAffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-sky-300/70"></div>
-                  )}
-                  {isUnaffordablePath && !isPlayerOnCell && !isEntrance && !isTarget && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400/70"></div>
-                  )}
-                  {isTarget && energyCost > 0 && (
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-                      <div className={cn(
-                        "flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-white/20 rounded-full px-2 py-0.5 text-xs font-bold",
-                        canAffordMove ? "text-white" : "text-red-400"
-                      )}>
-                        <Zap size={12} />
-                        <span>{energyCost}</span>
-                      </div>
-                    </div>
-                  )}
-                </button>
+                  x={x}
+                  y={y}
+                  isEntrance={isEntrance}
+                  isPlayerOnCell={isPlayerOnCell}
+                  isPath={isPath}
+                  isAffordablePath={isAffordablePath}
+                  isTarget={isTarget}
+                  isClickable={isClickable}
+                  energyCost={energyCost}
+                  onMouseEnter={onCellHover}
+                  onClick={onCellClick}
+                />
               );
             })
           )}
