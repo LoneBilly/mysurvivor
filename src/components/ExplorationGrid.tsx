@@ -58,9 +58,11 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
   const hasCentered = useRef(false);
 
   const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
-  const currentPathRef = useRef<{x: number, y: number}[] | null>(null);
-  const [pathVersion, setPathVersion] = useState(0);
+  const [currentPath, setCurrentPath] = useState<{x: number, y: number}[] | null>(null);
   const debouncedHoveredCell = useDebounce(hoveredCell, 50);
+  
+  const pathRef = useRef(currentPath);
+  pathRef.current = currentPath;
 
   const rowVirtualizer = useVirtualizer({
     count: GRID_SIZE,
@@ -84,25 +86,24 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
 
   useEffect(() => {
     if (debouncedHoveredCell && playerPosition) {
-      currentPathRef.current = findPathBFS(playerPosition, debouncedHoveredCell);
+      const path = findPathBFS(playerPosition, debouncedHoveredCell);
+      setCurrentPath(path);
     } else {
-      currentPathRef.current = null;
+      setCurrentPath(null);
     }
-    setPathVersion(v => v + 1);
   }, [debouncedHoveredCell, playerPosition]);
 
   const pathSet = useMemo(() => {
-    if (!currentPathRef.current) return new Set<string>();
-    return new Set(currentPathRef.current.map(p => `${p.x},${p.y}`));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathVersion]);
+    if (!currentPath) return new Set<string>();
+    return new Set(currentPath.map(p => `${p.x},${p.y}`));
+  }, [currentPath]);
 
   const handleCellHover = useCallback((x: number, y: number) => {
     setHoveredCell({ x, y });
   }, []);
   
   const handleCellClick = useCallback((x: number, y: number) => {
-    onCellClick(x, y, currentPathRef.current);
+    onCellClick(x, y, pathRef.current);
   }, [onCellClick]);
 
   const updateIndicators = useCallback(() => {
@@ -187,11 +188,11 @@ const ExplorationGrid = ({ playerPosition, onCellClick, currentEnergy }: Explora
 
               const isOnPath = pathSet.has(key);
               let pathInfo = null;
-              if (isOnPath && currentPathRef.current && currentPathRef.current.length > 1) {
-                const cost = currentPathRef.current.length - 1;
+              if (isOnPath && currentPath && currentPath.length > 1) {
+                const cost = currentPath.length - 1;
                 pathInfo = {
                   isOnPath: true,
-                  isPathTarget: currentPathRef.current[cost].x === x && currentPathRef.current[cost].y === y,
+                  isPathTarget: currentPath[cost].x === x && currentPath[cost].y === y,
                   canAfford: cost <= currentEnergy,
                   cost: cost,
                 };
