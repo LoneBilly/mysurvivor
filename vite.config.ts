@@ -14,7 +14,7 @@ export default defineConfig(() => ({
     },
 
     // Autorisation d'un hôte spécifique (à remplacer par ton sous-domaine ngrok actuel)
-    allowedHosts: ['df4fa5b77365.ngrok-free.app'],
+    allowedHosts: ['c72aede1c811.ngrok-free.app'],
   },
   plugins: [
     dyadComponentTagger(),
