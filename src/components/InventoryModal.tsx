@@ -39,6 +39,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
   const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
   
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -87,17 +88,19 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
       }
     });
     setSlots(newSlots);
+    setHasFetched(true);
     setLoading(false);
   }, [user]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !hasFetched) {
       fetchInventory();
     }
-  }, [isOpen, fetchInventory]);
+  }, [isOpen, hasFetched, fetchInventory]);
 
   useEffect(() => {
     // Reset on user change, to refetch for new user
+    setHasFetched(false);
     setSlots(Array(TOTAL_SLOTS).fill(null));
     setLoading(true);
   }, [user]);
@@ -167,12 +170,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     setDraggedItemIndex(null);
     setDragOverIndex(null);
 
-    if (fromIndex === null || toIndex === null || fromIndex === toIndex) {
-      return;
-    }
-
-    if (toIndex >= unlockedSlots) {
-      showError("Vous ne pouvez pas placer un objet dans un emplacement verrouillé.");
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex || toIndex >= unlockedSlots) {
       return;
     }
 
