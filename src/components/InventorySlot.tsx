@@ -41,10 +41,10 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, isBeingDragged, i
       style={{ touchAction: 'none' }}
       className={cn(
         "relative w-16 h-16 flex-shrink-0 rounded-lg border transition-all duration-200",
-        "bg-white/5 border-white/10",
-        isDragOver && "bg-white/20 ring-2 ring-white/50 border-white/30",
+        "bg-white/10 border-white/20",
+        isDragOver && "bg-white/25 ring-2 ring-white/60 border-white/40",
         isBeingDragged && "bg-transparent border-dashed border-white/30",
-        item && "cursor-grab active:cursor-grabbing hover:bg-white/10 hover:border-white/20"
+        item && "cursor-grab active:cursor-grabbing hover:bg-white/20 hover:border-white/30"
       )}
     >
       {item && (

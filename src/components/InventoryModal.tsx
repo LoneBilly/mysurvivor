@@ -116,9 +116,8 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
     ghostNode.style.zIndex = '5000';
     ghostNode.style.width = '64px';
     ghostNode.style.height = '64px';
-    ghostNode.style.opacity = '0.75';
+    ghostNode.style.opacity = '0.85';
     ghostNode.style.transform = 'scale(1.1)';
-    ghostNode.classList.add('backdrop-blur-md');
     document.body.appendChild(ghostNode);
     draggedItemNode.current = ghostNode;
 
@@ -212,7 +211,7 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full bg-gray-900/50 backdrop-blur-lg text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
+      <DialogContent className="max-w-3xl w-full bg-black/30 backdrop-blur-xl text-white border border-white/20 shadow-2xl rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center mb-4">
           <div className="flex items-center justify-center gap-3">
             <Package className="w-7 h-7 text-white" />
