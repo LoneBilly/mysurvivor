@@ -7,6 +7,7 @@ import BaseInterface from "./BaseInterface";
 import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
 import OptionsModal from "./OptionsModal";
+import InventoryModal from "./InventoryModal";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { GameState, MapCell } from "@/types/game";
@@ -69,6 +70,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -302,7 +304,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
   const handleOptions = () => setIsOptionsOpen(true);
-  const handleInventaire = () => showSuccess("Ouverture de l'inventaire");
+  const handleInventaire = () => setIsInventoryOpen(true);
 
   if (!isViewReady) {
     return (
@@ -394,6 +396,11 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
       <OptionsModal
         isOpen={isOptionsOpen}
         onClose={() => setIsOptionsOpen(false)}
+      />
+
+      <InventoryModal
+        isOpen={isInventoryOpen}
+        onClose={() => setIsInventoryOpen(false)}
       />
     </div>
   );
