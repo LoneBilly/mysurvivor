@@ -15,6 +15,7 @@ import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -73,6 +74,9 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
+  const [explorationPathMap, setExplorationPathMap] = useState<Map<string, number>>(new Map());
+  const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
+  const debouncedHoveredCell = useDebounce(hoveredCell, 50);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -237,22 +241,37 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
   }, [gameState, justMovedTo]);
 
   const handleExplorationCellHover = (x: number, y: number) => {
-    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
+    if (x < 0 || y < 0) {
+      setHoveredCell(null);
+    } else {
+      setHoveredCell({ x, y });
+    }
+  };
+
+  useEffect(() => {
+    if (!debouncedHoveredCell || !gameState || gameState.exploration_x === null || gameState.exploration_y === null) {
       setExplorationPath(null);
+      setExplorationPathMap(new Map());
       return;
     }
 
     const startPos = { x: gameState.exploration_x, y: gameState.exploration_y };
-    const endPos = { x, y };
+    const endPos = debouncedHoveredCell;
 
     if (startPos.x === endPos.x && startPos.y === endPos.y) {
       setExplorationPath(null);
+      setExplorationPathMap(new Map());
       return;
     }
 
     const path = findPathBFS(startPos, endPos);
     setExplorationPath(path);
-  };
+    if (path) {
+      setExplorationPathMap(new Map(path.map((p, i) => [`${p.x},${p.y}`, i])));
+    } else {
+      setExplorationPathMap(new Map());
+    }
+  }, [debouncedHoveredCell, gameState?.exploration_x, gameState?.exploration_y]);
 
   const handleExplorationCellClick = async (x: number, y: number) => {
     if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;
@@ -287,6 +306,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
             energie: gameState.energie - cost,
           });
           setExplorationPath(null);
+          setExplorationPathMap(new Map());
 
           if (targetCell.x === ENTRANCE_X && targetCell.y === ENTRANCE_Y) {
             setModalState({
@@ -379,6 +399,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState }: GameInterfacePro
             onCellClick={handleExplorationCellClick}
             onCellHover={handleExplorationCellHover}
             path={explorationPath}
+            pathMap={explorationPathMap}
             currentEnergy={gameState.energie}
           />
         </div>
