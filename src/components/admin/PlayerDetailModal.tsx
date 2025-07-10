@@ -7,6 +7,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
 import { Loader2, Ban, CheckCircle, Home, User, Package, Calendar } from 'lucide-react';
@@ -27,7 +28,8 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
-  const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
+  const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
+  const [banReason, setBanReason] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -64,7 +66,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
     const newBanStatus = !player.is_banned;
     const { error } = await supabase
       .from('profiles')
-      .update({ is_banned: newBanStatus })
+      .update({ is_banned: newBanStatus, ban_reason: newBanStatus ? banReason : null })
       .eq('id', player.id);
 
     if (error) {
@@ -74,13 +76,26 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
       onPlayerUpdate({ ...player, is_banned: newBanStatus });
     }
     setModalState({ ...modalState, isOpen: false });
+    setBanReason('');
   };
 
   const openBanModal = () => {
     setModalState({
       isOpen: true,
       title: `${player.is_banned ? 'Lever le bannissement' : 'Bannir'} ${player.username}`,
-      description: `Êtes-vous sûr de vouloir ${player.is_banned ? 'autoriser de nouveau' : 'bannir'} ce joueur ?`,
+      description: (
+        <div className="space-y-2 mt-4">
+          <p>{`Êtes-vous sûr de vouloir ${player.is_banned ? 'autoriser de nouveau' : 'bannir'} ce joueur ?`}</p>
+          {!player.is_banned && (
+            <Textarea
+              placeholder="Raison du bannissement (optionnel)"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              className="bg-white/5 border-white/20"
+            />
+          )}
+        </div>
+      ),
       onConfirm: handleToggleBan,
     });
   };

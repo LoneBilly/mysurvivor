@@ -153,8 +153,8 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
                       <div className="absolute inset-0">
                         <ItemIcon iconName={invItem.items?.signedIconUrl || invItem.items?.icon} alt={invItem.items?.name || ''} />
                       </div>
-                      {invItem.quantity > 1 && (
-                        <span className="absolute bottom-1 right-1.5 text-sm font-bold" style={{ textShadow: '1px 1px 2px black' }}>{invItem.quantity}</span>
+                      {invItem.quantity > 0 && (
+                        <span className="absolute bottom-1 right-1.5 text-sm font-bold" style={{ textShadow: '1px 1px 2px black' }}>x{invItem.quantity}</span>
                       )}
                       <p className="absolute top-1 text-xs font-semibold truncate w-full px-1" style={{ textShadow: '1px 1px 2px black' }}>{invItem.items?.name}</p>
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
