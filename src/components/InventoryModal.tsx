@@ -51,7 +51,6 @@ const InventoryModal = ({ isOpen, onClose, gameState }: InventoryModalProps) => 
 
   const fetchInventory = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
 
     const { data: inventoryData, error } = await supabase
       .from('inventories')
