@@ -53,18 +53,29 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
   useEffect(() => {
     const checkItemName = async () => {
-      if (!debouncedName || debouncedName === item?.name) {
+      if (!debouncedName) {
+        setNameExists(false);
+        setCheckingName(false);
+        return;
+      }
+      
+      if (item && debouncedName === item.name) {
         setNameExists(false);
         setCheckingName(false);
         return;
       }
 
       setCheckingName(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('items')
         .select('id')
-        .ilike('name', debouncedName)
-        .limit(1);
+        .ilike('name', debouncedName);
+
+      if (item) {
+        query = query.neq('id', item.id);
+      }
+      
+      const { data, error } = await query.limit(1);
 
       if (error) {
         console.error("Error checking item name:", error);
@@ -78,7 +89,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     if (isOpen) {
       checkItemName();
     }
-  }, [debouncedName, item?.name, isOpen]);
+  }, [debouncedName, item, isOpen]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

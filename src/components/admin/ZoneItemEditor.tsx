@@ -244,26 +244,28 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         ) : (
           <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-2">
             {filteredItems.map(item => (
-              <div key={item.id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded-md">
-                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400">
+              <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between bg-gray-700/50 p-3 rounded-md gap-3">
+                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400 self-start md:self-center truncate">
                   {item.name}
                 </Button>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-4">
+                  <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start sm:gap-2">
                     <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance</Label>
-                    <Input
-                      id={`item-chance-${item.id}`}
-                      type="number"
-                      min="0" max="100"
-                      value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
-                      onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
-                      onBlur={handleSaveSettings}
-                      className="w-20 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0"
-                    />
-                    <span className="text-gray-400">%</span>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id={`item-chance-${item.id}`}
+                        type="number"
+                        min="0" max="100"
+                        value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
+                        onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
+                        onBlur={handleSaveSettings}
+                        className="w-20 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="0"
+                      />
+                      <span className="text-gray-400">%</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start sm:gap-2">
                     <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Max</Label>
                     <Input
                       id={`item-quantity-${item.id}`}
