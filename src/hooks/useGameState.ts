@@ -11,6 +11,7 @@ export const useGameState = () => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState("Chargement du monde...");
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const loadGameState = useCallback(async (silent = false) => {
     if (!user) {
@@ -21,6 +22,7 @@ export const useGameState = () => {
     if (!silent) {
       setLoading(true);
       setLoadingMessage("Chargement du monde...");
+      setLoadingProgress(10);
     }
 
     try {
@@ -32,16 +34,19 @@ export const useGameState = () => {
       if (mapRes.error) throw mapRes.error;
       if (fullPlayerDataRes.error) throw fullPlayerDataRes.error;
 
+      if (!silent) setLoadingProgress(30);
       setMapLayout(mapRes.data as MapCell[]);
       
       const playerData = fullPlayerDataRes.data;
 
       if (playerData && playerData.playerState) {
-        if (!silent) setLoadingMessage("Préparation de votre aventure...");
+        if (!silent) {
+          setLoadingMessage("Préparation de votre aventure...");
+          setLoadingProgress(50);
+        }
         
         const inventoryData = playerData.inventory || [];
 
-        // Préchargement des images de manière bloquante
         const imageLoadPromises = inventoryData
           .filter((item: InventoryItem) => item.items && item.items.icon && item.items.icon.includes('.'))
           .map(async (item: InventoryItem) => {
@@ -51,18 +56,22 @@ export const useGameState = () => {
                 const img = new Image();
                 img.src = signedUrl;
                 img.onload = () => resolve();
-                img.onerror = () => resolve(); // Résout même en cas d'erreur pour ne pas bloquer tout le jeu
+                img.onerror = () => resolve();
               });
             }
             return Promise.resolve();
           });
 
         if (imageLoadPromises.length > 0) {
-          if (!silent) setLoadingMessage("Chargement des ressources...");
+          if (!silent) {
+            setLoadingMessage("Chargement des ressources...");
+            setLoadingProgress(70);
+          }
           await Promise.all(imageLoadPromises);
         }
 
-        // Maintenant que les images sont préchargées, on ré-obtient les URLs (qui viendront du cache)
+        if (!silent) setLoadingProgress(90);
+
         const inventoryWithUrls = await Promise.all(
           inventoryData.map(async (item: InventoryItem) => {
             if (item.items && item.items.icon && item.items.icon.includes('.')) {
@@ -101,6 +110,7 @@ export const useGameState = () => {
       showError('Erreur de chargement des données du jeu.');
     } finally {
       if (!silent) {
+        setLoadingProgress(100);
         setLoading(false);
       }
     }
@@ -167,6 +177,7 @@ export const useGameState = () => {
     mapLayout,
     loading,
     loadingMessage,
+    loadingProgress,
     saveGameState,
     updateStats,
     reload: loadGameState,

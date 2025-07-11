@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { showError } from '@/utils/toast';
 import PlayerDetailModal from './PlayerDetailModal';
-import { cn } from '@/lib/utils';
+import { MapCell } from '@/types/game';
 
 export type PlayerProfile = {
   id: string;
@@ -21,11 +21,12 @@ export type PlayerProfile = {
   is_banned: boolean;
   ban_reason: string | null;
   created_at: string;
+  player_states: { base_zone_id: number | null }[] | null;
 };
 
 type SortKey = 'username' | 'created_at';
 
-const PlayerManager = () => {
+const PlayerManager = ({ mapLayout }: { mapLayout: MapCell[] }) => {
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +38,7 @@ const PlayerManager = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, player_states(base_zone_id)')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -167,6 +168,7 @@ const PlayerManager = () => {
           onClose={closePlayerDetails}
           player={selectedPlayer}
           onPlayerUpdate={handlePlayerUpdate}
+          mapLayout={mapLayout}
         />
       )}
     </>

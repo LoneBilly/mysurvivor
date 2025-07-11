@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import GameInterface from "@/components/GameInterface";
 import { useGameState } from "@/hooks/useGameState";
-import { Loader2 } from "lucide-react";
+import LoadingScreen from "@/components/LoadingScreen";
 
 const Index = () => {
-  const { gameState, mapLayout, loading, loadingMessage, saveGameState, reload } = useGameState();
+  const { gameState, mapLayout, loading, loadingMessage, loadingProgress, saveGameState, reload } = useGameState();
 
   useEffect(() => {
     document.body.classList.add('landing-page-bg');
@@ -14,14 +14,7 @@ const Index = () => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center landing-page-bg">
-        <div className="text-center text-white">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">{loadingMessage}</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen progress={loadingProgress} message={loadingMessage} />;
   }
 
   if (!gameState) {

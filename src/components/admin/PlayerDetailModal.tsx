@@ -24,13 +24,13 @@ interface PlayerDetailModalProps {
   onClose: () => void;
   player: PlayerProfile;
   onPlayerUpdate: (player: PlayerProfile) => void;
+  mapLayout: MapCell[];
 }
 
-const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
+const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
   const [baseLocation, setBaseLocation] = useState<string | null>(null);
   const [baseZoneId, setBaseZoneId] = useState<number | null>(null);
-  const [allZones, setAllZones] = useState<MapCell[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
@@ -39,45 +39,19 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
 
   useEffect(() => {
     if (isOpen) {
-      const fetchDetails = async () => {
-        setLoadingDetails(true);
-        
-        const { data: zonesData, error: zonesError } = await supabase
-          .from('map_layout')
-          .select('id, type, x, y')
-          .neq('type', 'unknown')
-          .order('type');
-
-        if (zonesError) {
-          showError("Impossible de charger les zones de la carte.");
-        } else {
-          setAllZones(zonesData as MapCell[]);
-        }
-
-        const { data: playerStateData, error: playerStateError } = await supabase
-          .from('player_states')
-          .select('base_zone_id')
-          .eq('id', player.id)
-          .single();
-
-        if (playerStateError && playerStateError.code !== 'PGRST116') {
-          showError("Erreur de chargement de l'état du joueur.");
-          setBaseLocation('Erreur');
-          setBaseZoneId(null);
-        } else if (playerStateData?.base_zone_id) {
-          const baseZone = (zonesData || []).find(z => z.id === playerStateData.base_zone_id);
-          setBaseLocation(baseZone ? baseZone.type : 'Inconnue');
-          setBaseZoneId(playerStateData.base_zone_id);
-        } else {
-          setBaseLocation('Aucune');
-          setBaseZoneId(null);
-        }
-
-        setLoadingDetails(false);
-      };
-      fetchDetails();
+      setLoadingDetails(true);
+      const playerState = player.player_states?.[0];
+      if (playerState?.base_zone_id) {
+        const baseZone = mapLayout.find(z => z.id === playerState.base_zone_id);
+        setBaseLocation(baseZone ? baseZone.type : 'Inconnue');
+        setBaseZoneId(playerState.base_zone_id);
+      } else {
+        setBaseLocation('Aucune');
+        setBaseZoneId(null);
+      }
+      setLoadingDetails(false);
     }
-  }, [isOpen, player.id]);
+  }, [isOpen, player, mapLayout]);
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
@@ -92,7 +66,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
         showError("Erreur lors du déplacement de la base.");
     } else {
         showSuccess("La base du joueur a été déplacée.");
-        const newZone = allZones.find(z => z.id === newZoneId);
+        const newZone = mapLayout.find(z => z.id === newZoneId);
         setBaseLocation(newZone ? newZone.type : 'Inconnue');
         setBaseZoneId(newZoneId);
     }
@@ -194,7 +168,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
                     <SelectValue placeholder={baseLocation || "Choisir une zone..."} />
                   </SelectTrigger>
                   <SelectContent>
-                    {allZones.map(zone => (
+                    {mapLayout.map(zone => (
                       <SelectItem key={zone.id} value={zone.id.toString()}>
                         {zone.type} ({zone.x}, {zone.y})
                       </SelectItem>
