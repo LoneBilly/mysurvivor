@@ -40,31 +40,10 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   }, [mapLayout]);
 
   const currentBaseId = player.player_states?.[0]?.base_zone_id;
-  const baseExistsInValidMap = useMemo(() => 
-    validMapLayout.some(zone => zone.id === currentBaseId), 
-    [validMapLayout, currentBaseId]
-  );
-  const selectValue = (currentBaseId != null && baseExistsInValidMap) ? String(currentBaseId) : undefined;
-
-  const handleBaseLocationChange = async (newZoneIdStr: string) => {
-    const newZoneId = parseInt(newZoneIdStr, 10);
-    if (isNaN(newZoneId)) return;
-
-    const { error } = await supabase
-        .from('player_states')
-        .update({ base_zone_id: newZoneId })
-        .eq('id', player.id);
-
-    if (error) {
-        showError("Erreur lors du déplacement de la base.");
-    } else {
-        showSuccess("La base du joueur a été déplacée.");
-        const playerState = player.player_states?.[0] || {};
-        const updatedPlayerState = { ...playerState, base_zone_id: newZoneId };
-        const updatedPlayer = { ...player, player_states: [updatedPlayerState] };
-        onPlayerUpdate(updatedPlayer as PlayerProfile);
-    }
-  };
+  const baseZone = useMemo(() => {
+    if (currentBaseId == null) return null;
+    return validMapLayout.find(zone => zone.id === currentBaseId);
+  }, [currentBaseId, validMapLayout]);
 
   const handleRoleChange = async (newRole: 'player' | 'admin') => {
     if (player.id === adminUser?.id && newRole === 'player') {
@@ -156,18 +135,9 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
-              <Select onValueChange={handleBaseLocationChange} value={selectValue}>
-                <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
-                  <SelectValue placeholder="Aucune base" />
-                </SelectTrigger>
-                <SelectContent>
-                  {validMapLayout.map(zone => (
-                      <SelectItem key={zone.id} value={String(zone.id)}>
-                        {zone.type} ({zone.x}, {zone.y})
-                      </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <span className="font-bold text-white">
+                {baseZone ? `${baseZone.type} (${baseZone.x}, ${baseZone.y})` : 'Aucune base'}
+              </span>
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (
