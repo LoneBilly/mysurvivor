@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2, GanttChartSquare, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2, GanttChartSquare } from 'lucide-react';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
@@ -48,14 +49,6 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
   const [sellQuantity, setSellQuantity] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
-
-  const toggleSortOrder = () => {
-    setSortOrder(current => {
-      if (current === 'none') return 'asc';
-      if (current === 'asc') return 'desc';
-      return 'none';
-    });
-  };
 
   useEffect(() => {
     if (sellItem) {
@@ -228,7 +221,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col focus-visible:ring-0 focus-visible:ring-offset-0">
+        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
           <DialogHeader className="text-center">
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl">Marché</DialogTitle>
@@ -246,26 +239,23 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
               {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> :
                 <>
                   <TabsContent value="buy">
-                    <div className="flex gap-2 mb-4">
-                      <div className="relative flex-grow">
-                        <Input 
-                          placeholder="Rechercher un objet..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="bg-white/10 border-white/20 pr-10 w-full"
-                        />
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="absolute top-1/2 right-1 -translate-y-1/2 text-white/70 hover:text-white"
-                          onClick={toggleSortOrder}
-                          aria-label="Trier par prix"
-                        >
-                          {sortOrder === 'asc' && <ArrowUp className="h-5 w-5" />}
-                          {sortOrder === 'desc' && <ArrowDown className="h-5 w-5" />}
-                          {sortOrder === 'none' && <ArrowUpDown className="h-5 w-5" />}
-                        </Button>
-                      </div>
+                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                      <Input 
+                        placeholder="Rechercher un objet..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-white/10 border-white/20"
+                      />
+                      <Select onValueChange={(value: 'asc' | 'desc' | 'none') => setSortOrder(value)} defaultValue="none">
+                        <SelectTrigger className="w-full sm:w-[180px] bg-white/10 border-white/20">
+                          <SelectValue placeholder="Trier par prix" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Pas de tri</SelectItem>
+                          <SelectItem value="asc">Prix croissant</SelectItem>
+                          <SelectItem value="desc">Prix décroissant</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
