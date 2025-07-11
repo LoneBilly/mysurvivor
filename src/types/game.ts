@@ -32,7 +32,7 @@ export interface GameState {
   faim: number;
   soif: number;
   energie: number;
-  credits: number; // Ajout des crédits
+  credits: number;
   zones_decouvertes: number[];
   inventaire: InventoryItem[];
   base_constructions: BaseConstruction[];
@@ -49,12 +49,31 @@ export interface GameState {
   components: number;
   spawn_date: string;
   unlocked_slots: number;
+  sale_slots: number;
 }
 
 export interface MapCell {
   id: number;
   x: number;
   y: number;
-  type: string; // Type est maintenant plus générique
+  type: string;
   icon: string | null;
+}
+
+export interface MarketListing {
+  id: number;
+  seller_id: string;
+  item_id: number;
+  quantity: number;
+  price: number;
+  created_at: string;
+  items: {
+    name: string;
+    description: string | null;
+    icon: string | null;
+    signedIconUrl?: string;
+  };
+  profiles?: {
+    username: string | null;
+  }
 }
