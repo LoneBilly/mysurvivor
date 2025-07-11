@@ -17,11 +17,13 @@ import ItemFormModal from './ItemFormModal';
 import ItemIcon from '@/components/ItemIcon';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const ItemManager = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const isMobile = useIsMobile();
@@ -67,7 +69,8 @@ const ItemManager = () => {
   };
 
   const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (typeFilter === 'all' || item.type === typeFilter)
   );
 
   if (loading) {
@@ -78,15 +81,31 @@ const ItemManager = () => {
     <>
       <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
         <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Rechercher un objet..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-gray-900 border-gray-700"
-            />
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Rechercher un objet..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-gray-900 border-gray-700"
+              />
+            </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-gray-900 border-gray-700">
+                <SelectValue placeholder="Filtrer par type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="Ressources">Ressources</SelectItem>
+                <SelectItem value="Armes">Armes</SelectItem>
+                <SelectItem value="Nourriture">Nourriture</SelectItem>
+                <SelectItem value="Soins">Soins</SelectItem>
+                <SelectItem value="Items divers">Items divers</SelectItem>
+                <SelectItem value="Items craftés">Items craftés</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={handleCreate} className="w-full sm:w-auto">
             <PlusCircle className="w-4 h-4 mr-2" />

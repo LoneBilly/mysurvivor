@@ -4,7 +4,7 @@ import { useGameState } from "@/hooks/useGameState";
 import LoadingScreen from "@/components/LoadingScreen";
 
 const Index = () => {
-  const { gameState, mapLayout, loading, loadingMessage, loadingProgress, saveGameState, reload } = useGameState();
+  const { gameState, mapLayout, loading, loadingMessage, saveGameState, reload } = useGameState();
 
   useEffect(() => {
     document.body.classList.add('landing-page-bg');
@@ -14,7 +14,7 @@ const Index = () => {
   }, []);
 
   if (loading) {
-    return <LoadingScreen progress={loadingProgress} message={loadingMessage} />;
+    return <LoadingScreen message={loadingMessage} />;
   }
 
   if (!gameState) {

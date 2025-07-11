@@ -17,6 +17,7 @@ import { Item } from '@/types/admin';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { getCachedSignedUrl } from '@/utils/iconCache';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface ItemFormModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('');
   const [stackable, setStackable] = useState(true);
+  const [type, setType] = useState('Items divers');
   const [loading, setLoading] = useState(false);
   
   const [nameExists, setNameExists] = useState(false);
@@ -52,6 +54,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         setDescription(item?.description || '');
         setIcon(initialIcon);
         setStackable(item?.stackable ?? true);
+        setType(item?.type || 'Items divers');
         setNameExists(false);
         setPreviewUrl(null);
         setIconExists(null);
@@ -137,7 +140,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     }
 
     setLoading(true);
-    const itemData = { name, description, icon: icon || null, stackable };
+    const itemData = { name, description, icon: icon || null, stackable, type };
     const { error } = item
       ? await supabase.from('items').update(itemData).eq('id', item.id)
       : await supabase.from('items').insert(itemData);
@@ -170,6 +173,22 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           <div>
             <Label htmlFor="description" className="text-gray-300 font-mono">Description</Label>
             <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" disabled={loading} />
+          </div>
+          <div>
+            <Label htmlFor="type" className="text-gray-300 font-mono">Type</Label>
+            <Select value={type} onValueChange={setType} disabled={loading}>
+              <SelectTrigger id="type" className="mt-1 bg-white/5 border border-white/20 rounded-lg">
+                <SelectValue placeholder="Sélectionner un type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Ressources">Ressources</SelectItem>
+                <SelectItem value="Armes">Armes</SelectItem>
+                <SelectItem value="Nourriture">Nourriture</SelectItem>
+                <SelectItem value="Soins">Soins</SelectItem>
+                <SelectItem value="Items divers">Items divers</SelectItem>
+                <SelectItem value="Items craftés">Items craftés</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
