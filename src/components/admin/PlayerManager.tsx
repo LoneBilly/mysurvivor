@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, User, Shield, Ban, ShieldCheck } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -86,7 +86,7 @@ const PlayerManager = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Rechercher par pseudo ou ID..."
+                placeholder="Rechercher par pseudo..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-gray-900 border-gray-700 focus:ring-indigo-500 focus:border-indigo-500"
@@ -100,9 +100,6 @@ const PlayerManager = () => {
             <TableHeader>
               <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
                 <TableHead className="text-white">Pseudo</TableHead>
-                <TableHead className="text-white">Role</TableHead>
-                <TableHead className="text-white">Statut</TableHead>
-                <TableHead className="text-white">Inscrit le</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -113,36 +110,8 @@ const PlayerManager = () => {
                   onClick={() => openPlayerDetails(player)}
                 >
                   <TableCell>
-                    <div className="font-medium">{player.username || <span className="text-gray-500">Non défini</span>}</div>
-                    <div className="text-xs text-gray-400">{player.id}</div>
+                    <div className="font-medium">{player.username || <span className="text-gray-500">Joueur Anonyme</span>}</div>
                   </TableCell>
-                  <TableCell>
-                    {player.role === 'admin' ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-300">
-                        <Shield className="w-3 h-3 mr-1" />
-                        Admin
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-300">
-                        <User className="w-3 h-3 mr-1" />
-                        Joueur
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {player.is_banned ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-300">
-                        <Ban className="w-3 h-3 mr-1" />
-                        Banni
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-300">
-                        <ShieldCheck className="w-3 h-3 mr-1" />
-                        Actif
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>{new Date(player.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

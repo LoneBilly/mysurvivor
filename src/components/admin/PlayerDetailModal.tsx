@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
-import { Loader2, Ban, CheckCircle, Home, User, Package, Calendar } from 'lucide-react';
+import { Loader2, Ban, CheckCircle, Home, User, Package, Calendar, Shield } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
@@ -150,6 +150,19 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
               <span>Inscrit le: <span className="font-bold">{new Date(player.created_at).toLocaleDateString()}</span></span>
             </div>
             <div className="flex items-center gap-3">
+              {player.role === 'admin' ? (
+                <>
+                  <Shield className="w-5 h-5 text-indigo-400" />
+                  <span className="font-medium text-indigo-300">Rôle: Admin</span>
+                </>
+              ) : (
+                <>
+                  <User className="w-5 h-5 text-gray-400" />
+                  <span className="font-medium">Rôle: Joueur</span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
               {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : (
@@ -179,6 +192,9 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
                   <span className="text-green-400">Statut: Actif</span>
                 </>
               )}
+            </div>
+            <div className="pt-2">
+              <p className="text-xs text-gray-500">ID: {player.id}</p>
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
