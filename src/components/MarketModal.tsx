@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
@@ -43,6 +45,13 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
   const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; description: string; onConfirm: () => void; confirmLabel: string; variant?: "default" | "destructive" }>({ isOpen: false, title: '', description: '', onConfirm: () => {}, confirmLabel: 'Confirmer' });
   const [sellItem, setSellItem] = useState<InventoryItem | null>(null);
   const [sellPrice, setSellPrice] = useState('');
+  const [sellQuantity, setSellQuantity] = useState(1);
+
+  useEffect(() => {
+    if (sellItem) {
+      setSellQuantity(1);
+    }
+  }, [sellItem]);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -136,13 +145,17 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
       showError("Prix invalide.");
       return;
     }
+    if (sellQuantity <= 0 || sellQuantity > sellItem.quantity) {
+      showError("Quantité invalide.");
+      return;
+    }
     setModalState({
       isOpen: true,
       title: `Vendre ${sellItem.items?.name}`,
-      description: `Mettre en vente ${sellItem.quantity}x ${sellItem.items?.name} pour ${price} crédits ?`,
+      description: `Mettre en vente ${sellQuantity}x ${sellItem.items?.name} pour ${price} crédits ?`,
       onConfirm: async () => {
         setLoading(true);
-        const { error } = await supabase.rpc('list_item_for_sale', { p_inventory_id: sellItem.id, p_price: price });
+        const { error } = await supabase.rpc('list_item_for_sale', { p_inventory_id: sellItem.id, p_price: price, p_quantity_to_sell: sellQuantity });
         if (error) {
           showError(error.message);
         } else {
@@ -232,10 +245,24 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
                   <TabsContent value="sell">
                     {myListings.length >= saleSlots ? renderEmptyState(`Vous avez atteint votre limite de ${saleSlots} emplacements de vente.`) :
                       sellItem ? (
-                        <div className="p-4 bg-white/5 rounded-lg">
-                          <h3 className="font-bold text-lg mb-2">Vendre {sellItem.items?.name}</h3>
-                          <Input type="number" placeholder="Prix de vente" value={sellPrice} onChange={e => setSellPrice(e.target.value)} className="bg-white/10 border-white/20" />
-                          <div className="flex gap-2 mt-4">
+                        <div className="p-4 bg-white/5 rounded-lg space-y-4">
+                          <h3 className="font-bold text-lg">Vendre {sellItem.items?.name}</h3>
+                          <div>
+                            <Label>Quantité: {sellQuantity}</Label>
+                            <Slider
+                              value={[sellQuantity]}
+                              onValueChange={(value) => setSellQuantity(value[0])}
+                              min={1}
+                              max={sellItem.quantity}
+                              step={1}
+                              disabled={sellItem.quantity === 1}
+                            />
+                          </div>
+                          <div>
+                            <Label>Prix de vente (pour {sellQuantity} unité(s))</Label>
+                            <Input type="number" placeholder="Prix total" value={sellPrice} onChange={e => setSellPrice(e.target.value)} className="bg-white/10 border-white/20 mt-1" />
+                          </div>
+                          <div className="flex gap-2 mt-2">
                             <Button onClick={handleSell}>Mettre en vente</Button>
                             <Button variant="secondary" onClick={() => setSellItem(null)}>Annuler</Button>
                           </div>

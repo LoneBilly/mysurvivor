@@ -118,10 +118,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handleExploreAction = async (zone: { name: string; icon: string | null }) => {
     closeModal();
     if (!gameState) return;
-    if (zone.name.toLowerCase() === 'marché') {
-      showError("Le marché ne peut pas être exploré de cette manière.");
-      return;
-    }
 
     await saveGameState({
       exploration_x: gameState.exploration_x ?? ENTRANCE_X,
@@ -135,12 +131,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handleBuildBase = async () => {
     closeModal();
     if (!gameState) return;
-
-    const currentCell = mapLayout.find(c => c.x === gameState.position_x && c.y === gameState.position_y);
-    if (currentCell && currentCell.type === 'marché') {
-        showError("Vous ne pouvez pas construire votre base sur le marché.");
-        return;
-    }
 
     if (gameState.base_position_x !== null && gameState.base_position_y !== null) {
       showError("Vous avez déjà un campement.");
@@ -170,11 +160,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
 
     const { x, y, type, id } = cell;
 
-    if (type === 'marché') {
-      setIsMarketOpen(true);
-      return;
-    }
-
     const isDiscovered = gameState.zones_decouvertes.includes(id);
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
@@ -192,6 +177,11 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     }
 
     if (isCurrentPosition) {
+      if (type === 'marché') {
+        setIsMarketOpen(true);
+        return;
+      }
+
       const actions: { label: string; onClick: () => void; variant?: any }[] = [];
 
       if (isBaseLocation) {
