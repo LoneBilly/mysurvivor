@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
-import { Loader2, Ban, CheckCircle, Home, User, Package, Calendar, Shield } from 'lucide-react';
+import { Ban, CheckCircle, Home, User, Package, Calendar, Shield } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
@@ -29,9 +29,7 @@ interface PlayerDetailModalProps {
 
 const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
-  const [baseLocation, setBaseLocation] = useState<string | null>(null);
   const [baseZoneId, setBaseZoneId] = useState<number | null>(null);
-  const [loadingDetails, setLoadingDetails] = useState(true);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
@@ -39,19 +37,11 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
 
   useEffect(() => {
     if (isOpen) {
-      setLoadingDetails(true);
       const playerState = player.player_states?.[0];
-      if (playerState?.base_zone_id) {
-        const baseZone = mapLayout.find(z => z.id === playerState.base_zone_id);
-        setBaseLocation(baseZone ? baseZone.type : 'Inconnue');
-        setBaseZoneId(playerState.base_zone_id);
-      } else {
-        setBaseLocation('Aucune');
-        setBaseZoneId(null);
-      }
-      setLoadingDetails(false);
+      const currentBaseId = playerState?.base_zone_id ?? null;
+      setBaseZoneId(currentBaseId);
     }
-  }, [isOpen, player, mapLayout]);
+  }, [isOpen, player.player_states]);
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
@@ -66,9 +56,12 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
         showError("Erreur lors du déplacement de la base.");
     } else {
         showSuccess("La base du joueur a été déplacée.");
-        const newZone = mapLayout.find(z => z.id === newZoneId);
-        setBaseLocation(newZone ? newZone.type : 'Inconnue');
         setBaseZoneId(newZoneId);
+        
+        const playerState = player.player_states?.[0] || {};
+        const updatedPlayerState = { ...playerState, base_zone_id: newZoneId };
+        const updatedPlayer = { ...player, player_states: [updatedPlayerState] };
+        onPlayerUpdate(updatedPlayer as PlayerProfile);
     }
   };
 
@@ -162,20 +155,18 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
-              {loadingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                <Select onValueChange={handleBaseLocationChange} value={baseZoneId?.toString()}>
-                  <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
-                    <SelectValue placeholder={baseLocation || "Choisir une zone..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mapLayout.map(zone => (
-                      <SelectItem key={zone.id} value={zone.id.toString()}>
-                        {zone.type} ({zone.x}, {zone.y})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <Select onValueChange={handleBaseLocationChange} value={baseZoneId !== null ? String(baseZoneId) : undefined}>
+                <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
+                  <SelectValue placeholder="Aucune base" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mapLayout.map(zone => (
+                    <SelectItem key={zone.id} value={String(zone.id)}>
+                      {zone.type} ({zone.x}, {zone.y})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (
