@@ -137,7 +137,7 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
                 <div className="w-10 h-10 relative flex-shrink-0">
                   <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
                 </div>
-                <div className="flex-grow flex items-center justify-center min-h-0">
+                <div className="flex-grow flex items-center justify-center min-h-0 w-full overflow-hidden">
                   <p className="text-xs text-wrap break-words w-full line-clamp-2">{item.items?.name}</p>
                 </div>
                 <p className="text-xs font-bold flex-shrink-0">x{item.quantity}</p>
