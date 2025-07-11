@@ -1,56 +1,37 @@
-import { MapCell } from "@/types/game";
-import DraggableMapCell from "./DraggableMapCell";
+import React from 'react';
+import AdminMapCell from './AdminMapCell';
 
-interface AdminMapGridProps {
-  mapLayout: MapCell[];
-  onMapUpdate: (newLayout: MapCell[], changedCells: MapCell[]) => void;
-  onZoneSelect: (cell: MapCell) => void;
+// NOTE: J'ai supposé la structure de votre type 'Zone' et de vos props.
+// Si ce n'est pas correct, n'hésitez pas à me le dire.
+export interface Zone {
+  id: number;
+  x: number;
+  y: number;
+  type: string;
+  icon: string | null;
 }
 
-const AdminMapGrid = ({ mapLayout, onMapUpdate, onZoneSelect }: AdminMapGridProps) => {
-  const handleDrop = (draggedCell: MapCell, targetCell: MapCell) => {
-    if (draggedCell.id === targetCell.id) return;
+interface AdminMapGridProps {
+  grid: (Zone | null)[][];
+  onCellDrop: (zone: Zone, x: number, y: number) => void;
+  onCellClick: (zone: Zone | null, x: number, y: number) => void;
+}
 
-    const newMapLayout = [...mapLayout];
-
-    const draggedIndex = newMapLayout.findIndex(c => c.id === draggedCell.id);
-    const targetIndex = newMapLayout.findIndex(c => c.id === targetCell.id);
-
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    const updatedDraggedCell = { ...newMapLayout[draggedIndex], x: targetCell.x, y: targetCell.y };
-    const updatedTargetCell = { ...newMapLayout[targetIndex], x: draggedCell.x, y: draggedCell.y };
-
-    newMapLayout[draggedIndex] = updatedDraggedCell;
-    newMapLayout[targetIndex] = updatedTargetCell;
-    
-    onMapUpdate(newMapLayout, [updatedDraggedCell, updatedTargetCell]);
-  };
-
-  const generateGrid = (): (MapCell | null)[][] => {
-    const grid: (MapCell | null)[][] = Array(7).fill(null).map(() => Array(7).fill(null));
-    if (!mapLayout.length) return grid;
-
-    mapLayout.forEach(cell => {
-      if (!grid[cell.y]) grid[cell.y] = Array(7).fill(null);
-      grid[cell.y][cell.x] = cell;
-    });
-    return grid;
-  };
-
-  const grid = generateGrid();
-
+const AdminMapGrid: React.FC<AdminMapGridProps> = ({ grid, onCellDrop, onCellClick }) => {
   return (
-    <div className="bg-gray-900/50 p-3 rounded-xl shadow-2xl border border-gray-700/50">
+    <div className="bg-gray-900/50 p-3 rounded-xl shadow-2xl border border-gray-700/50 overflow-x-auto">
       <div className="grid grid-cols-7 gap-1.5 w-full">
         {grid.map((row, y) =>
-          row.map((cell, x) =>
-            cell ? (
-              <DraggableMapCell key={cell.id} cell={cell} onDrop={handleDrop} onSelect={onZoneSelect} />
-            ) : (
-              <div key={`${x}-${y}`} className="aspect-square rounded-md" />
-            )
-          )
+          row.map((cell, x) => (
+            <AdminMapCell
+              key={cell ? cell.id : `${x}-${y}`}
+              zone={cell}
+              x={x}
+              y={y}
+              onDrop={onCellDrop}
+              onClick={() => onCellClick(cell, x, y)}
+            />
+          ))
         )}
       </div>
     </div>
