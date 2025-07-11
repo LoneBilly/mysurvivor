@@ -76,9 +76,9 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           </div>
         ) : (
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar">
             {leaderboardData.length > 0 ? leaderboardData.map((player, index) => (
-              <div key={index} className={`p-3 sm:p-4 rounded-lg border flex items-center gap-4 transition-all duration-300 hover:scale-105 ${getRankClass(index)}`}>
+              <div key={index} className={`p-3 sm:p-4 rounded-lg border flex items-center gap-4 transition-all duration-300 ${getRankClass(index)}`}>
                 <div className="w-12 flex-shrink-0 flex items-center justify-center">
                   {getRankIcon(index)}
                 </div>

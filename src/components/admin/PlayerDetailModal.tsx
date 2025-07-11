@@ -166,10 +166,12 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
                   <SelectValue placeholder="Choisir une base..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {mapLayout.map(cell => (
-                    <SelectItem key={cell.id} value={cell.id.toString()}>
-                      {cell.type} ({cell.x}, {cell.y})
-                    </SelectItem>
+                  {mapLayout
+                    .filter(cell => cell.type.toLowerCase() !== 'unknown')
+                    .map(cell => (
+                      <SelectItem key={cell.id} value={cell.id.toString()}>
+                        {cell.type} ({cell.x}, {cell.y})
+                      </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
