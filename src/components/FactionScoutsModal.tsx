@@ -1,17 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield } from 'lucide-react';
+import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown } from 'lucide-react';
 import { ScoutingMission } from '@/types/game';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from '@/lib/utils';
 import ActionModal from './ActionModal';
-import { formatDistanceToNowStrict } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
 interface FactionScoutsModalProps {
   isOpen: boolean;
@@ -25,51 +24,8 @@ type ScoutablePlayer = { id: string; username: string };
 const SCOUT_COST = 1000;
 const SCOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
-const MissionTimer = ({ startTime, onFinish }: { startTime: string, onFinish: () => void }) => {
-  const [remaining, setRemaining] = useState('');
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const calculateTime = () => {
-      const endTime = new Date(startTime).getTime() + SCOUT_DURATION_MS;
-      const now = Date.now();
-      const timeLeft = endTime - now;
-
-      if (timeLeft <= 0) {
-        setRemaining('Terminé');
-        setProgress(100);
-        onFinish();
-        return true;
-      } else {
-        setRemaining(formatDistanceToNowStrict(endTime, { locale: fr, addSuffix: false }));
-        setProgress(((SCOUT_DURATION_MS - timeLeft) / SCOUT_DURATION_MS) * 100);
-        return false;
-      }
-    };
-
-    if (calculateTime()) return;
-
-    const interval = setInterval(() => {
-      if (calculateTime()) {
-        clearInterval(interval);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [startTime, onFinish]);
-
-  return (
-    <div className="mt-3">
-      <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
-        <span>Progression</span>
-        <span className="font-mono">{remaining}</span>
-      </div>
-      <Progress value={progress} className="h-2 bg-white/10" indicatorClassName="bg-sky-400" />
-    </div>
-  );
-};
-
 const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScoutsModalProps) => {
+  const [activeTab, setActiveTab] = useState('send');
   const [missions, setMissions] = useState<ScoutingMission[]>([]);
   const [scoutablePlayers, setScoutablePlayers] = useState<ScoutablePlayer[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<ScoutablePlayer | null>(null);
@@ -80,29 +36,23 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
   const fetchScoutingData = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.rpc('check_and_get_scouting_data');
-    if (error) {
-      showError("Erreur de chargement des missions.");
-      console.error(error);
-    } else {
-      setMissions(data || []);
-    }
+    if (error) showError("Erreur de chargement des missions.");
+    else setMissions(data || []);
     setLoading(false);
   }, []);
 
   const fetchScoutablePlayers = useCallback(async () => {
     const { data, error } = await supabase.rpc('get_scoutable_players');
-    if (error) {
-      showError("Erreur de chargement des joueurs.");
-      console.error(error);
-    } else {
-      setScoutablePlayers(data || []);
-    }
+    if (error) showError("Erreur de chargement des joueurs.");
+    else setScoutablePlayers(data || []);
   }, []);
 
   useEffect(() => {
     if (isOpen) {
       fetchScoutingData();
       fetchScoutablePlayers();
+      const interval = setInterval(fetchScoutingData, 15000); // Refresh every 15s
+      return () => clearInterval(interval);
     }
   }, [isOpen, fetchScoutingData, fetchScoutablePlayers]);
 
@@ -130,96 +80,96 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
     });
   };
 
+  const MissionProgress = ({ mission }: { mission: ScoutingMission }) => {
+    const [progress, setProgress] = useState(0);
+    useEffect(() => {
+      const calculateProgress = () => {
+        const elapsed = Date.now() - new Date(mission.started_at).getTime();
+        const calculatedProgress = Math.min(100, (elapsed / SCOUT_DURATION_MS) * 100);
+        setProgress(calculatedProgress);
+      };
+      calculateProgress();
+      const timer = setInterval(calculateProgress, 1000);
+      return () => clearInterval(timer);
+    }, [mission.started_at]);
+
+    return (
+      <div className="p-3 bg-white/5 rounded-lg">
+        <p className="text-sm">En exploration: <span className="font-bold">{mission.target_username}</span></p>
+        <Progress value={progress} className="mt-2 h-2" />
+      </div>
+    );
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col max-h-[85vh]">
-          <DialogHeader className="text-center flex-shrink-0">
+        <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+          <DialogHeader className="text-center">
             <Eye className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Éclaireurs</DialogTitle>
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Scouts</DialogTitle>
             <DialogDescription>Envoyez des éclaireurs et consultez vos rapports.</DialogDescription>
           </DialogHeader>
-          
-          <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10 flex-shrink-0">
-            <h3 className="font-bold text-lg mb-3 text-white">Lancer une nouvelle mission</h3>
-            <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between bg-white/5 border-white/20 hover:bg-white/10 hover:text-white">
-                  {selectedPlayer ? selectedPlayer.username : "Sélectionner un joueur..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command>
-                  <CommandInput placeholder="Rechercher un joueur..." />
-                  <CommandList>
-                    <CommandEmpty>Aucun joueur à explorer.</CommandEmpty>
-                    <CommandGroup>
-                      {scoutablePlayers.map((player) => (
-                        <CommandItem
-                          key={player.id}
-                          value={player.username}
-                          onSelect={() => {
-                            setSelectedPlayer(player);
-                            setIsComboboxOpen(false);
-                          }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", selectedPlayer?.id === player.id ? "opacity-100" : "opacity-0")} />
-                          {player.username}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            <Button onClick={confirmSendScout} disabled={!selectedPlayer || loading || credits < SCOUT_COST} className="w-full mt-3">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                <div className="flex items-center gap-2">
-                  <Send size={16} />
-                  <span>Envoyer l'éclaireur</span>
-                  <div className="w-px h-4 bg-white/20 mx-1"></div>
-                  <span className="flex items-center gap-1">{SCOUT_COST} <Coins size={14} /></span>
-                </div>
-              )}
-            </Button>
-          </div>
-
-          <div className="mt-4 flex-grow overflow-y-auto no-scrollbar space-y-3">
-            <h3 className="font-bold text-lg text-white sticky top-0 bg-slate-800/70 backdrop-blur-sm py-2 z-10">Missions & Rapports</h3>
-            {loading ? (
-              <div className="flex justify-center items-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
-            ) : missions.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">Aucune mission en cours ou terminée.</div>
-            ) : (
-              missions.map(mission => (
-                <div key={mission.id} className="p-4 bg-white/5 rounded-lg border border-white/10">
-                  {mission.status === 'in_progress' ? (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
-                        <p className="font-semibold">En exploration: <span className="font-bold text-white">{mission.target_username}</span></p>
-                      </div>
-                      <MissionTimer startTime={mission.started_at} onFinish={fetchScoutingData} />
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-green-400 flex items-center gap-2"><FileText size={16} /> Rapport disponible</p>
-                          <p className="font-bold text-lg text-white mt-1">{mission.report_data?.target_username}</p>
-                        </div>
-                        <Button size="sm" disabled>Attaquer</Button>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-white/10 space-y-1 text-sm">
-                        <p className="flex items-center gap-2 text-gray-300"><Shield size={14} /> Base en zone: <span className="font-bold text-white">{mission.report_data?.base_zone_type}</span></p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="send"><Send className="w-4 h-4 mr-2" />Envoyer</TabsTrigger>
+              <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-2" />Rapports</TabsTrigger>
+            </TabsList>
+            <TabsContent value="send" className="mt-4 space-y-4">
+              <p className="text-sm text-gray-300 text-center">Choisissez une cible à explorer. Chaque mission coûte 1000 crédits et dure 30 minutes.</p>
+              <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full justify-between bg-white/5 border-white/20">
+                    {selectedPlayer ? selectedPlayer.username : "Sélectionner un joueur..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un joueur..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun joueur trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {scoutablePlayers.map((player) => (
+                          <CommandItem
+                            key={player.id}
+                            value={player.username}
+                            onSelect={() => {
+                              setSelectedPlayer(player);
+                              setIsComboboxOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedPlayer?.id === player.id ? "opacity-100" : "opacity-0")} />
+                            {player.username}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Button onClick={confirmSendScout} disabled={!selectedPlayer || loading || credits < SCOUT_COST} className="w-full">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Envoyer un éclaireur (${SCOUT_COST} crédits)`}
+              </Button>
+            </TabsContent>
+            <TabsContent value="reports" className="mt-4 space-y-2 max-h-64 overflow-y-auto">
+              {loading && <Loader2 className="w-6 h-6 animate-spin mx-auto" />}
+              {!loading && missions.length === 0 && <p className="text-center text-gray-400 py-4">Aucune mission en cours ou terminée.</p>}
+              {!loading && missions.map(mission => (
+                mission.status === 'in_progress' ? (
+                  <MissionProgress key={mission.id} mission={mission} />
+                ) : (
+                  <div key={mission.id} className="p-3 bg-white/10 rounded-lg flex justify-between items-center">
+                    <div>
+                      <p>Rapport sur: <span className="font-bold">{mission.report_data?.target_username}</span></p>
+                      <p className="text-xs text-gray-300">Base en zone: {mission.report_data?.base_zone_type}</p>
+                    </div>
+                    <Button size="sm" disabled>Attaquer</Button>
+                  </div>
+                )
+              ))}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
       <ActionModal
@@ -234,3 +184,6 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
       />
     </>
   );
+};
+
+export default FactionScoutsModal;
