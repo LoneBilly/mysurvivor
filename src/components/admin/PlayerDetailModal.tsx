@@ -36,15 +36,17 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   const [banReason, setBanReason] = useState('');
 
   useEffect(() => {
-    if (isOpen && player) {
+    if (isOpen && player && mapLayout.length > 0) {
       const currentBaseId = player.player_states?.[0]?.base_zone_id;
-      if (currentBaseId !== null && currentBaseId !== undefined) {
+      const baseExistsInMap = mapLayout.some(zone => zone.id === currentBaseId);
+
+      if (currentBaseId !== null && currentBaseId !== undefined && baseExistsInMap) {
         setBaseZoneId(String(currentBaseId));
       } else {
         setBaseZoneId(undefined);
       }
     }
-  }, [isOpen, player]);
+  }, [isOpen, player, mapLayout]);
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
@@ -161,10 +163,12 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
                   <SelectValue placeholder="Aucune base" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mapLayout.map(zone => (
-                    <SelectItem key={zone.id} value={String(zone.id)}>
-                      {zone.type} ({zone.x}, {zone.y})
-                    </SelectItem>
+                  {mapLayout
+                    .filter(zone => zone.type !== 'Inconnue')
+                    .map(zone => (
+                      <SelectItem key={zone.id} value={String(zone.id)}>
+                        {zone.type} ({zone.x}, {zone.y})
+                      </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

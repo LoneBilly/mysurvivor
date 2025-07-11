@@ -211,17 +211,17 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               <Checkbox id="stackable" checked={stackable} onCheckedChange={(checked) => setStackable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
               <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
             </div>
-            <DialogFooter className="pt-4 flex-col sm:flex-row sm:justify-between gap-2">
-              {item && (
-                <Button type="button" variant="destructive" onClick={() => setIsDeleteModalOpen(true)} disabled={loading} className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4" />
-                  Supprimer
+            <DialogFooter className="pt-4 flex flex-row justify-between items-center gap-2">
+                {item ? (
+                    <Button type="button" variant="destructive" onClick={() => setIsDeleteModalOpen(true)} disabled={loading} className="flex items-center gap-2">
+                        <Trash2 className="w-4 h-4" />
+                        Supprimer
+                    </Button>
+                ) : <div />}
+                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {item ? 'Sauvegarder' : 'Créer l\'objet'}
                 </Button>
-              )}
-              <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists)} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20 sm:w-auto">
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {item ? 'Sauvegarder' : 'Créer l\'objet'}
-              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
