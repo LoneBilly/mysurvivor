@@ -6,11 +6,10 @@ interface LoadingScreenProps {
 
 const LoadingScreen = ({ message }: LoadingScreenProps) => {
   return (
-    <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-50 text-white p-4">
-      <div className="w-full max-w-sm text-center">
-        <Loader2 className="w-12 h-12 animate-spin mb-6 mx-auto text-gray-400" />
-        <h1 className="text-xl font-semibold mb-2 text-gray-200">Chargement en cours</h1>
-        <p className="text-gray-400">{message}</p>
+    <div className="landing-page-bg fixed inset-0 flex flex-col items-center justify-center z-50 text-white p-4">
+      <div className="bg-black/50 p-8 rounded-xl shadow-lg flex flex-col items-center gap-4">
+        <Loader2 className="w-12 h-12 animate-spin text-gray-300" />
+        <p className="text-lg font-semibold text-gray-200 text-center">{message}</p>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -35,18 +35,25 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
-  useEffect(() => {
-    if (isOpen && player && mapLayout.length > 0) {
-      const currentBaseId = player.player_states?.[0]?.base_zone_id;
-      const baseExistsInMap = mapLayout.some(zone => zone.id === currentBaseId);
+  const validMapLayout = useMemo(() => {
+    if (!mapLayout) return [];
+    return mapLayout.filter(zone => zone.type !== 'Inconnue');
+  }, [mapLayout]);
 
-      if (currentBaseId !== null && currentBaseId !== undefined && baseExistsInMap) {
+  useEffect(() => {
+    if (isOpen && player && validMapLayout.length > 0) {
+      const currentBaseId = player.player_states?.[0]?.base_zone_id;
+      const baseExistsInValidMap = validMapLayout.some(zone => zone.id === currentBaseId);
+
+      if (currentBaseId != null && baseExistsInValidMap) {
         setBaseZoneId(String(currentBaseId));
       } else {
         setBaseZoneId(undefined);
       }
+    } else if (!isOpen) {
+      setBaseZoneId(undefined);
     }
-  }, [isOpen, player, mapLayout]);
+  }, [isOpen, player, validMapLayout]);
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
@@ -163,9 +170,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
                   <SelectValue placeholder="Aucune base" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mapLayout
-                    .filter(zone => zone.type !== 'Inconnue')
-                    .map(zone => (
+                  {validMapLayout.map(zone => (
                       <SelectItem key={zone.id} value={String(zone.id)}>
                         {zone.type} ({zone.x}, {zone.y})
                       </SelectItem>

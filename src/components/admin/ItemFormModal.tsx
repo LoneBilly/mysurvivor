@@ -211,17 +211,21 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               <Checkbox id="stackable" checked={stackable} onCheckedChange={(checked) => setStackable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
               <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
             </div>
-            <DialogFooter className="pt-4 flex flex-row justify-between items-center gap-2">
-                {item ? (
+            <DialogFooter className="pt-4">
+              <div className="flex w-full items-center justify-between gap-2">
+                <div>
+                  {item && (
                     <Button type="button" variant="destructive" onClick={() => setIsDeleteModalOpen(true)} disabled={loading} className="flex items-center gap-2">
-                        <Trash2 className="w-4 h-4" />
-                        Supprimer
+                      <Trash2 className="w-4 h-4" />
+                      Supprimer
                     </Button>
-                ) : <div />}
+                  )}
+                </div>
                 <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {item ? 'Sauvegarder' : 'Créer l\'objet'}
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {item ? 'Sauvegarder' : 'Créer l\'objet'}
                 </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>
