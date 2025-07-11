@@ -26,6 +26,34 @@ export interface MarketListing {
   signedIconUrl?: string;
 }
 
+const ListingSkeleton = () => (
+  <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2 animate-pulse">
+    <div className="w-12 h-12 bg-slate-700/50 rounded-md flex-shrink-0"></div>
+    <div className="flex-grow space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
+      <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
+    </div>
+    <div className="flex flex-col items-end space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-12"></div>
+      <div className="h-8 bg-slate-700/50 rounded w-20"></div>
+    </div>
+  </div>
+);
+
+const MyListingSkeleton = () => (
+  <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg animate-pulse">
+    <div className="w-12 h-12 bg-slate-700/50 rounded-md flex-shrink-0"></div>
+    <div className="flex-grow space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
+      <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
+    </div>
+    <div className="flex flex-col sm:flex-row gap-2">
+      <div className="h-8 bg-slate-700/50 rounded w-24"></div>
+      <div className="h-8 bg-slate-700/50 rounded w-20"></div>
+    </div>
+  </div>
+);
+
 interface MarketModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -161,8 +189,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
     });
   };
 
-  const handleOpenListItemModal = async () => {
-    await onUpdate(true);
+  const handleOpenListItemModal = () => {
     setIsListItemModalOpen(true);
   };
 
@@ -209,7 +236,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col outline-none focus-visible:ring-0">
           <DialogHeader className="text-center">
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl">Marché</DialogTitle>
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
             <DialogDescription asChild>
               <button onClick={onPurchaseCredits} className="flex items-center justify-center gap-2 text-yellow-400 font-mono hover:text-yellow-300 transition-colors animate-credit-shimmer">
                 <Coins className="w-4 h-4" /> {credits} crédits
@@ -222,42 +249,48 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
               <TabsTrigger value="my-listings" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><Tag className="w-4 h-4 mr-2 flex-shrink-0" />Vendre</TabsTrigger>
             </TabsList>
             
-            {loading ? <div className="flex justify-center items-center flex-grow"><Loader2 className="w-8 h-8 animate-spin" /></div> :
-              <>
-                <TabsContent value="buy" className="mt-4 flex-grow flex flex-col overflow-y-auto no-scrollbar">
-                  <div className="flex flex-row gap-2 mb-4 flex-shrink-0">
-                    <Input 
-                      placeholder="Rechercher un objet..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="bg-white/10 border-white/20 flex-grow"
-                    />
-                    <Button variant="outline" onClick={toggleSortOrder} className="bg-white/10 border-white/20 flex-shrink-0">
-                      <ArrowUpDown className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex-grow overflow-y-auto no-scrollbar">
-                    {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
-                      <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
-                        <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                          <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
-                        </div>
-                        <div className="flex-grow">
-                          <p className="font-bold">{l.item_name} x{l.quantity}</p>
-                          <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
-                        </div>
-                        <div className="flex flex-col items-center sm:items-end">
-                          <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
-                          <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
-                        </div>
+            <TabsContent value="buy" className="mt-4 flex-grow flex flex-col min-h-0">
+              <div className="flex flex-row gap-2 mb-4 flex-shrink-0">
+                <Input 
+                  placeholder="Rechercher un objet..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-white/10 border-white/20 flex-grow"
+                />
+                <Button variant="outline" onClick={toggleSortOrder} className="bg-white/10 border-white/20 flex-shrink-0">
+                  <ArrowUpDown className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="flex-grow overflow-y-auto no-scrollbar">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => <ListingSkeleton key={i} />)
+                ) : (
+                  filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
+                    <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
+                      <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                        <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
                       </div>
-                    )) : renderEmptyState("Aucun objet ne correspond à votre recherche.")}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col overflow-y-auto no-scrollbar">
-                  <p className="text-sm text-gray-400 mb-4 flex-shrink-0">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
-                  <div className="space-y-2 pt-2 flex-grow">
+                      <div className="flex-grow">
+                        <p className="font-bold">{l.item_name} x{l.quantity}</p>
+                        <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
+                      </div>
+                      <div className="flex flex-col items-center sm:items-end">
+                        <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
+                        <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
+                      </div>
+                    </div>
+                  )) : renderEmptyState("Aucun objet ne correspond à votre recherche.")
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col min-h-0">
+              <p className="text-sm text-gray-400 mb-4 flex-shrink-0">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
+              <div className="flex-grow overflow-y-auto no-scrollbar space-y-2">
+                {loading ? (
+                  Array.from({ length: saleSlots }).map((_, i) => <MyListingSkeleton key={i} />)
+                ) : (
+                  <>
                     {myListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
                         <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
@@ -296,10 +329,10 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                         <span>Acheter un emplacement (100 crédits)</span>
                       </button>
                     )}
-                  </div>
-                </TabsContent>
-              </>
-            }
+                  </>
+                )}
+              </div>
+            </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>

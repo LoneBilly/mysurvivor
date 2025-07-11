@@ -97,15 +97,26 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
                 <Label htmlFor="quantity-slider">Quantité à vendre</Label>
                 <span className="font-mono text-lg font-bold">{quantity}</span>
               </div>
-              <Slider
-                id="quantity-slider"
-                value={[quantity]}
-                onValueChange={(value) => setQuantity(value[0])}
-                min={1}
-                max={selectedItem.quantity}
-                step={1}
-                disabled={selectedItem.quantity === 1 || loading}
-              />
+              {selectedItem.quantity > 1 ? (
+                <Slider
+                  id="quantity-slider"
+                  value={[quantity]}
+                  onValueChange={(value) => setQuantity(value[0])}
+                  min={1}
+                  max={selectedItem.quantity}
+                  step={1}
+                  disabled={loading}
+                />
+              ) : (
+                <Slider
+                  id="quantity-slider"
+                  value={[1]}
+                  min={0}
+                  max={1}
+                  step={1}
+                  disabled
+                />
+              )}
             </div>
 
             <div>
