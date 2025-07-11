@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, PlusCircle, Eye } from 'lucide-react';
+import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, PlusCircle } from 'lucide-react';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
@@ -23,7 +23,6 @@ export interface MarketListing {
   quantity: number;
   price: number;
   created_at: string;
-  views: number;
   signedIconUrl?: string;
 }
 
@@ -92,15 +91,6 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         })
       );
       setListings(listingsWithUrls);
-
-      if (data && data.length > 0) {
-        const listingIds = data.map(l => l.listing_id);
-        supabase.rpc('increment_listing_views', { p_listing_ids: listingIds }).then(({ error: rpcError }) => {
-            if (rpcError) {
-                console.error('Failed to increment views', rpcError);
-            }
-        });
-      }
     }
     setLoading(false);
   }, []);
@@ -126,7 +116,6 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         quantity: d.quantity,
         price: d.price,
         created_at: d.created_at,
-        views: d.views,
       }));
       const listingsWithUrls = await Promise.all(
         (formattedData as MarketListing[]).map(async (item) => {
@@ -311,10 +300,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                           </div>
                           <div className="flex-grow">
                             <p className="font-bold">{l.item_name} x{l.quantity}</p>
-                            <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
-                              <p className="text-yellow-400 flex items-center gap-1">{l.price} <Coins size={12} /></p>
-                              <p className="flex items-center gap-1"><Eye size={12} /> {l.views || 0} vues</p>
-                            </div>
+                            <p className="text-xs text-yellow-400 flex items-center gap-1">{l.price} <Coins size={12} /></p>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2">
                             <Button size="sm" variant="outline" onClick={() => handleCancelListing(l, 'buy_back')} className="flex items-center gap-1">
