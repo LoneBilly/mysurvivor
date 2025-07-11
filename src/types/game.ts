@@ -32,7 +32,7 @@ export interface GameState {
   faim: number;
   soif: number;
   energie: number;
-  credits: number; // Ajout des crédits
+  credits: number;
   zones_decouvertes: number[];
   inventaire: InventoryItem[];
   base_constructions: BaseConstruction[];
@@ -49,6 +49,7 @@ export interface GameState {
   components: number;
   spawn_date: string;
   unlocked_slots: number;
+  sale_slots: number;
 }
 
 export interface MapCell {
