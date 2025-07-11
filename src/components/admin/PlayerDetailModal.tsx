@@ -29,16 +29,24 @@ interface PlayerDetailModalProps {
 
 const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
+  const [baseZoneId, setBaseZoneId] = useState<string | undefined>();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
-  const baseZoneId = player.player_states?.[0]?.base_zone_id ?? null;
+  useEffect(() => {
+    if (isOpen) {
+      const currentBaseId = player.player_states?.[0]?.base_zone_id;
+      setBaseZoneId(currentBaseId !== null && currentBaseId !== undefined ? String(currentBaseId) : undefined);
+    }
+  }, [isOpen, player]);
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
     if (isNaN(newZoneId)) return;
+
+    setBaseZoneId(newZoneIdStr); // Optimistic update
 
     const { error } = await supabase
         .from('player_states')
@@ -47,6 +55,9 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
 
     if (error) {
         showError("Erreur lors du déplacement de la base.");
+        // Revert on failure
+        const originalBaseId = player.player_states?.[0]?.base_zone_id;
+        setBaseZoneId(originalBaseId !== null && originalBaseId !== undefined ? String(originalBaseId) : undefined);
     } else {
         showSuccess("La base du joueur a été déplacée.");
         const playerState = player.player_states?.[0] || {};
@@ -146,7 +157,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
-              <Select onValueChange={handleBaseLocationChange} value={baseZoneId !== null ? String(baseZoneId) : undefined}>
+              <Select onValueChange={handleBaseLocationChange} value={baseZoneId}>
                 <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
                   <SelectValue placeholder="Aucune base" />
                 </SelectTrigger>

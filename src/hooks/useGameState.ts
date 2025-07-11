@@ -19,7 +19,7 @@ export const useGameState = () => {
     const animateProgress = () => {
       setLoadingProgress(prev => {
         if (prev < targetProgress) {
-          const newProgress = prev + (targetProgress - prev) * 0.1;
+          const newProgress = prev + (targetProgress - prev) * 0.05; // Slower animation
           return newProgress >= targetProgress - 0.5 ? targetProgress : newProgress;
         }
         return prev;
@@ -39,40 +39,30 @@ export const useGameState = () => {
     if (!silent) {
       setLoading(true);
       setLoadingMessage("Connexion au serveur...");
-      setTargetProgress(10);
+      setTargetProgress(95); // Animate smoothly towards 95%
     }
 
     try {
-      if (!silent) setLoadingMessage("Chargement de la carte du monde...");
+      setLoadingMessage("Chargement de la carte du monde...");
       const mapPromise = supabase.from('map_layout').select('*').order('y').order('x');
-      if (!silent) setTargetProgress(20);
-
-      if (!silent) setLoadingMessage("Récupération des données du joueur...");
+      
+      setLoadingMessage("Récupération des données du joueur...");
       const playerDataPromise = supabase.rpc('get_full_player_data', { p_user_id: user.id });
-      if (!silent) setTargetProgress(30);
 
       const [mapRes, fullPlayerDataRes] = await Promise.all([mapPromise, playerDataPromise]);
 
       if (mapRes.error) throw mapRes.error;
       if (fullPlayerDataRes.error) throw fullPlayerDataRes.error;
 
-      if (!silent) setTargetProgress(40);
       setMapLayout(mapRes.data as MapCell[]);
       
       const playerData = fullPlayerDataRes.data;
 
       if (playerData && playerData.playerState) {
-        if (!silent) {
-          setLoadingMessage("Analyse de l'inventaire...");
-          setTargetProgress(50);
-        }
-        
+        setLoadingMessage("Analyse de l'inventaire...");
         const inventoryData = playerData.inventory || [];
 
-        if (!silent) {
-          setLoadingMessage("Chargement des icônes d'objets...");
-          setTargetProgress(60);
-        }
+        setLoadingMessage("Chargement des ressources graphiques...");
         const imageLoadPromises = inventoryData
           .filter((item: InventoryItem) => item.items && item.items.icon && item.items.icon.includes('.'))
           .map(async (item: InventoryItem) => {
@@ -91,7 +81,6 @@ export const useGameState = () => {
         if (imageLoadPromises.length > 0) {
           await Promise.all(imageLoadPromises);
         }
-        if (!silent) setTargetProgress(70);
 
         const inventoryWithUrls = await Promise.all(
           inventoryData.map(async (item: InventoryItem) => {
@@ -104,9 +93,8 @@ export const useGameState = () => {
             return item;
           })
         );
-        if (!silent) setTargetProgress(80);
 
-        if (!silent) setLoadingMessage("Construction de l'univers...");
+        setLoadingMessage("Construction de l'univers...");
         const { playerState, baseConstructions } = playerData;
         const transformedState: GameState = {
           ...playerState,
@@ -123,10 +111,9 @@ export const useGameState = () => {
           unlocked_slots: playerState.unlocked_slots,
         };
         setGameState(transformedState);
-        if (!silent) setTargetProgress(90);
 
       } else {
-        if (!silent) setLoadingMessage("Création de votre survivant...");
+        setLoadingMessage("Création de votre survivant...");
         setTimeout(() => loadGameState(silent), 2000);
         return;
       }

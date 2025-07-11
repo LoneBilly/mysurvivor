@@ -113,13 +113,13 @@ const ItemManager = () => {
               ))}
             </div>
           ) : (
-            <Table className="table-fixed">
+            <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
-                  <TableHead className="w-[60px]">Icône</TableHead>
-                  <TableHead>Nom</TableHead>
+                  <TableHead className="w-[80px]">Icône</TableHead>
+                  <TableHead className="w-[200px]">Nom</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-center w-[100px]">Empilable</TableHead>
+                  <TableHead className="w-[120px] text-center">Empilable</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
