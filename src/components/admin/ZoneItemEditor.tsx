@@ -208,52 +208,52 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
 
   return (
     <Card className="w-full max-w-3xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col max-h-full">
-      <CardHeader className="flex-shrink-0 space-y-4">
-        <div className="flex items-center gap-4">
-          <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-          <div className="flex items-baseline gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setIsIconEditorOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
-              <CurrentIconComponent className="w-6 h-6" />
-            </Button>
-            <Input
-              value={zoneName}
-              onChange={(e) => setZoneName(e.target.value)}
-              onBlur={handleZoneNameSave}
-              className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto"
-            />
+      <CardHeader className="flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setIsIconEditorOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
+                  <CurrentIconComponent className="w-6 h-6" />
+                </Button>
+                <Input
+                  value={zoneName}
+                  onChange={(e) => setZoneName(e.target.value)}
+                  onBlur={handleZoneNameSave}
+                  className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto"
+                />
+              </div>
+            </div>
           </div>
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 items-center">
-          <div className="flex-grow w-full flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Rechercher un objet..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-900/50 border-gray-600 pl-10"
-              />
-            </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600">
-                <SelectValue placeholder="Filtrer par type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="Ressources">Ressources</SelectItem>
-                <SelectItem value="Armes">Armes</SelectItem>
-                <SelectItem value="Nourriture">Nourriture</SelectItem>
-                <SelectItem value="Soins">Soins</SelectItem>
-                <SelectItem value="Items divers">Items divers</SelectItem>
-                <SelectItem value="Items craftés">Items craftés</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="relative mt-4 flex flex-col sm:flex-row items-center gap-2">
+          <div className="relative w-full sm:flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Rechercher un objet..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-900/50 border-gray-600 pl-10"
+            />
           </div>
-          <Button onClick={handleCreateItem} className="w-full sm:w-auto flex-shrink-0">
-            <Plus className="w-4 h-4 mr-2" />
-            Ajouter un objet
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600">
+              <SelectValue placeholder="Filtrer par type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="Ressources">Ressources</SelectItem>
+              <SelectItem value="Armes">Armes</SelectItem>
+              <SelectItem value="Nourriture">Nourriture</SelectItem>
+              <SelectItem value="Soins">Soins</SelectItem>
+              <SelectItem value="Items divers">Items divers</SelectItem>
+              <SelectItem value="Items craftés">Items craftés</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleCreateItem} variant="outline" size="icon" className="bg-gray-700 border-gray-600 hover:bg-gray-600">
+            <Plus className="w-4 h-4" />
           </Button>
         </div>
       </CardHeader>
