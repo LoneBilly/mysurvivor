@@ -34,16 +34,13 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
-  const validMapLayout = useMemo(() => {
-    if (!mapLayout) return [];
-    return mapLayout.filter(zone => zone.type !== 'Inconnue');
-  }, [mapLayout]);
-
-  const currentBaseId = player.player_states?.[0]?.base_zone_id;
   const baseZone = useMemo(() => {
-    if (currentBaseId == null) return null;
-    return validMapLayout.find(zone => zone.id === currentBaseId);
-  }, [currentBaseId, validMapLayout]);
+    const baseId = player?.player_states?.[0]?.base_zone_id;
+    if (baseId == null || !mapLayout?.length) {
+        return null;
+    }
+    return mapLayout.find(zone => zone.id === baseId);
+  }, [player, mapLayout]);
 
   const handleRoleChange = async (newRole: 'player' | 'admin') => {
     if (player.id === adminUser?.id && newRole === 'player') {
