@@ -91,7 +91,11 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
               >
                 <div className="w-12 h-12 relative flex-shrink-0">
                   <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
-                  <span className="absolute -bottom-1 -right-1 bg-slate-900/80 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{item.quantity}</span>
+                  {item.quantity > 0 && (
+                    <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
+                      x{item.quantity}
+                    </span>
+                  )}
                 </div>
               </button>
             )) : (

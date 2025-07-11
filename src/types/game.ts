@@ -16,7 +16,7 @@ export interface InventoryItem {
     icon: string | null;
     signedIconUrl?: string;
     type?: string;
-    use_action_text?: string;
+    use_action_text: string;
   } | null;
 }
 

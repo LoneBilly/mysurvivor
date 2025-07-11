@@ -285,9 +285,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             </TabsContent>
             
             <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col min-h-0">
-              <div className="flex-shrink-0 mb-4">
-                <p className="text-sm text-gray-400">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
-              </div>
+              <p className="text-sm text-gray-400 flex-shrink-0 mb-4">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
               <div className="flex-grow overflow-y-auto no-scrollbar space-y-2">
                 {loading ? (
                   Array.from({ length: saleSlots }).map((_, i) => <MyListingSkeleton key={i} />)
