@@ -7,9 +7,10 @@ interface DraggableMapCellProps {
   cell: MapCell;
   onDrop: (draggedCell: MapCell, targetCell: MapCell) => void;
   onSelect: (cell: MapCell) => void;
+  isSelected?: boolean; // Ajout de la prop isSelected
 }
 
-const DraggableMapCell = ({ cell, onDrop, onSelect }: DraggableMapCellProps) => {
+const DraggableMapCell = ({ cell, onDrop, onSelect, isSelected }: DraggableMapCellProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const isUnknown = cell.type === 'unknown';
 
@@ -53,11 +54,13 @@ const DraggableMapCell = ({ cell, onDrop, onSelect }: DraggableMapCellProps) => 
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onClick={handleClick}
+      data-cell-id={cell.id} {/* Ajout de l'attribut data-cell-id pour le centrage */}
       className={cn(
         "relative aspect-square flex flex-col items-center justify-center p-1 text-center font-bold rounded-md border-2 transition-all duration-200 w-full h-full cursor-grab active:cursor-grabbing",
         isUnknown 
           ? "bg-gray-800/20 border-gray-700/30 hover:border-sky-500/50"
-          : "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:border-sky-500"
+          : "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:border-sky-500",
+        isSelected && "ring-2 ring-sky-400 border-sky-400" // Style pour la cellule sélectionnée
       )}
     >
       {IconComponent && <IconComponent className="w-1/3 h-1/3 mb-1" />}

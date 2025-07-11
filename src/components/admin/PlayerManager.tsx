@@ -89,8 +89,12 @@ const PlayerManager = () => {
       if (sortConfig.key === 'username') {
         const nameA = a.username || '';
         const nameB = b.username || '';
-        if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+        // Normaliser les noms pour un tri insensible à la casse
+        const compareA = nameA.toLowerCase();
+        const compareB = nameB.toLowerCase();
+        
+        if (compareA < compareB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (compareA > compareB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       } else { // created_at
         const dateA = new Date(a.created_at).getTime();
