@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,10 +7,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
-import { Ban, CheckCircle, Home, User, Package, Calendar, Shield } from 'lucide-react';
+import { Ban, CheckCircle, Home, User, Package, Calendar, Shield, Coins } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
@@ -33,6 +34,13 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
+  const [credits, setCredits] = useState('');
+
+  useEffect(() => {
+    if (player) {
+      setCredits(String(player.credits ?? 0));
+    }
+  }, [player]);
 
   const currentBaseZone = mapLayout.find(
     (cell) => cell.x === player.base_zone_x && cell.y === player.base_zone_y
@@ -126,6 +134,27 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
     });
   };
 
+  const handleSaveCredits = async () => {
+    const newCredits = parseInt(credits, 10);
+    if (isNaN(newCredits) || newCredits < 0) {
+        showError("Montant de crédits invalide.");
+        return;
+    }
+
+    const { error } = await supabase
+        .from('player_states')
+        .update({ credits: newCredits })
+        .eq('id', player.id);
+
+    if (error) {
+        showError("Erreur lors de la mise à jour des crédits.");
+        console.error(error);
+    } else {
+        showSuccess("Crédits mis à jour.");
+        onPlayerUpdate({ ...player, credits: newCredits });
+    }
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -175,6 +204,17 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-3">
+              <Coins className="w-5 h-5 text-gray-400" />
+              <span className="font-medium">Crédits:</span>
+              <Input
+                  type="number"
+                  value={credits}
+                  onChange={(e) => setCredits(e.target.value)}
+                  onBlur={handleSaveCredits}
+                  className="bg-gray-900/50 border-gray-600 w-28"
+              />
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (

@@ -24,6 +24,7 @@ export type PlayerProfile = {
   base_zone_type: string | null;
   base_zone_x: number | null;
   base_zone_y: number | null;
+  credits: number | null;
 };
 
 type SortKey = 'username' | 'created_at';
