@@ -80,7 +80,7 @@ const Admin = () => {
               <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
             )}
           </TabsContent>
-          <TabsContent value="players" className="flex-1 min-h-0 flex flex-col">
+          <TabsContent value="players" className="flex-1 min-h-0">
             <PlayerManager />
           </TabsContent>
         </Tabs>
