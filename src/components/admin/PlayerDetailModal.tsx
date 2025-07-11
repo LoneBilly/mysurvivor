@@ -36,17 +36,19 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   const [banReason, setBanReason] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && player) {
       const currentBaseId = player.player_states?.[0]?.base_zone_id;
-      setBaseZoneId(currentBaseId !== null && currentBaseId !== undefined ? String(currentBaseId) : undefined);
+      if (currentBaseId !== null && currentBaseId !== undefined) {
+        setBaseZoneId(String(currentBaseId));
+      } else {
+        setBaseZoneId(undefined);
+      }
     }
   }, [isOpen, player]);
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
     if (isNaN(newZoneId)) return;
-
-    setBaseZoneId(newZoneIdStr); // Optimistic update
 
     const { error } = await supabase
         .from('player_states')
@@ -55,9 +57,6 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
 
     if (error) {
         showError("Erreur lors du déplacement de la base.");
-        // Revert on failure
-        const originalBaseId = player.player_states?.[0]?.base_zone_id;
-        setBaseZoneId(originalBaseId !== null && originalBaseId !== undefined ? String(originalBaseId) : undefined);
     } else {
         showSuccess("La base du joueur a été déplacée.");
         const playerState = player.player_states?.[0] || {};
