@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import AdminMapGrid from "@/components/admin/AdminMapGrid";
 import ZoneItemEditor from "@/components/admin/ZoneItemEditor";
 import PlayerManager from "@/components/admin/PlayerManager";
+import ItemManager from "@/components/admin/ItemManager";
 import { MapCell } from "@/types/game";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2, ArrowLeft, Map, Users } from "lucide-react";
+import { Loader2, ArrowLeft, Map, Users, Package } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Admin = () => {
@@ -69,9 +70,10 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="map" className="w-full flex flex-col flex-1 min-h-0">
-          <TabsList className="grid w-full grid-cols-2 max-w-md mb-6 flex-shrink-0">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg mb-6 flex-shrink-0">
             <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Gestion de la carte</TabsTrigger>
             <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Gestion des joueurs</TabsTrigger>
+            <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Gestion des items</TabsTrigger>
           </TabsList>
           <TabsContent value="map" className="flex-1 min-h-0">
             <div className="w-full h-full flex items-center justify-center">
@@ -84,6 +86,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="players" className="flex-1 min-h-0">
             <PlayerManager />
+          </TabsContent>
+          <TabsContent value="items" className="flex-1 min-h-0">
+            <ItemManager />
           </TabsContent>
         </Tabs>
       </div>

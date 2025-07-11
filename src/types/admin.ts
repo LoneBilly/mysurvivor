@@ -6,6 +6,7 @@ export interface Item {
   description: string | null;
   icon: string | null;
   stackable: boolean;
+  signedIconUrl?: string;
 }
 
 export interface ZoneItem {
