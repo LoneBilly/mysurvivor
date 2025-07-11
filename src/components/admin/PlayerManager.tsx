@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2, User, Shield, Ban, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -11,18 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { showSuccess, showError } from '@/utils/toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from '@/components/ui/textarea';
+import { showError } from '@/utils/toast';
+import PlayerDetailModal from './PlayerDetailModal';
 
-type PlayerProfile = {
+export type PlayerProfile = {
   id: string;
   username: string | null;
   role: 'player' | 'admin';
@@ -36,8 +27,7 @@ const PlayerManager = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerProfile | null>(null);
-  const [banReason, setBanReason] = useState('');
-  const [isBanConfirmOpen, setIsBanConfirmOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
@@ -59,31 +49,23 @@ const PlayerManager = () => {
     fetchPlayers();
   }, [fetchPlayers]);
 
-  const handleBanToggle = async () => {
-    if (!selectedPlayer) return;
-
-    const newBanStatus = !selectedPlayer.is_banned;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_banned: newBanStatus, ban_reason: newBanStatus ? banReason : null })
-      .eq('id', selectedPlayer.id);
-
-    if (error) {
-      showError(`Erreur lors de la mise à jour du statut du joueur.`);
-      console.error('Error updating ban status:', error);
-    } else {
-      showSuccess(`Le joueur a été ${newBanStatus ? 'banni' : 'débanni'}.`);
-      fetchPlayers();
+  const handlePlayerUpdate = (updatedPlayer: PlayerProfile) => {
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p => (p.id === updatedPlayer.id ? { ...p, ...updatedPlayer } : p))
+    );
+    if (selectedPlayer && selectedPlayer.id === updatedPlayer.id) {
+      setSelectedPlayer({ ...selectedPlayer, ...updatedPlayer });
     }
-    setIsBanConfirmOpen(false);
-    setSelectedPlayer(null);
-    setBanReason('');
   };
 
-  const openBanConfirm = (player: PlayerProfile) => {
+  const openPlayerDetails = (player: PlayerProfile) => {
     setSelectedPlayer(player);
-    setBanReason(player.ban_reason || '');
-    setIsBanConfirmOpen(true);
+    setIsDetailModalOpen(true);
+  };
+
+  const closePlayerDetails = () => {
+    setIsDetailModalOpen(false);
+    setSelectedPlayer(null);
   };
 
   const filteredPlayers = players.filter(p =>
@@ -121,12 +103,15 @@ const PlayerManager = () => {
                 <TableHead className="text-white">Role</TableHead>
                 <TableHead className="text-white">Statut</TableHead>
                 <TableHead className="text-white">Inscrit le</TableHead>
-                <TableHead className="text-right text-white">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPlayers.map(player => (
-                <TableRow key={player.id} className="border-gray-700 hover:bg-gray-800/60">
+                <TableRow 
+                  key={player.id} 
+                  className="border-gray-700 hover:bg-gray-800/60 cursor-pointer"
+                  onClick={() => openPlayerDetails(player)}
+                >
                   <TableCell>
                     <div className="font-medium">{player.username || <span className="text-gray-500">Non défini</span>}</div>
                     <div className="text-xs text-gray-400">{player.id}</div>
@@ -158,11 +143,6 @@ const PlayerManager = () => {
                     )}
                   </TableCell>
                   <TableCell>{new Date(player.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => openBanConfirm(player)}>
-                      {player.is_banned ? 'Débannir' : 'Bannir'}
-                    </Button>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -170,35 +150,14 @@ const PlayerManager = () => {
         </div>
       </div>
 
-      <Dialog open={isBanConfirmOpen} onOpenChange={setIsBanConfirmOpen}>
-        <DialogContent className="bg-gray-900 border-gray-700 text-white">
-          <DialogHeader>
-            <DialogTitle>Confirmer le {selectedPlayer?.is_banned ? 'débannissement' : 'bannissement'}</DialogTitle>
-            <DialogDescription>
-              Vous êtes sur le point de {selectedPlayer?.is_banned ? 'débannir' : 'bannir'} le joueur {selectedPlayer?.username || selectedPlayer?.id}.
-            </DialogDescription>
-          </DialogHeader>
-          {!selectedPlayer?.is_banned && (
-            <div className="grid gap-4 py-4">
-              <Textarea
-                placeholder="Raison du bannissement (optionnel)"
-                value={banReason}
-                onChange={(e) => setBanReason(e.target.value)}
-                className="bg-gray-800 border-gray-600"
-              />
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBanConfirmOpen(false)}>Annuler</Button>
-            <Button
-              variant={selectedPlayer?.is_banned ? "default" : "destructive"}
-              onClick={handleBanToggle}
-            >
-              Confirmer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {selectedPlayer && (
+        <PlayerDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={closePlayerDetails}
+          player={selectedPlayer}
+          onPlayerUpdate={handlePlayerUpdate}
+        />
+      )}
     </>
   );
 };
