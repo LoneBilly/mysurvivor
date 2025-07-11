@@ -204,7 +204,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const CurrentIconComponent = getZoneIconComponent(zoneIcon);
 
   return (
-    <Card className="w-full max-w-3xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col">
+    <Card className="w-full max-w-3xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col max-h-full">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
