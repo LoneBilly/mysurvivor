@@ -167,6 +167,7 @@ const PlayerManager = ({ mapLayout }: { mapLayout: MapCell[] }) => {
           onClose={closePlayerDetails}
           player={selectedPlayer}
           onPlayerUpdate={handlePlayerUpdate}
+          mapLayout={mapLayout}
         />
       )}
     </>

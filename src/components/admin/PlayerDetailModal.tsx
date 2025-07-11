@@ -17,24 +17,55 @@ import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/contexts/AuthContext';
+import { MapCell } from '@/types/game';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   player: PlayerProfile;
   onPlayerUpdate: (player: PlayerProfile) => void;
+  mapLayout: MapCell[];
 }
 
-const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
+const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
-  const baseZoneInfo = player.base_zone_type
-    ? `${player.base_zone_type} (${player.base_zone_x}, ${player.base_zone_y})`
-    : 'Aucune base';
+  const currentBaseZone = mapLayout.find(
+    (cell) => cell.x === player.base_zone_x && cell.y === player.base_zone_y
+  );
+
+  const handleBaseChange = async (newZoneIdStr: string) => {
+    const newZoneId = parseInt(newZoneIdStr, 10);
+    if (isNaN(newZoneId)) return;
+
+    const newZone = mapLayout.find(cell => cell.id === newZoneId);
+    if (!newZone) {
+      showError("Zone sélectionnée invalide.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('player_states')
+      .update({ base_zone_id: newZoneId })
+      .eq('id', player.id);
+
+    if (error) {
+      showError("Erreur lors du déplacement de la base.");
+      console.error(error);
+    } else {
+      showSuccess("La base du joueur a été déplacée.");
+      onPlayerUpdate({ 
+        ...player, 
+        base_zone_type: newZone.type,
+        base_zone_x: newZone.x,
+        base_zone_y: newZone.y,
+      });
+    }
+  };
 
   const handleRoleChange = async (newRole: 'player' | 'admin') => {
     if (player.id === adminUser?.id && newRole === 'player') {
@@ -126,9 +157,22 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
-              <span className="font-bold text-white">
-                {baseZoneInfo}
-              </span>
+              <Select 
+                onValueChange={handleBaseChange} 
+                value={currentBaseZone?.id.toString()}
+                disabled={!mapLayout.length}
+              >
+                <SelectTrigger className="w-full bg-gray-900/50 border-gray-600">
+                  <SelectValue placeholder="Choisir une base..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {mapLayout.map(cell => (
+                    <SelectItem key={cell.id} value={cell.id.toString()}>
+                      {cell.type} ({cell.x}, {cell.y})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (
