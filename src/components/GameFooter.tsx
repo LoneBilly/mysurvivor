@@ -1,74 +1,37 @@
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Heart, Utensils, Droplets, Zap, Package } from "lucide-react";
-import { GameStats } from "@/types/game";
+import StatBar from './StatBar';
+import { Button } from './ui/button';
+import { Backpack } from 'lucide-react';
+import CreditsDisplay from './CreditsDisplay';
 
 interface GameFooterProps {
-  stats: GameStats;
+  stats: {
+    vie: number;
+    faim: number;
+    soif: number;
+    energie: number;
+  };
+  credits: number;
   onInventaire: () => void;
+  onBuyCredits: () => void;
 }
 
-const GameFooter = ({ stats, onInventaire }: GameFooterProps) => {
-  const StatItem = ({ 
-    icon: Icon, 
-    label, 
-    value,
-  }: { 
-    icon: any; 
-    label: string; 
-    value: number;
-  }) => (
-    <div className="flex flex-col items-start space-y-1 p-3 rounded-lg border border-white/10 bg-white/5 w-full">
-      <div className="flex items-center justify-between w-full mb-1">
-        <div className="flex items-center space-x-2">
-          <Icon className="w-5 h-5 text-white" />
-          <span className="text-sm font-medium text-gray-300 font-mono">{label}</span>
-        </div>
-        <span className="text-sm font-bold text-white font-mono">{value}/100</span>
-      </div>
-      <Progress value={value} className="w-full h-3 bg-white/10 border border-white/20 rounded-full" indicatorClassName="bg-white rounded-full" />
-    </div>
-  );
-
+const GameFooter = ({ stats, credits, onInventaire, onBuyCredits }: GameFooterProps) => {
   return (
-    <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 text-white p-4">
-      {/* Layout mobile */}
-      <div className="md:hidden">
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <StatItem icon={Heart} label="Vie" value={stats.vie} />
-          <StatItem icon={Utensils} label="Faim" value={stats.faim} />
-          <StatItem icon={Droplets} label="Soif" value={stats.soif} />
-          <StatItem icon={Zap} label="Énergie" value={stats.energie} />
+    <footer className="bg-gray-900/50 backdrop-blur-md border-t border-gray-700 p-2 sm:p-4">
+      <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 flex-grow w-full">
+          <StatBar label="Vie" value={stats.vie} color="bg-red-500" />
+          <StatBar label="Faim" value={stats.faim} color="bg-yellow-500" />
+          <StatBar label="Soif" value={stats.soif} color="bg-blue-500" />
+          <StatBar label="Énergie" value={stats.energie} color="bg-green-500" />
         </div>
-        <Button
-          onClick={onInventaire}
-          className="w-full flex items-center justify-center space-x-2 bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all"
-          variant="default"
-        >
-          <Package className="w-5 h-5" />
-          <span>Inventaire</span>
-        </Button>
-      </div>
-
-      {/* Layout desktop */}
-      <div className="hidden md:flex items-center">
-        <div className="flex-1 grid grid-cols-4 gap-4">
-          <StatItem icon={Heart} label="Vie" value={stats.vie} />
-          <StatItem icon={Utensils} label="Faim" value={stats.faim} />
-          <StatItem icon={Droplets} label="Soif" value={stats.soif} />
-          <StatItem icon={Zap} label="Énergie" value={stats.energie} />
+        <div className="flex items-center justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+          <CreditsDisplay credits={credits} onClick={onBuyCredits} />
+          <Button onClick={onInventaire} className="px-3 sm:px-4">
+            <Backpack className="w-5 h-5 sm:mr-2" />
+            <span className="hidden sm:inline">Inventaire</span>
+          </Button>
         </div>
-        
-        <div className="w-px h-12 bg-white/20 mx-6"></div>
-        
-        <Button
-          onClick={onInventaire}
-          className="flex items-center space-x-2 bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all px-6"
-          variant="default"
-        >
-          <Package className="w-5 h-5 mr-2" />
-          <span>Inventaire</span>
-        </Button>
       </div>
     </footer>
   );
