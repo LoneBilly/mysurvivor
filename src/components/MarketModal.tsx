@@ -166,6 +166,28 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
     setIsListItemModalOpen(true);
   };
 
+  const handleBuySaleSlot = async () => {
+    setModalState({
+        isOpen: true,
+        title: "Acheter un emplacement",
+        description: "Voulez-vous acheter un nouvel emplacement de vente pour 100 crédits ?",
+        onConfirm: async () => {
+            setLoading(true);
+            const { error } = await supabase.rpc('buy_sale_slot');
+            if (error) {
+                showError(error.message);
+            } else {
+                showSuccess("Emplacement acheté !");
+                await onUpdate(true);
+                fetchMyListings();
+            }
+            setLoading(false);
+            setModalState({ ...modalState, isOpen: false });
+        },
+        confirmLabel: 'Acheter (100 crédits)',
+    });
+  };
+
   const renderEmptyState = (message: string) => (
     <div className="text-center text-gray-400 py-10">{message}</div>
   );
@@ -202,8 +224,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             
             {loading ? <div className="flex justify-center items-center flex-grow"><Loader2 className="w-8 h-8 animate-spin" /></div> :
               <>
-                <TabsContent value="buy" className="mt-4 flex-grow overflow-y-auto no-scrollbar">
-                  <div className="flex flex-row gap-2 mb-4 sticky top-0 bg-slate-800/70 backdrop-blur-sm z-10 py-2 -mt-2">
+                <TabsContent value="buy" className="mt-4 flex-grow flex flex-col overflow-y-auto no-scrollbar">
+                  <div className="flex flex-row gap-2 mb-4 flex-shrink-0">
                     <Input 
                       placeholder="Rechercher un objet..."
                       value={searchTerm}
@@ -214,7 +236,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                       <ArrowUpDown className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="pt-2">
+                  <div className="flex-grow overflow-y-auto no-scrollbar">
                     {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
                         <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
@@ -234,7 +256,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                 </TabsContent>
                 
                 <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col overflow-y-auto no-scrollbar">
-                  <p className="text-sm text-gray-400 mb-4 sticky top-0 bg-slate-800/70 backdrop-blur-sm z-10 py-2 -mt-2 flex-shrink-0">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
+                  <p className="text-sm text-gray-400 mb-4 flex-shrink-0">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
                   <div className="space-y-2 pt-2 flex-grow">
                     {myListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
@@ -255,7 +277,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                         </div>
                       </div>
                     ))}
-                    {Array.from({ length: saleSlots - myListings.length }).map((_, index) => (
+                    {myListings.length < saleSlots && Array.from({ length: saleSlots - myListings.length }).map((_, index) => (
                       <button 
                         key={`empty-${index}`} 
                         onClick={handleOpenListItemModal} 
@@ -265,7 +287,15 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                         <span>Mettre un objet en vente</span>
                       </button>
                     ))}
-                    {myListings.length === 0 && saleSlots - myListings.length === 0 && renderEmptyState("Vous n'avez aucun emplacement de vente.")}
+                    {myListings.length >= saleSlots && (
+                      <button 
+                        onClick={handleBuySaleSlot} 
+                        className="w-full border-2 border-dashed border-yellow-500/50 bg-yellow-500/10 rounded-lg flex items-center justify-center p-4 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-500/80 transition-all min-h-[88px]"
+                      >
+                        <PlusCircle className="w-6 h-6 mr-2" />
+                        <span>Acheter un emplacement (100 crédits)</span>
+                      </button>
+                    )}
                   </div>
                 </TabsContent>
               </>

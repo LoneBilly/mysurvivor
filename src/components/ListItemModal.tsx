@@ -132,15 +132,15 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
               <button 
                 key={item.id} 
                 onClick={() => setSelectedItem(item)} 
-                className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center justify-between text-center hover:bg-slate-700/80"
+                className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center text-center hover:bg-slate-700/80"
               >
-                <div className="w-10 h-10 relative flex-shrink-0">
+                <div className="w-10 h-10 relative flex-shrink-0 mb-1">
                   <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
                 </div>
-                <div className="flex-grow flex items-center justify-center min-h-0">
+                <div className="flex-grow flex flex-col justify-center min-h-0 w-full">
                   <p className="text-xs text-wrap break-words w-full line-clamp-2">{item.items?.name}</p>
                 </div>
-                <p className="text-xs font-bold flex-shrink-0">x{item.quantity}</p>
+                <p className="text-xs font-bold flex-shrink-0 mt-auto pt-1">x{item.quantity}</p>
               </button>
             )) : (
               <p className="col-span-full text-center text-gray-400 py-4">Votre inventaire est vide.</p>
