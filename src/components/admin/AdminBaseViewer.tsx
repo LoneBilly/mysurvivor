@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, LocateFixed } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -135,6 +135,7 @@ const AdminBaseViewer = ({ isOpen, onClose, playerId, playerUsername }: AdminBas
         <DialogContent className="max-w-4xl w-full h-[90vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl p-6 flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Base de {playerUsername || 'Joueur'}</DialogTitle>
+            <DialogDescription className="sr-only">Visualiseur de la base du joueur {playerUsername || 'Joueur'}.</DialogDescription>
           </DialogHeader>
           <div className="relative flex-grow mt-4 min-h-0">
             {loading ? (

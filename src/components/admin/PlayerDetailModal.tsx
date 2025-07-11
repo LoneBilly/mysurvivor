@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -164,6 +165,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
               {player.username || 'Joueur Anonyme'}
             </DialogTitle>
+            <DialogDescription className="sr-only">Détails et gestion du joueur {player.username || 'Joueur Anonyme'}.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
             <div className="flex items-center gap-3">

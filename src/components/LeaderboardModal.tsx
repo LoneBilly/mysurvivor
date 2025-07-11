@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Loader2, Sun, MapPin, Shield } from 'lucide-react';
@@ -69,6 +70,7 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
             <Trophy className="w-8 h-8 text-yellow-400" />
             <DialogTitle className="text-2xl font-bold text-white tracking-wider">Classement</DialogTitle>
           </div>
+          <DialogDescription className="sr-only">Classement des meilleurs joueurs.</DialogDescription>
         </DialogHeader>
         
         {loading ? (

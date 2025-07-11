@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -158,6 +159,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl text-center">
               Inventaire de {player.username || 'Joueur Anonyme'}
             </DialogTitle>
+            <DialogDescription className="sr-only">Gestion de l'inventaire pour {player.username || 'Joueur Anonyme'}.</DialogDescription>
           </DialogHeader>
           {loading ? (
             <div className="flex justify-center items-center h-48">
@@ -210,6 +212,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
           <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
             <DialogHeader>
               <DialogTitle>Modifier la quantité de {editingItem.items.name}</DialogTitle>
+              <DialogDescription className="sr-only">Modifier la quantité de l'objet {editingItem.items.name}.</DialogDescription>
             </DialogHeader>
             <div className="py-4">
               <Label htmlFor="quantity">Quantité</Label>
@@ -246,6 +249,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
         <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>Ajouter un objet à l'inventaire</DialogTitle>
+            <DialogDescription className="sr-only">Ajouter un nouvel objet à l'inventaire du joueur.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div>
