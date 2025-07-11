@@ -89,9 +89,9 @@ const PlayerManager = () => {
       if (sortConfig.key === 'username') {
         const nameA = a.username || '';
         const nameB = b.username || '';
-        // Utilisation de localeCompare pour un tri alphabétique correct et insensible à la casse
-        const comparison = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
-        return sortConfig.direction === 'asc' ? comparison : -comparison;
+        if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
       } else { // created_at
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
