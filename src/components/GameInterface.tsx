@@ -8,7 +8,6 @@ import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
 import OptionsModal from "./OptionsModal";
 import InventoryModal from "./InventoryModal";
-import MarketModal from "./MarketModal";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { GameState, MapCell } from "@/types/game";
@@ -73,7 +72,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -162,11 +160,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     if (!gameState) return;
 
     const { x, y, type, id } = cell;
-
-    if (type === 'market') {
-      setIsMarketOpen(true);
-      return;
-    }
 
     const isDiscovered = gameState.zones_decouvertes.includes(id);
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
@@ -436,11 +429,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         inventory={gameState.inventaire}
         unlockedSlots={gameState.unlocked_slots}
         onUpdate={reloadGameState}
-      />
-
-      <MarketModal
-        isOpen={isMarketOpen}
-        onClose={() => setIsMarketOpen(false)}
       />
     </div>
   );
