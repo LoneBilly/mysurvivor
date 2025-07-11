@@ -166,27 +166,6 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
     setIsListItemModalOpen(true);
   };
 
-  const handleBuySlot = async () => {
-    setModalState({
-        isOpen: true,
-        title: "Acheter un emplacement",
-        description: "Voulez-vous acheter un nouvel emplacement de vente pour 100 crédits ?",
-        onConfirm: async () => {
-            setLoading(true);
-            const { error } = await supabase.rpc('buy_sale_slot');
-            if (error) {
-                showError(error.message);
-            } else {
-                showSuccess("Emplacement acheté !");
-                onUpdate();
-            }
-            setLoading(false);
-            setModalState({ ...modalState, isOpen: false });
-        },
-        confirmLabel: "Acheter pour 100 crédits"
-    });
-  };
-
   const renderEmptyState = (message: string) => (
     <div className="text-center text-gray-400 py-10">{message}</div>
   );
@@ -222,9 +201,9 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             </TabsList>
             
             {loading ? <div className="flex justify-center items-center flex-grow"><Loader2 className="w-8 h-8 animate-spin" /></div> :
-              <div className="flex-grow mt-2 overflow-y-auto no-scrollbar">
-                <TabsContent value="buy">
-                  <div className="flex flex-row gap-2 mb-4 sticky top-0 bg-slate-800 z-10 py-2">
+              <>
+                <TabsContent value="buy" className="mt-4 flex-grow overflow-y-auto no-scrollbar">
+                  <div className="flex flex-row gap-2 mb-4 sticky top-0 bg-slate-800/70 backdrop-blur-sm z-10 py-2 -mt-2">
                     <Input 
                       placeholder="Rechercher un objet..."
                       value={searchTerm}
@@ -235,26 +214,28 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                       <ArrowUpDown className="w-4 h-4" />
                     </Button>
                   </div>
-                  {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
-                    <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
-                      <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                        <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
+                  <div className="pt-2">
+                    {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
+                      <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
+                        <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                          <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
+                        </div>
+                        <div className="flex-grow">
+                          <p className="font-bold">{l.item_name} x{l.quantity}</p>
+                          <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
+                        </div>
+                        <div className="flex flex-col items-center sm:items-end">
+                          <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
+                          <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
+                        </div>
                       </div>
-                      <div className="flex-grow">
-                        <p className="font-bold">{l.item_name} x{l.quantity}</p>
-                        <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
-                      </div>
-                      <div className="flex flex-col items-center sm:items-end">
-                        <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
-                        <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
-                      </div>
-                    </div>
-                  )) : renderEmptyState("Aucun objet ne correspond à votre recherche.")}
+                    )) : renderEmptyState("Aucun objet ne correspond à votre recherche.")}
+                  </div>
                 </TabsContent>
                 
-                <TabsContent value="my-listings">
-                  <p className="text-sm text-gray-400 mb-4 sticky top-0 bg-slate-800 z-10 py-2">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
-                  <div className="space-y-2">
+                <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col overflow-y-auto no-scrollbar">
+                  <p className="text-sm text-gray-400 mb-4 sticky top-0 bg-slate-800/70 backdrop-blur-sm z-10 py-2 -mt-2 flex-shrink-0">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
+                  <div className="space-y-2 pt-2 flex-grow">
                     {myListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
                         <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
@@ -284,19 +265,10 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                         <span>Mettre un objet en vente</span>
                       </button>
                     ))}
-                    {myListings.length === saleSlots && saleSlots > 0 && (
-                      <button 
-                          onClick={handleBuySlot} 
-                          className="w-full border-2 border-dashed border-yellow-500 bg-yellow-500/10 rounded-lg flex items-center justify-center p-4 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-400 transition-all min-h-[88px]"
-                      >
-                          <PlusCircle className="w-6 h-6 mr-2" />
-                          <span>Acheter un emplacement (100 crédits)</span>
-                      </button>
-                    )}
-                    {saleSlots === 0 && renderEmptyState("Vous n'avez aucun emplacement de vente.")}
+                    {myListings.length === 0 && saleSlots - myListings.length === 0 && renderEmptyState("Vous n'avez aucun emplacement de vente.")}
                   </div>
                 </TabsContent>
-              </div>
+              </>
             }
           </Tabs>
         </DialogContent>
