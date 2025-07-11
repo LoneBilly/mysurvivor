@@ -250,7 +250,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             </TabsList>
             
             <TabsContent value="buy" className="mt-4 flex-grow flex flex-col min-h-0">
-              <div className="flex flex-row gap-2 mb-4 flex-shrink-0">
+              <div className="flex flex-row gap-2 mb-4">
                 <Input 
                   placeholder="Rechercher un objet..."
                   value={searchTerm}
