@@ -121,8 +121,11 @@ const ItemManager = () => {
                     <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
                   </div>
                   <div className="flex-grow min-w-0">
-                    <p className="font-bold text-white truncate">{item.name}</p>
-                    <p className="text-sm text-gray-400 truncate">{item.description || 'Aucune description'}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-white truncate">{item.name}</p>
+                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ml-2">{item.type}</span>
+                    </div>
+                    <p className="text-sm text-gray-400 truncate mt-1">{item.description || 'Aucune description'}</p>
                     <div className="flex items-center gap-2 text-xs text-gray-300 mt-1">
                       {item.stackable ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
                       <span>{item.stackable ? 'Empilable' : 'Non empilable'}</span>
@@ -138,6 +141,7 @@ const ItemManager = () => {
                   <TableHead className="w-[80px]">Icône</TableHead>
                   <TableHead className="w-[200px]">Nom</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead className="w-[150px]">Type</TableHead>
                   <TableHead className="w-[120px] text-center">Empilable</TableHead>
                 </TableRow>
               </TableHeader>
@@ -155,6 +159,9 @@ const ItemManager = () => {
                     </TableCell>
                     <TableCell className="font-medium truncate">{item.name}</TableCell>
                     <TableCell className="text-gray-400 truncate">{item.description}</TableCell>
+                    <TableCell>
+                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span>
+                    </TableCell>
                     <TableCell className="text-center">{item.stackable ? 'Oui' : 'Non'}</TableCell>
                   </TableRow>
                 ))}
