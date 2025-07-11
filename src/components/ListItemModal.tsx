@@ -110,7 +110,7 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
 
             <div>
               <Label htmlFor="sell-price">Prix de vente total</Label>
-              <Input id="sell-price" type="number" placeholder="Prix en crédits" value={price} onChange={e => setPrice(e.target.value)} className="bg-white/10 border-white/20 mt-1" disabled={loading} />
+              <Input id="sell-price" type="number" inputMode="numeric" placeholder="Prix en crédits" value={price} onChange={e => setPrice(e.target.value)} className="bg-white/10 border-white/20 mt-1" disabled={loading} />
             </div>
 
             <Button onClick={handleListItem} className="w-full" disabled={loading || !price}>
@@ -124,7 +124,9 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
                 <div className="w-10 h-10 relative flex-shrink-0">
                   <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
                 </div>
-                <p className="text-xs text-wrap break-words w-full line-clamp-2">{item.items?.name}</p>
+                <div className="h-8 flex items-center justify-center w-full">
+                  <p className="text-xs text-wrap break-words w-full line-clamp-2">{item.items?.name}</p>
+                </div>
                 <p className="text-xs font-bold flex-shrink-0">x{item.quantity}</p>
               </button>
             )) : (
