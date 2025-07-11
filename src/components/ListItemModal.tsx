@@ -9,6 +9,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { X, Loader2, PlusCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ListItemModalProps {
   isOpen: boolean;
@@ -90,9 +91,13 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
               <button 
                 key={item.id} 
                 onClick={() => { setSelectedItem(item); setIsSelecting(false); }} 
-                className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center justify-center text-center hover:bg-slate-700/80"
+                className={cn(
+                  "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
+                  "bg-slate-700/50 border-slate-600",
+                  "hover:bg-slate-700/80 hover:border-slate-500 cursor-pointer"
+                )}
               >
-                <div className="w-12 h-12 relative flex-shrink-0">
+                <div className="absolute inset-0">
                   <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
                   {item.quantity > 0 && (
                     <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
