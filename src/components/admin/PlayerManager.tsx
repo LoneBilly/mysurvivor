@@ -87,8 +87,8 @@ const PlayerManager = () => {
 
     return [...filteredPlayers].sort((a, b) => {
       if (sortConfig.key === 'username') {
-        const nameA = a.username || '';
-        const nameB = b.username || '';
+        const nameA = (a.username || '').toLowerCase();
+        const nameB = (b.username || '').toLowerCase();
         if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
         if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
