@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin } from 'lucide-react';
+import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Clock, Users } from 'lucide-react';
 import { ScoutingMission } from '@/types/game';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -60,7 +60,7 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
     <>
       <Progress value={progress} className="h-2" />
       <div className="flex items-center justify-between text-xs text-gray-400 mt-2">
-        <span>Progression</span>
+        <span className="flex items-center gap-1.5"><Clock size={12} /> Temps restant</span>
         <span className="font-mono">{remaining}</span>
       </div>
     </>
@@ -81,7 +81,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
     setLoading(true);
     const { data, error } = await supabase.rpc('check_and_get_scouting_data');
     if (error) {
-      showError("Erreur de chargement des missions.");
+      console.error("Erreur de chargement des missions:", error.message);
       setInProgressMissions([]);
       setCompletedMissions([]);
     } else {
@@ -94,7 +94,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
 
   const fetchScoutablePlayers = useCallback(async () => {
     const { data, error } = await supabase.rpc('get_scoutable_players');
-    if (error) showError("Erreur de chargement des joueurs.");
+    if (error) console.error("Erreur de chargement des joueurs:", error.message);
     else setScoutablePlayers(data || []);
   }, []);
 
@@ -148,13 +148,16 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
           </DialogHeader>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-grow mt-4 min-h-0">
             <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
-              <TabsTrigger value="send"><Send className="w-4 h-4 mr-2" />Envoyer</TabsTrigger>
+              <TabsTrigger value="send"><Send className="w-4 h-4 mr-2" />Envoyer & Suivi</TabsTrigger>
               <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-2" />Rapports</TabsTrigger>
             </TabsList>
             
             <TabsContent value="send" className="mt-4 flex-grow min-h-0 flex flex-col gap-4">
               <Card className="bg-white/5 border-white/10 flex-shrink-0">
-                <CardContent className="p-4 text-center">
+                <CardHeader>
+                  <CardTitle className="text-base">Lancer une mission</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center">
                   <p className="text-sm text-gray-300 mb-4">Choisissez une cible. Coût: {SCOUT_COST} crédits. Durée: 30 minutes.</p>
                   <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
                     <PopoverTrigger asChild>
@@ -187,18 +190,21 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
               </Card>
               
               <div className="flex-grow min-h-0 overflow-y-auto no-scrollbar space-y-3">
-                {inProgressMissions.length > 0 && <h3 className="text-center font-bold text-gray-300">Missions en cours</h3>}
-                {inProgressMissions.map(mission => (
-                  <Card key={mission.id} className="bg-white/5 border-white/10">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300">Cible:</span>
-                        <span className="font-bold">{mission.target_username}</span>
-                      </div>
-                      <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={fetchScoutingData} />
-                    </CardContent>
-                  </Card>
-                ))}
+                {inProgressMissions.length > 0 ? (
+                  inProgressMissions.map(mission => (
+                    <Card key={mission.id} className="bg-white/5 border-white/10">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-300 flex items-center gap-1.5"><Users size={14} /> Cible</span>
+                          <span className="font-bold">{mission.target_username}</span>
+                        </div>
+                        <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={fetchScoutingData} />
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-400 pt-8">Aucune mission en cours.</div>
+                )}
               </div>
             </TabsContent>
 
