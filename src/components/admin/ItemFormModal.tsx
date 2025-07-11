@@ -15,10 +15,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Loader2, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import ActionModal from '../ActionModal';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from '@/lib/utils';
 
 interface ItemFormModalProps {
   isOpen: boolean;
@@ -45,6 +48,10 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const debouncedIcon = useDebounce(icon, 500);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const [availableIcons, setAvailableIcons] = useState<string[]>([]);
+  const [fetchingIcons, setFetchingIcons] = useState(false);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,6 +86,41 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   useEffect(() => {
     if (!isOpen) return;
 
+    const fetchAvailableIcons = async () => {
+      setFetchingIcons(true);
+      try {
+        const [storageRes, itemsRes] = await Promise.all([
+          supabase.storage.from('items.icons').list(),
+          supabase.from('items').select('icon')
+        ]);
+
+        if (storageRes.error) throw storageRes.error;
+        if (itemsRes.error) throw itemsRes.error;
+
+        const allStorageIcons = storageRes.data.map(file => file.name);
+        const usedIcons = new Set(itemsRes.data.map(i => i.icon).filter(Boolean) as string[]);
+
+        if (item?.icon) {
+          usedIcons.delete(item.icon);
+        }
+
+        const unusedIcons = allStorageIcons.filter(iconName => !usedIcons.has(iconName));
+        setAvailableIcons(unusedIcons.sort());
+
+      } catch (error) {
+        console.error("Error fetching available icons:", error);
+        showError("Impossible de charger les icônes disponibles.");
+      } finally {
+        setFetchingIcons(false);
+      }
+    };
+
+    fetchAvailableIcons();
+  }, [isOpen, item]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
     const checkName = async () => {
       if (debouncedName.trim() === '' || (item && debouncedName === item.name)) {
         setNameExists(false);
@@ -91,7 +133,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     };
 
     const validateIcon = async () => {
-      if (debouncedIcon === (item?.icon || '')) return;
       if (!debouncedIcon) {
         setPreviewUrl(null);
         setIconExists(null);
@@ -158,7 +199,10 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+        <DialogContent 
+          onOpenAutoFocus={item ? (e) => e.preventDefault() : undefined}
+          className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6"
+        >
           <DialogHeader className="text-center">
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
               {item ? 'Modifier l\'objet' : 'Créer un objet'}
@@ -167,7 +211,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           <form onSubmit={handleSubmit} className="space-y-4 pt-4">
             <div>
               <Label htmlFor="name" className="text-gray-300 font-mono">Nom</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} />
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} autoFocus={!item} />
               {checkingName && <Loader2 className="w-4 h-4 animate-spin text-white mt-1" />}
               {nameExists && !checkingName && <p className="text-red-400 text-sm mt-1">Ce nom existe déjà !</p>}
             </div>
@@ -200,9 +244,51 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                   <AlertCircle className="w-5 h-5 text-gray-500" />}
                 </div>
                 <div className="relative w-full">
-                  <Input id="icon" value={icon} onChange={(e) => setIcon(e.target.value.toLowerCase())} className="bg-white/5 border border-white/20 rounded-lg" placeholder="ex: pomme.png" disabled={loading} />
+                  <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isComboboxOpen}
+                        className="w-full justify-between bg-white/5 border-white/20 hover:bg-white/10 hover:text-white"
+                        disabled={loading || fetchingIcons}
+                      >
+                        <span className="truncate">{fetchingIcons ? "Chargement..." : (icon || "Sélectionner une icône...")}</span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Rechercher ou taper..."
+                          onValueChange={setIcon}
+                          value={icon}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Aucune icône trouvée.</CommandEmpty>
+                          <CommandGroup>
+                            {availableIcons.map((iconName) => (
+                              <CommandItem
+                                key={iconName}
+                                value={iconName}
+                                onSelect={() => {
+                                  setIcon(iconName);
+                                  setIsComboboxOpen(false);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", icon === iconName ? "opacity-100" : "opacity-0")} />
+                                {iconName}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   {!isValidatingIcon && icon && (
-                    iconExists ? <CheckCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-green-400" /> : <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 transform-gpu">
+                      {iconExists ? <CheckCircle className="w-5 h-5 text-green-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}
+                    </div>
                   )}
                 </div>
               </div>
@@ -236,7 +322,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         title="Confirmer la suppression"
         description={`Êtes-vous sûr de vouloir supprimer l'objet "${item?.name}" ? Cette action est irréversible.`}
         actions={[
-          { label: "Confirmer", onClick: handleDelete, variant: "destructive", disabled: loading },
+          { label: "Confirmer", onClick: handleDelete, variant: "destructive" },
           { label: "Annuler", onClick: () => setIsDeleteModalOpen(false), variant: "secondary" },
         ]}
       />

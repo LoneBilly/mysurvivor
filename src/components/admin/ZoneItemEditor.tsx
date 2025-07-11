@@ -207,28 +207,24 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const CurrentIconComponent = getZoneIconComponent(zoneIcon);
 
   return (
-    <Card className="w-full max-w-3xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col max-h-full">
-      <CardHeader className="flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setIsIconEditorOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
-                  <CurrentIconComponent className="w-6 h-6" />
-                </Button>
-                <Input
-                  value={zoneName}
-                  onChange={(e) => setZoneName(e.target.value)}
-                  onBlur={handleZoneNameSave}
-                  className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto"
-                />
-              </div>
-            </div>
+    <Card className="w-full max-w-4xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col h-full">
+      <CardHeader className="flex-shrink-0 border-b border-gray-700 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => setIsIconEditorOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
+              <CurrentIconComponent className="w-8 h-8" />
+            </Button>
+            <Input
+              value={zoneName}
+              onChange={(e) => setZoneName(e.target.value)}
+              onBlur={handleZoneNameSave}
+              className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto truncate"
+            />
           </div>
         </div>
-        <div className="relative mt-4 flex flex-col sm:flex-row items-center gap-2">
-          <div className="relative w-full sm:flex-grow">
+        <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative w-full sm:flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               type="text"
@@ -238,55 +234,55 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
               className="w-full bg-gray-900/50 border-gray-600 pl-10"
             />
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600">
-              <SelectValue placeholder="Filtrer par type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les types</SelectItem>
-              <SelectItem value="Ressources">Ressources</SelectItem>
-              <SelectItem value="Armes">Armes</SelectItem>
-              <SelectItem value="Nourriture">Nourriture</SelectItem>
-              <SelectItem value="Soins">Soins</SelectItem>
-              <SelectItem value="Items divers">Items divers</SelectItem>
-              <SelectItem value="Items craftés">Items craftés</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={handleCreateItem} variant="outline" size="icon" className="bg-gray-700 border-gray-600 hover:bg-gray-600">
-            <Plus className="w-4 h-4" />
-          </Button>
+          <div className="flex w-full sm:w-auto gap-3">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600">
+                <SelectValue placeholder="Filtrer par type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="Ressources">Ressources</SelectItem>
+                <SelectItem value="Armes">Armes</SelectItem>
+                <SelectItem value="Nourriture">Nourriture</SelectItem>
+                <SelectItem value="Soins">Soins</SelectItem>
+                <SelectItem value="Items divers">Items divers</SelectItem>
+                <SelectItem value="Items craftés">Items craftés</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={handleCreateItem} className="flex-shrink-0">
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Ajouter</span>
+            </Button>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto min-h-0">
+      <CardContent className="flex-1 overflow-y-auto p-4">
         {loading ? (
           <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
         ) : (
-          <div className="space-y-2 pr-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredItems.map(item => (
-              <div key={item.id} className="bg-gray-700/50 p-3 rounded-md">
-                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
+              <div key={item.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600/50 flex flex-col">
+                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-lg font-semibold text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
                   {item.name}
                 </Button>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center">
-                    <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm mb-1">Chance</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id={`item-chance-${item.id}`}
-                        type="number"
-                        inputMode="numeric"
-                        min="0" max="100"
-                        value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
-                        onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
-                        onBlur={handleSaveSettings}
-                        className="w-20 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="0"
-                      />
-                      <span className="text-gray-400">%</span>
-                    </div>
+                <div className="grid grid-cols-2 gap-4 mt-auto pt-3 border-t border-gray-600/50">
+                  <div className="space-y-1">
+                    <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance (%)</Label>
+                    <Input
+                      id={`item-chance-${item.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      min="0" max="100"
+                      value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
+                      onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
+                      onBlur={handleSaveSettings}
+                      className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      placeholder="0"
+                    />
                   </div>
-                  <div className="flex flex-col items-center">
-                    <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm mb-1">Quantité</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Qté. Max</Label>
                     <Input
                       id={`item-quantity-${item.id}`}
                       type="number"
@@ -295,7 +291,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
                       value={zoneItemSettings.get(item.id)?.max_quantity || '1'}
                       onChange={(e) => handleSettingChange(item.id, 'max_quantity', e.target.value)}
                       onBlur={handleSaveSettings}
-                      className="w-20 bg-gray-800 border-gray-600 text-white text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="1"
                     />
                   </div>
