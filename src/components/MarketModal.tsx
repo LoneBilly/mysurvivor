@@ -190,7 +190,9 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
   };
 
   const handleOpenListItemModal = () => {
-    setIsListItemModalOpen(true);
+    onUpdate(true).then(() => {
+      setIsListItemModalOpen(true);
+    });
   };
 
   const handleBuySaleSlot = async () => {
@@ -234,7 +236,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col outline-none focus-visible:ring-0">
-          <DialogHeader className="text-center">
+          <DialogHeader className="text-center flex-shrink-0">
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
             <DialogDescription asChild>
@@ -285,7 +287,9 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             </TabsContent>
             
             <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col min-h-0">
-              <p className="text-sm text-gray-400 mb-4 flex-shrink-0">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
+              <div className="mb-4 flex-shrink-0">
+                <p className="text-sm text-gray-400">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
+              </div>
               <div className="flex-grow overflow-y-auto no-scrollbar space-y-2">
                 {loading ? (
                   Array.from({ length: saleSlots }).map((_, i) => <MyListingSkeleton key={i} />)

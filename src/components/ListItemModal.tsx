@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, PlusCircle } from 'lucide-react';
 
 interface ListItemModalProps {
   isOpen: boolean;
@@ -19,6 +19,7 @@ interface ListItemModalProps {
 
 const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemModalProps) => {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,7 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
   useEffect(() => {
     if (!isOpen) {
       setSelectedItem(null);
+      setIsSelecting(false);
       setPrice('');
       setQuantity(1);
       setLoading(false);
@@ -73,76 +75,16 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
         <DialogHeader>
           <DialogTitle>Mettre un objet en vente</DialogTitle>
           <DialogDescription>
-            {selectedItem ? `Vous vendez : ${selectedItem.items?.name}` : "Sélectionnez un objet de votre inventaire."}
+            {isSelecting ? "Choisissez un objet dans votre inventaire." : "Définissez la quantité et le prix de vente."}
           </DialogDescription>
         </DialogHeader>
         
-        {selectedItem ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-              <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                <ItemIcon iconName={selectedItem.items?.signedIconUrl || selectedItem.items?.icon} alt={selectedItem.items?.name || ''} />
-              </div>
-              <div className="flex-grow">
-                <p className="font-bold">{selectedItem.items?.name}</p>
-                <p className="text-xs text-gray-400">En stock: {selectedItem.quantity}</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedItem(null)} disabled={loading}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="quantity-slider">Quantité à vendre</Label>
-                <span className="font-mono text-lg font-bold">{quantity}</span>
-              </div>
-              {selectedItem.quantity > 1 ? (
-                <Slider
-                  id="quantity-slider"
-                  value={[quantity]}
-                  onValueChange={(value) => setQuantity(value[0])}
-                  min={1}
-                  max={selectedItem.quantity}
-                  step={1}
-                  disabled={loading}
-                />
-              ) : (
-                <Slider
-                  id="quantity-slider"
-                  value={[1]}
-                  min={0}
-                  max={1}
-                  step={1}
-                  disabled
-                />
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="sell-price">Prix de vente total</Label>
-              <Input 
-                id="sell-price" 
-                type="number" 
-                inputMode="numeric"
-                placeholder="Prix en crédits" 
-                value={price} 
-                onChange={e => setPrice(e.target.value)} 
-                className="bg-white/10 border-white/20 mt-1" 
-                disabled={loading} 
-              />
-            </div>
-
-            <Button onClick={handleListItem} className="w-full" disabled={loading || !price}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Mettre en vente pour ${price || '...'} crédits`}
-            </Button>
-          </div>
-        ) : (
+        {isSelecting ? (
           <div className="max-h-[50vh] overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-1">
             {inventory.length > 0 ? inventory.filter(item => item.items?.name).map(item => (
               <button 
                 key={item.id} 
-                onClick={() => setSelectedItem(item)} 
+                onClick={() => { setSelectedItem(item); setIsSelecting(false); }} 
                 className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center text-center hover:bg-slate-700/80"
               >
                 <div className="w-10 h-10 relative flex-shrink-0 mb-1">
@@ -156,6 +98,65 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
             )) : (
               <p className="col-span-full text-center text-gray-400 py-4">Votre inventaire est vide.</p>
             )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {selectedItem ? (
+              <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+                <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                  <ItemIcon iconName={selectedItem.items?.signedIconUrl || selectedItem.items?.icon} alt={selectedItem.items?.name || ''} />
+                </div>
+                <div className="flex-grow">
+                  <p className="font-bold">{selectedItem.items?.name}</p>
+                  <p className="text-xs text-gray-400">En stock: {selectedItem.quantity}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setIsSelecting(true)} disabled={loading}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setIsSelecting(true)}
+                className="w-full border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center p-4 text-slate-400 hover:bg-slate-700/50 hover:border-slate-500 transition-all min-h-[88px]"
+              >
+                <PlusCircle className="w-6 h-6 mr-2" />
+                <span>Sélectionner un objet</span>
+              </button>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="quantity-slider">Quantité à vendre</Label>
+                <span className="font-mono text-lg font-bold">{quantity}</span>
+              </div>
+              <Slider
+                id="quantity-slider"
+                value={[quantity]}
+                onValueChange={(value) => setQuantity(value[0])}
+                min={1}
+                max={selectedItem?.quantity || 1}
+                step={1}
+                disabled={!selectedItem || selectedItem.quantity <= 1 || loading}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="sell-price">Prix de vente total</Label>
+              <Input 
+                id="sell-price" 
+                type="number" 
+                inputMode="numeric"
+                placeholder="Prix en crédits" 
+                value={price} 
+                onChange={e => setPrice(e.target.value)} 
+                className="bg-white/10 border-white/20 mt-1" 
+                disabled={!selectedItem || loading} 
+              />
+            </div>
+
+            <Button onClick={handleListItem} className="w-full" disabled={loading || !selectedItem || !price}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Mettre en vente pour ${price || '...'} crédits`}
+            </Button>
           </div>
         )}
       </DialogContent>
