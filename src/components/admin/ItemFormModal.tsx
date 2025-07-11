@@ -36,6 +36,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [icon, setIcon] = useState('');
   const [stackable, setStackable] = useState(true);
   const [type, setType] = useState('Items divers');
+  const [useActionText, setUseActionText] = useState('Utiliser');
   const [loading, setLoading] = useState(false);
   
   const [nameExists, setNameExists] = useState(false);
@@ -63,6 +64,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setIcon(initialIcon);
       setStackable(item?.stackable ?? true);
       setType(item?.type || 'Items divers');
+      setUseActionText(item?.use_action_text || 'Utiliser');
       setNameExists(false);
       setPreviewUrl(null);
       setIconExists(null);
@@ -154,6 +156,14 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     validateIcon();
   }, [debouncedName, debouncedIcon, item, isOpen]);
 
+  const handleActionTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (value.length > 0) {
+      value = value.charAt(0).toUpperCase() + value.slice(1);
+    }
+    setUseActionText(value);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (nameExists) {
@@ -166,7 +176,14 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     }
 
     setLoading(true);
-    const itemData = { name, description, icon: icon || null, stackable, type };
+    const itemData = { 
+      name, 
+      description, 
+      icon: icon || null, 
+      stackable, 
+      type,
+      use_action_text: useActionText || 'Utiliser'
+    };
     const { error } = item
       ? await supabase.from('items').update(itemData).eq('id', item.id)
       : await supabase.from('items').insert(itemData);
@@ -218,6 +235,10 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
             <div>
               <Label htmlFor="description" className="text-gray-300 font-mono">Description</Label>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" disabled={loading} />
+            </div>
+            <div>
+              <Label htmlFor="use_action_text" className="text-gray-300 font-mono">Texte d'action</Label>
+              <Input id="use_action_text" value={useActionText} onChange={handleActionTextChange} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} />
             </div>
             <div>
               <Label htmlFor="type" className="text-gray-300 font-mono">Type</Label>

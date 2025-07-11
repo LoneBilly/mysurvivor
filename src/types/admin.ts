@@ -7,6 +7,7 @@ export interface Item {
   icon: string | null;
   stackable: boolean;
   type: string;
+  use_action_text: string;
   signedIconUrl?: string;
 }
 

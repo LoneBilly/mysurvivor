@@ -23,6 +23,8 @@ interface ItemDetailModalProps {
 const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }: ItemDetailModalProps) => {
   if (!item) return null;
 
+  const useActionText = item.items?.use_action_text || 'Utiliser';
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
@@ -45,8 +47,8 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }:
           <p className="text-gray-400">Quantité: <span className="font-bold text-white">{item.quantity}</span></p>
         </div>
         <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
-          <Button onClick={onUse} disabled className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20 disabled:opacity-50">
-            Utiliser
+          <Button onClick={onUse} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+            {useActionText}
           </Button>
           <div className="flex w-full gap-2">
             <Button onClick={onDropOne} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
