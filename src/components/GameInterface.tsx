@@ -15,6 +15,8 @@ import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import CreditsDisplay from "./CreditsDisplay";
+import MarketModal from "./MarketModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -72,6 +74,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -115,6 +118,10 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handleExploreAction = async (zone: { name: string; icon: string | null }) => {
     closeModal();
     if (!gameState) return;
+    if (zone.name.toLowerCase() === 'marché') {
+      showError("Le marché ne peut pas être exploré de cette manière.");
+      return;
+    }
 
     await saveGameState({
       exploration_x: gameState.exploration_x ?? ENTRANCE_X,
@@ -128,6 +135,12 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handleBuildBase = async () => {
     closeModal();
     if (!gameState) return;
+
+    const currentCell = mapLayout.find(c => c.x === gameState.position_x && c.y === gameState.position_y);
+    if (currentCell && currentCell.type === 'marché') {
+        showError("Vous ne pouvez pas construire votre base sur le marché.");
+        return;
+    }
 
     if (gameState.base_position_x !== null && gameState.base_position_y !== null) {
       showError("Vous avez déjà un campement.");
@@ -156,6 +169,11 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     if (!gameState) return;
 
     const { x, y, type, id } = cell;
+
+    if (type === 'marché') {
+      setIsMarketOpen(true);
+      return;
+    }
 
     const isDiscovered = gameState.zones_decouvertes.includes(id);
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
@@ -344,7 +362,8 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         onBackToMap={handleBackToMap}
       />
       
-      <main className="flex-1 min-h-0 overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-hidden relative">
+        <CreditsDisplay credits={gameState.credits} />
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid 
             mapLayout={mapLayout}
@@ -423,6 +442,15 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         onClose={() => setIsInventoryOpen(false)}
         inventory={gameState.inventaire}
         unlockedSlots={gameState.unlocked_slots}
+        onUpdate={reloadGameState}
+      />
+
+      <MarketModal
+        isOpen={isMarketOpen}
+        onClose={() => setIsMarketOpen(false)}
+        inventory={gameState.inventaire}
+        credits={gameState.credits}
+        saleSlots={gameState.sale_slots}
         onUpdate={reloadGameState}
       />
     </div>

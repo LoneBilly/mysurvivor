@@ -15,6 +15,7 @@ export interface InventoryItem {
     description: string | null;
     icon: string | null;
     signedIconUrl?: string;
+    type?: string;
   } | null;
 }
 
@@ -48,6 +49,8 @@ export interface GameState {
   components: number;
   spawn_date: string;
   unlocked_slots: number;
+  credits: number;
+  sale_slots: number;
 }
 
 export interface MapCell {
