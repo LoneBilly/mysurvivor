@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,6 @@ interface PlayerDetailModalProps {
 
 const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
-  const [baseZoneId, setBaseZoneId] = useState<string | undefined>();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
@@ -40,20 +39,12 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
     return mapLayout.filter(zone => zone.type !== 'Inconnue');
   }, [mapLayout]);
 
-  useEffect(() => {
-    if (isOpen && player && validMapLayout.length > 0) {
-      const currentBaseId = player.player_states?.[0]?.base_zone_id;
-      const baseExistsInValidMap = validMapLayout.some(zone => zone.id === currentBaseId);
-
-      if (currentBaseId != null && baseExistsInValidMap) {
-        setBaseZoneId(String(currentBaseId));
-      } else {
-        setBaseZoneId(undefined);
-      }
-    } else if (!isOpen) {
-      setBaseZoneId(undefined);
-    }
-  }, [isOpen, player, validMapLayout]);
+  const currentBaseId = player.player_states?.[0]?.base_zone_id;
+  const baseExistsInValidMap = useMemo(() => 
+    validMapLayout.some(zone => zone.id === currentBaseId), 
+    [validMapLayout, currentBaseId]
+  );
+  const selectValue = (currentBaseId != null && baseExistsInValidMap) ? String(currentBaseId) : undefined;
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
@@ -165,7 +156,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
-              <Select onValueChange={handleBaseLocationChange} value={baseZoneId}>
+              <Select onValueChange={handleBaseLocationChange} value={selectValue}>
                 <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
                   <SelectValue placeholder="Aucune base" />
                 </SelectTrigger>
