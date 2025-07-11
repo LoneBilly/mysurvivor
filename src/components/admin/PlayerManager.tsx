@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { showError } from '@/utils/toast';
 import PlayerDetailModal from './PlayerDetailModal';
+import { cn } from '@/lib/utils';
 
 export type PlayerProfile = {
   id: string;
@@ -22,12 +23,15 @@ export type PlayerProfile = {
   created_at: string;
 };
 
+type SortKey = 'username' | 'created_at';
+
 const PlayerManager = () => {
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerProfile | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
@@ -68,9 +72,45 @@ const PlayerManager = () => {
     setSelectedPlayer(null);
   };
 
-  const filteredPlayers = players.filter(p =>
-    (p.username?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    p.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const requestSort = (key: SortKey) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedPlayers = useMemo(() => {
+    const filteredPlayers = players.filter(p =>
+      (p.username?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    );
+
+    return [...filteredPlayers].sort((a, b) => {
+      if (sortConfig.key === 'username') {
+        const nameA = a.username || '';
+        const nameB = b.username || '';
+        if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      } else { // created_at
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      }
+    });
+  }, [players, searchTerm, sortConfig]);
+
+  const SortableHeader = ({ sortKey, children }: { sortKey: SortKey, children: React.ReactNode }) => (
+    <TableHead className="text-white cursor-pointer" onClick={() => requestSort(sortKey)}>
+      <div className="flex items-center gap-2">
+        {children}
+        {sortConfig.key === sortKey && (
+          sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+        )}
+      </div>
+    </TableHead>
   );
 
   if (loading) {
@@ -99,11 +139,12 @@ const PlayerManager = () => {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
-                <TableHead className="text-white">Pseudo</TableHead>
+                <SortableHeader sortKey="username">Pseudo</SortableHeader>
+                <SortableHeader sortKey="created_at">Inscrit le</SortableHeader>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPlayers.map(player => (
+              {sortedPlayers.map(player => (
                 <TableRow 
                   key={player.id} 
                   className="border-gray-700 hover:bg-gray-800/60 cursor-pointer"
@@ -112,6 +153,7 @@ const PlayerManager = () => {
                   <TableCell>
                     <div className="font-medium">{player.username || <span className="text-gray-500">Joueur Anonyme</span>}</div>
                   </TableCell>
+                  <TableCell>{new Date(player.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

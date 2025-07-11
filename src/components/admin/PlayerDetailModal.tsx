@@ -17,6 +17,7 @@ import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MapCell } from '@/types/game';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ interface PlayerDetailModalProps {
 }
 
 const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
+  const { user: adminUser } = useAuth();
   const [baseLocation, setBaseLocation] = useState<string | null>(null);
   const [baseZoneId, setBaseZoneId] = useState<number | null>(null);
   const [allZones, setAllZones] = useState<MapCell[]>([]);
@@ -96,6 +98,26 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
     }
   };
 
+  const handleRoleChange = async (newRole: 'player' | 'admin') => {
+    if (player.id === adminUser?.id && newRole === 'player') {
+      showError("Vous ne pouvez pas retirer votre propre rôle d'administrateur.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', player.id);
+
+    if (error) {
+      showError("Erreur lors du changement de rôle.");
+      console.error(error);
+    } else {
+      showSuccess("Rôle mis à jour.");
+      onPlayerUpdate({ ...player, role: newRole });
+    }
+  };
+
   const handleToggleBan = async () => {
     const newBanStatus = !player.is_banned;
     const { error } = await supabase
@@ -107,13 +129,14 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
       showError(`Erreur lors de la modification du statut de ${player.username}.`);
     } else {
       showSuccess(`Le statut de ${player.username} a été mis à jour.`);
-      onPlayerUpdate({ ...player, is_banned: newBanStatus });
+      onPlayerUpdate({ ...player, is_banned: newBanStatus, ban_reason: newBanStatus ? banReason : null });
     }
     setModalState({ ...modalState, isOpen: false });
     setBanReason('');
   };
 
   const openBanModal = () => {
+    setBanReason(player.ban_reason || '');
     setModalState({
       isOpen: true,
       title: `${player.is_banned ? 'Lever le bannissement' : 'Bannir'} ${player.username}`,
@@ -150,17 +173,17 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
               <span>Inscrit le: <span className="font-bold">{new Date(player.created_at).toLocaleDateString()}</span></span>
             </div>
             <div className="flex items-center gap-3">
-              {player.role === 'admin' ? (
-                <>
-                  <Shield className="w-5 h-5 text-indigo-400" />
-                  <span className="font-medium text-indigo-300">Rôle: Admin</span>
-                </>
-              ) : (
-                <>
-                  <User className="w-5 h-5 text-gray-400" />
-                  <span className="font-medium">Rôle: Joueur</span>
-                </>
-              )}
+              <Shield className="w-5 h-5 text-gray-400" />
+              <span className="font-medium">Rôle:</span>
+              <Select onValueChange={(value) => handleRoleChange(value as 'player' | 'admin')} value={player.role}>
+                <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
+                  <SelectValue placeholder="Choisir un rôle..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="player">Joueur</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
@@ -193,9 +216,6 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
                 </>
               )}
             </div>
-            <div className="pt-2">
-              <p className="text-xs text-gray-500">ID: {player.id}</p>
-            </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
             <Button onClick={() => setIsBaseViewerOpen(true)} className="w-full flex items-center gap-2">
@@ -205,7 +225,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDe
             <Button onClick={() => setIsInventoryOpen(true)} className="w-full flex items-center gap-2">
               <Package className="w-4 h-4" /> Voir l'inventaire
             </Button>
-            <Button onClick={openBanModal} variant={player.is_banned ? 'default' : 'destructive'} className="w-full">
+            <Button onClick={openBanModal} variant={player.is_banned ? 'default' : 'destructive'} className="w-full" disabled={player.id === adminUser?.id}>
               {player.is_banned ? 'Lever le bannissement' : 'Bannir le joueur'}
             </Button>
           </DialogFooter>
