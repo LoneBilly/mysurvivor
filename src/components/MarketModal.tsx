@@ -1,224 +1,361 @@
-"use client";
-
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
-import { usePlayer } from "@/contexts/PlayerContext";
-import { supabase } from "@/integrations/supabase/client";
-import { Coins, ShoppingCart, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { showError, showSuccess } from '@/utils/toast';
+import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, PlusCircle } from 'lucide-react';
+import { InventoryItem } from '@/types/game';
+import ItemIcon from './ItemIcon';
+import ActionModal from './ActionModal';
+import { getCachedSignedUrl } from '@/utils/iconCache';
+import ListItemModal from './ListItemModal';
 
-// Types
-interface MarketListing {
+export interface MarketListing {
   listing_id: number;
+  seller_id: string;
   seller_username: string;
+  item_id: number;
   item_name: string;
-  item_icon: string;
+  item_icon: string | null;
   quantity: number;
   price: number;
+  created_at: string;
+  signedIconUrl?: string;
 }
 
-interface InventoryItem {
-  id: number;
-  items: {
-    name: string;
-    icon: string;
-  };
-  quantity: number;
+const ListingSkeleton = () => (
+  <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2 animate-pulse">
+    <div className="w-12 h-12 bg-slate-700/50 rounded-md flex-shrink-0"></div>
+    <div className="flex-grow space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
+      <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
+    </div>
+    <div className="flex flex-col items-end space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-12"></div>
+      <div className="h-8 bg-slate-700/50 rounded w-20"></div>
+    </div>
+  </div>
+);
+
+const MyListingSkeleton = () => (
+  <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg animate-pulse">
+    <div className="w-12 h-12 bg-slate-700/50 rounded-md flex-shrink-0"></div>
+    <div className="flex-grow space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
+      <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
+    </div>
+    <div className="flex flex-col sm:flex-row gap-2">
+      <div className="h-8 bg-slate-700/50 rounded w-24"></div>
+      <div className="h-8 bg-slate-700/50 rounded w-20"></div>
+    </div>
+  </div>
+);
+
+interface MarketModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  inventory: InventoryItem[];
+  credits: number;
+  saleSlots: number;
+  onUpdate: (silent?: boolean) => Promise<void>;
+  onPurchaseCredits: () => void;
 }
 
-interface PlayerListing {
-  id: number;
-  items: {
-    name: string;
-    icon: string;
-  };
-  quantity: number;
-  price: number;
-}
-
-export function MarketModal() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("buy");
+const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate, onPurchaseCredits }: MarketModalProps) => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('buy');
   const [listings, setListings] = useState<MarketListing[]>([]);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [myListings, setMyListings] = useState<PlayerListing[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [myListings, setMyListings] = useState<MarketListing[]>([]);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-  const { player, refreshPlayerData } = usePlayer();
+  const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; description: string; onConfirm: () => void; confirmLabel: string; variant?: "default" | "destructive" }>({ isOpen: false, title: '', description: '', onConfirm: () => {}, confirmLabel: 'Confirmer' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isListItemModalOpen, setIsListItemModalOpen] = useState(false);
 
-  const fetchData = async () => {
-    if (!isOpen || !player) return;
-
+  const fetchListings = useCallback(async () => {
     setLoading(true);
-    if (activeTab === "buy") {
-      const { data, error } = await supabase.rpc("get_market_listings");
-      if (error) {
-        toast({ title: "Erreur", description: "Impossible de charger le marché.", variant: "destructive" });
-      } else {
-        setListings(data || []);
-      }
+    const { data, error } = await supabase.rpc('get_market_listings');
+    if (error) {
+      showError("Impossible de charger les offres du marché.");
     } else {
-      const { data: inventoryData, error: inventoryError } = await supabase
-        .from("inventories")
-        .select(`id, quantity, items (name, icon)`)
-        .eq("player_id", player.id);
-      if (inventoryError) {
-        toast({ title: "Erreur", description: "Impossible de charger l'inventaire.", variant: "destructive" });
-      } else {
-        setInventory(inventoryData || []);
-      }
-
-      const { data: listingsData, error: listingsError } = await supabase
-        .from("market_listings")
-        .select(`id, quantity, price, items (name, icon)`)
-        .eq("seller_id", player.id);
-      if (listingsError) {
-        toast({ title: "Erreur", description: "Impossible de charger vos ventes.", variant: "destructive" });
-      } else {
-        setMyListings(listingsData || []);
-      }
+      const listingsWithUrls = await Promise.all(
+        (data as MarketListing[]).map(async (item) => {
+          if (item.item_icon && item.item_icon.includes('.')) {
+            const signedUrl = await getCachedSignedUrl(item.item_icon);
+            return { ...item, signedIconUrl: signedUrl || undefined };
+          }
+          return item;
+        })
+      );
+      setListings(listingsWithUrls);
     }
     setLoading(false);
-  };
+  }, []);
+
+  const fetchMyListings = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('market_listings')
+      .select('*, items(name, icon)')
+      .eq('seller_id', user.id);
+    
+    if (error) {
+      showError("Impossible de charger vos offres.");
+    } else {
+      const formattedData = data.map(d => ({
+        listing_id: d.id,
+        seller_id: d.seller_id,
+        seller_username: user.email || 'Vous',
+        item_id: d.item_id,
+        item_name: d.items?.name || 'Objet inconnu',
+        item_icon: d.items?.icon || null,
+        quantity: d.quantity,
+        price: d.price,
+        created_at: d.created_at,
+      }));
+      const listingsWithUrls = await Promise.all(
+        (formattedData as MarketListing[]).map(async (item) => {
+          if (item.item_icon && item.item_icon.includes('.')) {
+            const signedUrl = await getCachedSignedUrl(item.item_icon);
+            return { ...item, signedIconUrl: signedUrl || undefined };
+          }
+          return item;
+        })
+      );
+      setMyListings(listingsWithUrls);
+    }
+    setLoading(false);
+  }, [user]);
 
   useEffect(() => {
-    fetchData();
-  }, [isOpen, activeTab, player]);
-
-  const handleBuyItem = async (listing: MarketListing) => {
-    if (!player || player.credits < listing.price) {
-        toast({ title: "Crédits insuffisants", variant: "destructive" });
-        return;
+    if (isOpen) {
+      if (activeTab === 'buy') fetchListings();
+      if (activeTab === 'my-listings') fetchMyListings();
     }
-    const { error } = await supabase.rpc('buy_market_item', { p_listing_id: listing.listing_id });
-    if (error) {
-        toast({ title: "Erreur d'achat", description: error.message, variant: "destructive" });
-    } else {
-        toast({ title: "Achat réussi!" });
-        fetchData();
-        refreshPlayerData();
-    }
+  }, [isOpen, activeTab, fetchListings, fetchMyListings]);
+
+  const handleBuy = (listing: MarketListing) => {
+    setModalState({
+      isOpen: true,
+      title: `Acheter ${listing.item_name}`,
+      description: `Voulez-vous acheter ${listing.quantity}x ${listing.item_name} pour ${listing.price} crédits ?`,
+      onConfirm: async () => {
+        setLoading(true);
+        const { error } = await supabase.rpc('buy_market_item', { p_listing_id: listing.listing_id });
+        if (error) {
+          showError(error.message);
+        } else {
+          showSuccess("Achat réussi !");
+          onUpdate(true);
+          fetchListings();
+        }
+        setLoading(false);
+        setModalState({ ...modalState, isOpen: false });
+      },
+      confirmLabel: 'Acheter',
+    });
   };
 
-  const handleSellItem = (item: InventoryItem) => {
-    toast({ title: "Fonctionnalité à venir", description: "La mise en vente d'objets sera bientôt disponible." });
+  const handleCancelListing = (listing: MarketListing, action: 'buy_back' | 'discard') => {
+    const buyBackPrice = Math.floor(listing.price * 0.4);
+    const title = action === 'buy_back' ? "Racheter votre objet" : "Jeter votre objet";
+    const description = action === 'buy_back' 
+      ? `Racheter cet objet vous coûtera ${buyBackPrice} crédits. L'objet retournera dans votre inventaire.`
+      : "Cet objet sera définitivement perdu. Cette action est irréversible.";
+
+    setModalState({
+      isOpen: true,
+      title,
+      description,
+      variant: action === 'discard' ? 'destructive' : 'default',
+      onConfirm: async () => {
+        setLoading(true);
+        const { error } = await supabase.rpc('cancel_listing', { p_listing_id: listing.listing_id, p_action: action });
+        if (error) {
+          showError(error.message);
+        } else {
+          showSuccess("Action réussie !");
+          onUpdate(true);
+          fetchMyListings();
+        }
+        setLoading(false);
+        setModalState({ ...modalState, isOpen: false });
+      },
+      confirmLabel: action === 'buy_back' ? 'Racheter' : 'Jeter',
+    });
   };
 
-  const handleCancelListing = async (listingId: number) => {
-     // Placeholder
+  const handleOpenListItemModal = () => {
+    setIsListItemModalOpen(true);
   };
 
-  const filteredListings = useMemo(() => {
-    return listings.filter((listing) =>
-      listing.item_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [listings, searchTerm]);
+  const handleBuySaleSlot = async () => {
+    setModalState({
+        isOpen: true,
+        title: "Acheter un emplacement",
+        description: "Voulez-vous acheter un nouvel emplacement de vente pour 100 crédits ?",
+        onConfirm: async () => {
+            setLoading(true);
+            const { error } = await supabase.rpc('buy_sale_slot');
+            if (error) {
+                showError(error.message);
+            } else {
+                showSuccess("Emplacement acheté !");
+                await onUpdate(true);
+                fetchMyListings();
+            }
+            setLoading(false);
+            setModalState({ ...modalState, isOpen: false });
+        },
+        confirmLabel: 'Acheter (100 crédits)',
+    });
+  };
+
+  const renderEmptyState = (message: string) => (
+    <div className="text-center text-gray-400 py-10">{message}</div>
+  );
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
+
+  const filteredAndSortedListings = listings
+    .filter(l => l.item_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'asc') return a.price - b.price;
+      return b.price - a.price;
+    });
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
-          <ShoppingCart className="mr-2 h-4 w-4" /> Marché
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-5xl h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Marché</DialogTitle>
-        </DialogHeader>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="buy">Acheter</TabsTrigger>
-            <TabsTrigger value="sell">Vendre</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="buy" className="mt-4 flex-grow flex flex-col min-h-0">
-            <div className="flex flex-row gap-2 mb-4 flex-shrink-0">
-              <Input
-                placeholder="Rechercher un objet..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <ScrollArea className="flex-grow pr-4">
-              {loading && <p className="text-center py-4">Chargement du marché...</p>}
-              {!loading && filteredListings.length === 0 && <p className="text-center text-muted-foreground py-8">Le marché est vide.</p>}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredListings.map((listing) => (
-                  <div key={listing.listing_id} className="border rounded-lg p-3 flex flex-col text-sm">
-                    <div className="flex items-center gap-3 mb-2">
-                      <img src={listing.item_icon} alt={listing.item_name} className="w-10 h-10 object-contain" />
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col outline-none focus-visible:ring-0">
+          <DialogHeader className="text-center flex-shrink-0">
+            <Store className="w-10 h-10 mx-auto text-white mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
+            <DialogDescription asChild>
+              <button onClick={onPurchaseCredits} className="flex items-center justify-center gap-2 text-yellow-400 font-mono hover:text-yellow-300 transition-colors animate-credit-shimmer">
+                <Coins className="w-4 h-4" /> {credits} crédits
+              </button>
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-grow mt-4 min-h-0">
+            <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
+              <TabsTrigger value="buy" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><ShoppingCart className="w-4 h-4 mr-2 flex-shrink-0" />Acheter</TabsTrigger>
+              <TabsTrigger value="my-listings" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><Tag className="w-4 h-4 mr-2 flex-shrink-0" />Vendre</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="buy" className="mt-4 flex-grow flex flex-col min-h-0">
+              <div className="flex flex-row gap-2 mb-4 flex-shrink-0">
+                <Input 
+                  placeholder="Rechercher un objet..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-white/10 border-white/20 flex-grow"
+                />
+                <Button variant="outline" onClick={toggleSortOrder} className="bg-white/10 border-white/20 flex-shrink-0">
+                  <ArrowUpDown className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="flex-grow overflow-y-auto no-scrollbar">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => <ListingSkeleton key={i} />)
+                ) : (
+                  filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
+                    <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
+                      <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                        <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
+                      </div>
                       <div className="flex-grow">
-                        <p className="font-bold">{listing.item_name} <span className="font-normal text-muted-foreground">x{listing.quantity}</span></p>
-                        <p className="text-xs text-muted-foreground">Vendeur: {listing.seller_username}</p>
+                        <p className="font-bold">{l.item_name} x{l.quantity}</p>
+                        <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
+                      </div>
+                      <div className="flex flex-col items-center sm:items-end">
+                        <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
+                        <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-auto pt-2 border-t">
-                      <div className="flex items-center gap-1 font-bold text-amber-500">
-                        <Coins size={16} /> {listing.price}
-                      </div>
-                      <Button size="sm" onClick={() => handleBuyItem(listing)} disabled={loading || (player && player.credits < listing.price)}>Acheter</Button>
-                    </div>
-                  </div>
-                ))}
+                  )) : renderEmptyState("Aucun objet ne correspond à votre recherche.")
+                )}
               </div>
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="sell" className="mt-4 flex-grow flex flex-col min-h-0">
-            <div className="grid md:grid-cols-2 gap-6 flex-grow min-h-0">
-              <div className="flex flex-col">
-                <h3 className="text-lg font-semibold mb-2 flex-shrink-0">Mon Inventaire</h3>
-                <ScrollArea className="border rounded-lg p-2 flex-grow">
-                  {loading && <p className="text-center py-4">Chargement...</p>}
-                  {!loading && inventory.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Votre inventaire est vide.</p>}
-                  <div className="grid grid-cols-3 gap-2">
-                    {inventory.map((item) => (
-                      <Button variant="outline" key={item.id} className="h-auto p-2 flex flex-col items-center text-center" onClick={() => handleSellItem(item)}>
-                        <img src={item.items.icon} alt={item.items.name} className="w-12 h-12 object-contain" />
-                        <span className="text-xs mt-1">{item.items.name}</span>
-                        <span className="text-xs font-bold">x{item.quantity}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-              <div className="flex flex-col">
-                <h3 className="text-lg font-semibold mb-2 flex-shrink-0">Mes Objets en Vente</h3>
-                <ScrollArea className="border rounded-lg p-2 flex-grow">
-                  {loading && <p className="text-center py-4">Chargement...</p>}
-                  {!loading && myListings.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Vous n'avez aucun objet en vente.</p>}
-                  <div className="space-y-2">
-                    {myListings.map((listing) => (
-                      <div key={listing.id} className="border p-2 rounded-md flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <img src={listing.items.icon} alt={listing.items.name} className="w-8 h-8 object-contain" />
-                          <div>
-                            <p>{listing.items.name} x{listing.quantity}</p>
-                            <p className="text-xs text-amber-500 flex items-center gap-1"><Coins size={12}/> {listing.price}</p>
-                          </div>
+            </TabsContent>
+            
+            <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col min-h-0">
+              <div className="flex-grow overflow-y-auto no-scrollbar space-y-2">
+                {loading ? (
+                  Array.from({ length: saleSlots }).map((_, i) => <MyListingSkeleton key={i} />)
+                ) : (
+                  <>
+                    {myListings.map(l => (
+                      <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+                        <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                          <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
                         </div>
-                        <Button size="sm" variant="destructive" onClick={() => handleCancelListing(listing.id)} disabled={loading}><Trash2 size={16}/></Button>
+                        <div className="flex-grow">
+                          <p className="font-bold">{l.item_name} x{l.quantity}</p>
+                          <p className="text-xs text-yellow-400 flex items-center gap-1">{l.price} <Coins size={12} /></p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleCancelListing(l, 'buy_back')} className="flex items-center gap-1">
+                            <Undo2 size={14} /> Racheter ({Math.floor(l.price * 0.4)})
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleCancelListing(l, 'discard')} className="flex items-center gap-1">
+                            <Trash2 size={14} /> Jeter
+                          </Button>
+                        </div>
                       </div>
                     ))}
-                  </div>
-                </ScrollArea>
+                    {myListings.length < saleSlots && Array.from({ length: saleSlots - myListings.length }).map((_, index) => (
+                      <button 
+                        key={`empty-${index}`} 
+                        onClick={handleOpenListItemModal} 
+                        className="w-full border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center p-4 text-slate-400 hover:bg-slate-700/50 hover:border-slate-500 transition-all min-h-[88px]"
+                      >
+                        <PlusCircle className="w-6 h-6 mr-2" />
+                        <span>Mettre un objet en vente</span>
+                      </button>
+                    ))}
+                    {myListings.length >= saleSlots && (
+                      <button 
+                        onClick={handleBuySaleSlot} 
+                        className="w-full border-2 border-dashed border-yellow-500/50 bg-yellow-500/10 rounded-lg flex items-center justify-center p-4 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-500/80 transition-all min-h-[88px]"
+                      >
+                        <PlusCircle className="w-6 h-6 mr-2" />
+                        <span>Acheter un emplacement (100 crédits)</span>
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+      <ActionModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+        title={modalState.title}
+        description={modalState.description}
+        actions={[
+          { label: modalState.confirmLabel, onClick: modalState.onConfirm, variant: modalState.variant || 'default' },
+          { label: "Annuler", onClick: () => setModalState({ ...modalState, isOpen: false }), variant: "secondary" },
+        ]}
+      />
+      <ListItemModal 
+        isOpen={isListItemModalOpen}
+        onClose={() => setIsListItemModalOpen(false)}
+        inventory={inventory}
+        onItemListed={() => {
+            fetchMyListings();
+            onUpdate(true);
+        }}
+      />
+    </>
   );
-}
+};
+
+export default MarketModal;
