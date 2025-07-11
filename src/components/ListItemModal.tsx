@@ -32,14 +32,13 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
 
   useEffect(() => {
     if (!isOpen) {
-      // Reset state when modal closes
       setTimeout(() => {
         setSelectedItem(null);
         setIsSelecting(false);
         setPrice('');
         setQuantity(1);
         setLoading(false);
-      }, 200); // Delay to allow for closing animation
+      }, 200);
     }
   }, [isOpen]);
 
@@ -83,20 +82,17 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
         </DialogHeader>
         
         {isSelecting ? (
-          <div className="max-h-[50vh] overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-1">
+          <div className="max-h-[50vh] overflow-y-auto grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 p-1">
             {inventory.length > 0 ? inventory.filter(item => item.items?.name).map(item => (
               <button 
                 key={item.id} 
                 onClick={() => { setSelectedItem(item); setIsSelecting(false); }} 
-                className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center text-center hover:bg-slate-700/80"
+                className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center justify-center text-center hover:bg-slate-700/80"
               >
-                <div className="w-10 h-10 relative flex-shrink-0 mb-1">
+                <div className="w-12 h-12 relative flex-shrink-0">
                   <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
+                  <span className="absolute -bottom-1 -right-1 bg-slate-900/80 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{item.quantity}</span>
                 </div>
-                <div className="flex-grow flex flex-col justify-center min-h-0 w-full">
-                  <p className="text-xs text-wrap break-words w-full line-clamp-2">{item.items?.name}</p>
-                </div>
-                <p className="text-xs font-bold flex-shrink-0 mt-auto pt-1">x{item.quantity}</p>
               </button>
             )) : (
               <p className="col-span-full text-center text-gray-400 py-4">Votre inventaire est vide.</p>
