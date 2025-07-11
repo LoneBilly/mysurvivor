@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2 } from 'lucide-react';
+import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2, GanttChartSquare } from 'lucide-react';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
@@ -46,6 +47,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
   const [sellItem, setSellItem] = useState<InventoryItem | null>(null);
   const [sellPrice, setSellPrice] = useState('');
   const [sellQuantity, setSellQuantity] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
 
   useEffect(() => {
     if (sellItem) {
@@ -160,6 +163,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
           showError(error.message);
         } else {
           showSuccess("Objet mis en vente !");
+          // onUpdate(true) recharge l'état du jeu, y compris l'inventaire,
+          // garantissant que la quantité est correcte pour les ventes futures.
           onUpdate(true);
           fetchMyListings();
         }
@@ -205,6 +210,14 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
     <div className="text-center text-gray-400 py-10">{message}</div>
   );
 
+  const filteredAndSortedListings = listings
+    .filter(l => l.item_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'asc') return a.price - b.price;
+      if (sortOrder === 'desc') return b.price - a.price;
+      return 0;
+    });
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -220,13 +233,31 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="buy"><ShoppingCart className="w-4 h-4 mr-2" />Acheter</TabsTrigger>
               <TabsTrigger value="sell"><Tag className="w-4 h-4 mr-2" />Vendre</TabsTrigger>
-              <TabsTrigger value="my-listings"><Store className="w-4 h-4 mr-2" />Mes Ventes</TabsTrigger>
+              <TabsTrigger value="my-listings"><GanttChartSquare className="w-4 h-4 mr-2" />Mes Ventes</TabsTrigger>
             </TabsList>
             <div className="flex-grow mt-4 overflow-y-auto no-scrollbar">
               {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> :
                 <>
                   <TabsContent value="buy">
-                    {listings.length > 0 ? listings.map(l => (
+                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                      <Input 
+                        placeholder="Rechercher un objet..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-white/10 border-white/20"
+                      />
+                      <Select onValueChange={(value: 'asc' | 'desc' | 'none') => setSortOrder(value)} defaultValue="none">
+                        <SelectTrigger className="w-full sm:w-[180px] bg-white/10 border-white/20">
+                          <SelectValue placeholder="Trier par prix" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Pas de tri</SelectItem>
+                          <SelectItem value="asc">Prix croissant</SelectItem>
+                          <SelectItem value="desc">Prix décroissant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
                         <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                           <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
@@ -235,21 +266,25 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
                           <p className="font-bold">{l.item_name} x{l.quantity}</p>
                           <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold flex items-center gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
-                          <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price}>Acheter</Button>
+                        <div className="flex flex-col items-center sm:items-end">
+                          <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
+                          <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
                         </div>
                       </div>
-                    )) : renderEmptyState("Le marché est vide pour le moment.")}
+                    )) : renderEmptyState("Aucun objet ne correspond à votre recherche.")}
                   </TabsContent>
                   <TabsContent value="sell">
                     {myListings.length >= saleSlots ? renderEmptyState(`Vous avez atteint votre limite de ${saleSlots} emplacements de vente.`) :
                       sellItem ? (
-                        <div className="p-4 bg-white/5 rounded-lg space-y-4">
+                        <div className="p-4 bg-white/5 rounded-lg space-y-6">
                           <h3 className="font-bold text-lg">Vendre {sellItem.items?.name}</h3>
-                          <div>
-                            <Label>Quantité: {sellQuantity}</Label>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <Label htmlFor="quantity-slider">Quantité</Label>
+                              <span className="font-mono text-lg font-bold">{sellQuantity}</span>
+                            </div>
                             <Slider
+                              id="quantity-slider"
                               value={[sellQuantity]}
                               onValueChange={(value) => setSellQuantity(value[0])}
                               min={1}
@@ -259,8 +294,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
                             />
                           </div>
                           <div>
-                            <Label>Prix de vente (pour {sellQuantity} unité(s))</Label>
-                            <Input type="number" placeholder="Prix total" value={sellPrice} onChange={e => setSellPrice(e.target.value)} className="bg-white/10 border-white/20 mt-1" />
+                            <Label htmlFor="sell-price">Prix de vente (pour {sellQuantity} unité(s))</Label>
+                            <Input id="sell-price" type="number" placeholder="Prix total" value={sellPrice} onChange={e => setSellPrice(e.target.value)} className="bg-white/10 border-white/20 mt-1" />
                           </div>
                           <div className="flex gap-2 mt-2">
                             <Button onClick={handleSell}>Mettre en vente</Button>
