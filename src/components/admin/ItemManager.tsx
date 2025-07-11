@@ -101,8 +101,8 @@ const ItemManager = () => {
                   <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                     <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
                   </div>
-                  <div className="flex-grow">
-                    <p className="font-bold text-white">{item.name}</p>
+                  <div className="flex-grow min-w-0">
+                    <p className="font-bold text-white truncate">{item.name}</p>
                     <p className="text-sm text-gray-400 truncate">{item.description || 'Aucune description'}</p>
                     <div className="flex items-center gap-2 text-xs text-gray-300 mt-1">
                       {item.stackable ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
@@ -113,13 +113,13 @@ const ItemManager = () => {
               ))}
             </div>
           ) : (
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
                   <TableHead className="w-[60px]">Icône</TableHead>
                   <TableHead>Nom</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-center">Empilable</TableHead>
+                  <TableHead className="text-center w-[100px]">Empilable</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,8 +134,8 @@ const ItemManager = () => {
                         <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-gray-400 max-w-xs truncate">{item.description}</TableCell>
+                    <TableCell className="font-medium truncate">{item.name}</TableCell>
+                    <TableCell className="text-gray-400 truncate">{item.description}</TableCell>
                     <TableCell className="text-center">{item.stackable ? 'Oui' : 'Non'}</TableCell>
                   </TableRow>
                 ))}

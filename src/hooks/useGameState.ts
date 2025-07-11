@@ -12,6 +12,23 @@ export const useGameState = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState("Chargement du monde...");
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [targetProgress, setTargetProgress] = useState(0);
+
+  useEffect(() => {
+    let animationFrameId: number;
+    const animateProgress = () => {
+      setLoadingProgress(prev => {
+        if (prev < targetProgress) {
+          const newProgress = prev + (targetProgress - prev) * 0.1;
+          return newProgress >= targetProgress - 0.5 ? targetProgress : newProgress;
+        }
+        return prev;
+      });
+      animationFrameId = requestAnimationFrame(animateProgress);
+    };
+    animationFrameId = requestAnimationFrame(animateProgress);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [targetProgress]);
 
   const loadGameState = useCallback(async (silent = false) => {
     if (!user) {
@@ -22,24 +39,24 @@ export const useGameState = () => {
     if (!silent) {
       setLoading(true);
       setLoadingMessage("Connexion au serveur...");
-      setLoadingProgress(10);
+      setTargetProgress(10);
     }
 
     try {
       if (!silent) setLoadingMessage("Chargement de la carte du monde...");
       const mapPromise = supabase.from('map_layout').select('*').order('y').order('x');
-      if (!silent) setLoadingProgress(20);
+      if (!silent) setTargetProgress(20);
 
       if (!silent) setLoadingMessage("Récupération des données du joueur...");
       const playerDataPromise = supabase.rpc('get_full_player_data', { p_user_id: user.id });
-      if (!silent) setLoadingProgress(30);
+      if (!silent) setTargetProgress(30);
 
       const [mapRes, fullPlayerDataRes] = await Promise.all([mapPromise, playerDataPromise]);
 
       if (mapRes.error) throw mapRes.error;
       if (fullPlayerDataRes.error) throw fullPlayerDataRes.error;
 
-      if (!silent) setLoadingProgress(40);
+      if (!silent) setTargetProgress(40);
       setMapLayout(mapRes.data as MapCell[]);
       
       const playerData = fullPlayerDataRes.data;
@@ -47,14 +64,14 @@ export const useGameState = () => {
       if (playerData && playerData.playerState) {
         if (!silent) {
           setLoadingMessage("Analyse de l'inventaire...");
-          setLoadingProgress(50);
+          setTargetProgress(50);
         }
         
         const inventoryData = playerData.inventory || [];
 
         if (!silent) {
           setLoadingMessage("Chargement des icônes d'objets...");
-          setLoadingProgress(60);
+          setTargetProgress(60);
         }
         const imageLoadPromises = inventoryData
           .filter((item: InventoryItem) => item.items && item.items.icon && item.items.icon.includes('.'))
@@ -74,7 +91,7 @@ export const useGameState = () => {
         if (imageLoadPromises.length > 0) {
           await Promise.all(imageLoadPromises);
         }
-        if (!silent) setLoadingProgress(70);
+        if (!silent) setTargetProgress(70);
 
         const inventoryWithUrls = await Promise.all(
           inventoryData.map(async (item: InventoryItem) => {
@@ -87,7 +104,7 @@ export const useGameState = () => {
             return item;
           })
         );
-        if (!silent) setLoadingProgress(80);
+        if (!silent) setTargetProgress(80);
 
         if (!silent) setLoadingMessage("Construction de l'univers...");
         const { playerState, baseConstructions } = playerData;
@@ -106,7 +123,7 @@ export const useGameState = () => {
           unlocked_slots: playerState.unlocked_slots,
         };
         setGameState(transformedState);
-        if (!silent) setLoadingProgress(90);
+        if (!silent) setTargetProgress(90);
 
       } else {
         if (!silent) setLoadingMessage("Création de votre survivant...");
@@ -119,8 +136,8 @@ export const useGameState = () => {
     } finally {
       if (!silent) {
         setLoadingMessage("Finalisation...");
-        setLoadingProgress(100);
-        setLoading(false);
+        setTargetProgress(100);
+        setTimeout(() => setLoading(false), 500);
       }
     }
   }, [user]);

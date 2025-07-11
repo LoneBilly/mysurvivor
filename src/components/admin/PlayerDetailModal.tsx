@@ -29,19 +29,12 @@ interface PlayerDetailModalProps {
 
 const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
-  const [baseZoneId, setBaseZoneId] = useState<number | null>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
-  useEffect(() => {
-    if (isOpen) {
-      const playerState = player.player_states?.[0];
-      const currentBaseId = playerState?.base_zone_id ?? null;
-      setBaseZoneId(currentBaseId);
-    }
-  }, [isOpen, player.player_states]);
+  const baseZoneId = player.player_states?.[0]?.base_zone_id ?? null;
 
   const handleBaseLocationChange = async (newZoneIdStr: string) => {
     const newZoneId = parseInt(newZoneIdStr, 10);
@@ -56,8 +49,6 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
         showError("Erreur lors du déplacement de la base.");
     } else {
         showSuccess("La base du joueur a été déplacée.");
-        setBaseZoneId(newZoneId);
-        
         const playerState = player.player_states?.[0] || {};
         const updatedPlayerState = { ...playerState, base_zone_id: newZoneId };
         const updatedPlayer = { ...player, player_states: [updatedPlayerState] };
