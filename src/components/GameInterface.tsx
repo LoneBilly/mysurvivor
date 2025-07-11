@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import MarketModal from "./MarketModal";
 import CreditsDisplay from "./CreditsDisplay";
 import PurchaseCreditsModal from "./PurchaseCreditsModal";
+import FactionScoutsModal from "./FactionScoutsModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -77,6 +78,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [isFactionScoutsModalOpen, setIsFactionScoutsModalOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -181,6 +183,10 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     if (isCurrentPosition) {
       if (type === 'marché') {
         setIsMarketOpen(true);
+        return;
+      }
+      if (type === 'Faction: Scouts') {
+        setIsFactionScoutsModalOpen(true);
         return;
       }
 
@@ -455,6 +461,13 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       <PurchaseCreditsModal
         isOpen={isPurchaseModalOpen}
         onClose={() => setIsPurchaseModalOpen(false)}
+      />
+
+      <FactionScoutsModal
+        isOpen={isFactionScoutsModalOpen}
+        onClose={() => setIsFactionScoutsModalOpen(false)}
+        credits={gameState.credits}
+        onUpdate={() => reloadGameState(true)}
       />
     </div>
   );

@@ -26,6 +26,18 @@ export interface BaseConstruction {
   type: string;
 }
 
+export interface ScoutingMission {
+  id: number;
+  target_player_id: string;
+  target_username: string;
+  started_at: string;
+  status: 'in_progress' | 'completed';
+  report_data: {
+    target_username: string;
+    base_zone_type: string;
+  } | null;
+}
+
 export interface GameState {
   id: string; // user_id
   username: string | null;
