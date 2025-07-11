@@ -190,9 +190,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
   };
 
   const handleOpenListItemModal = () => {
-    onUpdate(true).then(() => {
-      setIsListItemModalOpen(true);
-    });
+    setIsListItemModalOpen(true);
   };
 
   const handleBuySaleSlot = async () => {
@@ -287,7 +285,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             </TabsContent>
             
             <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col min-h-0">
-              <div className="mb-4 flex-shrink-0">
+              <div className="flex flex-row gap-2 mb-4 flex-shrink-0 items-center">
                 <p className="text-sm text-gray-400">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
               </div>
               <div className="flex-grow overflow-y-auto no-scrollbar space-y-2">

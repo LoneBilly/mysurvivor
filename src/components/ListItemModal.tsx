@@ -32,11 +32,14 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
 
   useEffect(() => {
     if (!isOpen) {
-      setSelectedItem(null);
-      setIsSelecting(false);
-      setPrice('');
-      setQuantity(1);
-      setLoading(false);
+      // Reset state when modal closes
+      setTimeout(() => {
+        setSelectedItem(null);
+        setIsSelecting(false);
+        setPrice('');
+        setQuantity(1);
+        setLoading(false);
+      }, 200); // Delay to allow for closing animation
     }
   }, [isOpen]);
 
