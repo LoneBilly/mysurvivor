@@ -96,11 +96,11 @@ export default {
         "credit-shimmer": {
           "0%, 100%": {
             color: "#facc15",
-            opacity: "1",
+            textShadow: "0 0 5px rgba(250, 204, 21, 0.4)",
           },
           "50%": {
-            color: "#fde047",
-            opacity: "0.85",
+            color: "#fef9c3",
+            textShadow: "0 0 15px rgba(253, 224, 71, 0.8)",
           },
         },
       },
