@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2, GanttChartSquare } from 'lucide-react';
+import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2, GanttChartSquare, ArrowUpDown } from 'lucide-react';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
@@ -48,7 +47,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
   const [sellPrice, setSellPrice] = useState('');
   const [sellQuantity, setSellQuantity] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (sellItem) {
@@ -163,8 +162,6 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
           showError(error.message);
         } else {
           showSuccess("Objet mis en vente !");
-          // onUpdate(true) recharge l'état du jeu, y compris l'inventaire,
-          // garantissant que la quantité est correcte pour les ventes futures.
           onUpdate(true);
           fetchMyListings();
         }
@@ -210,18 +207,21 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
     <div className="text-center text-gray-400 py-10">{message}</div>
   );
 
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
+
   const filteredAndSortedListings = listings
     .filter(l => l.item_name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       if (sortOrder === 'asc') return a.price - b.price;
-      if (sortOrder === 'desc') return b.price - a.price;
-      return 0;
+      return b.price - a.price;
     });
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
+        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col outline-none focus-visible:ring-0">
           <DialogHeader className="text-center">
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl">Marché</DialogTitle>
@@ -231,9 +231,9 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
           </DialogHeader>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-grow mt-4 min-h-0">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="buy"><ShoppingCart className="w-4 h-4 mr-2" />Acheter</TabsTrigger>
-              <TabsTrigger value="sell"><Tag className="w-4 h-4 mr-2" />Vendre</TabsTrigger>
-              <TabsTrigger value="my-listings"><GanttChartSquare className="w-4 h-4 mr-2" />Mes Ventes</TabsTrigger>
+              <TabsTrigger value="buy" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><ShoppingCart className="w-4 h-4 mr-2" />Acheter</TabsTrigger>
+              <TabsTrigger value="sell" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><Tag className="w-4 h-4 mr-2" />Vendre</TabsTrigger>
+              <TabsTrigger value="my-listings" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><GanttChartSquare className="w-4 h-4 mr-2" />Mes Ventes</TabsTrigger>
             </TabsList>
             <div className="flex-grow mt-4 overflow-y-auto no-scrollbar">
               {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> :
@@ -244,18 +244,11 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
                         placeholder="Rechercher un objet..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="bg-white/10 border-white/20"
+                        className="bg-white/10 border-white/20 flex-grow"
                       />
-                      <Select onValueChange={(value: 'asc' | 'desc' | 'none') => setSortOrder(value)} defaultValue="none">
-                        <SelectTrigger className="w-full sm:w-[180px] bg-white/10 border-white/20">
-                          <SelectValue placeholder="Trier par prix" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Pas de tri</SelectItem>
-                          <SelectItem value="asc">Prix croissant</SelectItem>
-                          <SelectItem value="desc">Prix décroissant</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Button variant="outline" onClick={toggleSortOrder} className="bg-white/10 border-white/20 flex-shrink-0">
+                        <ArrowUpDown className="w-4 h-4" />
+                      </Button>
                     </div>
                     {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">

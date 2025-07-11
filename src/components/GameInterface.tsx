@@ -15,7 +15,6 @@ import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import CreditsDisplay from "./CreditsDisplay";
 import MarketModal from "./MarketModal";
 
 const formatZoneName = (name: string): string => {
@@ -353,7 +352,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       />
       
       <main className="flex-1 min-h-0 overflow-hidden relative">
-        <CreditsDisplay credits={gameState.credits} />
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid 
             mapLayout={mapLayout}
@@ -406,6 +404,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
           soif: gameState.soif,
           energie: gameState.energie,
         }}
+        credits={gameState.credits}
         onInventaire={handleInventaire}
       />
 
