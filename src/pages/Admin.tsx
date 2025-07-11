@@ -50,11 +50,11 @@ const Admin = () => {
   const handleBackToGrid = () => setSelectedZone(null);
 
   if (loading && !mapLayout.length) {
-    return <div className="h-screen bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
+    return <div className="h-full bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
   }
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col">
+    <div className="h-full bg-gray-900 text-white flex flex-col">
       <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0 p-4 sm:p-8">
         <div className="flex items-center justify-between mb-8 gap-4 flex-shrink-0">
           <div className="flex items-center gap-4">
