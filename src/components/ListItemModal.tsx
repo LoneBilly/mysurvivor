@@ -82,8 +82,11 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
         </DialogHeader>
         
         {isSelecting ? (
-          <div className="max-h-[50vh] overflow-y-auto grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 p-1">
-            {inventory.length > 0 ? inventory.filter(item => item.items?.name).map(item => (
+          <div className="max-h-[50vh] overflow-y-auto grid grid-cols-5 gap-2 p-1">
+            {inventory.length > 0 ? inventory
+              .filter(item => item.items?.name)
+              .sort((a, b) => a.slot_position - b.slot_position)
+              .map(item => (
               <button 
                 key={item.id} 
                 onClick={() => { setSelectedItem(item); setIsSelecting(false); }} 
