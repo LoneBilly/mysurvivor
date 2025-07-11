@@ -10,6 +10,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
 import ZoneIconEditorModal from './ZoneIconEditorModal';
 import ItemFormModal from './ItemFormModal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const getZoneIconComponent = (iconName: string | null): React.ElementType => {
     if (!iconName) return LucideIcons.Map;
@@ -31,6 +32,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const initialZoneIconRef = useRef(zone.icon);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [isIconEditorOpen, setIsIconEditorOpen] = useState(false);
   const [isItemFormModalOpen, setIsItemFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -198,7 +200,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   };
 
   const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (typeFilter === 'all' || item.type === typeFilter)
   );
 
   const CurrentIconComponent = getZoneIconComponent(zoneIcon);
@@ -224,15 +227,31 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
             </div>
           </div>
         </div>
-        <div className="relative mt-4 flex items-center gap-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Rechercher un objet..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-900/50 border-gray-600 pl-10"
-          />
+        <div className="relative mt-4 flex flex-col sm:flex-row items-center gap-2">
+          <div className="relative w-full sm:flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Rechercher un objet..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-900/50 border-gray-600 pl-10"
+            />
+          </div>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600">
+              <SelectValue placeholder="Filtrer par type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="Ressources">Ressources</SelectItem>
+              <SelectItem value="Armes">Armes</SelectItem>
+              <SelectItem value="Nourriture">Nourriture</SelectItem>
+              <SelectItem value="Soins">Soins</SelectItem>
+              <SelectItem value="Items divers">Items divers</SelectItem>
+              <SelectItem value="Items craftés">Items craftés</SelectItem>
+            </SelectContent>
+          </Select>
           <Button onClick={handleCreateItem} variant="outline" size="icon" className="bg-gray-700 border-gray-600 hover:bg-gray-600">
             <Plus className="w-4 h-4" />
           </Button>
