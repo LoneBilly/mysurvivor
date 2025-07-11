@@ -163,11 +163,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
 
     const { x, y, type, id } = cell;
 
-    if (type === 'Marché') {
-      setIsMarketOpen(true);
-      return;
-    }
-
     const isDiscovered = gameState.zones_decouvertes.includes(id);
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
@@ -185,6 +180,14 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     }
 
     if (isCurrentPosition) {
+      // Player is on the cell.
+      if (type === 'Marché') {
+        // If it's the market, open the market modal directly.
+        setIsMarketOpen(true);
+        return;
+      }
+
+      // For other cells, open the action modal.
       const actions: { label: string; onClick: () => void; variant?: any }[] = [];
 
       if (isBaseLocation) {
@@ -204,6 +207,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         actions,
       });
     } else {
+      // Player is NOT on the cell, handle movement.
       const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
       const energyCost = distance * 10;
 
@@ -225,7 +229,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
 
       setModalState({
         isOpen: true,
-        title: formatZoneName(type),
+        title: `Se déplacer vers ${formatZoneName(type)}`,
         description: (
           <>
             Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}
@@ -234,6 +238,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         ),
         actions: [
           { label: "Y aller", onClick: handleMoveAction, variant: "default" },
+          { label: "Annuler", onClick: closeModal, variant: "secondary" },
         ],
       });
     }
