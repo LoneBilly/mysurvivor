@@ -167,47 +167,46 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
-    if (!isDiscovered) {
-      setModalState({
-        isOpen: true,
-        title: "Zone non découverte",
-        description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
-        actions: [
-          { label: "Compris", onClick: closeModal, variant: "default" },
-        ],
-      });
-      return;
-    }
-
     if (isCurrentPosition) {
-      // Player is on the cell.
+      // Player is on the current cell.
       if (type === 'Marché') {
-        // If it's the market, open the market modal directly.
         setIsMarketOpen(true);
+      } else {
+        // For other cells, open the action modal.
+        const actions: { label: string; onClick: () => void; variant?: any }[] = [];
+
+        if (isBaseLocation) {
+          actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
+        }
+        
+        actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }), variant: "default" });
+
+        if (gameState.base_position_x === null || gameState.base_position_y === null) {
+          actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
+        }
+
+        setModalState({
+          isOpen: true,
+          title: formatZoneName(type),
+          description: "Que souhaitez-vous faire ici ?",
+          actions,
+        });
+      }
+    } else {
+      // Player is NOT on the cell, handle movement or discovery.
+      if (!isDiscovered) {
+        setModalState({
+          isOpen: true,
+          title: "Zone non découverte",
+          description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
+          actions: [
+            { label: "Compris", onClick: closeModal, variant: "default" },
+          ],
+        });
         return;
       }
 
-      // For other cells, open the action modal.
-      const actions: { label: string; onClick: () => void; variant?: any }[] = [];
-
-      if (isBaseLocation) {
-        actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
-      }
-      
-      actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }), variant: "default" });
-
-      if (gameState.base_position_x === null || gameState.base_position_y === null) {
-        actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
-      }
-
-      setModalState({
-        isOpen: true,
-        title: formatZoneName(type),
-        description: "Que souhaitez-vous faire ici ?",
-        actions,
-      });
-    } else {
-      // Player is NOT on the cell, handle movement.
+      // It's discovered, so it's a movement action.
       const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
       const energyCost = distance * 10;
 
