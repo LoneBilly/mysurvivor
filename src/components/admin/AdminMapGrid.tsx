@@ -1,48 +1,29 @@
-import { MapCell } from "@/types/game";
-import DraggableMapCell from "./DraggableMapCell";
-
-interface AdminMapGridProps {
-  mapLayout: MapCell[];
-  onMapUpdate: (newLayout: MapCell[], changedCells: MapCell[]) => void;
-  onZoneSelect: (cell: MapCell) => void;
-}
+// ... existing code ...
 
 const AdminMapGrid = ({ mapLayout, onMapUpdate, onZoneSelect }: AdminMapGridProps) => {
-  const handleDrop = (draggedCell: MapCell, targetCell: MapCell) => {
-    if (draggedCell.id === targetCell.id) return;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [centerY, setCenterY] = useState(0);
 
-    const newMapLayout = [...mapLayout];
+  useEffect(() => {
+    if (gridRef.current) {
+      const grid = gridRef.current;
+      const gridHeight = grid.scrollHeight;
+      const gridTop = grid.offsetTop;
+      const viewportHeight = window.innerHeight;
+      const offset = (gridHeight - viewportHeight) / 2;
+      setCenterY(offset);
+    }
+  }, [mapLayout]);
 
-    const draggedIndex = newMapLayout.findIndex(c => c.id === draggedCell.id);
-    const targetIndex = newMapLayout.findIndex(c => c.id === targetCell.id);
-
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    const updatedDraggedCell = { ...newMapLayout[draggedIndex], x: targetCell.x, y: targetCell.y };
-    const updatedTargetCell = { ...newMapLayout[targetIndex], x: draggedCell.x, y: draggedCell.y };
-
-    newMapLayout[draggedIndex] = updatedDraggedCell;
-    newMapLayout[targetIndex] = updatedTargetCell;
-    
-    onMapUpdate(newMapLayout, [updatedDraggedCell, updatedTargetCell]);
-  };
-
-  const generateGrid = (): (MapCell | null)[][] => {
-    const grid: (MapCell | null)[][] = Array(7).fill(null).map(() => Array(7).fill(null));
-    if (!mapLayout.length) return grid;
-
-    mapLayout.forEach(cell => {
-      if (!grid[cell.y]) grid[cell.y] = Array(7).fill(null);
-      grid[cell.y][cell.x] = cell;
-    });
-    return grid;
-  };
-
-  const grid = generateGrid();
+  // ... existing code ...
 
   return (
-    <div className="bg-gray-900/50 p-3 rounded-xl shadow-2xl border border-gray-700/50 aspect-square max-w-full max-h-full">
-      <div className="grid grid-cols-7 gap-1.5 w-full h-full">
+    <div className="bg-gray-900/50 p-3 rounded-xl shadow-2xl border border-gray-700/50 aspect-square max-w-full max-h-full relative overflow-hidden">
+      <div
+        ref={gridRef}
+        className="grid grid-cols-7 gap-1.5 w-full h-full"
+        style={{ transform: `translateY(${centerY}px)` }}
+      >
         {grid.map((row, y) =>
           row.map((cell, x) =>
             cell ? (
@@ -57,4 +38,4 @@ const AdminMapGrid = ({ mapLayout, onMapUpdate, onZoneSelect }: AdminMapGridProp
   );
 };
 
-export default AdminMapGrid;
+// ... existing code ...
