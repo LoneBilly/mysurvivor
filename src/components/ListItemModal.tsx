@@ -120,13 +120,11 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
         ) : (
           <div className="max-h-[50vh] overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-1">
             {inventory.length > 0 ? inventory.filter(item => item.items?.name).map(item => (
-              <button key={item.id} onClick={() => setSelectedItem(item)} className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center justify-center text-center hover:bg-slate-700/80">
-                <div className="w-10 h-10 relative mb-1 flex-shrink-0">
+              <button key={item.id} onClick={() => setSelectedItem(item)} className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center justify-around text-center hover:bg-slate-700/80">
+                <div className="w-10 h-10 relative flex-shrink-0">
                   <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
                 </div>
-                <div className="flex-grow flex items-center justify-center min-h-0">
-                  <p className="text-xs text-wrap break-words">{item.items?.name}</p>
-                </div>
+                <p className="text-xs text-wrap break-words w-full line-clamp-2">{item.items?.name}</p>
                 <p className="text-xs font-bold flex-shrink-0">x{item.quantity}</p>
               </button>
             )) : (

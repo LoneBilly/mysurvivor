@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, GanttChartSquare, ArrowUpDown, PlusCircle } from 'lucide-react';
+import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, PlusCircle } from 'lucide-react';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
@@ -192,7 +192,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-grow mt-4 min-h-0">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="buy" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><ShoppingCart className="w-4 h-4 mr-2 flex-shrink-0" />Acheter</TabsTrigger>
-              <TabsTrigger value="my-listings" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><GanttChartSquare className="w-4 h-4 mr-2 flex-shrink-0" />Mes Ventes</TabsTrigger>
+              <TabsTrigger value="my-listings" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><Tag className="w-4 h-4 mr-2 flex-shrink-0" />Vendre</TabsTrigger>
             </TabsList>
             <div className="flex-grow mt-4 overflow-y-auto no-scrollbar">
               {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> :
@@ -228,19 +228,17 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                   
                   <TabsContent value="my-listings">
                     <p className="text-sm text-gray-400 mb-4">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
                       {myListings.map(l => (
-                        <div key={l.listing_id} className="bg-white/5 rounded-lg p-3 flex flex-col justify-between">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                              <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
-                            </div>
-                            <div className="flex-grow">
-                              <p className="font-bold">{l.item_name} x{l.quantity}</p>
-                              <p className="text-xs text-yellow-400 flex items-center gap-1">{l.price} <Coins size={12} /></p>
-                            </div>
+                        <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+                          <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                            <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
                           </div>
-                          <div className="flex flex-col gap-2">
+                          <div className="flex-grow">
+                            <p className="font-bold">{l.item_name} x{l.quantity}</p>
+                            <p className="text-xs text-yellow-400 flex items-center gap-1">{l.price} <Coins size={12} /></p>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <Button size="sm" variant="outline" onClick={() => handleCancelListing(l, 'buy_back')} className="flex items-center gap-1">
                               <Undo2 size={14} /> Racheter ({Math.floor(l.price * 0.4)})
                             </Button>
@@ -254,10 +252,10 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                         <button 
                           key={`empty-${index}`} 
                           onClick={() => setIsListItemModalOpen(true)} 
-                          className="border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center p-4 text-slate-400 hover:bg-slate-700/50 hover:border-slate-500 transition-all aspect-square"
+                          className="w-full border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center p-4 text-slate-400 hover:bg-slate-700/50 hover:border-slate-500 transition-all min-h-[88px]"
                         >
-                          <PlusCircle className="w-8 h-8 mb-2" />
-                          <span>Mettre en vente</span>
+                          <PlusCircle className="w-6 h-6 mr-2" />
+                          <span>Mettre un objet en vente</span>
                         </button>
                       ))}
                     </div>
