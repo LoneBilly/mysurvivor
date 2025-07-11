@@ -32,6 +32,7 @@ export interface GameState {
   faim: number;
   soif: number;
   energie: number;
+  credits: number; // Ajout des crédits
   zones_decouvertes: number[];
   inventaire: InventoryItem[];
   base_constructions: BaseConstruction[];

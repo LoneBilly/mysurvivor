@@ -149,7 +149,11 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   };
 
   const handleBackToMap = () => {
-    setCurrentView('map');
+    if (currentView === 'exploration') {
+       confirmExitExploration();
+    } else {
+       setCurrentView('map');
+    }
   };
 
   const handleCellSelect = async (cell: MapCell) => {
@@ -338,6 +342,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     <div className="h-full flex flex-col text-white">
       <GameHeader
         spawnDate={gameState.spawn_date}
+        credits={gameState.credits}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
         currentView={currentView}

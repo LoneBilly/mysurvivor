@@ -90,6 +90,7 @@ export const useGameState = () => {
           exploration_x: playerState.exploration_x,
           exploration_y: playerState.exploration_y,
           unlocked_slots: playerState.unlocked_slots,
+          credits: playerState.credits,
         };
         setGameState(transformedState);
 

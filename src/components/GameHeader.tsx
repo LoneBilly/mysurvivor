@@ -1,42 +1,33 @@
-import { Trophy, Settings, ArrowLeft } from 'lucide-react';
+import { Trophy, Settings, ArrowLeft, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
 interface GameHeaderProps {
   spawnDate: string;
+  credits: number;
   onLeaderboard: () => void;
   onOptions: () => void;
   currentView: 'map' | 'base' | 'exploration';
   onBackToMap: () => void;
 }
 
-const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
-  const [elapsedTime, setElapsedTime] = useState('');
+const GameHeader = ({ spawnDate, credits, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
   const [daysSurvived, setDaysSurvived] = useState(0);
-  const showBackButton = currentView === 'base';
+  const showBackButton = currentView === 'base' || currentView === 'exploration';
 
   useEffect(() => {
     if (!spawnDate) return;
 
-    const calculateTimes = () => {
+    const calculateDays = () => {
       const spawn = new Date(spawnDate);
       const now = new Date();
       const diffMs = now.getTime() - spawn.getTime();
-      
-      const totalSeconds = Math.floor(diffMs / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-
-      const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-      setElapsedTime(formattedTime);
-
       const calculatedDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       setDaysSurvived(calculatedDays);
     };
 
-    calculateTimes();
-    const intervalId = setInterval(calculateTimes, 1000);
+    calculateDays();
+    const intervalId = setInterval(calculateDays, 1000 * 60 * 60); // Met à jour toutes les heures
 
     return () => clearInterval(intervalId);
   }, [spawnDate]);
@@ -61,15 +52,23 @@ const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackTo
           <div className="w-10 h-10" /> // Placeholder
         )}
       </div>
-      <div className="flex-none text-center px-4">
-        <p className="text-sm text-gray-300 font-mono">
-          Jours survécus: <span className="font-bold text-lg text-white">{daysSurvived}</span>
-        </p>
-        {elapsedTime && (
-          <p className="text-xs text-gray-400 font-mono mt-1" suppressHydrationWarning>
-            {elapsedTime}
+      <div className="flex-none text-center px-4 flex items-center gap-4">
+        <div className="flex flex-col items-center">
+          <p className="text-sm text-gray-300 font-mono">
+            Jours survécus
           </p>
-        )}
+          <p className="font-bold text-lg text-white">{daysSurvived}</p>
+        </div>
+        <div className="w-px h-8 bg-white/20"></div>
+        <div className="flex flex-col items-center">
+           <p className="text-sm text-gray-300 font-mono">
+            Crédits
+          </p>
+          <div className="flex items-center gap-2">
+            <Coins className="w-4 h-4 text-yellow-400" />
+            <span className="font-bold text-lg text-white">{credits}</span>
+          </div>
+        </div>
       </div>
       <div className="flex-1 flex justify-end">
         <Button variant="ghost" size="icon" onClick={onOptions} className="hover:bg-white/10 rounded-lg">
