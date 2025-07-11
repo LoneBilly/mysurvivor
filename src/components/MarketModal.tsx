@@ -1,147 +1,252 @@
-import { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
-import { supabase } from '@/integrations/supabase';
-import SellItemDialog from './SellItemDialog';
-import { X, ShoppingCart, Tag, List } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { showError, showSuccess } from '@/utils/toast';
+import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, PlusCircle } from 'lucide-react';
+import { InventoryItem } from '@/types/game';
+import ItemIcon from './ItemIcon';
+import ActionModal from './ActionModal';
+import { getCachedSignedUrl } from '@/utils/iconCache';
+import ListItemModal from './ListItemModal';
 
-// Types
-interface InventoryItem {
-  id: number;
-  item_id: number;
-  quantity: number;
-  slot_position: number;
-  items: {
-    name: string;
-    description: string;
-    icon: string;
-    use_action_text: string;
-    type: string;
-  };
-}
-
-interface MarketListing {
+export interface MarketListing {
   listing_id: number;
   seller_id: string;
   seller_username: string;
   item_id: number;
   item_name: string;
-  item_icon: string;
+  item_icon: string | null;
   quantity: number;
   price: number;
   created_at: string;
+  signedIconUrl?: string;
 }
 
-interface PlayerSaleListing extends MarketListing {}
+const ListingSkeleton = () => (
+  <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2 animate-pulse">
+    <div className="w-12 h-12 bg-slate-700/50 rounded-md flex-shrink-0"></div>
+    <div className="flex-grow space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
+      <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
+    </div>
+    <div className="flex flex-col items-end space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-12"></div>
+      <div className="h-8 bg-slate-700/50 rounded w-20"></div>
+    </div>
+  </div>
+);
+
+const MyListingSkeleton = () => (
+  <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg animate-pulse">
+    <div className="w-12 h-12 bg-slate-700/50 rounded-md flex-shrink-0"></div>
+    <div className="flex-grow space-y-2">
+      <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
+      <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
+    </div>
+    <div className="flex flex-col sm:flex-row gap-2">
+      <div className="h-8 bg-slate-700/50 rounded w-24"></div>
+      <div className="h-8 bg-slate-700/50 rounded w-20"></div>
+    </div>
+  </div>
+);
 
 interface MarketModalProps {
   isOpen: boolean;
   onClose: () => void;
-  playerInventory: InventoryItem[];
-  marketListings: MarketListing[];
-  onSuccessfulAction: () => void;
-  playerSaleListings: PlayerSaleListing[];
+  inventory: InventoryItem[];
+  credits: number;
+  saleSlots: number;
+  onUpdate: (silent?: boolean) => Promise<void>;
+  onPurchaseCredits: () => void;
 }
 
-const MarketModal = ({ 
-  isOpen, 
-  onClose, 
-  playerInventory, 
-  marketListings, 
-  onSuccessfulAction,
-  playerSaleListings
-}: MarketModalProps) => {
+const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate, onPurchaseCredits }: MarketModalProps) => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('buy');
+  const [listings, setListings] = useState<MarketListing[]>([]);
+  const [myListings, setMyListings] = useState<MarketListing[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; description: string; onConfirm: () => void; confirmLabel: string; variant?: "default" | "destructive" }>({ isOpen: false, title: '', description: '', onConfirm: () => {}, confirmLabel: 'Confirmer' });
   const [searchTerm, setSearchTerm] = useState('');
-  const [isSellDialogOpen, setIsSellDialogOpen] = useState(false);
-  const [selectedItemToSell, setSelectedItemToSell] = useState<InventoryItem | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isListItemModalOpen, setIsListItemModalOpen] = useState(false);
 
-  const filteredListings = useMemo(() => {
-    if (!marketListings) return [];
-    return marketListings.filter(listing =>
-      listing.item_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [marketListings, searchTerm]);
+  const fetchListings = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase.rpc('get_market_listings');
+    if (error) {
+      showError("Impossible de charger les offres du marché.");
+    } else {
+      const listingsWithUrls = await Promise.all(
+        (data as MarketListing[]).map(async (item) => {
+          if (item.item_icon && item.item_icon.includes('.')) {
+            const signedUrl = await getCachedSignedUrl(item.item_icon);
+            return { ...item, signedIconUrl: signedUrl || undefined };
+          }
+          return item;
+        })
+      );
+      setListings(listingsWithUrls);
+    }
+    setLoading(false);
+  }, []);
 
-  const handleSellClick = (item: InventoryItem) => {
-    setSelectedItemToSell(item);
-    setIsSellDialogOpen(true);
-  };
-
-  const handleConfirmSell = async (price: number, quantity: number) => {
-    if (!selectedItemToSell) return;
+  const fetchMyListings = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('market_listings')
+      .select('*, items(name, icon)')
+      .eq('seller_id', user.id);
     
-    try {
-      const { error } = await supabase.rpc('list_item_for_sale', {
-        p_inventory_id: selectedItemToSell.id,
-        p_price: price,
-        p_quantity_to_sell: quantity
-      });
-
-      if (error) throw error;
-
-      toast.success("Objet mis en vente avec succès !");
-      onSuccessfulAction();
-    } catch (error: any) {
-      console.error("Error listing item:", error);
-      toast.error(error.message || "Une erreur est survenue lors de la mise en vente.");
-    } finally {
-      setIsSellDialogOpen(false);
-      setSelectedItemToSell(null);
+    if (error) {
+      showError("Impossible de charger vos offres.");
+    } else {
+      const formattedData = data.map(d => ({
+        listing_id: d.id,
+        seller_id: d.seller_id,
+        seller_username: user.email || 'Vous',
+        item_id: d.item_id,
+        item_name: d.items?.name || 'Objet inconnu',
+        item_icon: d.items?.icon || null,
+        quantity: d.quantity,
+        price: d.price,
+        created_at: d.created_at,
+      }));
+      const listingsWithUrls = await Promise.all(
+        (formattedData as MarketListing[]).map(async (item) => {
+          if (item.item_icon && item.item_icon.includes('.')) {
+            const signedUrl = await getCachedSignedUrl(item.item_icon);
+            return { ...item, signedIconUrl: signedUrl || undefined };
+          }
+          return item;
+        })
+      );
+      setMyListings(listingsWithUrls);
     }
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (activeTab === 'buy') fetchListings();
+      if (activeTab === 'my-listings') fetchMyListings();
+    }
+  }, [isOpen, activeTab, fetchListings, fetchMyListings]);
+
+  const handleBuy = (listing: MarketListing) => {
+    setModalState({
+      isOpen: true,
+      title: `Acheter ${listing.item_name}`,
+      description: `Voulez-vous acheter ${listing.quantity}x ${listing.item_name} pour ${listing.price} crédits ?`,
+      onConfirm: async () => {
+        setLoading(true);
+        const { error } = await supabase.rpc('buy_market_item', { p_listing_id: listing.listing_id });
+        if (error) {
+          showError(error.message);
+        } else {
+          showSuccess("Achat réussi !");
+          onUpdate(true);
+          fetchListings();
+        }
+        setLoading(false);
+        setModalState({ ...modalState, isOpen: false });
+      },
+      confirmLabel: 'Acheter',
+    });
   };
 
-  const handleBuyItem = async (listing: MarketListing) => {
-    try {
-      const { error } = await supabase.rpc('buy_market_item', { p_listing_id: listing.listing_id });
-      if (error) throw error;
-      toast.success(`Vous avez acheté ${listing.quantity}x ${listing.item_name} !`);
-      onSuccessfulAction();
-    } catch (error: any) {
-      console.error("Error buying item:", error);
-      toast.error(error.message || "Une erreur est survenue lors de l'achat.");
-    }
+  const handleCancelListing = (listing: MarketListing, action: 'buy_back' | 'discard') => {
+    const buyBackPrice = Math.floor(listing.price * 0.4);
+    const title = action === 'buy_back' ? "Racheter votre objet" : "Jeter votre objet";
+    const description = action === 'buy_back' 
+      ? `Racheter cet objet vous coûtera ${buyBackPrice} crédits. L'objet retournera dans votre inventaire.`
+      : "Cet objet sera définitivement perdu. Cette action est irréversible.";
+
+    setModalState({
+      isOpen: true,
+      title,
+      description,
+      variant: action === 'discard' ? 'destructive' : 'default',
+      onConfirm: async () => {
+        setLoading(true);
+        const { error } = await supabase.rpc('cancel_listing', { p_listing_id: listing.listing_id, p_action: action });
+        if (error) {
+          showError(error.message);
+        } else {
+          showSuccess("Action réussie !");
+          onUpdate(true);
+          fetchMyListings();
+        }
+        setLoading(false);
+        setModalState({ ...modalState, isOpen: false });
+      },
+      confirmLabel: action === 'buy_back' ? 'Racheter' : 'Jeter',
+    });
   };
 
-  const handleCancelListing = async (listingId: number, action: 'discard' | 'buy_back') => {
-    try {
-      const { error } = await supabase.rpc('cancel_listing', { p_listing_id: listingId, p_action: action });
-      if (error) throw error;
-      toast.success("Annonce retirée avec succès.");
-      onSuccessfulAction();
-    } catch (error: any) {
-      console.error("Error cancelling listing:", error);
-      toast.error(error.message || "Une erreur est survenue lors de l'annulation.");
-    }
+  const handleOpenListItemModal = () => {
+    setIsListItemModalOpen(true);
   };
+
+  const handleBuySaleSlot = async () => {
+    setModalState({
+        isOpen: true,
+        title: "Acheter un emplacement",
+        description: "Voulez-vous acheter un nouvel emplacement de vente pour 100 crédits ?",
+        onConfirm: async () => {
+            setLoading(true);
+            const { error } = await supabase.rpc('buy_sale_slot');
+            if (error) {
+                showError(error.message);
+            } else {
+                showSuccess("Emplacement acheté !");
+                await onUpdate(true);
+                fetchMyListings();
+            }
+            setLoading(false);
+            setModalState({ ...modalState, isOpen: false });
+        },
+        confirmLabel: 'Acheter (100 crédits)',
+    });
+  };
+
+  const renderEmptyState = (message: string) => (
+    <div className="text-center text-gray-400 py-10">{message}</div>
+  );
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
+
+  const filteredAndSortedListings = listings
+    .filter(l => l.item_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'asc') return a.price - b.price;
+      return b.price - a.price;
+    });
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col bg-gray-900 text-white border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Marché</DialogTitle>
+        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col outline-none focus-visible:ring-0">
+          <DialogHeader className="text-center flex-shrink-0">
+            <Store className="w-10 h-10 mx-auto text-white mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
+            <DialogDescription asChild>
+              <button onClick={onPurchaseCredits} className="flex items-center justify-center gap-2 text-yellow-400 font-mono hover:text-yellow-300 transition-colors animate-credit-shimmer">
+                <Coins className="w-4 h-4" /> {credits} crédits
+              </button>
+            </DialogDescription>
           </DialogHeader>
-          <Tabs defaultValue="buy" className="flex-grow flex flex-col">
-            <TabsList className="flex-shrink-0 bg-gray-800 border-gray-700">
-              <TabsTrigger value="buy" className="data-[state=active]:bg-gray-700 data-[state=active]:text-white"><ShoppingCart className="w-4 h-4 mr-2" />Acheter</TabsTrigger>
-              <TabsTrigger value="sell" className="data-[state=active]:bg-gray-700 data-[state=active]:text-white"><Tag className="w-4 h-4 mr-2" />Vendre</TabsTrigger>
-              <TabsTrigger value="listings" className="data-[state=active]:bg-gray-700 data-[state=active]:text-white"><List className="w-4 h-4 mr-2" />Mes annonces</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-grow mt-4 min-h-0">
+            <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
+              <TabsTrigger value="buy" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><ShoppingCart className="w-4 h-4 mr-2 flex-shrink-0" />Acheter</TabsTrigger>
+              <TabsTrigger value="my-listings" className="data-[state=active]:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"><Tag className="w-4 h-4 mr-2 flex-shrink-0" />Vendre</TabsTrigger>
             </TabsList>
             
             <TabsContent value="buy" className="mt-4 flex-grow flex flex-col min-h-0">
@@ -150,121 +255,105 @@ const MarketModal = ({
                   placeholder="Rechercher un objet..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+                  className="bg-white/10 border-white/20 flex-grow"
                 />
+                <Button variant="outline" onClick={toggleSortOrder} className="bg-white/10 border-white/20 flex-shrink-0">
+                  <ArrowUpDown className="w-4 h-4" />
+                </Button>
               </div>
-              <ScrollArea className="flex-grow">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-gray-700">
-                      <TableHead className="text-white">Objet</TableHead>
-                      <TableHead className="text-white">Vendeur</TableHead>
-                      <TableHead className="text-right text-white">Prix</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredListings.map((listing) => (
-                      <TableRow key={listing.listing_id} className="border-b-gray-800">
-                        <TableCell className="font-medium flex items-center">
-                          <img src={listing.item_icon} alt={listing.item_name} className="w-10 h-10 mr-4 p-1 bg-gray-700 rounded-md" />
-                          <div>
-                            <div>{listing.item_name} (x{listing.quantity})</div>
-                            <div className="text-xs text-gray-400">Vendu par {listing.seller_username}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{listing.seller_username}</TableCell>
-                        <TableCell className="text-right font-mono">{listing.price} C</TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" onClick={() => handleBuyItem(listing)}>Acheter</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </TabsContent>
-
-            <TabsContent value="sell" className="mt-4 flex-grow flex flex-col min-h-0">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold">Votre inventaire</h3>
-              </div>
-              <ScrollArea className="flex-grow bg-gray-800/50 rounded-lg p-2">
-                <div className="grid grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                  {playerInventory && playerInventory.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-gray-900/80 border border-gray-700 rounded-md p-2 flex flex-col items-center justify-center text-center relative cursor-pointer hover:bg-gray-700 transition-colors aspect-square"
-                      onClick={() => handleSellClick(item)}
-                    >
-                      <img src={item.items.icon} alt={item.items.name} className="w-10 h-10 mb-1" />
-                      <span className="text-xs leading-tight line-clamp-2">{item.items.name}</span>
-                      <span className="absolute top-1 right-1 text-xs font-bold bg-gray-800 px-1.5 py-0.5 rounded-full">{item.quantity}</span>
+              <div className="flex-grow overflow-y-auto no-scrollbar">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => <ListingSkeleton key={i} />)
+                ) : (
+                  filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
+                    <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
+                      <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                        <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
+                      </div>
+                      <div className="flex-grow">
+                        <p className="font-bold">{l.item_name} x{l.quantity}</p>
+                        <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
+                      </div>
+                      <div className="flex flex-col items-center sm:items-end">
+                        <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
+                        <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                  )) : renderEmptyState("Aucun objet ne correspond à votre recherche.")
+                )}
+              </div>
             </TabsContent>
-
-            <TabsContent value="listings" className="mt-4 flex-grow flex flex-col min-h-0">
-              <ScrollArea className="flex-grow">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-gray-700">
-                      <TableHead className="text-white">Objet</TableHead>
-                      <TableHead className="text-right text-white">Prix</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {playerSaleListings.map((listing) => (
-                      <TableRow key={listing.listing_id} className="border-b-gray-800">
-                        <TableCell className="font-medium flex items-center">
-                          <img src={listing.item_icon} alt={listing.item_name} className="w-10 h-10 mr-4 p-1 bg-gray-700 rounded-md" />
-                          <div>
-                            <div>{listing.item_name} (x{listing.quantity})</div>
-                            <div className="text-xs text-gray-400">En vente depuis le {new Date(listing.created_at).toLocaleDateString()}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{listing.price} C</TableCell>
-                        <TableCell className="text-right">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="destructive"><X className="w-4 h-4" /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-gray-900 text-white border-gray-700">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Retirer l'annonce</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Vous pouvez soit jeter l'objet (il sera perdu), soit le racheter pour 40% de son prix de vente.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel className="border-gray-600 hover:bg-gray-700">Annuler</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleCancelListing(listing.listing_id, 'discard')} className="bg-red-800 hover:bg-red-700">Jeter l'objet</AlertDialogAction>
-                                <AlertDialogAction onClick={() => handleCancelListing(listing.listing_id, 'buy_back')}>Racheter ({Math.floor(listing.price * 0.4)} C)</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
-                      </TableRow>
+            
+            <TabsContent value="my-listings" className="mt-4 flex-grow flex flex-col min-h-0">
+              <div className="flex-grow overflow-y-auto no-scrollbar space-y-2">
+                {loading ? (
+                  Array.from({ length: saleSlots }).map((_, i) => <MyListingSkeleton key={i} />)
+                ) : (
+                  <>
+                    {myListings.map(l => (
+                      <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+                        <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                          <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
+                        </div>
+                        <div className="flex-grow">
+                          <p className="font-bold">{l.item_name} x{l.quantity}</p>
+                          <p className="text-xs text-yellow-400 flex items-center gap-1">{l.price} <Coins size={12} /></p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleCancelListing(l, 'buy_back')} className="flex items-center gap-1">
+                            <Undo2 size={14} /> Racheter ({Math.floor(l.price * 0.4)})
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleCancelListing(l, 'discard')} className="flex items-center gap-1">
+                            <Trash2 size={14} /> Jeter
+                          </Button>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                    {myListings.length < saleSlots && Array.from({ length: saleSlots - myListings.length }).map((_, index) => (
+                      <button 
+                        key={`empty-${index}`} 
+                        onClick={handleOpenListItemModal} 
+                        className="w-full border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center p-4 text-slate-400 hover:bg-slate-700/50 hover:border-slate-500 transition-all min-h-[88px]"
+                      >
+                        <PlusCircle className="w-6 h-6 mr-2" />
+                        <span>Mettre un objet en vente</span>
+                      </button>
+                    ))}
+                    {myListings.length >= saleSlots && (
+                      <button 
+                        onClick={handleBuySaleSlot} 
+                        className="w-full border-2 border-dashed border-yellow-500/50 bg-yellow-500/10 rounded-lg flex items-center justify-center p-4 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-500/80 transition-all min-h-[88px]"
+                      >
+                        <PlusCircle className="w-6 h-6 mr-2" />
+                        <span>Acheter un emplacement (100 crédits)</span>
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>
-
-      {selectedItemToSell && (
-        <SellItemDialog
-          isOpen={isSellDialogOpen}
-          onClose={() => setIsSellDialogOpen(false)}
-          item={selectedItemToSell}
-          onConfirm={handleConfirmSell}
-        />
-      )}
+      <ActionModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+        title={modalState.title}
+        description={modalState.description}
+        actions={[
+          { label: modalState.confirmLabel, onClick: modalState.onConfirm, variant: modalState.variant || 'default' },
+          { label: "Annuler", onClick: () => setModalState({ ...modalState, isOpen: false }), variant: "secondary" },
+        ]}
+      />
+      <ListItemModal 
+        isOpen={isListItemModalOpen}
+        onClose={() => setIsListItemModalOpen(false)}
+        inventory={inventory}
+        onItemListed={() => {
+            fetchMyListings();
+            onUpdate(true);
+        }}
+      />
     </>
   );
 };
