@@ -153,7 +153,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+        <DialogContent className="sm:max-w-xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6 flex flex-col max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl text-center">
               Inventaire de {player.username || 'Joueur Anonyme'}
@@ -164,33 +164,44 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
           ) : (
-            <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto p-2 rounded-lg bg-black/20">
-              {inventory.map((item) => (
-                <div key={item.id} className="relative group p-2 bg-white/5 rounded-lg flex flex-col items-center justify-center aspect-square">
-                  {item.items.icon ? (
-                    <img src={item.items.icon} alt={item.items.name} className="w-12 h-12 object-contain" />
-                  ) : (
-                    <Package className="w-12 h-12 text-gray-400" />
-                  )}
-                  <span className="text-xs text-center truncate w-full mt-1">{item.items.name}</span>
-                  <span className="absolute top-1 right-1 text-sm font-bold bg-slate-900/80 px-1.5 py-0.5 rounded-full">{item.quantity}</span>
-                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="icon" variant="ghost" onClick={() => { setEditingItem(item); setEditQuantity(String(item.quantity)); }}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="hover:bg-red-500/20 hover:text-red-500" onClick={() => setItemToDelete(item)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+            <div className="mt-4 flex-grow overflow-y-auto space-y-2 pr-2">
+              {inventory.length > 0 ? (
+                inventory.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {item.items.icon ? (
+                        <img src={item.items.icon} alt={item.items.name} className="w-10 h-10 object-contain rounded-md bg-black/20 p-1 flex-shrink-0" />
+                      ) : (
+                        <Package className="w-10 h-10 text-gray-400 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{item.items.name}</p>
+                        <p className="text-sm text-gray-400">Quantité: {item.quantity}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditingItem(item); setEditQuantity(String(item.quantity)); }}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="hover:bg-red-500/20 hover:text-red-500" onClick={() => setItemToDelete(item)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-400 py-10">
+                  L'inventaire est vide.
                 </div>
-              ))}
-              <div className="p-2 bg-white/5 rounded-lg flex flex-col items-center justify-center aspect-square">
-                <Button size="icon" variant="ghost" className="w-full h-full" onClick={() => setIsAddingItem(true)}>
-                  <PlusCircle className="w-12 h-12 text-gray-400" />
-                </Button>
-              </div>
+              )}
             </div>
           )}
+          <DialogFooter className="mt-4 pt-4 border-t border-slate-700">
+            <Button onClick={() => setIsAddingItem(true)} className="w-full sm:w-auto">
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Ajouter un objet
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
