@@ -16,6 +16,8 @@ import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import MarketModal from "./MarketModal";
+import CreditsDisplay from "./CreditsDisplay";
+import PurchaseCreditsModal from "./PurchaseCreditsModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -74,6 +76,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -330,6 +333,8 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     reloadGameState(true);
   };
 
+  const handlePurchaseCredits = () => setIsPurchaseModalOpen(true);
+
   if (!isViewReady) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-950">
@@ -352,6 +357,8 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       />
       
       <main className="flex-1 min-h-0 overflow-hidden relative">
+        <CreditsDisplay credits={gameState.credits} onPurchaseClick={handlePurchaseCredits} />
+
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid 
             mapLayout={mapLayout}
@@ -406,6 +413,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         }}
         credits={gameState.credits}
         onInventaire={handleInventaire}
+        onPurchaseCredits={handlePurchaseCredits}
       />
 
       <ActionModal
@@ -441,6 +449,11 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         credits={gameState.credits}
         saleSlots={gameState.sale_slots}
         onUpdate={reloadGameState}
+      />
+
+      <PurchaseCreditsModal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
       />
     </div>
   );

@@ -239,7 +239,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
               {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> :
                 <>
                   <TabsContent value="buy">
-                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                    <div className="flex flex-row gap-2 mb-4">
                       <Input 
                         placeholder="Rechercher un objet..."
                         value={searchTerm}
@@ -299,11 +299,13 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                           {inventory.map(item => (
                             <button key={item.id} onClick={() => setSellItem(item)} className="p-2 bg-slate-700/50 rounded-lg aspect-square flex flex-col items-center justify-center text-center hover:bg-slate-700/80">
-                              <div className="w-10 h-10 relative mb-1">
+                              <div className="w-10 h-10 relative mb-1 flex-shrink-0">
                                 <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || ''} />
                               </div>
-                              <p className="text-xs truncate">{item.items?.name}</p>
-                              <p className="text-xs font-bold">x{item.quantity}</p>
+                              <div className="flex-grow flex items-center justify-center min-h-0">
+                                <p className="text-xs text-wrap break-words">{item.items?.name}</p>
+                              </div>
+                              <p className="text-xs font-bold flex-shrink-0">x{item.quantity}</p>
                             </button>
                           ))}
                         </div>
