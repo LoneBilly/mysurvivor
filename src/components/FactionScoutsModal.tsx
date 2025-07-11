@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Clock, Users } from 'lucide-react';
+import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Users } from 'lucide-react';
 import { ScoutingMission } from '@/types/game';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -60,7 +60,7 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
     <>
       <Progress value={progress} className="h-2" />
       <div className="flex items-center justify-between text-xs text-gray-400 mt-2">
-        <span className="flex items-center gap-1.5"><Clock size={12} /> Temps restant</span>
+        <span>Progression</span>
         <span className="font-mono">{remaining}</span>
       </div>
     </>
@@ -82,8 +82,6 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
     const { data, error } = await supabase.rpc('check_and_get_scouting_data');
     if (error) {
       console.error("Erreur de chargement des missions:", error.message);
-      setInProgressMissions([]);
-      setCompletedMissions([]);
     } else {
       const allMissions = data || [];
       setInProgressMissions(allMissions.filter(m => m.status === 'in_progress'));
@@ -117,7 +115,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
     } else {
       showSuccess(`Éclaireur envoyé vers la base de ${selectedPlayer.username} !`);
       const newMission: ScoutingMission = {
-        id: Date.now(), // Temporary ID
+        id: Date.now(),
         target_player_id: selectedPlayer.id,
         target_username: selectedPlayer.username,
         started_at: new Date().toISOString(),
@@ -138,7 +136,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col max-h-[85vh]">
+        <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col max-h-[90vh] sm:max-h-[85vh]">
           <DialogHeader className="text-center flex-shrink-0">
             <Eye className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Éclaireurs</DialogTitle>
