@@ -93,11 +93,22 @@ export default {
             boxShadow: "0 0 20px rgba(255, 255, 255, 0.5), 0 0 30px rgba(255, 255, 255, 0.3)",
           },
         },
+        "credit-shimmer": {
+          "0%, 100%": {
+            color: "#facc15",
+            opacity: "1",
+          },
+          "50%": {
+            color: "#fde047",
+            opacity: "0.85",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "button-glow": "button-glow 3s ease-in-out infinite",
+        "credit-shimmer": "credit-shimmer 2.5s ease-in-out infinite",
       },
     },
   },

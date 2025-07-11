@@ -189,7 +189,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl">Marché</DialogTitle>
             <DialogDescription asChild>
-              <button onClick={onPurchaseCredits} className="flex items-center justify-center gap-2 text-yellow-400 font-mono hover:text-yellow-300 transition-colors">
+              <button onClick={onPurchaseCredits} className="flex items-center justify-center gap-2 text-yellow-400 font-mono hover:text-yellow-300 transition-colors animate-credit-shimmer">
                 <Coins className="w-4 h-4" /> {credits} crédits
               </button>
             </DialogDescription>
@@ -233,9 +233,9 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="my-listings">
-                    <p className="text-sm text-gray-400 mb-4">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
-                    <div className="space-y-2">
+                  <TabsContent value="my-listings" className="h-full flex flex-col">
+                    <p className="text-sm text-gray-400 mb-4 flex-shrink-0">Emplacements de vente utilisés: {myListings.length} / {saleSlots}</p>
+                    <div className="flex-grow overflow-y-auto no-scrollbar space-y-2">
                       {myListings.map(l => (
                         <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
                           <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
@@ -265,8 +265,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                           <span>Mettre un objet en vente</span>
                         </button>
                       ))}
+                      {myListings.length === 0 && saleSlots - myListings.length === 0 && renderEmptyState("Vous n'avez aucun emplacement de vente.")}
                     </div>
-                    {myListings.length === 0 && saleSlots - myListings.length === 0 && renderEmptyState("Vous n'avez aucun emplacement de vente.")}
                   </TabsContent>
                 </>
               }
