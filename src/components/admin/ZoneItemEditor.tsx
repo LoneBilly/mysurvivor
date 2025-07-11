@@ -204,8 +204,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const CurrentIconComponent = getZoneIconComponent(zoneIcon);
 
   return (
-    <Card className="w-full max-w-3xl mx-auto bg-gray-800/50 border-gray-700 text-white">
-      <CardHeader>
+    <Card className="w-full max-w-3xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col h-full">
+      <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
@@ -238,11 +238,11 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
-          <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
+          <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
         ) : (
-          <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-2">
+          <div className="space-y-2 pr-2">
             {filteredItems.map(item => (
               <div key={item.id} className="bg-gray-700/50 p-3 rounded-md">
                 <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-base text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
