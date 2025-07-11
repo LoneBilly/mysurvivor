@@ -64,16 +64,16 @@ const Admin = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold">Panel Admin</h1>
-              <p className="text-gray-400 mt-1">Gérez la carte, les joueurs et les objets du jeu.</p>
+              <p className="text-gray-400 mt-1">Gérez la carte et les objets du jeu.</p>
             </div>
           </div>
         </div>
 
         <Tabs defaultValue="map" className="w-full flex flex-col flex-1 min-h-0">
           <TabsList className="grid w-full grid-cols-3 max-w-lg mb-6 flex-shrink-0">
-            <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
-            <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
-            <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
+            <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Gestion de la carte</TabsTrigger>
+            <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Gestion des joueurs</TabsTrigger>
+            <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Gestion des items</TabsTrigger>
           </TabsList>
           <TabsContent value="map" className="flex-1 min-h-0">
             <div className="w-full h-full flex items-center justify-center">
@@ -85,7 +85,7 @@ const Admin = () => {
             </div>
           </TabsContent>
           <TabsContent value="players" className="flex-1 min-h-0">
-            <PlayerManager mapLayout={mapLayout} />
+            <PlayerManager />
           </TabsContent>
           <TabsContent value="items" className="flex-1 min-h-0">
             <ItemManager />
