@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, PlusCircle } from 'lucide-react';
+import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, PlusCircle, Eye } from 'lucide-react';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
@@ -23,6 +23,7 @@ export interface MarketListing {
   quantity: number;
   price: number;
   created_at: string;
+  views: number;
   signedIconUrl?: string;
 }
 
@@ -46,6 +47,7 @@ const MyListingSkeleton = () => (
     <div className="flex-grow space-y-2">
       <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
       <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
+      <div className="h-3 bg-slate-700/50 rounded w-16 mt-1"></div>
     </div>
     <div className="flex flex-col sm:flex-row gap-2">
       <div className="h-8 bg-slate-700/50 rounded w-24"></div>
@@ -91,6 +93,15 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         })
       );
       setListings(listingsWithUrls);
+      
+      if (listingsWithUrls.length > 0) {
+        const listingIds = listingsWithUrls.map(l => l.listing_id);
+        supabase.rpc('increment_listing_views', { p_listing_ids: listingIds }).then(({ error }) => {
+          if (error) {
+            console.error('Failed to increment views:', error.message);
+          }
+        });
+      }
     }
     setLoading(false);
   }, []);
@@ -116,6 +127,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         quantity: d.quantity,
         price: d.price,
         created_at: d.created_at,
+        views: d.views,
       }));
       const listingsWithUrls = await Promise.all(
         (formattedData as MarketListing[]).map(async (item) => {
@@ -301,6 +313,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                           <div className="flex-grow">
                             <p className="font-bold">{l.item_name} x{l.quantity}</p>
                             <p className="text-xs text-yellow-400 flex items-center gap-1">{l.price} <Coins size={12} /></p>
+                            <p className="text-xs text-gray-400 flex items-center gap-1 mt-1"><Eye size={12} /> {l.views} vues</p>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2">
                             <Button size="sm" variant="outline" onClick={() => handleCancelListing(l, 'buy_back')} className="flex items-center gap-1">

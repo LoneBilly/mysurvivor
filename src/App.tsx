@@ -89,13 +89,13 @@ function App() {
           duration={5000}
           toastOptions={{
             classNames: {
-              toast: 'bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-lg p-4 flex items-center gap-3',
+              toast: 'relative bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-lg p-4 pr-12 flex items-center gap-3',
               title: 'text-base font-semibold text-white',
               description: 'text-sm text-gray-300',
               success: '!border-green-500/50',
               error: '!border-red-500/50',
               info: '!border-sky-500/50',
-              closeButton: 'bg-white/10 border-0 text-white hover:bg-white/20 rounded-full w-7 h-7 flex items-center justify-center',
+              closeButton: 'absolute top-1/2 right-3 -translate-y-1/2 bg-white/10 border-0 text-white hover:bg-white/20 rounded-full w-7 h-7 flex items-center justify-center',
             },
             icons: {
               success: <CheckCircle className="w-6 h-6 text-green-400" />,
