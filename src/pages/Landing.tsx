@@ -45,7 +45,7 @@ const Landing = () => {
       <section className="w-full max-w-5xl text-center py-16 sm:py-24">
         <ShieldAlert className="w-16 h-16 mx-auto text-white mb-6 animate-pulse" />
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white font-mono tracking-wider uppercase">
-          LA TOMBE
+          MY SURVIVOR
         </h1>
         <p className="text-gray-300 mt-4 text-lg max-w-3xl mx-auto">
           Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
