@@ -8,7 +8,6 @@ import BaseHeader from "./BaseHeader";
 import LeaderboardModal from "./LeaderboardModal";
 import OptionsModal from "./OptionsModal";
 import InventoryModal from "./InventoryModal";
-import MarketModal from "./MarketModal";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { GameState, MapCell } from "@/types/game";
@@ -73,7 +72,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -151,11 +149,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   };
 
   const handleBackToMap = () => {
-    if (currentView === 'exploration') {
-       confirmExitExploration();
-    } else {
-       setCurrentView('map');
-    }
+    setCurrentView('map');
   };
 
   const handleCellSelect = async (cell: MapCell) => {
@@ -167,46 +161,38 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
     const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
 
+    if (!isDiscovered) {
+      setModalState({
+        isOpen: true,
+        title: "Zone non découverte",
+        description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
+        actions: [
+          { label: "Compris", onClick: closeModal, variant: "default" },
+        ],
+      });
+      return;
+    }
+
     if (isCurrentPosition) {
-      // Player is on the current cell.
-      if (type === 'Marché') {
-        setIsMarketOpen(true);
-      } else {
-        // For other cells, open the action modal.
-        const actions: { label: string; onClick: () => void; variant?: any }[] = [];
+      const actions: { label: string; onClick: () => void; variant?: any }[] = [];
 
-        if (isBaseLocation) {
-          actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
-        }
-        
-        actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }), variant: "default" });
-
-        if (gameState.base_position_x === null || gameState.base_position_y === null) {
-          actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
-        }
-
-        setModalState({
-          isOpen: true,
-          title: formatZoneName(type),
-          description: "Que souhaitez-vous faire ici ?",
-          actions,
-        });
+      if (isBaseLocation) {
+        actions.push({ label: "Aller au campement", onClick: handleEnterBase, variant: "default" });
       }
+      
+      actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }), variant: "default" });
+
+      if (gameState.base_position_x === null || gameState.base_position_y === null) {
+        actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
+      }
+
+      setModalState({
+        isOpen: true,
+        title: formatZoneName(type),
+        description: "Que souhaitez-vous faire ici ?",
+        actions,
+      });
     } else {
-      // Player is NOT on the cell, handle movement or discovery.
-      if (!isDiscovered) {
-        setModalState({
-          isOpen: true,
-          title: "Zone non découverte",
-          description: "Pour découvrir cette zone, vous devez explorer les cases adjacentes. Chaque tentative a une chance de révéler ce qui s'y cache. La prudence est de mise...",
-          actions: [
-            { label: "Compris", onClick: closeModal, variant: "default" },
-          ],
-        });
-        return;
-      }
-
-      // It's discovered, so it's a movement action.
       const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
       const energyCost = distance * 10;
 
@@ -228,7 +214,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
 
       setModalState({
         isOpen: true,
-        title: `Se déplacer vers ${formatZoneName(type)}`,
+        title: formatZoneName(type),
         description: (
           <>
             Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}
@@ -237,7 +223,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         ),
         actions: [
           { label: "Y aller", onClick: handleMoveAction, variant: "default" },
-          { label: "Annuler", onClick: closeModal, variant: "secondary" },
         ],
       });
     }
@@ -353,7 +338,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     <div className="h-full flex flex-col text-white">
       <GameHeader
         spawnDate={gameState.spawn_date}
-        credits={gameState.credits}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
         currentView={currentView}
@@ -440,14 +424,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         inventory={gameState.inventaire}
         unlockedSlots={gameState.unlocked_slots}
         onUpdate={reloadGameState}
-      />
-
-      <MarketModal
-        isOpen={isMarketOpen}
-        onClose={() => setIsMarketOpen(false)}
-        inventory={gameState.inventaire}
-        saleSlots={gameState.sale_slots}
-        onAction={reloadGameState}
       />
     </div>
   );
