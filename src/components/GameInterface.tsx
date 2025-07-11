@@ -449,6 +449,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         credits={gameState.credits}
         saleSlots={gameState.sale_slots}
         onUpdate={reloadGameState}
+        onPurchaseCredits={handlePurchaseCredits}
       />
 
       <PurchaseCreditsModal
