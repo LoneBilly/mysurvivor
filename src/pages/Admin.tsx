@@ -77,8 +77,10 @@ const Admin = () => {
             {selectedZone ? (
               <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
             ) : (
-              <div className="overflow-y-auto no-scrollbar">
-                <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
+              <div className="relative flex-1">
+                <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+                  <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
+                </div>
               </div>
             )}
           </TabsContent>
