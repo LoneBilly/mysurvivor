@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,6 @@ import ActionModal from '@/components/ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapCell } from '@/types/game';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface PlayerDetailModalProps {
@@ -24,23 +23,18 @@ interface PlayerDetailModalProps {
   onClose: () => void;
   player: PlayerProfile;
   onPlayerUpdate: (player: PlayerProfile) => void;
-  mapLayout: MapCell[];
 }
 
-const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
+const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
-  const baseZone = useMemo(() => {
-    const baseId = player?.player_states?.[0]?.base_zone_id;
-    if (baseId == null || !mapLayout?.length) {
-        return null;
-    }
-    return mapLayout.find(zone => zone.id === baseId);
-  }, [player, mapLayout]);
+  const baseZoneInfo = player.base_zone_type
+    ? `${player.base_zone_type} (${player.base_zone_x}, ${player.base_zone_y})`
+    : 'Aucune base';
 
   const handleRoleChange = async (newRole: 'player' | 'admin') => {
     if (player.id === adminUser?.id && newRole === 'player') {
@@ -133,7 +127,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
               <span className="font-bold text-white">
-                {baseZone ? `${baseZone.type} (${baseZone.x}, ${baseZone.y})` : 'Aucune base'}
+                {baseZoneInfo}
               </span>
             </div>
             <div className="flex items-center gap-3">

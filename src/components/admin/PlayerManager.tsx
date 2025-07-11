@@ -21,7 +21,9 @@ export type PlayerProfile = {
   is_banned: boolean;
   ban_reason: string | null;
   created_at: string;
-  player_states: { base_zone_id: number | null }[] | null;
+  base_zone_type: string | null;
+  base_zone_x: number | null;
+  base_zone_y: number | null;
 };
 
 type SortKey = 'username' | 'created_at';
@@ -36,10 +38,7 @@ const PlayerManager = ({ mapLayout }: { mapLayout: MapCell[] }) => {
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, player_states(base_zone_id)')
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.rpc('get_admin_player_list');
 
     if (error) {
       console.error('Error fetching players:', error);
@@ -168,7 +167,6 @@ const PlayerManager = ({ mapLayout }: { mapLayout: MapCell[] }) => {
           onClose={closePlayerDetails}
           player={selectedPlayer}
           onPlayerUpdate={handlePlayerUpdate}
-          mapLayout={mapLayout}
         />
       )}
     </>
