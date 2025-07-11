@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2, GanttChartSquare, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, ShoppingCart, Tag, Store, Coins, Trash2, Undo2, GanttChartSquare } from 'lucide-react';
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
@@ -47,7 +48,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
   const [sellPrice, setSellPrice] = useState('');
   const [sellQuantity, setSellQuantity] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
 
   useEffect(() => {
     if (sellItem) {
@@ -162,6 +163,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
           showError(error.message);
         } else {
           showSuccess("Objet mis en vente !");
+          // onUpdate(true) recharge l'état du jeu, y compris l'inventaire,
+          // garantissant que la quantité est correcte pour les ventes futures.
           onUpdate(true);
           fetchMyListings();
         }
@@ -203,20 +206,6 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
     });
   };
 
-  const handleSortToggle = () => {
-    setSortOrder(current => {
-      if (current === 'none') return 'asc';
-      if (current === 'asc') return 'desc';
-      return 'none';
-    });
-  };
-
-  const SortIcon = () => {
-    if (sortOrder === 'asc') return <ArrowUp className="w-4 h-4" />;
-    if (sortOrder === 'desc') return <ArrowDown className="w-4 h-4" />;
-    return <ArrowUpDown className="w-4 h-4" />;
-  };
-
   const renderEmptyState = (message: string) => (
     <div className="text-center text-gray-400 py-10">{message}</div>
   );
@@ -232,7 +221,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col outline-none ring-0 focus:ring-0">
+        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
           <DialogHeader className="text-center">
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl">Marché</DialogTitle>
@@ -250,19 +239,26 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
               {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> :
                 <>
                   <TabsContent value="buy">
-                    <div className="flex gap-2 mb-4">
+                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
                       <Input 
                         placeholder="Rechercher un objet..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="bg-white/10 border-white/20 flex-grow"
+                        className="bg-white/10 border-white/20"
                       />
-                      <Button variant="outline" onClick={handleSortToggle} className="bg-white/10 border-white/20 px-3">
-                        <SortIcon />
-                      </Button>
+                      <Select onValueChange={(value: 'asc' | 'desc' | 'none') => setSortOrder(value)} defaultValue="none">
+                        <SelectTrigger className="w-full sm:w-[180px] bg-white/10 border-white/20">
+                          <SelectValue placeholder="Trier par prix" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Pas de tri</SelectItem>
+                          <SelectItem value="asc">Prix croissant</SelectItem>
+                          <SelectItem value="desc">Prix décroissant</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     {filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
-                      <div key={l.listing_id} className="flex items-center gap-2 sm:gap-4 p-3 bg-white/5 rounded-lg mb-2">
+                      <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
                         <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                           <ItemIcon iconName={l.signedIconUrl || l.item_icon} alt={l.item_name} />
                         </div>
@@ -270,7 +266,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate 
                           <p className="font-bold">{l.item_name} x{l.quantity}</p>
                           <p className="text-xs text-gray-400">Vendu par: {l.seller_username}</p>
                         </div>
-                        <div className="flex flex-col items-center sm:items-end text-center sm:text-right">
+                        <div className="flex flex-col items-center sm:items-end">
                           <p className="font-bold flex items-center justify-center sm:justify-end gap-1 text-yellow-400">{l.price} <Coins size={14} /></p>
                           <Button size="sm" onClick={() => handleBuy(l)} disabled={credits < l.price} className="mt-1 w-full sm:w-auto">Acheter</Button>
                         </div>

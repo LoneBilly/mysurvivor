@@ -15,8 +15,8 @@ import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import CreditsDisplay from "./CreditsDisplay";
 import MarketModal from "./MarketModal";
-import BuyCreditsModal from "./BuyCreditsModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -75,7 +75,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
-  const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false);
   const [explorationZone, setExplorationZone] = useState<{ name: string; icon: string | null } | null>(null);
   const [explorationPath, setExplorationPath] = useState<{x: number, y: number}[] | null>(null);
   const [modalState, setModalState] = useState<{
@@ -354,6 +353,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       />
       
       <main className="flex-1 min-h-0 overflow-hidden relative">
+        <CreditsDisplay credits={gameState.credits} />
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid 
             mapLayout={mapLayout}
@@ -406,9 +406,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
           soif: gameState.soif,
           energie: gameState.energie,
         }}
-        credits={gameState.credits}
         onInventaire={handleInventaire}
-        onBuyCredits={() => setIsBuyCreditsOpen(true)}
       />
 
       <ActionModal
@@ -444,11 +442,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         credits={gameState.credits}
         saleSlots={gameState.sale_slots}
         onUpdate={reloadGameState}
-      />
-
-      <BuyCreditsModal
-        isOpen={isBuyCreditsOpen}
-        onClose={() => setIsBuyCreditsOpen(false)}
       />
     </div>
   );
