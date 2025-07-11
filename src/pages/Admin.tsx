@@ -73,15 +73,11 @@ const Admin = () => {
             <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Gestion de la carte</TabsTrigger>
             <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Gestion des joueurs</TabsTrigger>
           </TabsList>
-          <TabsContent value="map" className="flex-1 min-h-0 flex flex-col">
+          <TabsContent value="map" className="flex-1 min-h-0 flex items-center justify-center">
             {selectedZone ? (
               <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
             ) : (
-              <div className="relative flex-1">
-                <div className="absolute inset-0 overflow-y-auto no-scrollbar">
-                  <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
-                </div>
-              </div>
+              <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
             )}
           </TabsContent>
           <TabsContent value="players" className="flex-1 overflow-y-auto no-scrollbar">

@@ -41,8 +41,8 @@ const AdminMapGrid = ({ mapLayout, onMapUpdate, onZoneSelect }: AdminMapGridProp
   const grid = generateGrid();
 
   return (
-    <div className="bg-gray-900/50 p-3 rounded-xl shadow-2xl border border-gray-700/50">
-      <div className="grid grid-cols-7 gap-1.5 w-full">
+    <div className="bg-gray-900/50 p-3 rounded-xl shadow-2xl border border-gray-700/50 aspect-square max-w-full max-h-full">
+      <div className="grid grid-cols-7 gap-1.5 w-full h-full">
         {grid.map((row, y) =>
           row.map((cell, x) =>
             cell ? (
