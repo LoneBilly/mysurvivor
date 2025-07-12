@@ -160,7 +160,15 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-3xl lg:max-w-4xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col h-full sm:h-[85vh] sm:max-h-[85vh]">
+        <DialogContent 
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('[data-sonner-toast]')) {
+              e.preventDefault();
+            }
+          }}
+          className="sm:max-w-3xl lg:max-w-4xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col h-full sm:h-[85vh] sm:max-h-[85vh]"
+        >
           <DialogHeader className="text-center flex-shrink-0">
             <Eye className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Éclaireurs</DialogTitle>
@@ -256,7 +264,15 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
       </Dialog>
 
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
-        <DialogContent className="bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl">
+        <DialogContent 
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('[data-sonner-toast]')) {
+              e.preventDefault();
+            }
+          }}
+          className="bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl"
+        >
           <DialogHeader>
             <DialogTitle className="text-white font-mono tracking-wider uppercase">Nouvelle Mission</DialogTitle>
             <DialogDescription className="text-gray-300">Choisissez une cible à espionner.</DialogDescription>
