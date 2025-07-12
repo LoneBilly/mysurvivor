@@ -104,7 +104,7 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
                 <div className="flex-grow">
                   <p className="text-md sm:text-lg font-semibold text-white">{player.username}</p>
                   <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-300 mt-1">
-                    <span className="flex items-center gap-1.5"><Sun className="w-4 h-4" /> {player.days_alive} jours</span>
+                    <span className="flex items-center gap-1.5 text-base sm:text-lg font-bold text-yellow-300"><Sun className="w-4 h-4" /> {player.days_alive} jours</span>
                     <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Zone: {player.current_zone || 'Inconnue'}</span>
                     <span className="flex items-center gap-1.5"><Shield className="w-4 h-4" /> Base: {player.base_location || 'Aucune'}</span>
                   </div>
