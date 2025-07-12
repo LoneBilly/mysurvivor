@@ -1,29 +1,54 @@
 import { toast } from "sonner";
-import { ToastWithCloseButton } from "@/components/ToastWithCloseButton";
-import { CheckCircle, XCircle, Info } from "lucide-react";
 
 export const showSuccess = (message: string) => {
-  toast.custom((t) => <ToastWithCloseButton toastId={t} message={message} />, {
-    icon: <CheckCircle className="text-green-500" />,
+  const toastId = toast.success(message, {
+    action: {
+      label: "Fermer",
+      onClick: (e) => {
+        e.stopPropagation();
+        toast.dismiss(toastId);
+      },
+    },
   });
 };
 
 export const showError = (message: string) => {
-  toast.custom((t) => <ToastWithCloseButton toastId={t} message={message} />, {
-    icon: <XCircle className="text-red-500" />,
-  });
-};
-
-export const showInfo = (message: string) => {
-  toast.custom((t) => <ToastWithCloseButton toastId={t} message={message} />, {
-    icon: <Info className="text-blue-500" />,
+  const toastId = toast.error(message, {
+    action: {
+      label: "Fermer",
+      onClick: (e) => {
+        e.stopPropagation();
+        toast.dismiss(toastId);
+      },
+    },
   });
 };
 
 export const showLoading = (message: string) => {
-  return toast.loading(message);
+  const toastId = toast.loading(message, {
+    action: {
+      label: "Fermer",
+      onClick: (e) => {
+        e.stopPropagation();
+        toast.dismiss(toastId);
+      },
+    },
+  });
+  return toastId;
 };
 
 export const dismissToast = (toastId: string | number) => {
   toast.dismiss(toastId);
+};
+
+export const showInfo = (message: string) => {
+  const toastId = toast.info(message, {
+    action: {
+      label: "Fermer",
+      onClick: (e) => {
+        e.stopPropagation();
+        toast.dismiss(toastId);
+      },
+    },
+  });
 };
