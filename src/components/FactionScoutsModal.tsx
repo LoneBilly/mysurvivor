@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Users } from 'lucide-react';
+import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Users, Target } from 'lucide-react';
 import { ScoutingMission } from '@/types/game';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -136,7 +136,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+        <DialogContent className="sm:max-w-3xl lg:max-w-4xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col max-h-[90vh] sm:max-h-[85vh]">
           <DialogHeader className="text-center flex-shrink-0">
             <Eye className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Éclaireurs</DialogTitle>
@@ -150,59 +150,75 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
               <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-2" />Rapports</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="send" className="mt-4 flex-grow min-h-0 flex flex-col gap-4">
-              <Card className="bg-white/5 border-white/10 flex-shrink-0">
-                <CardHeader>
-                  <CardTitle className="text-base">Lancer une mission</CardTitle>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <p className="text-sm text-gray-300 mb-4">Choisissez une cible. Coût: {SCOUT_COST} crédits. Durée: 30 minutes.</p>
-                  <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" className="w-full max-w-xs justify-between bg-white/5 border-white/20">
-                        {selectedPlayer ? selectedPlayer.username : "Sélectionner un joueur..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <TabsContent value="send" className="mt-4 flex-grow min-h-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-semibold text-white font-mono">Nouvelle Mission</h3>
+                  <Card className="bg-white/5 border-white/10 flex-1">
+                    <CardContent className="p-6 flex flex-col justify-center items-center h-full text-center">
+                      <Target className="w-12 h-12 text-white/70 mb-4" />
+                      <p className="text-sm text-gray-300 mb-4">
+                        Choisissez une cible à espionner.
+                        <br />
+                        Coût: <span className="font-bold text-yellow-400">{SCOUT_COST} crédits</span>. Durée: 30 minutes.
+                      </p>
+                      <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" role="combobox" className="w-full max-w-xs justify-between bg-white/5 border-white/20">
+                            {selectedPlayer ? selectedPlayer.username : "Sélectionner un joueur..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Rechercher un joueur..." />
+                            <CommandList>
+                              <CommandEmpty>Aucun joueur trouvé.</CommandEmpty>
+                              <CommandGroup>
+                                {scoutablePlayers.map((player) => (
+                                  <CommandItem key={player.id} value={player.username} onSelect={() => { setSelectedPlayer(player); setIsComboboxOpen(false); }}>
+                                    <Check className={cn("mr-2 h-4 w-4", selectedPlayer?.id === player.id ? "opacity-100" : "opacity-0")} />
+                                    {player.username}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <Button onClick={confirmSendScout} disabled={!selectedPlayer || loading || credits < SCOUT_COST} className="w-full max-w-xs mt-4">
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Envoyer un éclaireur`}
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        <CommandInput placeholder="Rechercher un joueur..." />
-                        <CommandList>
-                          <CommandEmpty>Aucun joueur trouvé.</CommandEmpty>
-                          <CommandGroup>
-                            {scoutablePlayers.map((player) => (
-                              <CommandItem key={player.id} value={player.username} onSelect={() => { setSelectedPlayer(player); setIsComboboxOpen(false); }}>
-                                <Check className={cn("mr-2 h-4 w-4", selectedPlayer?.id === player.id ? "opacity-100" : "opacity-0")} />
-                                {player.username}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <Button onClick={confirmSendScout} disabled={!selectedPlayer || loading || credits < SCOUT_COST} className="w-full max-w-xs mt-4">
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Envoyer un éclaireur`}
-                  </Button>
-                </CardContent>
-              </Card>
-              
-              <div className="flex-grow min-h-0 overflow-y-auto no-scrollbar space-y-3">
-                {inProgressMissions.length > 0 ? (
-                  inProgressMissions.map(mission => (
-                    <Card key={mission.id} className="bg-white/5 border-white/10">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-300 flex items-center gap-1.5"><Users size={14} /> Cible</span>
-                          <span className="font-bold">{mission.target_username}</span>
-                        </div>
-                        <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={fetchScoutingData} />
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="text-center text-gray-400 pt-8">Aucune mission en cours.</div>
-                )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="flex flex-col gap-4 min-h-0">
+                  <h3 className="text-lg font-semibold text-white font-mono">Suivi des Éclaireurs</h3>
+                  <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
+                    {loading && !inProgressMissions.length ? (
+                      <div className="flex justify-center items-center h-full">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                      </div>
+                    ) : inProgressMissions.length > 0 ? (
+                      inProgressMissions.map(mission => (
+                        <Card key={mission.id} className="bg-white/5 border-white/10">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-300 flex items-center gap-1.5"><Users size={14} /> Cible</span>
+                              <span className="font-bold">{mission.target_username}</span>
+                            </div>
+                            <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={fetchScoutingData} />
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
+                        <p>Aucune mission en cours.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
