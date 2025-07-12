@@ -6,11 +6,11 @@ import CreateProfile from './pages/CreateProfile';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Toaster } from '@/components/ui/sonner';
 import AdminRoute from './components/AdminRoute';
 import PublicRoute from './components/PublicRoute';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import CustomToaster from './components/CustomToaster';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -82,19 +82,9 @@ function App() {
           />
           <Route path="*" element={<NotFound />} />
         </Routes>
-        <Toaster
+        <CustomToaster
           position="top-center"
           richColors
-          // closeButton // Supprimé pour utiliser un bouton d'action personnalisé
-          className="z-[9999]"
-          toastOptions={{
-            classNames: {
-              toast: 'bg-slate-900/90 backdrop-blur-sm text-white border-slate-700/50 shadow-2xl',
-              title: 'text-sm font-semibold',
-              description: 'text-xs',
-              closeButton: 'absolute right-2.5 top-2.5 rounded-md p-1 text-white/50 opacity-80 hover:opacity-100 hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/50 transition-opacity',
-            },
-          }}
         />
       </AuthProvider>
     </Router>
