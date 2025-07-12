@@ -1,11 +1,11 @@
 import {
   Dialog,
-  DialogContent,
+  CustomDialogContent as DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/components/CustomDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -25,12 +25,6 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        onPointerDownOutside={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest('[data-sonner-toast]')) {
-            e.preventDefault();
-          }
-        }}
         className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6"
       >
         <DialogHeader className="text-center">
