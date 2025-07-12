@@ -66,7 +66,7 @@ const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackTo
           Jours survécus: <span className="font-bold text-lg text-white">{daysSurvived}</span>
         </p>
         {elapsedTime && (
-          <p className="text-xs text-gray-400 font-mono mt-1 tabular-nums" suppressHydrationWarning>
+          <p className="text-xs text-gray-400 font-mono mt-1" suppressHydrationWarning>
             {elapsedTime}
           </p>
         )}
