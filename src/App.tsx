@@ -89,7 +89,7 @@ function App() {
           className="z-[9999]"
           toastOptions={{
             classNames: {
-              toast: 'bg-slate-900/90 backdrop-blur-sm text-white border-slate-700/50 shadow-2xl',
+              toast: 'bg-slate-900/90 backdrop-blur-sm text-white border-slate-700/50 shadow-2xl z-[9999]',
               title: 'text-sm font-semibold',
               description: 'text-xs',
               closeButton: 'absolute right-2.5 top-2.5 rounded-md p-1 text-white/50 opacity-80 hover:opacity-100 hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/50 transition-opacity',
