@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { FullPlayerData, MapCell, Item } from '@/types/game';
+import { FullPlayerData, MapCell, Item, InventoryItem } from '@/types/game';
 import LoadingScreen from '@/components/LoadingScreen';
 import GameUI from '@/components/game/GameUI';
 import { showError } from '@/utils/toast';
 import { GameProvider } from '@/contexts/GameContext';
+import { getCachedSignedUrl } from '@/utils/iconCache';
 
 const Game = () => {
   const { user } = useAuth();
@@ -14,12 +15,6 @@ const Game = () => {
   const [playerData, setPlayerData] = useState<FullPlayerData | null>(null);
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-
-  useEffect(() => {
-    if (user) {
-      loadGameData(user);
-    }
-  }, [user]);
 
   const loadGameData = async (user: User) => {
     setLoading(true);
@@ -30,6 +25,18 @@ const Game = () => {
       console.error(playerDataError);
       setLoading(false);
       return;
+    }
+
+    if (fullPlayerData.inventory) {
+      fullPlayerData.inventory = await Promise.all(
+        fullPlayerData.inventory.map(async (item: InventoryItem) => {
+          if (item.items?.icon && item.items.icon.includes('.')) {
+            const signedUrl = await getCachedSignedUrl(item.items.icon);
+            return { ...item, items: { ...item.items, signedIconUrl: signedUrl || undefined } };
+          }
+          return item;
+        })
+      );
     }
     setPlayerData(fullPlayerData);
 
@@ -54,6 +61,12 @@ const Game = () => {
     setLoading(false);
   };
 
+  useEffect(() => {
+    if (user) {
+      loadGameData(user);
+    }
+  }, [user]);
+
   const refreshPlayerData = async () => {
     if (!user) return;
     const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
@@ -61,6 +74,17 @@ const Game = () => {
       showError("Erreur lors de la mise à jour des données.");
       console.error(playerDataError);
     } else {
+       if (fullPlayerData.inventory) {
+        fullPlayerData.inventory = await Promise.all(
+          fullPlayerData.inventory.map(async (item: InventoryItem) => {
+            if (item.items?.icon && item.items.icon.includes('.')) {
+              const signedUrl = await getCachedSignedUrl(item.items.icon);
+              return { ...item, items: { ...item.items, signedIconUrl: signedUrl || undefined } };
+            }
+            return item;
+          })
+        );
+      }
       setPlayerData(fullPlayerData);
     }
   };

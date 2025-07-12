@@ -123,13 +123,8 @@ const ExplorationGrid = ({ isActive, playerPosition, onCellClick, onCellHover, p
               const isTarget = path && path.length > 1 && path[path.length - 1].x === x && path[path.length - 1].y === y;
               const energyCost = path ? path.length - 1 : 0;
               const canAffordMove = energyCost <= currentEnergy;
-
-              const canClickEntrance = isEntrance && playerPosition && (
-                isPlayerOnCell || 
-                (Math.abs(playerPosition.x - ENTRANCE_X) + Math.abs(playerPosition.y - ENTRANCE_Y) === 1)
-              );
               
-              const isClickable = (isTarget && canAffordMove) || canClickEntrance;
+              const isClickable = (isTarget && canAffordMove) || isEntrance;
 
               return (
                 <button
@@ -153,7 +148,7 @@ const ExplorationGrid = ({ isActive, playerPosition, onCellClick, onCellHover, p
 
                     // Interactivity
                     isClickable ? "cursor-pointer" : "cursor-default",
-                    canClickEntrance && "hover:bg-white/30"
+                    isEntrance && "hover:bg-white/30"
                   )}
                   style={{
                     left: x * (CELL_SIZE_PX + CELL_GAP),

@@ -38,6 +38,7 @@ export interface ScoutingMission {
     target_username: string;
     base_zone_type: string;
   } | null;
+  is_favorite: boolean;
 }
 
 export interface PlayerState {

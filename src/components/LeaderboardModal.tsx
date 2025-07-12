@@ -7,8 +7,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Loader2, Sun, MapPin, Shield } from 'lucide-react';
+import { Trophy, Sun, MapPin, Shield } from 'lucide-react';
 import { showError } from '@/utils/toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface LeaderboardModalProps {
   isOpen: boolean;
@@ -21,6 +22,16 @@ type LeaderboardEntry = {
   days_alive: number;
   base_location: string;
 };
+
+const LeaderboardSkeleton = () => (
+  <div className="p-3 sm:p-4 rounded-lg border border-slate-700 flex items-center gap-4">
+    <Skeleton className="w-12 h-12 rounded-md flex-shrink-0" />
+    <div className="flex-grow space-y-2">
+      <Skeleton className="h-5 w-3/5 rounded" />
+      <Skeleton className="h-4 w-4/5 rounded" />
+    </div>
+  </div>
+);
 
 const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
@@ -73,13 +84,11 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
           <DialogDescription className="sr-only">Classement des meilleurs joueurs.</DialogDescription>
         </DialogHeader>
         
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-white" />
-          </div>
-        ) : (
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar">
-            {leaderboardData.length > 0 ? leaderboardData.map((player, index) => (
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar">
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => <LeaderboardSkeleton key={i} />)
+          ) : leaderboardData.length > 0 ? (
+            leaderboardData.map((player, index) => (
               <div key={index} className={`p-3 sm:p-4 rounded-lg border flex items-center gap-4 transition-all duration-300 ${getRankClass(index)}`}>
                 <div className="w-12 flex-shrink-0 flex items-center justify-center">
                   {getRankIcon(index)}
@@ -93,11 +102,11 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
                   </div>
                 </div>
               </div>
-            )) : (
-              <p className="text-center text-gray-400 py-10">Le classement est actuellement vide.</p>
-            )}
-          </div>
-        )}
+            ))
+          ) : (
+            <p className="text-center text-gray-400 py-10">Le classement est actuellement vide.</p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

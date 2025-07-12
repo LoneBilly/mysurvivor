@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Users } from 'lucide-react';
+import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Users, Star, Trash2 } from 'lucide-react';
 import { ScoutingMission } from '@/types/game';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -82,7 +82,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
   const [selectedPlayer, setSelectedPlayer] = useState<ScoutablePlayer | null>(null);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const [sendScoutLoading, setSendScoutLoading] = useState(false);
-  const [actionModal, setActionModal] = useState({ isOpen: false, onConfirm: () => {} });
+  const [actionModal, setActionModal] = useState({ isOpen: false, onConfirm: () => {}, title: '', description: '', variant: 'default' as 'default' | 'destructive' });
   const [reportSearchTerm, setReportSearchTerm] = useState('');
 
   const { inProgress: inProgressMissions, completed: completedMissions } = scoutingMissions;
@@ -101,7 +101,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
 
   const handleSendScout = async () => {
     if (!selectedPlayer) return;
-    setActionModal({ isOpen: false, onConfirm: () => {} });
+    setActionModal({ ...actionModal, isOpen: false });
     setSendScoutLoading(true);
     const { error } = await supabase.rpc('send_scout', { p_target_player_id: selectedPlayer.id });
     setSendScoutLoading(false);
@@ -111,7 +111,6 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
     } else {
       showSuccess(`Éclaireur envoyé vers la base de ${selectedPlayer.username} !`);
       onUpdate();
-      refreshScoutingData();
       setSelectedPlayer(null);
       setIsSendModalOpen(false);
     }
@@ -119,12 +118,44 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
 
   const confirmSendScout = () => {
     if (!selectedPlayer) return;
-    setActionModal({ isOpen: true, onConfirm: handleSendScout });
+    setActionModal({ isOpen: true, onConfirm: handleSendScout, title: 'Confirmer la mission', description: `Envoyer un éclaireur vers la base de ${selectedPlayer?.username} pour ${SCOUT_COST} crédits ?`, variant: 'default' });
   };
 
-  const filteredReports = completedMissions.filter(mission =>
-    mission.report_data?.target_username.toLowerCase().includes(reportSearchTerm.toLowerCase())
-  );
+  const handleToggleFavorite = async (mission: ScoutingMission) => {
+    const { error } = await supabase.from('scouting_missions').update({ is_favorite: !mission.is_favorite }).eq('id', mission.id);
+    if (error) showError("Erreur lors de la mise à jour du favori.");
+    else onUpdate();
+  };
+
+  const handleDeleteReport = async (missionId: number) => {
+    setActionModal({ ...actionModal, isOpen: false });
+    const { error } = await supabase.from('scouting_missions').delete().eq('id', missionId);
+    if (error) showError("Erreur lors de la suppression du rapport.");
+    else {
+      showSuccess("Rapport supprimé.");
+      onUpdate();
+    }
+  };
+
+  const openDeleteModal = (mission: ScoutingMission) => {
+    setActionModal({
+      isOpen: true,
+      onConfirm: () => handleDeleteReport(mission.id),
+      title: 'Supprimer le rapport',
+      description: `Êtes-vous sûr de vouloir supprimer le rapport concernant ${mission.target_username} ?`,
+      variant: 'destructive',
+    });
+  };
+
+  const filteredAndSortedReports = useMemo(() => {
+    return completedMissions
+      .filter(mission => mission.report_data?.target_username.toLowerCase().includes(reportSearchTerm.toLowerCase()))
+      .sort((a, b) => {
+        if (a.is_favorite && !b.is_favorite) return -1;
+        if (!a.is_favorite && b.is_favorite) return 1;
+        return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
+      });
+  }, [completedMissions, reportSearchTerm]);
 
   return (
     <>
@@ -178,8 +209,8 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
               </div>
             </TabsContent>
 
-            <TabsContent value="reports" className="mt-4 flex-grow min-h-0 flex flex-col gap-4">
-              <div className="flex-shrink-0">
+            <TabsContent value="reports" className="mt-4 flex-grow min-h-0 flex flex-col">
+              <div className="flex-shrink-0 mb-4">
                 <Input
                   placeholder="Rechercher un rapport par pseudo..."
                   value={reportSearchTerm}
@@ -189,15 +220,23 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
               </div>
               <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
                 {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>}
-                {!loading && filteredReports.length === 0 && (
+                {!loading && filteredAndSortedReports.length === 0 && (
                   <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
                     <p>{completedMissions.length > 0 ? "Aucun rapport ne correspond à votre recherche." : "Aucun rapport disponible."}</p>
                   </div>
                 )}
-                {!loading && filteredReports.map(mission => (
-                  <Card key={mission.id} className="bg-white/5 border-white/10">
-                    <CardHeader className="p-4">
+                {!loading && filteredAndSortedReports.map(mission => (
+                  <Card key={mission.id} className={cn("bg-white/5 border-white/10", mission.is_favorite && "border-yellow-400/50")}>
+                    <CardHeader className="p-4 flex flex-row items-center justify-between">
                       <CardTitle className="text-base">Rapport: {mission.report_data?.target_username}</CardTitle>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleToggleFavorite(mission)}>
+                          <Star className={cn("w-4 h-4", mission.is_favorite ? "text-yellow-400 fill-yellow-400" : "text-gray-500 hover:text-yellow-500")} />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDeleteModal(mission)}>
+                          <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-400" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 space-y-2">
                       <div className="flex items-center gap-2 text-sm"><Shield size={14} /> Base: <span className="font-bold">{mission.report_data?.base_zone_type}</span></div>
@@ -257,10 +296,10 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
       <ActionModal
         isOpen={actionModal.isOpen}
         onClose={() => setActionModal({ ...actionModal, isOpen: false })}
-        title="Confirmer la mission"
-        description={`Envoyer un éclaireur vers la base de ${selectedPlayer?.username} pour ${SCOUT_COST} crédits ?`}
+        title={actionModal.title}
+        description={actionModal.description}
         actions={[
-          { label: "Confirmer", onClick: actionModal.onConfirm, variant: "default" },
+          { label: "Confirmer", onClick: actionModal.onConfirm, variant: actionModal.variant },
           { label: "Annuler", onClick: () => setActionModal({ ...actionModal, isOpen: false }), variant: "secondary" },
         ]}
       />

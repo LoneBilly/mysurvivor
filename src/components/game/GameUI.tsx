@@ -220,9 +220,22 @@ const GameUI = () => {
     const { exploration_x, exploration_y, energie } = playerData.playerState;
     if (exploration_x === null || exploration_y === null) return;
 
-    if (x === ENTRANCE_X && y === ENTRANCE_Y && (Math.abs(exploration_x - x) + Math.abs(exploration_y - y) <= 1)) {
-      setModalState({ isOpen: true, title: "Quitter la zone ?", description: "Votre position sera sauvegardée.", actions: [{ label: "Quitter", onClick: confirmExitExploration, variant: "destructive" }, { label: "Rester", onClick: closeModal, variant: "outline" }] });
-      return;
+    if (x === ENTRANCE_X && y === ENTRANCE_Y) {
+        const path = findPathBFS({ x: exploration_x, y: exploration_y }, { x, y });
+        if (path) {
+            const cost = path.length - 1;
+            if (energie >= cost) {
+                setModalState({
+                    isOpen: true,
+                    title: "Quitter la zone ?",
+                    description: `Le retour à la sortie vous coûtera ${cost} points d'énergie.`,
+                    actions: [{ label: "Quitter", onClick: () => confirmExitExploration(cost), variant: "destructive" }, { label: "Rester", onClick: closeModal, variant: "outline" }]
+                });
+            } else {
+                showError(`Pas assez d'énergie pour retourner à la sortie. Coût: ${cost}, Vous avez: ${energie}`);
+            }
+        }
+        return;
     }
 
     if (explorationPath) {
@@ -241,11 +254,31 @@ const GameUI = () => {
     }
   };
 
-  const confirmExitExploration = async () => {
+  const confirmExitExploration = async (cost: number) => {
     closeModal();
-    const { error } = await supabase.from('player_states').update({ exploration_x: null, exploration_y: null }).eq('id', playerData.playerState.id);
-    if (error) showError("Erreur lors de la sortie.");
-    else refreshPlayerData();
+    const originalState = playerData;
+    setPlayerData(prev => ({
+        ...prev,
+        playerState: {
+            ...prev.playerState,
+            exploration_x: null,
+            exploration_y: null,
+            energie: prev.playerState.energie - cost
+        }
+    }));
+
+    const { error } = await supabase.from('player_states').update({ 
+        exploration_x: null, 
+        exploration_y: null,
+        energie: originalState.playerState.energie - cost
+    }).eq('id', originalState.playerState.id);
+
+    if (error) {
+        showError("Erreur lors de la sortie.");
+        setPlayerData(originalState);
+    } else {
+        refreshPlayerData();
+    }
   };
 
   const scoutingMissions = useMemo(() => ({
