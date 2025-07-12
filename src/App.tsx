@@ -88,7 +88,6 @@ function App() {
           // closeButton // Supprimé pour utiliser un bouton d'action personnalisé
           className="z-[9999]"
           toastOptions={{
-            onPointerDown: (e) => e.stopPropagation(),
             classNames: {
               toast: 'bg-slate-900/90 backdrop-blur-sm text-white border-slate-700/50 shadow-2xl',
               title: 'text-sm font-semibold',
