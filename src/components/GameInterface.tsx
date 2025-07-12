@@ -89,19 +89,25 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   }>({ isOpen: false, title: "", description: "", actions: [] });
   const [justMovedTo, setJustMovedTo] = useState<MapCell | null>(null);
 
+  const [localGameState, setLocalGameState] = useState(gameState);
+
+  useEffect(() => {
+    setLocalGameState(gameState);
+  }, [gameState]);
+
   useEffect(() => {
     if (currentView === 'base') {
       setIsViewReady(true);
       return;
     }
 
-    if (gameState.exploration_x !== null && gameState.exploration_y !== null) {
+    if (localGameState.exploration_x !== null && localGameState.exploration_y !== null) {
       const fetchCurrentZoneInfo = async () => {
         const { data: zoneData } = await supabase
           .from('map_layout')
           .select('type, icon')
-          .eq('x', gameState.position_x)
-          .eq('y', gameState.position_y)
+          .eq('x', localGameState.position_x)
+          .eq('y', localGameState.position_y)
           .single();
         
         if (zoneData) {
@@ -115,17 +121,17 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       setCurrentView('map');
       setIsViewReady(true);
     }
-  }, [gameState, currentView]);
+  }, [localGameState, currentView]);
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleExploreAction = async (zone: { name: string; icon: string | null }) => {
     closeModal();
-    if (!gameState) return;
+    if (!localGameState) return;
 
     await saveGameState({
-      exploration_x: gameState.exploration_x ?? ENTRANCE_X,
-      exploration_y: gameState.exploration_y ?? ENTRANCE_Y,
+      exploration_x: localGameState.exploration_x ?? ENTRANCE_X,
+      exploration_y: localGameState.exploration_y ?? ENTRANCE_Y,
     });
 
     setExplorationZone(zone);
@@ -134,16 +140,16 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
 
   const handleBuildBase = async () => {
     closeModal();
-    if (!gameState) return;
+    if (!localGameState) return;
 
-    if (gameState.base_position_x !== null && gameState.base_position_y !== null) {
+    if (localGameState.base_position_x !== null && localGameState.base_position_y !== null) {
       showError("Vous avez déjà un campement.");
       return;
     }
 
     await saveGameState({
-      base_position_x: gameState.position_x,
-      base_position_y: gameState.position_y,
+      base_position_x: localGameState.position_x,
+      base_position_y: localGameState.position_y,
     });
 
     showSuccess("Votre campement a été installé !");
@@ -160,13 +166,13 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   };
 
   const handleCellSelect = async (cell: MapCell) => {
-    if (!gameState) return;
+    if (!localGameState) return;
 
     const { x, y, type, id } = cell;
 
-    const isDiscovered = gameState.zones_decouvertes.includes(id);
-    const isCurrentPosition = gameState.position_x === x && gameState.position_y === y;
-    const isBaseLocation = gameState.base_position_x === x && gameState.base_position_y === y;
+    const isDiscovered = localGameState.zones_decouvertes.includes(id);
+    const isCurrentPosition = localGameState.position_x === x && localGameState.position_y === y;
+    const isBaseLocation = localGameState.base_position_x === x && localGameState.base_position_y === y;
 
     if (!isDiscovered) {
       setModalState({
@@ -198,7 +204,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       
       actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }), variant: "default" });
 
-      if (gameState.base_position_x === null || gameState.base_position_y === null) {
+      if (localGameState.base_position_x === null || localGameState.base_position_y === null) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
       }
 
@@ -209,36 +215,51 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         actions,
       });
     } else {
-      const distance = Math.abs(gameState.position_x - x) + Math.abs(gameState.position_y - y);
+      const distance = Math.abs(localGameState.position_x - x) + Math.abs(localGameState.position_y - y);
       const energyCost = distance * 10;
 
       const handleMoveAction = async () => {
         closeModal();
-        if (!gameState || gameState.energie < energyCost) {
+        if (!localGameState || localGameState.energie < energyCost) {
           showError("Pas assez d'énergie pour vous déplacer.");
           return;
         }
         
-        await saveGameState({
+        const originalState = { ...localGameState };
+
+        // Optimistic UI update
+        setLocalGameState(prev => ({
+          ...prev!,
           position_x: x,
           position_y: y,
-          energie: gameState.energie - energyCost,
-        });
+          energie: prev!.energie - energyCost,
+        }));
 
-        setJustMovedTo(cell);
+        try {
+          const { error } = await supabase.rpc('move_player', { target_x: x, target_y: y });
+          if (error) throw error;
+          // Server confirmed, now we officially reload the state from server to be sure
+          await reloadGameState(true);
+          setJustMovedTo(cell);
+        } catch (error: any) {
+          // Revert UI on error
+          showError(error.message || "Déplacement impossible.");
+          setLocalGameState(originalState);
+        }
       };
 
       setModalState({
         isOpen: true,
-        title: formatZoneName(type),
+        title: `Aller à ${formatZoneName(type)}`,
         description: (
           <>
-            Voulez-vous vous déplacer vers cette zone ? Ce trajet vous coûtera{" "}
+            Ce trajet vous coûtera{" "}
             <span className="font-bold text-yellow-400">{energyCost}</span> points d'énergie.
           </>
         ),
         actions: [
-          { label: "Y aller", onClick: handleMoveAction, variant: "default" },
+          { label: "Confirmer le déplacement", onClick: handleMoveAction, variant: "default" },
+          { label: "Annuler", onClick: closeModal, variant: "secondary" },
         ],
       });
     }
@@ -248,19 +269,19 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   handleCellSelectRef.current = handleCellSelect;
 
   useEffect(() => {
-    if (justMovedTo && gameState && gameState.position_x === justMovedTo.x && gameState.position_y === justMovedTo.y) {
+    if (justMovedTo && localGameState && localGameState.position_x === justMovedTo.x && localGameState.position_y === justMovedTo.y) {
         handleCellSelectRef.current(justMovedTo);
         setJustMovedTo(null);
     }
-  }, [gameState, justMovedTo]);
+  }, [localGameState, justMovedTo]);
 
   const handleExplorationCellHover = (x: number, y: number) => {
-    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null || x < 0 || y < 0) {
+    if (!localGameState || localGameState.exploration_x === null || localGameState.exploration_y === null || x < 0 || y < 0) {
       setExplorationPath(null);
       return;
     }
 
-    const startPos = { x: gameState.exploration_x, y: gameState.exploration_y };
+    const startPos = { x: localGameState.exploration_x, y: localGameState.exploration_y };
     const endPos = { x, y };
 
     if (startPos.x === endPos.x && startPos.y === endPos.y) {
@@ -273,11 +294,11 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   };
 
   const handleExplorationCellClick = async (x: number, y: number) => {
-    if (!gameState || gameState.exploration_x === null || gameState.exploration_y === null) return;
+    if (!localGameState || localGameState.exploration_x === null || localGameState.exploration_y === null) return;
 
     const clickedCellIsEntrance = x === ENTRANCE_X && y === ENTRANCE_Y;
-    const playerX = gameState.exploration_x;
-    const playerY = gameState.exploration_y;
+    const playerX = localGameState.exploration_x;
+    const playerY = localGameState.exploration_y;
     const playerIsOnEntrance = playerX === ENTRANCE_X && playerY === ENTRANCE_Y;
     const playerIsAdjacentToEntrance = Math.abs(playerX - ENTRANCE_X) + Math.abs(playerY - ENTRANCE_Y) === 1;
 
@@ -298,11 +319,11 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       const targetCell = explorationPath[explorationPath.length - 1];
       if (targetCell.x === x && targetCell.y === y) {
         const cost = explorationPath.length - 1;
-        if (cost > 0 && gameState.energie >= cost) {
+        if (cost > 0 && localGameState.energie >= cost) {
           await saveGameState({
             exploration_x: targetCell.x,
             exploration_y: targetCell.y,
-            energie: gameState.energie - cost,
+            energie: localGameState.energie - cost,
           });
           setExplorationPath(null);
 
@@ -342,12 +363,12 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   const handlePurchaseCredits = () => setIsPurchaseModalOpen(true);
 
   const scoutingMissions = useMemo(() => {
-    const allMissions = gameState.scoutingMissions || [];
+    const allMissions = localGameState.scoutingMissions || [];
     return {
       inProgress: allMissions.filter(m => m.status === 'in_progress'),
       completed: allMissions.filter(m => m.status === 'completed'),
     };
-  }, [gameState.scoutingMissions]);
+  }, [localGameState.scoutingMissions]);
 
   if (!isViewReady) {
     return (
@@ -363,7 +384,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
   return (
     <div className="h-full flex flex-col text-white">
       <GameHeader
-        spawnDate={gameState.spawn_date}
+        spawnDate={localGameState.spawn_date}
         onLeaderboard={handleLeaderboard}
         onOptions={handleOptions}
         currentView={currentView}
@@ -371,29 +392,29 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       />
       
       <main className="flex-1 min-h-0 overflow-hidden relative">
-        <CreditsDisplay credits={gameState.credits} onPurchaseClick={handlePurchaseCredits} />
+        <CreditsDisplay credits={localGameState.credits} onPurchaseClick={handlePurchaseCredits} />
 
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid 
             mapLayout={mapLayout}
             onCellSelect={handleCellSelect}
-            discoveredZones={gameState.zones_decouvertes}
-            playerPosition={{ x: gameState.position_x, y: gameState.position_y }}
-            basePosition={gameState.base_position_x !== null && gameState.base_position_y !== null ? { x: gameState.base_position_x, y: gameState.base_position_y } : null}
+            discoveredZones={localGameState.zones_decouvertes}
+            playerPosition={{ x: localGameState.position_x, y: localGameState.position_y }}
+            basePosition={localGameState.base_position_x !== null && localGameState.base_position_y !== null ? { x: localGameState.base_position_x, y: localGameState.base_position_y } : null}
           />
         </div>
         
         <div className={cn("relative w-full h-full", currentView !== 'base' && "hidden")}>
           <BaseHeader
             resources={{
-              wood: gameState.wood,
-              metal: gameState.metal,
-              components: gameState.components,
+              wood: localGameState.wood,
+              metal: localGameState.metal,
+              components: localGameState.components,
             }}
           />
           <BaseInterface 
             isActive={currentView === 'base'} 
-            initialConstructions={gameState.base_constructions}
+            initialConstructions={localGameState.base_constructions}
           />
         </div>
 
@@ -406,26 +427,26 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
           )}
           <ExplorationGrid
             playerPosition={
-              gameState.exploration_x !== null && gameState.exploration_y !== null
-              ? { x: gameState.exploration_x, y: gameState.exploration_y }
+              localGameState.exploration_x !== null && localGameState.exploration_y !== null
+              ? { x: localGameState.exploration_x, y: localGameState.exploration_y }
               : null
             }
             onCellClick={handleExplorationCellClick}
             onCellHover={handleExplorationCellHover}
             path={explorationPath}
-            currentEnergy={gameState.energie}
+            currentEnergy={localGameState.energie}
           />
         </div>
       </main>
       
       <GameFooter
         stats={{
-          vie: gameState.vie,
-          faim: gameState.faim,
-          soif: gameState.soif,
-          energie: gameState.energie,
+          vie: localGameState.vie,
+          faim: localGameState.faim,
+          soif: localGameState.soif,
+          energie: localGameState.energie,
         }}
-        credits={gameState.credits}
+        credits={localGameState.credits}
         onInventaire={handleInventaire}
         onPurchaseCredits={handlePurchaseCredits}
       />
@@ -451,17 +472,17 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       <InventoryModal
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
-        inventory={gameState.inventaire}
-        unlockedSlots={gameState.unlocked_slots}
+        inventory={localGameState.inventaire}
+        unlockedSlots={localGameState.unlocked_slots}
         onUpdate={reloadGameState}
       />
 
       <MarketModal
         isOpen={isMarketOpen}
         onClose={() => setIsMarketOpen(false)}
-        inventory={gameState.inventaire}
-        credits={gameState.credits}
-        saleSlots={gameState.sale_slots}
+        inventory={localGameState.inventaire}
+        credits={localGameState.credits}
+        saleSlots={localGameState.sale_slots}
         onUpdate={reloadGameState}
         onPurchaseCredits={handlePurchaseCredits}
       />
@@ -474,7 +495,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       <FactionScoutsModal
         isOpen={isFactionScoutsModalOpen}
         onClose={() => setIsFactionScoutsModalOpen(false)}
-        credits={gameState.credits}
+        credits={localGameState.credits}
         onUpdate={() => reloadGameState(true)}
         scoutingMissions={scoutingMissions}
         loading={false} // Le chargement est géré au niveau supérieur
