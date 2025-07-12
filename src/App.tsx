@@ -85,7 +85,7 @@ function App() {
         <Toaster
           position="top-center"
           richColors
-          closeButton
+          // closeButton // Supprimé pour utiliser un bouton d'action personnalisé
           className="z-[9999]"
           toastOptions={{
             classNames: {
