@@ -82,7 +82,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
   const [selectedPlayer, setSelectedPlayer] = useState<ScoutablePlayer | null>(null);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const [sendScoutLoading, setSendScoutLoading] = useState(false);
-  const [actionModal, setActionModal] = useState({ isOpen: false, onConfirm: () => {}, title: '', description: '', variant: 'default' as 'default' | 'destructive' });
+  const [actionModal, setActionModal] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; variant?: "default" | "destructive" }>({ isOpen: false, onConfirm: () => {}, title: '', description: '', variant: 'default' });
   const [reportSearchTerm, setReportSearchTerm] = useState('');
 
   const { inProgress: inProgressMissions, completed: completedMissions } = scoutingMissions;
