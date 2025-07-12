@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/SafeDialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, LocateFixed } from "lucide-react";
 import { cn } from "@/lib/utils";

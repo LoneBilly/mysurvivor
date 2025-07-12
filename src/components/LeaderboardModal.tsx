@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
+} from "@/components/SafeDialog";
 import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Sun, MapPin, Shield } from 'lucide-react';
 import { showError } from '@/utils/toast';

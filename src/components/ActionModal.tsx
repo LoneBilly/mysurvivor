@@ -5,7 +5,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/components/SafeDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
