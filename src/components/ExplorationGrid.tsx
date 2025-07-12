@@ -10,6 +10,7 @@ const ENTRANCE_Y = 50;
 const ORBIT_RADIUS_PX = 40;
 
 interface ExplorationGridProps {
+  isActive: boolean;
   playerPosition: { x: number; y: number } | null;
   onCellClick: (x: number, y: number) => void;
   onCellHover: (x: number, y: number) => void;
@@ -17,7 +18,7 @@ interface ExplorationGridProps {
   currentEnergy: number;
 }
 
-const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
+const ExplorationGrid = ({ isActive, playerPosition, onCellClick, onCellHover, path, currentEnergy }: ExplorationGridProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [exitIndicator, setExitIndicator] = useState({ visible: false, angle: 0, x: 0, y: 0 });
   const [playerIndicator, setPlayerIndicator] = useState({ visible: false, angle: 0 });
@@ -80,16 +81,20 @@ const ExplorationGrid = ({ playerPosition, onCellClick, onCellHover, path, curre
   }, [playerPosition]);
 
   useLayoutEffect(() => {
-    if (playerPosition && !hasCentered.current) {
+    if (isActive && playerPosition && !hasCentered.current) {
       centerViewport(playerPosition.x, playerPosition.y, 'auto');
       hasCentered.current = true;
       setTimeout(updateIndicators, 100);
+    } else if (!isActive) {
+      hasCentered.current = false;
     }
-  }, [playerPosition, centerViewport, updateIndicators]);
+  }, [isActive, playerPosition, centerViewport, updateIndicators]);
 
   useEffect(() => {
-    updateIndicators();
-  }, [playerPosition, updateIndicators]);
+    if (isActive) {
+      updateIndicators();
+    }
+  }, [isActive, playerPosition, updateIndicators]);
 
   return (
     <div className="relative w-full h-full" onMouseLeave={() => onCellHover(-1, -1)}>

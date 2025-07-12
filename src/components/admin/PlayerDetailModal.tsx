@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,18 +8,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
-import { Ban, CheckCircle, Home, User, Package, Calendar, Shield, Coins } from 'lucide-react';
+import { Ban, CheckCircle, Home, User, Package, Calendar, Shield, Coins, SlidersHorizontal } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import ActionModal from '@/components/ActionModal';
+import ActionModal from '../ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/contexts/AuthContext';
 import { MapCell } from '@/types/game';
+import AdminStatEditorModal from './AdminStatEditorModal';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
@@ -33,15 +33,9 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   const { user: adminUser } = useAuth();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
+  const [isStatEditorOpen, setIsStatEditorOpen] = useState(false);
   const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
-  const [credits, setCredits] = useState('');
-
-  useEffect(() => {
-    if (player) {
-      setCredits(String(player.credits ?? 0));
-    }
-  }, [player]);
 
   const currentBaseZone = mapLayout.find(
     (cell) => cell.x === player.base_zone_x && cell.y === player.base_zone_y
@@ -135,27 +129,6 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
     });
   };
 
-  const handleSaveCredits = async () => {
-    const newCredits = parseInt(credits, 10);
-    if (isNaN(newCredits) || newCredits < 0) {
-        showError("Montant de crédits invalide.");
-        return;
-    }
-
-    const { error } = await supabase
-        .from('player_states')
-        .update({ credits: newCredits })
-        .eq('id', player.id);
-
-    if (error) {
-        showError("Erreur lors de la mise à jour des crédits.");
-        console.error(error);
-    } else {
-        showSuccess("Crédits mis à jour.");
-        onPlayerUpdate({ ...player, credits: newCredits });
-    }
-  };
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -171,6 +144,10 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-gray-400" />
               <span>Inscrit le: <span className="font-bold">{new Date(player.created_at).toLocaleDateString()}</span></span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Coins className="w-5 h-5 text-gray-400" />
+              <span>Crédits: <span className="font-bold">{player.credits ?? 0}</span></span>
             </div>
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-gray-400" />
@@ -208,17 +185,6 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
               </Select>
             </div>
             <div className="flex items-center gap-3">
-              <Coins className="w-5 h-5 text-gray-400" />
-              <span className="font-medium">Crédits:</span>
-              <Input
-                  type="number"
-                  value={credits}
-                  onChange={(e) => setCredits(e.target.value)}
-                  onBlur={handleSaveCredits}
-                  className="bg-gray-900/50 border-gray-600 w-28"
-              />
-            </div>
-            <div className="flex items-center gap-3">
               {player.is_banned ? (
                 <>
                   <Ban className="w-5 h-5 text-red-400" />
@@ -233,6 +199,10 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+            <Button onClick={() => setIsStatEditorOpen(true)} className="w-full flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4" />
+              Modifier les stats
+            </Button>
             <Button onClick={() => setIsBaseViewerOpen(true)} className="w-full flex items-center gap-2">
               <Home className="w-4 h-4" />
               Voir la base
@@ -266,6 +236,12 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
         onClose={() => setIsBaseViewerOpen(false)}
         playerId={player.id}
         playerUsername={player.username}
+      />
+      <AdminStatEditorModal
+        isOpen={isStatEditorOpen}
+        onClose={() => setIsStatEditorOpen(false)}
+        player={player}
+        onPlayerUpdate={onPlayerUpdate}
       />
     </>
   );

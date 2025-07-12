@@ -420,6 +420,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
             />
           )}
           <ExplorationGrid
+            isActive={currentView === 'exploration'}
             playerPosition={
               localGameState.exploration_x !== null && localGameState.exploration_y !== null
               ? { x: localGameState.exploration_x, y: localGameState.exploration_y }
