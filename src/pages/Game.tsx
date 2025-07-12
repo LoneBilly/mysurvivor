@@ -19,14 +19,48 @@ const Game = () => {
   const loadGameData = async (user: User) => {
     setLoading(true);
 
-    const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
-    if (playerDataError) {
+    // Fetch all game data in parallel
+    const [playerDataRes, mapDataRes, itemsDataRes] = await Promise.all([
+      supabase.rpc('get_full_player_data', { p_user_id: user.id }),
+      supabase.from('map_layout').select('*'),
+      supabase.from('items').select('*')
+    ]);
+
+    // Handle Player Data
+    if (playerDataRes.error) {
       showError("Erreur critique lors du chargement des données du joueur.");
-      console.error(playerDataError);
+      console.error(playerDataRes.error);
       setLoading(false);
       return;
     }
+    const fullPlayerData = playerDataRes.data;
 
+    // Handle Map Data
+    if (mapDataRes.error) {
+      showError("Erreur critique lors du chargement de la carte.");
+      console.error(mapDataRes.error);
+      setLoading(false);
+      return;
+    }
+    setMapLayout(mapDataRes.data);
+
+    // Handle Items Data and Preload Icons
+    if (itemsDataRes.error) {
+      showError("Erreur critique lors du chargement des objets.");
+      console.error(itemsDataRes.error);
+      setLoading(false);
+      return;
+    }
+    const itemsData = itemsDataRes.data;
+    setItems(itemsData);
+
+    // Preload all item icons from storage to warm up the cache
+    const iconPreloadPromises = itemsData
+      .filter(item => item.icon && item.icon.includes('.'))
+      .map(item => getCachedSignedUrl(item.icon!));
+    await Promise.all(iconPreloadPromises);
+
+    // Now that cache is warm, populate inventory with signed URLs
     if (fullPlayerData.inventory) {
       fullPlayerData.inventory = await Promise.all(
         fullPlayerData.inventory.map(async (item: InventoryItem) => {
@@ -39,24 +73,6 @@ const Game = () => {
       );
     }
     setPlayerData(fullPlayerData);
-
-    const { data: mapData, error: mapError } = await supabase.from('map_layout').select('*');
-    if (mapError) {
-      showError("Erreur critique lors du chargement de la carte.");
-      console.error(mapError);
-      setLoading(false);
-      return;
-    }
-    setMapLayout(mapData);
-
-    const { data: itemsData, error: itemsError } = await supabase.from('items').select('*');
-    if (itemsError) {
-      showError("Erreur critique lors du chargement des objets.");
-      console.error(itemsError);
-      setLoading(false);
-      return;
-    }
-    setItems(itemsData);
 
     setLoading(false);
   };
