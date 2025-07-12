@@ -100,9 +100,11 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
   useEffect(() => {
     if (isOpen) {
       fetchScoutingData();
-      fetchScoutablePlayers();
+      if (activeTab === 'send' && scoutablePlayers.length === 0) {
+        fetchScoutablePlayers();
+      }
     }
-  }, [isOpen, fetchScoutingData, fetchScoutablePlayers]);
+  }, [isOpen, activeTab, fetchScoutingData, fetchScoutablePlayers, scoutablePlayers.length]);
 
   const handleSendScout = async () => {
     if (!selectedPlayer) return;
@@ -115,16 +117,8 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
       showError(error.message);
     } else {
       showSuccess(`Éclaireur envoyé vers la base de ${selectedPlayer.username} !`);
-      const newMission: ScoutingMission = {
-        id: Date.now(),
-        target_player_id: selectedPlayer.id,
-        target_username: selectedPlayer.username,
-        started_at: new Date().toISOString(),
-        status: 'in_progress',
-        report_data: null,
-      };
-      setInProgressMissions(prev => [newMission, ...prev]);
       onUpdate();
+      fetchScoutingData();
       setSelectedPlayer(null);
       setIsSendModalOpen(false);
     }
@@ -159,13 +153,12 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
                 </Button>
               </div>
               <div className="flex flex-col gap-4 min-h-0 flex-grow">
-                <h3 className="text-lg font-semibold text-white font-mono">Suivi des Éclaireurs</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-white font-mono">Suivi des Éclaireurs</h3>
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                </div>
                 <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
-                  {loading && !inProgressMissions.length ? (
-                    <div className="flex justify-center items-center h-full">
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    </div>
-                  ) : inProgressMissions.length > 0 ? (
+                  {inProgressMissions.length > 0 ? (
                     inProgressMissions.map(mission => (
                       <Card key={mission.id} className="bg-white/5 border-white/10">
                         <CardContent className="p-4 space-y-3">
@@ -178,9 +171,11 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
                       </Card>
                     ))
                   ) : (
-                    <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
-                      <p>Aucune mission en cours.</p>
-                    </div>
+                    !loading && (
+                      <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
+                        <p>Aucune mission en cours.</p>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
