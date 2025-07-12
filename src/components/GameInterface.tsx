@@ -87,7 +87,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     description: React.ReactNode;
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
-  const [justMovedTo, setJustMovedTo] = useState<MapCell | null>(null);
 
   const [localGameState, setLocalGameState] = useState(gameState);
 
@@ -112,8 +111,8 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         
         if (zoneData) {
           setExplorationZone({ name: formatZoneName(zoneData.type), icon: zoneData.icon });
-          setCurrentView('exploration');
         }
+        setCurrentView('exploration');
         setIsViewReady(true);
       };
       fetchCurrentZoneInfo();
@@ -121,7 +120,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       setCurrentView('map');
       setIsViewReady(true);
     }
-  }, [localGameState, currentView]);
+  }, [localGameState.exploration_x, localGameState.exploration_y, localGameState.position_x, localGameState.position_y]);
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
@@ -133,9 +132,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       exploration_x: localGameState.exploration_x ?? ENTRANCE_X,
       exploration_y: localGameState.exploration_y ?? ENTRANCE_Y,
     });
-
-    setExplorationZone(zone);
-    setCurrentView('exploration');
   };
 
   const handleBuildBase = async () => {
@@ -165,14 +161,15 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     setCurrentView('map');
   };
 
-  const handleCellSelect = async (cell: MapCell) => {
-    if (!localGameState) return;
+  const handleCellSelect = async (cell: MapCell, stateOverride?: GameState) => {
+    const currentState = stateOverride || localGameState;
+    if (!currentState) return;
 
     const { x, y, type, id } = cell;
 
-    const isDiscovered = localGameState.zones_decouvertes.includes(id);
-    const isCurrentPosition = localGameState.position_x === x && localGameState.position_y === y;
-    const isBaseLocation = localGameState.base_position_x === x && localGameState.base_position_y === y;
+    const isDiscovered = currentState.zones_decouvertes.includes(id);
+    const isCurrentPosition = currentState.position_x === x && currentState.position_y === y;
+    const isBaseLocation = currentState.base_position_x === x && currentState.base_position_y === y;
 
     if (!isDiscovered) {
       setModalState({
@@ -204,7 +201,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       
       actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }), variant: "default" });
 
-      if (localGameState.base_position_x === null || localGameState.base_position_y === null) {
+      if (currentState.base_position_x === null || currentState.base_position_y === null) {
         actions.push({ label: "Installer mon campement", onClick: handleBuildBase, variant: "default" });
       }
 
@@ -215,7 +212,7 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         actions,
       });
     } else {
-      const distance = Math.abs(localGameState.position_x - x) + Math.abs(localGameState.position_y - y);
+      const distance = Math.abs(currentState.position_x - x) + Math.abs(currentState.position_y - y);
       const energyCost = distance * 10;
 
       const handleMoveAction = async () => {
@@ -226,23 +223,20 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         }
         
         const originalState = { ...localGameState };
-
-        // Optimistic UI update
-        setLocalGameState(prev => ({
-          ...prev!,
+        const newState = {
+          ...localGameState,
           position_x: x,
           position_y: y,
-          energie: prev!.energie - energyCost,
-        }));
+          energie: localGameState.energie - energyCost,
+        };
+        setLocalGameState(newState);
+        handleCellSelect(cell, newState);
 
         try {
           const { error } = await supabase.rpc('move_player', { target_x: x, target_y: y });
           if (error) throw error;
-          // Server confirmed, now we officially reload the state from server to be sure
           await reloadGameState(true);
-          setJustMovedTo(cell);
         } catch (error: any) {
-          // Revert UI on error
           showError(error.message || "Déplacement impossible.");
           setLocalGameState(originalState);
         }
@@ -264,16 +258,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       });
     }
   };
-
-  const handleCellSelectRef = useRef(handleCellSelect);
-  handleCellSelectRef.current = handleCellSelect;
-
-  useEffect(() => {
-    if (justMovedTo && localGameState && localGameState.position_x === justMovedTo.x && localGameState.position_y === justMovedTo.y) {
-        handleCellSelectRef.current(justMovedTo);
-        setJustMovedTo(null);
-    }
-  }, [localGameState, justMovedTo]);
 
   const handleExplorationCellHover = (x: number, y: number) => {
     if (!localGameState || localGameState.exploration_x === null || localGameState.exploration_y === null || x < 0 || y < 0) {
@@ -360,7 +344,6 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       exploration_x: null,
       exploration_y: null,
     });
-    setCurrentView('map');
   };
 
   const handleLeaderboard = () => setIsLeaderboardOpen(true);
