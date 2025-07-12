@@ -320,23 +320,34 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
       if (targetCell.x === x && targetCell.y === y) {
         const cost = explorationPath.length - 1;
         if (cost > 0 && localGameState.energie >= cost) {
-          await saveGameState({
+          
+          const originalState = { ...localGameState };
+          setLocalGameState(prev => ({
+            ...prev!,
             exploration_x: targetCell.x,
             exploration_y: targetCell.y,
-            energie: localGameState.energie - cost,
-          });
+            energie: prev!.energie - cost,
+          }));
           setExplorationPath(null);
 
-          if (targetCell.x === ENTRANCE_X && targetCell.y === ENTRANCE_Y) {
-            setModalState({
-              isOpen: true,
-              title: "Quitter la zone d'exploration ?",
-              description: "Vous avez atteint la sortie. Vous pouvez retourner à la carte principale.",
-              actions: [
-                { label: "Quitter", onClick: confirmExitExploration, variant: "destructive" },
-                { label: "Rester", onClick: closeModal, variant: "outline" },
-              ],
-            });
+          try {
+            const { error } = await supabase.rpc('move_in_exploration', { target_x: targetCell.x, target_y: targetCell.y });
+            if (error) throw error;
+
+            if (targetCell.x === ENTRANCE_X && targetCell.y === ENTRANCE_Y) {
+              setModalState({
+                isOpen: true,
+                title: "Quitter la zone d'exploration ?",
+                description: "Vous avez atteint la sortie. Vous pouvez retourner à la carte principale.",
+                actions: [
+                  { label: "Quitter", onClick: confirmExitExploration, variant: "destructive" },
+                  { label: "Rester", onClick: closeModal, variant: "outline" },
+                ],
+              });
+            }
+          } catch (error: any) {
+            showError(error.message || "Déplacement impossible.");
+            setLocalGameState(originalState);
           }
         }
       }
