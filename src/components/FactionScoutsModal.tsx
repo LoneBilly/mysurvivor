@@ -32,42 +32,52 @@ const SCOUT_COST = 1000;
 const SCOUT_DURATION_MS = 30 * 60 * 1000;
 
 const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () => void }) => {
-  const [remaining, setRemaining] = useState('');
-  const [progress, setProgress] = useState(0);
+  const calculateState = useCallback(() => {
+    const startTime = new Date(endTime).getTime() - SCOUT_DURATION_MS;
+    const now = Date.now();
+    const diff = new Date(endTime).getTime() - now;
+
+    if (diff <= 0) {
+      return { remaining: 'Terminé', progress: 100, isFinished: true };
+    }
+
+    const minutes = Math.floor((diff / 1000 / 60) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+    const remaining = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    
+    const elapsed = now - startTime;
+    const progress = Math.min(100, (elapsed / SCOUT_DURATION_MS) * 100);
+
+    return { remaining, progress, isFinished: false };
+  }, [endTime]);
+
+  const [state, setState] = useState(calculateState);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const startTime = new Date(endTime).getTime() - SCOUT_DURATION_MS;
-      const now = Date.now();
-      const diff = new Date(endTime).getTime() - now;
+    if (state.isFinished) {
+      return;
+    }
 
-      if (diff <= 0) {
-        setRemaining('Terminé');
-        setProgress(100);
+    const interval = setInterval(() => {
+      const newState = calculateState();
+      setState(newState);
+      if (newState.isFinished) {
         clearInterval(interval);
         onCompleteRef.current();
-        return;
       }
-
-      const minutes = Math.floor((diff / 1000 / 60) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-      setRemaining(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
-      
-      const elapsed = now - startTime;
-      setProgress(Math.min(100, (elapsed / SCOUT_DURATION_MS) * 100));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [endTime]);
+  }, [state.isFinished, calculateState]);
 
   return (
     <>
-      <Progress value={progress} className="h-2" />
+      <Progress value={state.progress} className="h-2" />
       <div className="flex items-center justify-between text-xs text-gray-400 mt-2">
         <span>Progression</span>
-        <span className="font-mono">{remaining}</span>
+        <span className="font-mono">{state.remaining}</span>
       </div>
     </>
   );
