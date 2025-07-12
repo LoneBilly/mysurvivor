@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, MapPin, Shield } from 'lucide-react'; // Removed Sun icon
+import { Trophy, Sun, MapPin, Shield } from 'lucide-react';
 import { showError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -34,7 +34,8 @@ const LeaderboardSkeleton = () => (
 );
 
 const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
-  const [leaderboardData, setLoading] = useState(true);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
@@ -103,7 +104,7 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
                 <div className="flex-grow">
                   <p className="text-md sm:text-lg font-semibold text-white">{player.username}</p>
                   <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-300 mt-1">
-                    <span className="text-base sm:text-lg font-bold text-yellow-300">En vie depuis : {player.days_alive} jours</span>
+                    <span className="flex items-center gap-1.5 text-base sm:text-lg font-bold text-yellow-300"><Sun className="w-4 h-4" /> {player.days_alive} jours</span>
                     <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Zone: {player.current_zone || 'Inconnue'}</span>
                     <span className="flex items-center gap-1.5"><Shield className="w-4 h-4" /> Base: {player.base_location || 'Aucune'}</span>
                   </div>
