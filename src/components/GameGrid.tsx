@@ -117,7 +117,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
     setTooltip(prev => (prev ? { ...prev, x: e.clientX, y: e.clientY } : null));
   };
 
-  const handleMouseLeave = () => {
+  const handleGridMouseLeave = () => {
     if (isMobile) return;
     setTooltip(null);
   };
@@ -128,42 +128,46 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
     <>
       <div
         ref={containerRef}
-        className="bg-white/10 backdrop-blur-lg w-full h-full flex items-center justify-center border border-white/20 shadow-2xl rounded-2xl"
+        className="w-full h-full flex items-center justify-center"
         onMouseMove={handleMouseMove}
       >
         <div 
-          className="grid grid-cols-7 gap-1 md:gap-1.5 p-2 md:p-3"
+          className="bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl"
           style={{
             width: `${containerSize}px`,
             height: `${containerSize}px`,
           }}
+          onMouseLeave={handleGridMouseLeave}
         >
-          {grid.map((row, y) =>
-            row.map((cell, x) => (
-              <button
-                key={`${x}-${y}`}
-                onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
-                disabled={!cell || cell.type === 'unknown'}
-                className={cn(
-                  "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
-                  getCellStyle(cell)
-                )}
-                onMouseEnter={(e) => cell && handleMouseEnter(e, cell)}
-                onMouseLeave={handleMouseLeave}
-              >
-                {getCellContent(cell)}
-                {playerPosition.x === x && playerPosition.y === y && (
-                  <div className="absolute top-1 right-1 w-2.5 h-2.5">
-                    <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
-                    <div className="w-full h-full rounded-full bg-sky-400 relative border-2 border-gray-900"></div>
-                  </div>
-                )}
-                {basePosition && basePosition.x === x && basePosition.y === y && (
-                  <div className="absolute inset-0 border-2 border-dashed border-green-400/80 pointer-events-none rounded-lg"></div>
-                )}
-              </button>
-            ))
-          )}
+          <div 
+            className="grid grid-cols-7 gap-1 md:gap-1.5 p-2 md:p-3 w-full h-full"
+          >
+            {grid.map((row, y) =>
+              row.map((cell, x) => (
+                <button
+                  key={`${x}-${y}`}
+                  onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
+                  disabled={!cell || cell.type === 'unknown'}
+                  className={cn(
+                    "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
+                    getCellStyle(cell)
+                  )}
+                  onMouseEnter={(e) => cell && handleMouseEnter(e, cell)}
+                >
+                  {getCellContent(cell)}
+                  {playerPosition.x === x && playerPosition.y === y && (
+                    <div className="absolute top-1 right-1 w-2.5 h-2.5">
+                      <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
+                      <div className="w-full h-full rounded-full bg-sky-400 relative border-2 border-gray-900"></div>
+                    </div>
+                  )}
+                  {basePosition && basePosition.x === x && basePosition.y === y && (
+                    <div className="absolute inset-0 border-2 border-dashed border-green-400/80 pointer-events-none rounded-lg"></div>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       </div>
       {!isMobile && tooltip && tooltip.visible && (
