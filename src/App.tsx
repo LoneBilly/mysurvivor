@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Index from './pages/Index';
+import Game from './pages/Game';
 import Login from './pages/Login';
 import Landing from './pages/Landing';
 import CreateProfile from './pages/CreateProfile';
@@ -60,7 +60,7 @@ function App() {
             path="/game"
             element={
               <PrivateRoute>
-                <Index />
+                <Game />
               </PrivateRoute>
             }
           />

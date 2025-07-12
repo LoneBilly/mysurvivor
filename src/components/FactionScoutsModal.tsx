@@ -12,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import ActionModal from './ActionModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from './ui/input';
 
 interface FactionScoutsModalProps {
   isOpen: boolean;
@@ -37,17 +38,12 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
     const now = Date.now();
     const diff = new Date(endTime).getTime() - now;
 
-    if (diff <= 0) {
-      return { remaining: 'Terminé', progress: 100, isFinished: true };
-    }
-
+    if (diff <= 0) return { remaining: 'Terminé', progress: 100, isFinished: true };
+    
     const minutes = Math.floor((diff / 1000 / 60) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
     const remaining = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    
-    const elapsed = now - startTime;
-    const progress = Math.min(100, (elapsed / SCOUT_DURATION_MS) * 100);
-
+    const progress = Math.min(100, ((now - startTime) / SCOUT_DURATION_MS) * 100);
     return { remaining, progress, isFinished: false };
   }, [endTime]);
 
@@ -56,10 +52,7 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    if (state.isFinished) {
-      return;
-    }
-
+    if (state.isFinished) return;
     const interval = setInterval(() => {
       const newState = calculateState();
       setState(newState);
@@ -68,7 +61,6 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
         onCompleteRef.current();
       }
     }, 1000);
-
     return () => clearInterval(interval);
   }, [state.isFinished, calculateState]);
 
@@ -91,6 +83,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const [sendScoutLoading, setSendScoutLoading] = useState(false);
   const [actionModal, setActionModal] = useState({ isOpen: false, onConfirm: () => {} });
+  const [reportSearchTerm, setReportSearchTerm] = useState('');
 
   const { inProgress: inProgressMissions, completed: completedMissions } = scoutingMissions;
 
@@ -101,10 +94,10 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
   }, []);
 
   useEffect(() => {
-    if (isOpen && scoutablePlayers.length === 0) {
+    if (isOpen && activeTab === 'send' && scoutablePlayers.length === 0) {
       fetchScoutablePlayers();
     }
-  }, [isOpen, scoutablePlayers.length, fetchScoutablePlayers]);
+  }, [isOpen, activeTab, scoutablePlayers.length, fetchScoutablePlayers]);
 
   const handleSendScout = async () => {
     if (!selectedPlayer) return;
@@ -129,10 +122,14 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
     setActionModal({ isOpen: true, onConfirm: handleSendScout });
   };
 
+  const filteredReports = completedMissions.filter(mission =>
+    mission.report_data?.target_username.toLowerCase().includes(reportSearchTerm.toLowerCase())
+  );
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-3xl lg:max-w-4xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+        <DialogContent className="sm:max-w-3xl lg:max-w-4xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col h-full sm:h-[85vh] sm:max-h-[85vh]">
           <DialogHeader className="text-center flex-shrink-0">
             <Eye className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Éclaireurs</DialogTitle>
@@ -181,11 +178,23 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
               </div>
             </TabsContent>
 
-            <TabsContent value="reports" className="mt-4 flex-grow min-h-0 overflow-y-auto no-scrollbar">
-              <div className="space-y-3">
+            <TabsContent value="reports" className="mt-4 flex-grow min-h-0 flex flex-col gap-4">
+              <div className="flex-shrink-0">
+                <Input
+                  placeholder="Rechercher un rapport par pseudo..."
+                  value={reportSearchTerm}
+                  onChange={(e) => setReportSearchTerm(e.target.value)}
+                  className="bg-white/10 border-white/20"
+                />
+              </div>
+              <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
                 {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>}
-                {!loading && completedMissions.length === 0 && <p className="text-center text-gray-400 py-8">Aucun rapport disponible.</p>}
-                {!loading && completedMissions.map(mission => (
+                {!loading && filteredReports.length === 0 && (
+                  <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
+                    <p>{completedMissions.length > 0 ? "Aucun rapport ne correspond à votre recherche." : "Aucun rapport disponible."}</p>
+                  </div>
+                )}
+                {!loading && filteredReports.map(mission => (
                   <Card key={mission.id} className="bg-white/5 border-white/10">
                     <CardHeader className="p-4">
                       <CardTitle className="text-base">Rapport: {mission.report_data?.target_username}</CardTitle>
@@ -207,9 +216,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
         <DialogContent className="bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-white font-mono tracking-wider uppercase">Nouvelle Mission</DialogTitle>
-            <DialogDescription className="text-gray-300">
-              Choisissez une cible à espionner.
-            </DialogDescription>
+            <DialogDescription className="text-gray-300">Choisissez une cible à espionner.</DialogDescription>
           </DialogHeader>
           <div className="py-4 flex flex-col items-center gap-6">
             <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>

@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
+import { useGame } from '@/contexts/GameContext';
 
 interface OptionsModalProps {
   isOpen: boolean;
@@ -23,38 +24,20 @@ interface OptionsModalProps {
 
 const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
   const { user, role, signOut } = useAuth();
+  const { playerData, refreshPlayerData } = useGame();
   const navigate = useNavigate();
-  const [currentUsername, setCurrentUsername] = useState('');
+  
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (user) {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .single();
-        
-        if (data) {
-          setCurrentUsername(data.username || '');
-        }
-        setLoading(false);
-      }
-    };
-
-    if (isOpen) {
-      fetchProfile();
+    if (!isOpen) {
       setNewUsername('');
     }
-  }, [user, isOpen]);
+  }, [isOpen]);
 
   const handleSave = async () => {
-    if (!user || !newUsername.trim()) {
-      return;
-    }
+    if (!user || !newUsername.trim()) return;
     
     setLoading(true);
     const { error } = await supabase
@@ -67,8 +50,8 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
       showError(error.message);
     } else {
       showSuccess('Pseudo mis à jour !');
-      setCurrentUsername(newUsername.trim());
       setNewUsername('');
+      refreshPlayerData();
     }
   };
 
@@ -107,7 +90,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
               <Label htmlFor="username" className="text-gray-300 font-mono">Nouveau pseudo</Label>
               <Input
                 id="username"
-                placeholder={currentUsername || "Votre pseudo actuel"}
+                placeholder={playerData.playerState.username || "Votre pseudo actuel"}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 className="bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"

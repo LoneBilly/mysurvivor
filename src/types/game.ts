@@ -5,19 +5,21 @@ export interface GameStats {
   energie: number;
 }
 
+export interface ItemDetails {
+  name: string;
+  description: string | null;
+  icon: string | null;
+  signedIconUrl?: string;
+  type?: string;
+  use_action_text: string;
+}
+
 export interface InventoryItem {
   id: number;
   item_id: number;
   quantity: number;
   slot_position: number;
-  items: {
-    name: string;
-    description: string | null;
-    icon: string | null;
-    signedIconUrl?: string;
-    type?: string;
-    use_action_text: string;
-  } | null;
+  items: ItemDetails | null;
 }
 
 export interface BaseConstruction {
@@ -38,8 +40,8 @@ export interface ScoutingMission {
   } | null;
 }
 
-export interface GameState {
-  id: string; // user_id
+export interface PlayerState {
+  id: string;
   username: string | null;
   jours_survecus: number;
   vie: number;
@@ -47,9 +49,6 @@ export interface GameState {
   soif: number;
   energie: number;
   zones_decouvertes: number[];
-  inventaire: InventoryItem[];
-  base_constructions: BaseConstruction[];
-  scoutingMissions: ScoutingMission[];
   position_x: number;
   position_y: number;
   base_position_x: number | null;
@@ -67,10 +66,42 @@ export interface GameState {
   sale_slots: number;
 }
 
+export interface FullPlayerData {
+  playerState: PlayerState;
+  inventory: InventoryItem[];
+  baseConstructions: BaseConstruction[];
+  scoutingMissions: ScoutingMission[];
+}
+
 export interface MapCell {
   id: number;
   x: number;
   y: number;
-  type: string; // Type est maintenant plus générique
+  type: string;
   icon: string | null;
+}
+
+export interface Item {
+  id: number;
+  name: string;
+  description: string | null;
+  stackable: boolean;
+  created_at: string;
+  icon: string | null;
+  type: string;
+  use_action_text: string;
+}
+
+export interface MarketListing {
+  listing_id: number;
+  seller_id: string;
+  seller_username: string;
+  item_id: number;
+  item_name: string;
+  item_icon: string | null;
+  quantity: number;
+  price: number;
+  created_at: string;
+  views: number;
+  signedIconUrl?: string;
 }
