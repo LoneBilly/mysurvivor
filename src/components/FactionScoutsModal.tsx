@@ -174,77 +174,81 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
               <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-2" />Rapports</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="send" className="mt-4 flex-grow min-h-0 flex flex-col">
-              <div className="flex-shrink-0 mb-4">
-                <Button onClick={() => setIsSendModalOpen(true)} className="w-full sm:w-auto">
-                  <Send className="w-4 h-4 mr-2" /> Envoyer un nouvel éclaireur
-                </Button>
-              </div>
-              <div className="flex flex-col gap-4 min-h-0 flex-grow">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold text-white font-mono">Suivi des Éclaireurs</h3>
-                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            <TabsContent value="send" className="flex-grow min-h-0">
+              <div className="mt-4 flex flex-col h-full">
+                <div className="flex-shrink-0 mb-4">
+                  <Button onClick={() => setIsSendModalOpen(true)} className="w-full sm:w-auto">
+                    <Send className="w-4 h-4 mr-2" /> Envoyer un nouvel éclaireur
+                  </Button>
                 </div>
-                <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
-                  {inProgressMissions.length > 0 ? (
-                    inProgressMissions.map(mission => (
-                      <Card key={mission.id} className="bg-white/5 border-white/10">
-                        <CardContent className="p-4 space-y-3">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-300 flex items-center gap-1.5"><Users size={14} /> Cible</span>
-                            <span className="font-bold">{mission.target_username}</span>
-                          </div>
-                          <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={refreshScoutingData} />
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    !loading && (
-                      <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
-                        <p>Aucune mission en cours.</p>
-                      </div>
-                    )
-                  )}
+                <div className="flex flex-col gap-4 min-h-0 flex-grow">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-white font-mono">Suivi des Éclaireurs</h3>
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  </div>
+                  <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
+                    {inProgressMissions.length > 0 ? (
+                      inProgressMissions.map(mission => (
+                        <Card key={mission.id} className="bg-white/5 border-white/10">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-300 flex items-center gap-1.5"><Users size={14} /> Cible</span>
+                              <span className="font-bold">{mission.target_username}</span>
+                            </div>
+                            <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={refreshScoutingData} />
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      !loading && (
+                        <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
+                          <p>Aucune mission en cours.</p>
+                        </div>
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             </TabsContent>
 
-            <TabsContent value="reports" className="mt-4 flex-grow min-h-0 flex flex-col">
-              <div className="flex-shrink-0 mb-4">
-                <Input
-                  placeholder="Rechercher un rapport par pseudo..."
-                  value={reportSearchTerm}
-                  onChange={(e) => setReportSearchTerm(e.target.value)}
-                  className="bg-white/10 border-white/20"
-                />
-              </div>
-              <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
-                {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>}
-                {!loading && filteredAndSortedReports.length === 0 && (
-                  <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
-                    <p>{completedMissions.length > 0 ? "Aucun rapport ne correspond à votre recherche." : "Aucun rapport disponible."}</p>
-                  </div>
-                )}
-                {!loading && filteredAndSortedReports.map(mission => (
-                  <Card key={mission.id} className={cn("bg-white/5 border-white/10", mission.is_favorite && "border-yellow-400/50")}>
-                    <CardHeader className="p-4 flex flex-row items-center justify-between">
-                      <CardTitle className="text-base">Rapport: {mission.report_data?.target_username}</CardTitle>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleToggleFavorite(mission)}>
-                          <Star className={cn("w-4 h-4", mission.is_favorite ? "text-yellow-400 fill-yellow-400" : "text-gray-500 hover:text-yellow-500")} />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openDeleteModal(mission)}>
-                          <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-400" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 space-y-2">
-                      <div className="flex items-center gap-2 text-sm"><Shield size={14} /> Base: <span className="font-bold">{mission.report_data?.base_zone_type}</span></div>
-                      <div className="flex items-center gap-2 text-sm"><MapPin size={14} /> Joueur: <span className="font-bold">{mission.report_data?.target_username}</span></div>
-                      <Button size="sm" disabled className="w-full mt-2">Attaquer (bientôt)</Button>
-                    </CardContent>
-                  </Card>
-                ))}
+            <TabsContent value="reports" className="flex-grow min-h-0">
+              <div className="mt-4 flex flex-col h-full">
+                <div className="flex-shrink-0 mb-4">
+                  <Input
+                    placeholder="Rechercher un rapport par pseudo..."
+                    value={reportSearchTerm}
+                    onChange={(e) => setReportSearchTerm(e.target.value)}
+                    className="bg-white/10 border-white/20"
+                  />
+                </div>
+                <div className="flex-grow overflow-y-auto no-scrollbar space-y-3 pr-2">
+                  {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>}
+                  {!loading && filteredAndSortedReports.length === 0 && (
+                    <div className="text-center text-gray-400 pt-8 h-full flex items-center justify-center">
+                      <p>{completedMissions.length > 0 ? "Aucun rapport ne correspond à votre recherche." : "Aucun rapport disponible."}</p>
+                    </div>
+                  )}
+                  {!loading && filteredAndSortedReports.map(mission => (
+                    <Card key={mission.id} className={cn("bg-white/5 border-white/10", mission.is_favorite && "border-yellow-400/50")}>
+                      <CardHeader className="p-4 flex flex-row items-center justify-between">
+                        <CardTitle className="text-base">Rapport: {mission.report_data?.target_username}</CardTitle>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleToggleFavorite(mission)}>
+                            <Star className={cn("w-4 h-4", mission.is_favorite ? "text-yellow-400 fill-yellow-400" : "text-gray-500 hover:text-yellow-500")} />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openDeleteModal(mission)}>
+                            <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-400" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 space-y-2">
+                        <div className="flex items-center gap-2 text-sm"><Shield size={14} /> Base: <span className="font-bold">{mission.report_data?.base_zone_type}</span></div>
+                        <div className="flex items-center gap-2 text-sm"><MapPin size={14} /> Joueur: <span className="font-bold">{mission.report_data?.target_username}</span></div>
+                        <Button size="sm" disabled className="w-full mt-2">Attaquer (bientôt)</Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
