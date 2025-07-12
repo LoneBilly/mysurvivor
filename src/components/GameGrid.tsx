@@ -117,7 +117,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
     setTooltip(prev => (prev ? { ...prev, x: e.clientX, y: e.clientY } : null));
   };
 
-  const handleGridMouseLeave = () => {
+  const handleMouseLeave = () => {
     if (isMobile) return;
     setTooltip(null);
   };
@@ -137,7 +137,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
             width: `${containerSize}px`,
             height: `${containerSize}px`,
           }}
-          onMouseLeave={handleGridMouseLeave}
+          onMouseLeave={handleMouseLeave}
         >
           <div 
             className="grid grid-cols-7 gap-1 md:gap-1.5 p-2 md:p-3 w-full h-full"
@@ -153,6 +153,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
                     getCellStyle(cell)
                   )}
                   onMouseEnter={(e) => cell && handleMouseEnter(e, cell)}
+                  onMouseLeave={handleMouseLeave}
                 >
                   {getCellContent(cell)}
                   {playerPosition.x === x && playerPosition.y === y && (

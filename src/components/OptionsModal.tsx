@@ -76,6 +76,7 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
+        onOpenAutoFocus={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest('[data-sonner-toast]')) {

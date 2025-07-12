@@ -70,11 +70,13 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="map" className="w-full flex flex-col flex-1 min-h-0">
-          <TabsList className="grid w-full grid-cols-3 max-w-lg mb-6 flex-shrink-0">
-            <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
-            <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
-            <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
-          </TabsList>
+          <div className="flex justify-center">
+            <TabsList className="grid grid-cols-3 max-w-lg mb-6 flex-shrink-0">
+              <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
+              <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
+              <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="map" className="flex-1 min-h-0">
             <div className="w-full h-full flex items-center justify-center">
               {selectedZone ? (
