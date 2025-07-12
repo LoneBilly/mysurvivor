@@ -49,6 +49,7 @@ export interface GameState {
   zones_decouvertes: number[];
   inventaire: InventoryItem[];
   base_constructions: BaseConstruction[];
+  scoutingMissions: ScoutingMission[];
   position_x: number;
   position_y: number;
   base_position_x: number | null;

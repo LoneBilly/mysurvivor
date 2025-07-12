@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameState, GameStats, InventoryItem, BaseConstruction, MapCell } from '@/types/game';
+import { GameState, GameStats, InventoryItem, BaseConstruction, MapCell, ScoutingMission } from '@/types/game';
 import { showError } from '@/utils/toast';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 
@@ -76,7 +76,7 @@ export const useGameState = () => {
         );
 
         if (!silent) setLoadingMessage("Construction de l'univers...");
-        const { playerState, baseConstructions } = playerData;
+        const { playerState, baseConstructions, scoutingMissions } = playerData;
         const transformedState: GameState = {
           ...playerState,
           id: playerState.id,
@@ -87,6 +87,7 @@ export const useGameState = () => {
           zones_decouvertes: playerState.zones_decouvertes || [],
           inventaire: inventoryWithUrls as InventoryItem[],
           base_constructions: (baseConstructions || []) as BaseConstruction[],
+          scoutingMissions: (scoutingMissions || []) as ScoutingMission[],
           exploration_x: playerState.exploration_x,
           exploration_y: playerState.exploration_y,
           unlocked_slots: playerState.unlocked_slots,
