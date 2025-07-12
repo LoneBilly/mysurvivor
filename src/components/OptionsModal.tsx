@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
   Dialog,
-  CustomDialogContent as DialogContent,
+  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/CustomDialog';
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,6 +76,12 @@ const OptionsModal = ({ isOpen, onClose }: OptionsModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('[data-sonner-toast]')) {
+            e.preventDefault();
+          }
+        }}
         className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6"
       >
         <DialogHeader className="text-center mb-4">

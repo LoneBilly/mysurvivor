@@ -1,12 +1,12 @@
 import { useState, useEffect, FormEvent } from 'react';
 import {
   Dialog,
-  CustomDialogContent as DialogContent,
+  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/CustomDialog";
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

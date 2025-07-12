@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Dialog, CustomDialogContent as DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/CustomDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -161,6 +161,12 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('[data-sonner-toast]')) {
+              e.preventDefault();
+            }
+          }}
           className="sm:max-w-3xl lg:max-w-4xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col h-full sm:h-[85vh] sm:max-h-[85vh]"
         >
           <DialogHeader className="text-center flex-shrink-0">
@@ -259,6 +265,12 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
 
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
         <DialogContent 
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('[data-sonner-toast]')) {
+              e.preventDefault();
+            }
+          }}
           className="bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl"
         >
           <DialogHeader>
