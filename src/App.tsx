@@ -85,6 +85,7 @@ function App() {
         <Toaster
           position="top-center"
           richColors
+          closeButton
           className="z-[99999]"
           toastOptions={{
             classNames: {
