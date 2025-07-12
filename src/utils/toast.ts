@@ -1,15 +1,31 @@
 import { toast } from "sonner";
 
 export const showSuccess = (message: string) => {
-  toast.success(message);
+  const toastId = toast.success(message, {
+    action: {
+      label: "Fermer",
+      onClick: () => toast.dismiss(toastId),
+    },
+  });
 };
 
 export const showError = (message: string) => {
-  toast.error(message);
+  const toastId = toast.error(message, {
+    action: {
+      label: "Fermer",
+      onClick: () => toast.dismiss(toastId),
+    },
+  });
 };
 
 export const showLoading = (message: string) => {
-  return toast.loading(message);
+  const toastId = toast.loading(message, {
+    action: {
+      label: "Fermer",
+      onClick: () => toast.dismiss(toastId),
+    },
+  });
+  return toastId;
 };
 
 export const dismissToast = (toastId: string | number) => {
@@ -17,5 +33,10 @@ export const dismissToast = (toastId: string | number) => {
 };
 
 export const showInfo = (message: string) => {
-  toast.info(message);
+  const toastId = toast.info(message, {
+    action: {
+      label: "Fermer",
+      onClick: () => toast.dismiss(toastId),
+    },
+  });
 };
