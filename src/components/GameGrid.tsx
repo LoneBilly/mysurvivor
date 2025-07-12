@@ -101,7 +101,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   return (
     <>
       <div
-        className="bg-white/10 backdrop-blur-lg h-full aspect-square flex items-center justify-center border border-white/20 shadow-2xl rounded-2xl"
+        className="bg-white/10 backdrop-blur-lg max-w-full max-h-full aspect-square flex items-center justify-center border border-white/20 shadow-2xl rounded-2xl"
         onMouseMove={handleMouseMove}
       >
         <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full p-2 md:p-3">
