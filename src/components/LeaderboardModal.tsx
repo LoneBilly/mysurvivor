@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, MapPin, Shield } from 'lucide-react';
+import { Trophy, MapPin, Shield } from 'lucide-react'; // Removed Sun icon
 import { showError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -25,16 +25,20 @@ type LeaderboardEntry = {
 
 const LeaderboardSkeleton = () => (
   <div className="p-3 sm:p-4 rounded-lg border border-slate-700 flex items-center gap-4">
-    <Skeleton className="w-12 h-12 rounded-md flex-shrink-0" />
+    <Skeleton className="w-12 h-12 rounded-md flex-shrink-0">
+</Skeleton>
     <div className="flex-grow space-y-2">
-      <Skeleton className="h-5 w-3/5 rounded" />
-      <Skeleton className="h-4 w-4/5 rounded" />
+      <Skeleton className="h-5 w-3/5 rounded">
+</Skeleton>
+      <Skeleton className="h-4 w-4/5 rounded">
+</Skeleton>
     </div>
   </div>
 );
 
 const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
-  const [leaderboardData, setLoading] = useState(true);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
@@ -102,8 +106,8 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
                 </div>
                 <div className="flex-grow">
                   <p className="text-md sm:text-lg font-semibold text-white">{player.username}</p>
-                  <div className="flex flex-col gap-y-1 text-xs sm:text-sm text-gray-300 mt-1">
-                    <span className="text-base sm:text-lg font-bold">En vie depuis : <span className="text-yellow-300">{player.days_alive}</span> jours</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 sm:gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-300 mt-1">
+                    <span className="text-base sm:text-lg font-bold text-yellow-300">En vie depuis : {player.days_alive} jours</span>
                     <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Zone: {player.current_zone || 'Inconnue'}</span>
                     <span className="flex items-center gap-1.5"><Shield className="w-4 h-4" /> Base: {player.base_location || 'Aucune'}</span>
                   </div>
