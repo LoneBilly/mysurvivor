@@ -85,7 +85,6 @@ function App() {
         <Toaster
           position="top-center"
           richColors
-          closeButton
           className="z-[99999]"
           toastOptions={{
             classNames: {
@@ -94,6 +93,8 @@ function App() {
               description: 'text-xs',
               closeButton: 'absolute right-2.5 top-2.5 rounded-md p-1 text-white/50 opacity-80 hover:opacity-100 hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/50 transition-opacity',
             },
+            onMouseDown: (e) => e.stopPropagation(),
+            onClick: (e) => e.stopPropagation(),
           }}
         />
       </AuthProvider>
