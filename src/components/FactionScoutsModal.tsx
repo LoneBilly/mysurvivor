@@ -18,6 +18,12 @@ interface FactionScoutsModalProps {
   onClose: () => void;
   credits: number;
   onUpdate: () => void;
+  scoutingMissions: {
+    inProgress: ScoutingMission[];
+    completed: ScoutingMission[];
+  };
+  loading: boolean;
+  refreshScoutingData: () => void;
 }
 
 type ScoutablePlayer = { id: string; username: string };
@@ -67,29 +73,16 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
   );
 };
 
-const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScoutsModalProps) => {
+const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissions, loading, refreshScoutingData }: FactionScoutsModalProps) => {
   const [activeTab, setActiveTab] = useState('send');
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [inProgressMissions, setInProgressMissions] = useState<ScoutingMission[]>([]);
-  const [completedMissions, setCompletedMissions] = useState<ScoutingMission[]>([]);
   const [scoutablePlayers, setScoutablePlayers] = useState<ScoutablePlayer[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<ScoutablePlayer | null>(null);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [sendScoutLoading, setSendScoutLoading] = useState(false);
   const [actionModal, setActionModal] = useState({ isOpen: false, onConfirm: () => {} });
 
-  const fetchScoutingData = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase.rpc('check_and_get_scouting_data');
-    if (error) {
-      console.error("Erreur de chargement des missions:", error.message);
-    } else {
-      const allMissions = data || [];
-      setInProgressMissions(allMissions.filter(m => m.status === 'in_progress'));
-      setCompletedMissions(allMissions.filter(m => m.status === 'completed'));
-    }
-    setLoading(false);
-  }, []);
+  const { inProgress: inProgressMissions, completed: completedMissions } = scoutingMissions;
 
   const fetchScoutablePlayers = useCallback(async () => {
     const { data, error } = await supabase.rpc('get_scoutable_players');
@@ -98,27 +91,24 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchScoutingData();
-      if (activeTab === 'send' && scoutablePlayers.length === 0) {
-        fetchScoutablePlayers();
-      }
+    if (isOpen && scoutablePlayers.length === 0) {
+      fetchScoutablePlayers();
     }
-  }, [isOpen, activeTab, fetchScoutingData, fetchScoutablePlayers, scoutablePlayers.length]);
+  }, [isOpen, scoutablePlayers.length, fetchScoutablePlayers]);
 
   const handleSendScout = async () => {
     if (!selectedPlayer) return;
     setActionModal({ isOpen: false, onConfirm: () => {} });
-    setLoading(true);
+    setSendScoutLoading(true);
     const { error } = await supabase.rpc('send_scout', { p_target_player_id: selectedPlayer.id });
-    setLoading(false);
+    setSendScoutLoading(false);
 
     if (error) {
       showError(error.message);
     } else {
       showSuccess(`Éclaireur envoyé vers la base de ${selectedPlayer.username} !`);
       onUpdate();
-      fetchScoutingData();
+      refreshScoutingData();
       setSelectedPlayer(null);
       setIsSendModalOpen(false);
     }
@@ -166,7 +156,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
                             <span className="text-gray-300 flex items-center gap-1.5"><Users size={14} /> Cible</span>
                             <span className="font-bold">{mission.target_username}</span>
                           </div>
-                          <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={fetchScoutingData} />
+                          <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={refreshScoutingData} />
                         </CardContent>
                       </Card>
                     ))
@@ -236,8 +226,8 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate }: FactionScout
                 </Command>
               </PopoverContent>
             </Popover>
-            <Button onClick={confirmSendScout} disabled={!selectedPlayer || loading || credits < SCOUT_COST} className="w-full max-w-xs">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+            <Button onClick={confirmSendScout} disabled={!selectedPlayer || sendScoutLoading || credits < SCOUT_COST} className="w-full max-w-xs">
+              {sendScoutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                 <span className="flex items-center justify-center gap-2">
                   Envoyer pour <Coins className="w-4 h-4" /> {SCOUT_COST}
                 </span>

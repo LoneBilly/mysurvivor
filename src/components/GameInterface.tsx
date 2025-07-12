@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import GameHeader from "./GameHeader";
 import GameGrid from "./GameGrid";
 import GameFooter from "./GameFooter";
@@ -10,7 +10,7 @@ import OptionsModal from "./OptionsModal";
 import InventoryModal from "./InventoryModal";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
-import { GameState, MapCell } from "@/types/game";
+import { GameState, MapCell, ScoutingMission } from "@/types/game";
 import ExplorationGrid from "./ExplorationGrid";
 import ExplorationHeader from "./ExplorationHeader";
 import { supabase } from "@/integrations/supabase/client";
@@ -88,6 +88,31 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
     actions: { label: string; onClick: () => void; variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null }[];
   }>({ isOpen: false, title: "", description: "", actions: [] });
   const [justMovedTo, setJustMovedTo] = useState<MapCell | null>(null);
+
+  const [scoutingMissions, setScoutingMissions] = useState<{ inProgress: ScoutingMission[], completed: ScoutingMission[] }>({ inProgress: [], completed: [] });
+  const [scoutingDataLoading, setScoutingDataLoading] = useState(true);
+
+  const fetchScoutingData = useCallback(async () => {
+    setScoutingDataLoading(true);
+    const { data, error } = await supabase.rpc('check_and_get_scouting_data');
+    if (error) {
+      showError("Erreur de chargement des missions d'éclaireurs.");
+      console.error("Erreur de chargement des missions:", error.message);
+    } else {
+      const allMissions = data as ScoutingMission[] || [];
+      setScoutingMissions({
+        inProgress: allMissions.filter((m: ScoutingMission) => m.status === 'in_progress'),
+        completed: allMissions.filter((m: ScoutingMission) => m.status === 'completed'),
+      });
+    }
+    setScoutingDataLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isFactionScoutsModalOpen) {
+      fetchScoutingData();
+    }
+  }, [isFactionScoutsModalOpen, fetchScoutingData]);
 
   useEffect(() => {
     if (currentView === 'base') {
@@ -468,6 +493,9 @@ const GameInterface = ({ gameState, mapLayout, saveGameState, reloadGameState }:
         onClose={() => setIsFactionScoutsModalOpen(false)}
         credits={gameState.credits}
         onUpdate={() => reloadGameState(true)}
+        scoutingMissions={scoutingMissions}
+        loading={scoutingDataLoading}
+        refreshScoutingData={fetchScoutingData}
       />
     </div>
   );
