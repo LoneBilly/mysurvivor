@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { MapCell } from "@/types/game";
 import { Lock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
@@ -15,12 +15,38 @@ interface GameGridProps {
 
 const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, basePosition }: GameGridProps) => {
   const isMobile = useIsMobile();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState<number>(0);
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
     content: string;
     x: number;
     y: number;
   } | null>(null);
+
+  // Recalculate container size on resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (!containerRef.current) return;
+      
+      const container = containerRef.current;
+      const parentWidth = container.clientWidth;
+      const parentHeight = container.clientHeight;
+      
+      // Use the smaller dimension to maintain aspect ratio
+      const size = Math.min(parentWidth, parentHeight);
+      setContainerSize(size);
+    };
+
+    // Initial calculation
+    updateSize();
+    
+    // Add resize listener
+    window.addEventListener('resize', updateSize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
   const generateGrid = (): (MapCell & { discovered: boolean })[][] => {
     const grid: (MapCell & { discovered: boolean })[][] = Array(7).fill(null).map(() => []);
@@ -101,10 +127,17 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   return (
     <>
       <div
-        className="bg-white/10 backdrop-blur-lg h-full aspect-square flex items-center justify-center border border-white/20 shadow-2xl rounded-2xl"
+        ref={containerRef}
+        className="bg-white/10 backdrop-blur-lg w-full h-full flex items-center justify-center border border-white/20 shadow-2xl rounded-2xl"
         onMouseMove={handleMouseMove}
       >
-        <div className="grid grid-cols-7 gap-1 md:gap-1.5 w-full h-full p-2 md:p-3">
+        <div 
+          className="grid grid-cols-7 gap-1 md:gap-1.5 p-2 md:p-3"
+          style={{
+            width: `${containerSize}px`,
+            height: `${containerSize}px`,
+          }}
+        >
           {grid.map((row, y) =>
             row.map((cell, x) => (
               <button
