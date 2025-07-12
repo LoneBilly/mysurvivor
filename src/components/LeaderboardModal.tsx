@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
   Dialog,
-  DialogContent,
+  CustomDialogContent as DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
+} from "@/components/CustomDialog";
 import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Sun, MapPin, Shield } from 'lucide-react';
 import { showError } from '@/utils/toast';
@@ -76,12 +76,6 @@ const LeaderboardModal = ({ isOpen, onClose }: LeaderboardModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        onPointerDownOutside={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest('[data-sonner-toast]')) {
-            e.preventDefault();
-          }
-        }}
         className="sm:max-w-2xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6"
       >
         <DialogHeader className="mb-4">
