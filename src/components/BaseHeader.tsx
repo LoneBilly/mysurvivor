@@ -1,4 +1,4 @@
-import { TreeDeciduous, Mountain, Cog } from 'lucide-react';
+import { TreeDeciduous, Mountain, Cog, Hammer } from 'lucide-react';
 import { Item } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { useGame } from '@/contexts/GameContext';
@@ -48,6 +48,7 @@ const BaseHeader = ({ resources, resourceItems }: BaseHeaderProps) => {
       <div className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-lg p-2 rounded-xl shadow-lg border border-white/20">
         <ResourceItem icon={TreeDeciduous} itemIcon={resourceItems.wood} label="Bois" value={resources.wood} />
         <ResourceItem icon={Mountain} itemIcon={resourceItems.metal} label="Pierre" value={resources.metal} />
+        <ResourceItem icon={Hammer} label="Métal" value={0} />
         <ResourceItem icon={Cog} itemIcon={resourceItems.components} label="Composants" value={resources.components} />
       </div>
     </header>
