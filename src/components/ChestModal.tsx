@@ -4,11 +4,9 @@ import { BaseConstruction, InventoryItem } from "@/types/game";
 import { Box, Trash2 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { showError, showSuccess } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
-import ItemDetailModal from "./ItemDetailModal";
-import QuantitySliderModal from "./QuantitySliderModal";
 
 const CHEST_SLOTS = 10;
 
@@ -25,15 +23,6 @@ interface ChestModalProps {
 const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
   const { playerData, setPlayerData } = useGame();
   const [chestItems, setChestItems] = useState<ChestItem[]>([]);
-  const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
-  const [quantityModalState, setQuantityModalState] = useState<{
-    isOpen: boolean;
-    item: InventoryItem | null;
-    onConfirm: (quantity: number) => void;
-    title: string;
-    description?: string;
-    confirmLabel: string;
-  }>({ isOpen: false, item: null, onConfirm: () => {}, title: '', confirmLabel: 'Confirmer' });
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
@@ -61,29 +50,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
   const handleDemolishClick = () => {
     onDemolish(construction!);
-  };
-
-  const handleItemClick = (item: InventoryItem) => {
-    setDetailedItem(item);
-  };
-
-  const handleUseItem = () => {
-    showError("Cette fonctionnalité n'est pas encore disponible.");
-  };
-
-  const handleDropChestItem = async (item: InventoryItem, quantity: number) => {
-    const { error } = await supabase.rpc('drop_chest_item', {
-      p_chest_item_id: item.id,
-      p_quantity_to_drop: quantity,
-    });
-
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess(`${quantity} objet(s) jeté(s) du coffre.`);
-      setDetailedItem(null);
-      fetchChestContents();
-    }
   };
 
   const handleDragStart = (index: number, source: 'inventory' | 'chest', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
@@ -129,41 +95,34 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     setDragOver(null);
   }, []);
 
-  const performMove = async (fromIndex: number, toIndex: number, source: 'inventory' | 'chest', target: 'inventory' | 'chest', quantity: number) => {
+  const handleDragEnd = async () => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+
+    if (!draggedItem || !dragOver) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
+
+    const { source, index: fromIndex } = draggedItem;
+    const { target, index: toIndex } = dragOver;
+
+    if (source === target && fromIndex === toIndex) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
+
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     const originalChestItems = JSON.parse(JSON.stringify(chestItems));
+
     let rpcPromise;
 
-    // Optimistic UI Update
-    if (source === 'inventory' && target === 'chest') {
-      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
-      if (!itemToMove || !construction) return;
-      
-      const newPlayerData = JSON.parse(JSON.stringify(playerData));
-      const invItemIdx = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === itemToMove.id);
-      if (newPlayerData.inventory[invItemIdx].quantity > quantity) {
-        newPlayerData.inventory[invItemIdx].quantity -= quantity;
-      } else {
-        newPlayerData.inventory.splice(invItemIdx, 1);
-      }
-      setPlayerData(newPlayerData);
-      
-      rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: itemToMove.id, p_chest_id: construction.id, p_quantity_to_move: quantity, p_target_slot: toIndex });
-    } else if (source === 'chest' && target === 'inventory') {
-      const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
-      if (!itemToMove) return;
-
-      const newChestItems = chestItems.map(i => ({...i}));
-      const chestItemIdx = newChestItems.findIndex(i => i.id === itemToMove.id);
-      if (newChestItems[chestItemIdx].quantity > quantity) {
-        newChestItems[chestItemIdx].quantity -= quantity;
-      } else {
-        newChestItems.splice(chestItemIdx, 1);
-      }
-      setChestItems(newChestItems);
-
-      rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: itemToMove.id, p_quantity_to_move: quantity, p_target_slot: toIndex });
-    } else if (source === 'inventory' && target === 'inventory') {
+    // Optimistic update
+    if (source === 'inventory' && target === 'inventory') {
       const newPlayerData = JSON.parse(JSON.stringify(playerData));
       const fromItem = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === fromIndex);
       const toItem = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === toIndex);
@@ -180,64 +139,43 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       setChestItems(newChestItems);
       if (!construction) return;
       rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
-    }
-
-    if (rpcPromise) {
-      const { error } = await rpcPromise;
-      if (error) {
-        showError(error.message || "Erreur de transfert.");
-        setPlayerData(originalPlayerData);
-        setChestItems(originalChestItems);
-      } else {
-        await onUpdate();
-        await fetchChestContents();
-      }
-    }
-  };
-
-  const handleDragEnd = async () => {
-    if (draggedItemNode.current) {
-      document.body.removeChild(draggedItemNode.current);
-      draggedItemNode.current = null;
-    }
-
-    if (!draggedItem || !dragOver) {
-      setDraggedItem(null);
-      setDragOver(null);
-      return;
-    }
-
-    const { source, index: fromIndex } = draggedItem;
-    const { target, index: toIndex } = dragOver;
-
-    const itemToMove = source === 'inventory'
-      ? playerData.inventory.find(i => i.slot_position === fromIndex)
-      : chestItems.find(i => i.slot_position === fromIndex);
-
-    if (!itemToMove) {
-      setDraggedItem(null);
-      setDragOver(null);
-      return;
-    }
-
-    const moveAction = (quantity: number) => {
-      performMove(fromIndex, toIndex, source, target, quantity);
-    };
-
-    if (itemToMove.items?.stackable && itemToMove.quantity > 1 && source !== target) {
-      setQuantityModalState({
-        isOpen: true,
-        item: itemToMove,
-        title: "Choisir la quantité à déplacer",
-        confirmLabel: "Déplacer",
-        onConfirm: moveAction,
+    } else if (source === 'inventory' && target === 'chest') {
+      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
+      if (!itemToMove || !construction) return;
+      rpcPromise = supabase.rpc('move_item_to_chest', {
+          p_inventory_id: itemToMove.id,
+          p_chest_id: construction.id,
+          p_quantity_to_move: itemToMove.quantity,
+          p_target_slot: toIndex
       });
-    } else {
-      moveAction(itemToMove.quantity);
+    } else if (source === 'chest' && target === 'inventory') {
+      const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
+      if (!itemToMove) return;
+      rpcPromise = supabase.rpc('move_item_from_chest', {
+          p_chest_item_id: itemToMove.id,
+          p_quantity_to_move: itemToMove.quantity,
+          p_target_slot: toIndex
+      });
     }
 
     setDraggedItem(null);
     setDragOver(null);
+
+    if (rpcPromise) {
+      // We don't show a loading state to make it feel instant
+      // We will refresh the state from the DB after the call to ensure consistency
+      const { error } = await rpcPromise;
+      if (error) {
+        showError(error.message || "Erreur de transfert.");
+        // Revert state on error
+        setPlayerData(originalPlayerData);
+        setChestItems(originalChestItems);
+      } else {
+        // Refresh data to get the true state from the server (handles merges, etc.)
+        await onUpdate();
+        await fetchChestContents();
+      }
+    }
   };
 
   useEffect(() => {
@@ -278,7 +216,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
                 index={index}
                 isUnlocked={type === 'chest' || index < playerData.playerState.unlocked_slots}
                 onDragStart={(idx, node, e) => handleDragStart(idx, type, node, e)}
-                onItemClick={handleItemClick}
+                onItemClick={() => {}}
                 isBeingDragged={draggedItem?.source === type && draggedItem?.index === index}
                 isDragOver={dragOver?.target === type && dragOver?.index === index}
               />
@@ -313,39 +251,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             Détruire le coffre
           </Button>
         </DialogFooter>
-        <ItemDetailModal
-          isOpen={!!detailedItem}
-          onClose={() => setDetailedItem(null)}
-          item={detailedItem}
-          onUse={handleUseItem}
-          onDropOne={() => {
-            if (detailedItem) handleDropChestItem(detailedItem, 1);
-          }}
-          onDropAll={() => {
-            if (detailedItem) {
-              if (detailedItem.quantity > 1) {
-                setQuantityModalState({
-                  isOpen: true,
-                  item: detailedItem,
-                  title: "Jeter des objets du coffre",
-                  confirmLabel: "Jeter",
-                  onConfirm: (quantity) => handleDropChestItem(detailedItem, quantity)
-                });
-              } else {
-                handleDropChestItem(detailedItem, 1);
-              }
-            }
-          }}
-        />
-        <QuantitySliderModal
-          isOpen={quantityModalState.isOpen}
-          onClose={() => setQuantityModalState({ ...quantityModalState, isOpen: false })}
-          item={quantityModalState.item}
-          onConfirm={quantityModalState.onConfirm}
-          title={quantityModalState.title}
-          description={quantityModalState.description}
-          confirmLabel={quantityModalState.confirmLabel}
-        />
       </DialogContent>
     </Dialog>
   );

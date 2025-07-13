@@ -68,7 +68,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }:
               Jeter x1
             </Button>
             <Button onClick={onDropAll} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
-              Jeter...
+              Jeter tout
             </Button>
           </div>
         </DialogFooter>
