@@ -4,6 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/CustomDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,9 +32,11 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
             {title}
           </DialogTitle>
           {description && (
-            <div className="text-gray-300 mt-2 text-base">
-              {description}
-            </div>
+            <DialogDescription asChild>
+              <div className="text-gray-300 mt-2 text-base">
+                {description}
+              </div>
+            </DialogDescription>
           )}
         </DialogHeader>
         {actions.length > 0 && (

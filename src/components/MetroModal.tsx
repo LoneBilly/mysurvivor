@@ -68,9 +68,8 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
         <DialogHeader className="text-center">
           <TramFront className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Métro Express</DialogTitle>
-          <DialogDescription asChild>
-            <CreditsInfo credits={credits} className="mt-1" onClick={onPurchaseCredits} />
-          </DialogDescription>
+          <DialogDescription className="sr-only">Voyagez rapidement entre les zones découvertes.</DialogDescription>
+          <CreditsInfo credits={credits} className="mt-1" onClick={onPurchaseCredits} />
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div>

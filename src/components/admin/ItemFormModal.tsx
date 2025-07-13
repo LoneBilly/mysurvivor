@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,7 +94,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         if (storageRes.error) throw storageRes.error;
         if (itemsRes.error) throw itemsRes.error;
 
-        const allStorageIcons = storageRes.data.map(file => file.name);
+        const allStorageIcons = storageRes.data.map(file => file.name).filter(name => name !== '.emptyfolderplaceholder');
         const usedIcons = new Set(itemsRes.data.map(i => i.icon).filter(Boolean) as string[]);
 
         if (item?.icon) {
@@ -212,6 +213,9 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
               {item ? 'Modifier l\'objet' : 'Créer un objet'}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Formulaire pour {item ? 'modifier les détails d\'un' : 'créer un nouvel'} objet.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pt-4">
             <div>
@@ -263,7 +267,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                   >
                     <option value="">{fetchingIcons ? "Chargement..." : "Aucune icône"}</option>
                     {item?.icon && !availableIcons.includes(item.icon) && (
-                      <option value={item.icon}>{item.icon} (actuelle)</option>
+                      <option value={item.icon}>{item.icon}</option>
                     )}
                     {availableIcons.map((iconName) => (
                       <option key={iconName} value={iconName}>

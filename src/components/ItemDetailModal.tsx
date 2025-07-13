@@ -47,6 +47,9 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }:
               <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
                 {item.items?.name}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Détails et actions pour l'objet {item.items?.name}.
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -61,10 +64,10 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }:
             {useActionText}
           </Button>
           <div className="flex w-full gap-2">
-            <Button onClick={onDropOne} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
+            <Button onClick={onDropOne} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
               Jeter x1
             </Button>
-            <Button onClick={onDropAll} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
+            <Button onClick={onDropAll} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
               Jeter tout
             </Button>
           </div>
