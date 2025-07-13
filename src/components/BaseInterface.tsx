@@ -98,7 +98,6 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
     if (!user) return;
     setLoading(true);
-    hasCentered.current = false;
 
     let currentConstructions = [...constructions];
     const campfire = currentConstructions.find(c => c.type === 'campfire');
@@ -155,6 +154,12 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   }, [user]);
 
   useEffect(() => {
+    if (isActive) {
+      hasCentered.current = false;
+    }
+  }, [isActive]);
+
+  useEffect(() => {
     if (initialConstructions) {
       initializeGrid(initialConstructions, initialConstructionJobs);
       const foundationCount = initialConstructions.filter(c => c.type === 'foundation').length;
@@ -202,12 +207,54 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
 
     if (!cell.canBuild || cell.type !== 'empty' || hasActiveJob) return;
 
+    const originalGridData = gridData;
+    const newGrid = JSON.parse(JSON.stringify(gridData));
+    newGrid[y][x].type = 'in_progress';
+    newGrid[y][x].ends_at = new Date(Date.now() + buildTime * 1000).toISOString();
+    setGridData(updateCanBuild(newGrid));
+
     const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de la construction.");
+      setGridData(originalGridData);
     } else {
       showSuccess("Construction de la fondation démarrée !");
+      onUpdate();
+    }
+  };
+
+  const handleDemolishFoundation = async (x: number, y: number) => {
+    const originalGridData = gridData;
+    const newGrid = JSON.parse(JSON.stringify(gridData));
+    newGrid[y][x].type = 'empty';
+    setGridData(updateCanBuild(newGrid));
+
+    const { error } = await supabase.rpc('demolish_foundation', { p_x: x, p_y: y });
+
+    if (error) {
+      showError(error.message);
+      setGridData(originalGridData);
+    } else {
+      showSuccess("Fondation démolie.");
+      onUpdate();
+    }
+  };
+
+  const handleBuildOnFoundation = async (x: number, y: number, buildingType: string) => {
+    const originalGridData = gridData;
+    const newGrid = JSON.parse(JSON.stringify(gridData));
+    newGrid[y][x].type = 'in_progress';
+    newGrid[y][x].ends_at = new Date(Date.now() + 60 * 1000).toISOString();
+    setGridData(updateCanBuild(newGrid));
+
+    const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: buildingType });
+
+    if (error) {
+      showError(error.message);
+      setGridData(originalGridData);
+    } else {
+      showSuccess("Construction démarrée !");
       onUpdate();
     }
   };
@@ -237,13 +284,15 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       return (
         <div className="relative w-full h-full flex items-center justify-center group">
           <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
-          <div className="absolute bottom-1 left-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
-            <Zap size={12} className="text-yellow-400" />
-            <span className="text-white">5</span>
-          </div>
-          <div className="absolute bottom-1 right-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
-            <Clock size={12} className="text-sky-400" />
-            <span className="text-white">{formatDuration(buildTime)}</span>
+          <div className="absolute bottom-1 left-0 right-0 flex justify-between px-1">
+            <div className="flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
+              <Zap size={12} className="text-yellow-400" />
+              <span className="text-white">5</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
+              <Clock size={12} className="text-sky-400" />
+              <span className="text-white">{formatDuration(buildTime)}</span>
+            </div>
           </div>
         </div>
       );
@@ -333,7 +382,8 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
         onClose={() => setFoundationMenu(null)}
         x={foundationMenu?.x ?? null}
         y={foundationMenu?.y ?? null}
-        onUpdate={onUpdate}
+        onBuild={handleBuildOnFoundation}
+        onDemolish={handleDemolishFoundation}
       />
     </div>
   );

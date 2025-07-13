@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2 } from 'lucide-react';
 import ActionModal from './ActionModal';
 
@@ -21,46 +20,39 @@ interface FoundationMenuModalProps {
   onClose: () => void;
   x: number | null;
   y: number | null;
-  onUpdate: () => void;
+  onBuild: (x: number, y: number, buildingType: string) => void;
+  onDemolish: (x: number, y: number) => void;
 }
 
-const FoundationMenuModal = ({ isOpen, onClose, x, y, onUpdate }: FoundationMenuModalProps) => {
+const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish }: FoundationMenuModalProps) => {
   const [loading, setLoading] = useState(false);
   const [isDemolishModalOpen, setIsDemolishModalOpen] = useState(false);
 
-  const handleBuild = async (buildingType: string) => {
-    if (x === null || y === null) return;
-    setLoading(true);
-    const { error } = await supabase.rpc('start_building_on_foundation', {
-      p_x: x,
-      p_y: y,
-      p_building_type: buildingType,
-    });
-    setLoading(false);
-
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Construction démarrée !");
-      onUpdate();
-      onClose();
+  useEffect(() => {
+    if (!isOpen) {
+      setLoading(false);
     }
+  }, [isOpen]);
+
+  const handleBuildClick = (buildingType: string) => {
+    if (x === null || y === null) {
+      showError("Erreur de coordonnées.");
+      return;
+    }
+    setLoading(true);
+    onClose();
+    onBuild(x, y, buildingType);
   };
 
-  const handleDemolish = async () => {
-    if (x === null || y === null) return;
+  const handleDemolishClick = () => {
+    if (x === null || y === null) {
+      showError("Erreur de coordonnées.");
+      return;
+    }
     setIsDemolishModalOpen(false);
     setLoading(true);
-    const { error } = await supabase.rpc('demolish_foundation', { p_x: x, p_y: y });
-    setLoading(false);
-
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Fondation démolie.");
-      onUpdate();
-      onClose();
-    }
+    onClose();
+    onDemolish(x, y);
   };
 
   return (
@@ -86,7 +78,7 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onUpdate }: FoundationMenu
                       </div>
                     </div>
                   </div>
-                  <Button onClick={() => handleBuild(b.type)} disabled={loading}>
+                  <Button onClick={() => handleBuildClick(b.type)} disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Construire'}
                   </Button>
                 </div>
@@ -106,7 +98,7 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onUpdate }: FoundationMenu
         title="Confirmer la démolition"
         description="Êtes-vous sûr de vouloir démolir cette fondation ? Cette action est irréversible."
         actions={[
-          { label: "Confirmer", onClick: handleDemolish, variant: "destructive" },
+          { label: "Confirmer", onClick: handleDemolishClick, variant: "destructive" },
           { label: "Annuler", onClick: () => setIsDemolishModalOpen(false), variant: "secondary" },
         ]}
       />
