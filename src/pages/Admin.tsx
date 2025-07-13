@@ -11,7 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2, ArrowLeft, Map, Users, Package, Zap } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -98,12 +99,17 @@ const Admin = () => {
 
         {isMobile ? (
           <div className="mb-6">
-            <select value={activeTab} onChange={(e) => setActiveTab(e.target.value)} className="native-select bg-gray-800 border-gray-700">
-              <option value="map">Carte</option>
-              <option value="players">Joueurs</option>
-              <option value="items">Items</option>
-              <option value="events">Events</option>
-            </select>
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full bg-gray-800 border-gray-700">
+                <SelectValue placeholder="Sélectionner une section" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="map">Carte</SelectItem>
+                <SelectItem value="players">Joueurs</SelectItem>
+                <SelectItem value="items">Items</SelectItem>
+                <SelectItem value="events">Events</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
