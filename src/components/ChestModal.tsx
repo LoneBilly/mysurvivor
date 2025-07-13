@@ -117,17 +117,19 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         ({ error } = await supabase.rpc('move_item_to_chest', {
             p_inventory_id: itemToMove.id,
             p_chest_id: construction.id,
-            p_quantity_to_move: itemToMove.quantity
+            p_quantity_to_move: itemToMove.quantity,
+            p_target_slot: dragOver.index
         }));
       } else if (draggedItem.source === 'chest' && dragOver.target === 'inventory') {
-        const itemToMove = chestItems[draggedItem.index];
+        const itemToMove = chestItems.find(i => i.slot_position === draggedItem.index);
         if (!itemToMove) {
           setTransferring(false);
           return;
         }
         ({ error } = await supabase.rpc('move_item_from_chest', {
             p_chest_item_id: itemToMove.id,
-            p_quantity_to_move: itemToMove.quantity
+            p_quantity_to_move: itemToMove.quantity,
+            p_target_slot: dragOver.index
         }));
       }
 
@@ -169,10 +171,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
   const renderGrid = (title: string, items: (InventoryItem | null)[], totalSlots: number, type: 'inventory' | 'chest') => {
     const slots = Array.from({ length: totalSlots }).map((_, index) => {
-      if (type === 'inventory') {
-        return items.find(i => i?.slot_position === index) || null;
-      }
-      return items[index] || null;
+      return items.find(i => i?.slot_position === index) || null;
     });
 
     return (

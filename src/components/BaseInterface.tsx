@@ -316,39 +316,49 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     const cell = gridData[y][x];
     const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
 
-    if (cell.canBuild && cell.type === 'empty' && optimisticHasActiveJob) {
-      showInfo("Une construction est déjà en cours.");
-      return;
-    }
-    
-    if (cell.type === 'in_progress' && cell.ends_at) {
-      if (isMobile) {
-        if (cell.showTrash) {
-          handleCancelConstruction(x, y);
+    if (optimisticHasActiveJob) {
+      if (cell.type === 'in_progress') {
+        // Allow cancelling
+        if (isMobile) {
+          if (cell.showTrash) {
+            handleCancelConstruction(x, y);
+          } else {
+            const newGrid = JSON.parse(JSON.stringify(gridData));
+            newGrid[y][x].showTrash = true;
+            setGridData(newGrid);
+            setTimeout(() => {
+              setGridData(currentGrid => {
+                if (currentGrid && currentGrid[y][x].showTrash) {
+                  const finalGrid = JSON.parse(JSON.stringify(currentGrid));
+                  finalGrid[y][x].showTrash = false;
+                  return finalGrid;
+                }
+                return currentGrid;
+              });
+            }, 2000);
+          }
         } else {
-          const newGrid = JSON.parse(JSON.stringify(gridData));
-          newGrid[y][x].showTrash = true;
-          setGridData(newGrid);
-          setTimeout(() => {
-            setGridData(currentGrid => {
-              if (currentGrid && currentGrid[y][x].showTrash) {
-                const finalGrid = JSON.parse(JSON.stringify(currentGrid));
-                finalGrid[y][x].showTrash = false;
-                return finalGrid;
-              }
-              return currentGrid;
-            });
-          }, 2000);
+          if (isHovered) {
+            handleCancelConstruction(x, y);
+          }
+        }
+      } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
+        // Allow interaction with specific buildings
+        if (cell.type === 'chest') {
+          const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+          if (constructionData) {
+            setChestModalState({ isOpen: true, construction: constructionData });
+          }
+        } else {
+          showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         }
       } else {
-        if (isHovered) {
-          handleCancelConstruction(x, y);
-        }
+        showInfo("Une construction est déjà en cours.");
       }
       return;
     }
     
-    if (cell.type === 'foundation' && !optimisticHasActiveJob) {
+    if (cell.type === 'foundation') {
       setFoundationMenu({ isOpen: true, x, y });
       return;
     }
@@ -366,7 +376,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       return;
     }
 
-    if (!cell.canBuild || cell.type !== 'empty' || optimisticHasActiveJob) return;
+    if (!cell.canBuild || cell.type !== 'empty') return;
 
     const energyCost = 90;
     if (playerData.playerState.energie < energyCost) {
@@ -485,7 +495,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
     if (cell.canBuild) {
       if (optimisticHasActiveJob) {
-        return null;
+        return <div className="absolute inset-0 bg-black/50 rounded-lg"></div>;
       }
       return (
         <div className="relative w-full h-full flex items-center justify-center group">
@@ -514,10 +524,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
       case 'empty':
         if (cell.canBuild) {
+          const baseStyle = "bg-white/5 border-white/10 border-dashed";
           if (optimisticHasActiveJob) {
-            return "bg-black/50 border-transparent cursor-not-allowed";
+            return `${baseStyle} cursor-not-allowed`;
           }
-          return "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer border-dashed";
+          return `${baseStyle} hover:bg-white/10 cursor-pointer`;
         }
         return "bg-black/20 border-white/10";
       default: return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
