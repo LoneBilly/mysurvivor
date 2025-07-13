@@ -169,8 +169,8 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   useEffect(() => {
     if (initialConstructions) {
       initializeGrid(initialConstructions, initialConstructionJobs);
-      const foundationCount = initialConstructions.filter(c => c.type === 'foundation').length;
-      setBuildTime(9 * foundationCount + 15);
+      const constructionCount = initialConstructions.length;
+      setBuildTime(9 * constructionCount + 15);
     }
   }, [initialConstructions, initialConstructionJobs, initializeGrid]);
 
