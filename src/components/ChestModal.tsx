@@ -110,23 +110,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
   };
 
-  const handleSplitItem = async (item: InventoryItem, splitQuantity: number) => {
-    setDetailedItem(null);
-
-    const { error } = await supabase.rpc('split_inventory_item', {
-        p_inventory_id: item.id,
-        p_split_quantity: splitQuantity
-    });
-
-    if (error) {
-        showError(error.message);
-    } else {
-        showSuccess("La pile d'objets a été divisée.");
-        await onUpdate();
-        await fetchChestContents();
-    }
-  };
-
   const handleDragStart = (index: number, source: 'inventory' | 'chest', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     setDraggedItem({ index, source });
@@ -305,7 +288,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         item={detailedItem?.item || null}
         source={detailedItem?.source}
         onTransfer={handleTransfer}
-        onSplit={handleSplitItem}
         onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
         onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
