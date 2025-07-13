@@ -30,6 +30,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   const initialZoneNameRef = useRef(zone.type);
   const [zoneIcon, setZoneIcon] = useState(zone.icon);
   const initialZoneIconRef = useRef(zone.icon);
+  const [interactionType, setInteractionType] = useState<'Ressource' | 'Action' | 'Non défini'>(zone.interaction_type);
+  const initialInteractionTypeRef = useRef(zone.interaction_type);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -128,6 +130,19 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     }
   };
 
+  const handleInteractionTypeSave = async (newType: 'Ressource' | 'Action' | 'Non défini') => {
+    if (newType === initialInteractionTypeRef.current) return;
+    const { error } = await supabase.from('map_layout').update({ interaction_type: newType }).eq('id', zone.id);
+    if (error) {
+      showError("Erreur de mise à jour du type d'interaction.");
+      setInteractionType(initialInteractionTypeRef.current);
+    } else {
+      showSuccess("Type d'interaction mis à jour.");
+      initialInteractionTypeRef.current = newType;
+      setInteractionType(newType);
+    }
+  };
+
   const fetchItemsAndZoneItems = useCallback(async () => {
     setLoading(true);
     try {
@@ -222,6 +237,19 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
               className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto truncate"
             />
           </div>
+        </div>
+        <div className="mt-4">
+          <Label className="text-sm font-medium text-gray-400">Type d'interaction</Label>
+          <Select value={interactionType} onValueChange={(value: 'Ressource' | 'Action' | 'Non défini') => handleInteractionTypeSave(value)}>
+            <SelectTrigger className="w-full mt-1 bg-gray-900/50 border-gray-600">
+              <SelectValue placeholder="Définir le type d'interaction" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Ressource">Ressource (Exploration, Campement)</SelectItem>
+              <SelectItem value="Action">Action (Marché, Faction)</SelectItem>
+              <SelectItem value="Non défini">Non défini (Indisponible)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full sm:flex-1">

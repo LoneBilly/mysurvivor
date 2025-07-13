@@ -149,7 +149,7 @@ const GameUI = () => {
 
   const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
     const currentState = stateOverride || playerData;
-    const { x, y, type, id } = cell;
+    const { x, y, type, id, interaction_type } = cell;
 
     const isDiscovered = currentState.playerState.zones_decouvertes.includes(id);
     const isCurrentPosition = currentState.playerState.position_x === x && currentState.playerState.position_y === y;
@@ -166,15 +166,49 @@ const GameUI = () => {
     }
 
     if (isCurrentPosition) {
-      if (type === 'marché') { setIsMarketOpen(true); return; }
-      if (type === 'Faction: Scouts') { setIsFactionScoutsModalOpen(true); return; }
+      switch (interaction_type) {
+        case 'Action':
+          if (type === 'marché') {
+            setIsMarketOpen(true);
+          } else if (type === 'Faction: Scouts') {
+            setIsFactionScoutsModalOpen(true);
+          } else {
+            setModalState({
+              isOpen: true,
+              title: formatZoneName(type),
+              description: "Cette action n'est pas encore configurée.",
+              actions: [{ label: "Compris", onClick: closeModal }],
+            });
+          }
+          break;
+        
+        case 'Ressource':
+          const actions: typeof modalState.actions = [];
+          if (isBaseLocation) {
+            actions.push({ label: "Aller au campement", onClick: handleEnterBase });
+          }
+          actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }) });
+          if (currentState.playerState.base_position_x === null) {
+            actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
+          }
+          setModalState({
+            isOpen: true,
+            title: formatZoneName(type),
+            description: "Que souhaitez-vous faire ici ?",
+            actions,
+          });
+          break;
 
-      const actions: typeof modalState.actions = [];
-      if (isBaseLocation) actions.push({ label: "Aller au campement", onClick: handleEnterBase });
-      actions.push({ label: "Explorer", onClick: () => handleExploreAction({ name: formatZoneName(type), icon: cell.icon }) });
-      if (currentState.playerState.base_position_x === null) actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
-
-      setModalState({ isOpen: true, title: formatZoneName(type), description: "Que souhaitez-vous faire ici ?", actions });
+        case 'Non défini':
+        default:
+          setModalState({
+            isOpen: true,
+            title: formatZoneName(type),
+            description: "Cette zone est pour le moment indisponible.",
+            actions: [{ label: "Compris", onClick: closeModal }],
+          });
+          break;
+      }
     } else {
       const distance = Math.abs(currentState.playerState.position_x - x) + Math.abs(currentState.playerState.position_y - y);
       const energyCost = distance * 10;

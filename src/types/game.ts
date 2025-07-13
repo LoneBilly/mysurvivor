@@ -80,6 +80,7 @@ export interface MapCell {
   y: number;
   type: string;
   icon: string | null;
+  interaction_type: 'Ressource' | 'Action' | 'Non défini';
 }
 
 export interface Item {
