@@ -98,6 +98,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
     if (!user) return;
     setLoading(true);
+    hasCentered.current = false;
 
     let currentConstructions = [...constructions];
     const campfire = currentConstructions.find(c => c.type === 'campfire');
@@ -154,20 +155,10 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   }, [user]);
 
   useEffect(() => {
-    if (isActive) {
-      hasCentered.current = false;
-    }
-  }, [isActive]);
-
-  useEffect(() => {
     if (initialConstructions) {
       initializeGrid(initialConstructions, initialConstructionJobs);
       const foundationCount = initialConstructions.filter(c => c.type === 'foundation').length;
-      if (foundationCount === 0) {
-        setBuildTime(15);
-      } else {
-        setBuildTime(2 * (foundationCount ** 2) + 3 * foundationCount + 10);
-      }
+      setBuildTime(9 * foundationCount + 15);
     }
   }, [initialConstructions, initialConstructionJobs, initializeGrid]);
 
@@ -199,6 +190,25 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
+    
+    if (cell.type === 'in_progress' && cell.ends_at) {
+      const originalGridData = gridData;
+      const newGrid = JSON.parse(JSON.stringify(gridData));
+      newGrid[y][x].type = 'empty';
+      newGrid[y][x].ends_at = undefined;
+      setGridData(updateCanBuild(newGrid));
+
+      const { error } = await supabase.rpc('cancel_foundation_construction', { p_x: x, p_y: y });
+
+      if (error) {
+        showError(error.message || "Erreur lors de l'annulation.");
+        setGridData(originalGridData);
+      } else {
+        showSuccess("Construction annulée.");
+        onUpdate();
+      }
+      return;
+    }
     
     if (cell.type === 'foundation') {
       setFoundationMenu({ isOpen: true, x, y });
@@ -259,13 +269,6 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     }
   };
 
-  const formatDuration = (totalSeconds: number): string => {
-    if (totalSeconds < 60) return `${totalSeconds}s`;
-    if (totalSeconds < 3600) return `${Math.round(totalSeconds / 60)}m`;
-    if (totalSeconds < 86400) return `${Math.round(totalSeconds / 3600)}h`;
-    return `${Math.round(totalSeconds / 86400)}j`;
-  };
-
   const getCellContent = (cell: BaseCell) => {
     if (cell.type === 'campfire') return "🔥";
     if (cell.type === 'foundation') return <Hammer className="w-6 h-6 text-gray-400" />;
@@ -284,15 +287,9 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       return (
         <div className="relative w-full h-full flex items-center justify-center group">
           <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
-          <div className="absolute bottom-1 left-0 right-0 flex justify-between px-1">
-            <div className="flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
-              <Zap size={12} className="text-yellow-400" />
-              <span className="text-white">5</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
-              <Clock size={12} className="text-sky-400" />
-              <span className="text-white">{formatDuration(buildTime)}</span>
-            </div>
+          <div className="absolute bottom-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
+            <Zap size={12} className="text-yellow-400" />
+            <span className="text-white">90</span>
           </div>
         </div>
       );
@@ -304,7 +301,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     switch (cell.type) {
       case 'campfire': return "bg-orange-400/20 border-orange-400/30";
       case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
-      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse";
+      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
       case 'empty':
         if (cell.canBuild) {
           if (hasActiveJob) {
@@ -355,7 +352,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
                   width: CELL_SIZE_PX,
                   height: CELL_SIZE_PX,
                 }}
-                disabled={(!cell.canBuild && cell.type !== 'foundation') || (cell.canBuild && hasActiveJob)}
+                disabled={(!cell.canBuild && cell.type !== 'foundation' && cell.type !== 'in_progress') || (cell.canBuild && hasActiveJob)}
               >
                 {getCellContent(cell)}
               </button>
