@@ -22,3 +22,10 @@ export interface ZoneItemEditorProps {
   zone: MapCell;
   onBack: () => void;
 }
+
+export interface Event {
+  id: number;
+  name: string;
+  description: string | null;
+  icon: string | null;
+}
