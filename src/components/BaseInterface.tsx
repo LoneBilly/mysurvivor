@@ -495,7 +495,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
     if (cell.canBuild) {
       if (optimisticHasActiveJob) {
-        return <div className="absolute inset-0 bg-black/50 rounded-lg"></div>;
+        return (
+          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+            <Clock className="w-6 h-6 text-gray-400" />
+          </div>
+        );
       }
       return (
         <div className="relative w-full h-full flex items-center justify-center group">
