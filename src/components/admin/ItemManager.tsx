@@ -16,7 +16,7 @@ import { Item } from '@/types/admin';
 import ItemFormModal from './ItemFormModal';
 import ItemIcon from '@/components/ItemIcon';
 import { getPublicIconUrl } from '@/utils/imageUrls';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 const ItemManager = () => {
   const [items, setItems] = useState<Item[]>([]);
