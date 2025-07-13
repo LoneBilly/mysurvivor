@@ -1,0 +1,217 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from '@/integrations/supabase/client';
+import { showError, showSuccess } from '@/utils/toast';
+import { Loader2, Search, Shield, Clock, Package, Check, X } from 'lucide-react';
+import { MapCell, Item } from '@/types/game';
+import ItemIcon from './ItemIcon';
+import { getCachedSignedUrl } from '@/utils/iconCache';
+
+const EXPLORATION_COST = 5;
+const EXPLORATION_DURATION_S = 30;
+
+interface FoundItem extends Item {
+  quantity: number;
+  signedIconUrl?: string;
+}
+
+interface ScoutedTarget {
+  target_player_id: string;
+  target_username: string;
+  base_zone_type: string;
+}
+
+interface ExplorationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  zone: MapCell | null;
+  onUpdate: () => void;
+}
+
+const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalProps) => {
+  const [activeTab, setActiveTab] = useState('exploration');
+  const [potentialLoot, setPotentialLoot] = useState<Item[]>([]);
+  const [scoutedTargets, setScoutedTargets] = useState<ScoutedTarget[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isExploring, setIsExploring] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [foundItems, setFoundItems] = useState<FoundItem[] | null>(null);
+
+  const fetchPotentialLoot = useCallback(async () => {
+    if (!zone) return;
+    setLoading(true);
+    const { data, error } = await supabase.from('zone_items').select('items(*)').eq('zone_id', zone.id);
+    if (error) {
+      showError("Impossible de charger les objets potentiels.");
+    } else {
+      setPotentialLoot(data.map(d => d.items).filter(Boolean) as Item[]);
+    }
+    setLoading(false);
+  }, [zone]);
+
+  const fetchScoutedTargets = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase.rpc('get_scouted_targets');
+    if (error) {
+      showError("Impossible de charger les cibles.");
+    } else {
+      setScoutedTargets(data || []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (activeTab === 'exploration') fetchPotentialLoot();
+      if (activeTab === 'pvp') fetchScoutedTargets();
+    } else {
+      // Reset state on close
+      setIsExploring(false);
+      setProgress(0);
+      setFoundItems(null);
+    }
+  }, [isOpen, activeTab, fetchPotentialLoot, fetchScoutedTargets]);
+
+  const handleStartExploration = async () => {
+    if (!zone) return;
+    const { error } = await supabase.rpc('start_exploration', { p_zone_id: zone.id });
+    if (error) {
+      showError(error.message);
+      return;
+    }
+    
+    onUpdate(); // Update energy display
+    setIsExploring(true);
+    setProgress(0);
+    setFoundItems(null);
+
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        const next = prev + 100 / EXPLORATION_DURATION_S;
+        if (next >= 100) {
+          clearInterval(interval);
+          finishExploration();
+          return 100;
+        }
+        return next;
+      });
+    }, 1000);
+  };
+
+  const finishExploration = async () => {
+    if (!zone) return;
+    const { data, error } = await supabase.rpc('finish_exploration', { p_zone_id: zone.id });
+    if (error) {
+      showError("Une erreur est survenue lors de la récupération du butin.");
+    } else {
+      const itemsWithUrls = await Promise.all(
+        (data as FoundItem[]).map(async (item) => {
+          if (item.icon && item.icon.includes('.')) {
+            const signedUrl = await getCachedSignedUrl(item.icon);
+            return { ...item, signedIconUrl: signedUrl || undefined };
+          }
+          return item;
+        })
+      );
+      setFoundItems(itemsWithUrls);
+    }
+    setIsExploring(false);
+    setProgress(0);
+  };
+
+  const handleCollectAll = async () => {
+    if (!foundItems || foundItems.length === 0) return;
+    const itemsToCollect = foundItems.map(item => ({ item_id: item.id, quantity: item.quantity }));
+    
+    const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: itemsToCollect });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Objets ajoutés à l'inventaire !");
+      setFoundItems(null);
+      onUpdate();
+    }
+  };
+
+  const handleDiscardAll = () => {
+    setFoundItems(null);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+        <DialogHeader className="text-center">
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl">{zone?.type || 'Exploration'}</DialogTitle>
+          <DialogDescription className="text-gray-300">Que voulez-vous faire dans cette zone ?</DialogDescription>
+        </DialogHeader>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="exploration"><Search className="w-4 h-4 mr-2" />Explorer</TabsTrigger>
+            <TabsTrigger value="pvp"><Shield className="w-4 h-4 mr-2" />PvP</TabsTrigger>
+          </TabsList>
+          <TabsContent value="exploration" className="mt-4">
+            {foundItems ? (
+              <div className="space-y-4">
+                <h3 className="font-bold text-center">Butin trouvé !</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-black/20 rounded-lg">
+                  {foundItems.length > 0 ? foundItems.map(item => (
+                    <div key={item.id} className="flex items-center gap-3 p-2 bg-white/10 rounded">
+                      <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                        <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
+                      </div>
+                      <p>{item.name} <span className="text-gray-400">x{item.quantity}</span></p>
+                    </div>
+                  )) : <p className="text-center text-gray-400 p-4">Vous n'avez rien trouvé cette fois-ci.</p>}
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleDiscardAll} variant="outline" className="w-full"><X className="w-4 h-4 mr-2" />Jeter</Button>
+                  <Button onClick={handleCollectAll} className="w-full" disabled={foundItems.length === 0}><Check className="w-4 h-4 mr-2" />Récupérer</Button>
+                </div>
+              </div>
+            ) : isExploring ? (
+              <div className="text-center space-y-3">
+                <p>Exploration en cours...</p>
+                <Progress value={progress} />
+                <p className="text-sm text-gray-400">Ne fermez pas cette fenêtre.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Butin potentiel :</h4>
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    <div className="flex flex-wrap gap-2">
+                      {potentialLoot.map(item => <span key={item.id} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>)}
+                    </div>
+                  )}
+                </div>
+                <Button onClick={handleStartExploration} className="w-full">
+                  Lancer l'exploration ({EXPLORATION_COST} énergie, {EXPLORATION_DURATION_S}s)
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="pvp" className="mt-4">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
+              <div className="space-y-2">
+                {scoutedTargets.length > 0 ? scoutedTargets.map(target => (
+                  <div key={target.target_player_id} className="flex justify-between items-center p-3 bg-white/10 rounded-lg">
+                    <div>
+                      <p className="font-bold">{target.target_username}</p>
+                      <p className="text-sm text-gray-400">Base: {target.base_zone_type}</p>
+                    </div>
+                    <Button disabled>Attaquer (bientôt)</Button>
+                  </div>
+                )) : <p className="text-center text-gray-400 p-4">Aucune cible repérée. Envoyez des éclaireurs !</p>}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default ExplorationModal;
