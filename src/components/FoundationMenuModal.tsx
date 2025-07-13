@@ -6,7 +6,6 @@ import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hamme
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 import { Item } from '@/types/game';
-import { getCachedSignedUrl } from '@/utils/iconCache';
 import ItemIcon from './ItemIcon';
 
 const buildings = [
@@ -43,7 +42,7 @@ const resourceToItemName: { [key: string]: string } = {
   components: 'Composants'
 };
 
-const CostDisplay = ({ resource, required, available, itemDetail }: { resource: string; required: number; available: number; itemDetail?: Item & { signedIconUrl?: string } }) => {
+const CostDisplay = ({ resource, required, available, itemDetail }: { resource: string; required: number; available: number; itemDetail?: Item & { iconUrl?: string } }) => {
   if (required === 0) return null;
   const hasEnough = available >= required;
   const isEnergy = resource === 'energy';
@@ -61,7 +60,7 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
                 <Zap className={cn("w-7 h-7", hasEnough ? "text-yellow-400" : "text-red-400")} />
               ) : (
                 itemDetail ? (
-                  <ItemIcon iconName={itemDetail.signedIconUrl || itemDetail.icon} alt={itemDetail.name} />
+                  <ItemIcon iconName={itemDetail.iconUrl || itemDetail.icon} alt={itemDetail.name} />
                 ) : (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 )
@@ -84,22 +83,18 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
 
 const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playerResources, items }: FoundationMenuModalProps) => {
   const [loading, setLoading] = useState(false);
-  const [itemDetails, setItemDetails] = useState<{[key: string]: Item & { signedIconUrl?: string }}>({});
+  const [itemDetails, setItemDetails] = useState<{[key: string]: Item & { iconUrl?: string }}>({});
 
   useEffect(() => {
-    const fetchItemDetails = async () => {
+    const fetchItemDetails = () => {
       const neededItemNames = Object.values(resourceToItemName);
       const itemsToFetch = items.filter(item => neededItemNames.includes(item.name));
       
-      const details: {[key: string]: Item & { signedIconUrl?: string }} = {};
+      const details: {[key: string]: Item & { iconUrl?: string }} = {};
       for (const item of itemsToFetch) {
         const key = Object.keys(resourceToItemName).find(k => resourceToItemName[k] === item.name);
         if (key) {
-          let signedIconUrl: string | undefined = undefined;
-          if (item.icon && item.icon.includes('.')) {
-            signedIconUrl = await getCachedSignedUrl(item.icon) || undefined;
-          }
-          details[key] = { ...item, signedIconUrl };
+          details[key] = item;
         }
       }
       setItemDetails(details);

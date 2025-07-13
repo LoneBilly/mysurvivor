@@ -8,7 +8,7 @@ import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Search, Shield, Package, Check, X, AlertTriangle } from 'lucide-react';
 import { MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
-import { getCachedSignedUrl } from '@/utils/iconCache';
+import { getItemIconUrl } from '@/utils/imageUrls';
 import * as LucideIcons from "lucide-react";
 
 const EXPLORATION_COST = 5;
@@ -21,7 +21,7 @@ interface FoundItem {
   icon: string | null;
   description: string | null;
   type: string;
-  signedIconUrl?: string;
+  iconUrl?: string;
 }
 
 interface EventResult {
@@ -106,15 +106,10 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       
       // Process loot
       if (loot && loot.length > 0) {
-        const itemsWithUrls = await Promise.all(
-          loot.map(async (item: FoundItem) => {
-            if (item.icon && item.icon.includes('.')) {
-              const signedUrl = await getCachedSignedUrl(item.icon);
-              return { ...item, signedIconUrl: signedUrl || undefined };
-            }
-            return item;
-          })
-        );
+        const itemsWithUrls = loot.map((item: FoundItem) => ({
+          ...item,
+          iconUrl: getItemIconUrl(item.icon) || undefined,
+        }));
         setFoundItems(itemsWithUrls);
       } else {
         setFoundItems(null);
@@ -272,7 +267,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                     {foundItems.map((item, index) => (
                       <div key={`${item.item_id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
                         <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                          <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
+                          <ItemIcon iconName={item.iconUrl || item.icon} alt={item.name} />
                         </div>
                         <p className="flex-grow">{item.name} <span className="text-gray-400">x{item.quantity}</span></p>
                         <div className="flex gap-2">

@@ -4,7 +4,7 @@ import ItemIcon from './ItemIcon';
 
 interface ResourceItemProps {
   icon: React.ElementType;
-  itemIcon?: Item & { signedIconUrl?: string };
+  itemIcon?: Item & { iconUrl?: string };
   label: string;
   value: number;
 }
@@ -13,7 +13,7 @@ const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps)
   <div className="flex items-center space-x-2 bg-white/5 px-2 sm:px-3 py-2 rounded-lg border border-white/10">
     <div className="w-5 h-5 relative">
       {itemIcon ? (
-        <ItemIcon iconName={itemIcon.signedIconUrl || itemIcon.icon} alt={itemIcon.name} />
+        <ItemIcon iconName={itemIcon.iconUrl || itemIcon.icon} alt={itemIcon.name} />
       ) : (
         <Icon className="w-5 h-5 text-white flex-shrink-0" />
       )}
@@ -30,9 +30,9 @@ interface BaseHeaderProps {
     components: number;
   };
   resourceItems: {
-    wood: (Item & { signedIconUrl?: string }) | undefined;
-    metal: (Item & { signedIconUrl?: string }) | undefined;
-    components: (Item & { signedIconUrl?: string }) | undefined;
+    wood: (Item & { iconUrl?: string }) | undefined;
+    metal: (Item & { iconUrl?: string }) | undefined;
+    components: (Item & { iconUrl?: string }) | undefined;
   };
 }
 
