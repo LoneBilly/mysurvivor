@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
 import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2 } from 'lucide-react';
-import ActionModal from './ActionModal';
 
 const buildings = [
   { name: 'Coffre basique', type: 'chest', energy: 20, icon: Box },
@@ -26,7 +25,6 @@ interface FoundationMenuModalProps {
 
 const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish }: FoundationMenuModalProps) => {
   const [loading, setLoading] = useState(false);
-  const [isDemolishModalOpen, setIsDemolishModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -49,60 +47,47 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish }: Fou
       showError("Erreur de coordonnées.");
       return;
     }
-    setIsDemolishModalOpen(false);
     setLoading(true);
     onClose();
     onDemolish(x, y);
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-          <DialogHeader>
-            <DialogTitle>Construire sur la fondation</DialogTitle>
-            <DialogDescription>Choisissez un bâtiment à construire. Chaque construction prend 1 minute.</DialogDescription>
-          </DialogHeader>
-          <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2 pr-2">
-            {buildings.map((b) => {
-              const Icon = b.icon;
-              return (
-                <div key={b.type} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-6 h-6 text-gray-300" />
-                    <div>
-                      <p className="font-semibold">{b.name}</p>
-                      <div className="flex items-center gap-3 text-xs text-gray-400">
-                        <span className="flex items-center gap-1"><Zap size={12} /> {b.energy}</span>
-                        <span className="flex items-center gap-1"><Clock size={12} /> 1m</span>
-                      </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+        <DialogHeader>
+          <DialogTitle>Construire sur la fondation</DialogTitle>
+          <DialogDescription>Choisissez un bâtiment à construire. Chaque construction prend 1 minute.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2 pr-2">
+          {buildings.map((b) => {
+            const Icon = b.icon;
+            return (
+              <div key={b.type} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Icon className="w-6 h-6 text-gray-300" />
+                  <div>
+                    <p className="font-semibold">{b.name}</p>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span className="flex items-center gap-1"><Zap size={12} /> {b.energy}</span>
+                      <span className="flex items-center gap-1"><Clock size={12} /> 1m</span>
                     </div>
                   </div>
-                  <Button onClick={() => handleBuildClick(b.type)} disabled={loading}>
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Construire'}
-                  </Button>
                 </div>
-              );
-            })}
-          </div>
-          <DialogFooter>
-            <Button variant="destructive" onClick={() => setIsDemolishModalOpen(true)} className="w-full flex items-center gap-2">
-              <Trash2 className="w-4 h-4" /> Démolir la fondation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <ActionModal
-        isOpen={isDemolishModalOpen}
-        onClose={() => setIsDemolishModalOpen(false)}
-        title="Confirmer la démolition"
-        description="Êtes-vous sûr de vouloir démolir cette fondation ? Cette action est irréversible."
-        actions={[
-          { label: "Confirmer", onClick: handleDemolishClick, variant: "destructive" },
-          { label: "Annuler", onClick: () => setIsDemolishModalOpen(false), variant: "secondary" },
-        ]}
-      />
-    </>
+                <Button onClick={() => handleBuildClick(b.type)} disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Construire'}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+        <DialogFooter>
+          <Button variant="destructive" onClick={handleDemolishClick} className="w-full flex items-center gap-2">
+            <Trash2 className="w-4 h-4" /> Démolir la fondation
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
