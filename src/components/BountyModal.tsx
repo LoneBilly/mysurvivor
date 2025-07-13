@@ -4,10 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Coins, Check, ChevronsUpDown, Shield } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from '@/lib/utils';
+import { Loader2, Coins, Shield } from 'lucide-react';
 
 interface BountyModalProps {
   isOpen: boolean;
@@ -23,7 +20,6 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) =
   const [selectedPlayer, setSelectedPlayer] = useState<TargetPlayer | null>(null);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   const fetchTargetPlayers = useCallback(async () => {
     setLoading(true);
@@ -87,30 +83,22 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) =
         <div className="py-4 space-y-4">
           <div>
             <label className="text-sm font-medium text-white font-mono">Cible</label>
-            <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between mt-1 bg-white/5 border-white/20 hover:bg-white/10 text-white">
-                  {selectedPlayer ? selectedPlayer.username : "Sélectionner un joueur..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command>
-                  <CommandInput placeholder="Rechercher un joueur..." />
-                  <CommandList>
-                    {loading ? <div className="p-2 text-center"><Loader2 className="w-4 h-4 animate-spin inline" /></div> : <CommandEmpty>Aucun joueur trouvé.</CommandEmpty>}
-                    <CommandGroup>
-                      {targetPlayers.map((player) => (
-                        <CommandItem key={player.id} value={player.username} onSelect={() => { setSelectedPlayer(player); setIsComboboxOpen(false); }}>
-                          <Check className={cn("mr-2 h-4 w-4", selectedPlayer?.id === player.id ? "opacity-100" : "opacity-0")} />
-                          {player.username}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <select
+              value={selectedPlayer?.id || ''}
+              onChange={(e) => {
+                const player = targetPlayers.find(p => p.id === e.target.value);
+                setSelectedPlayer(player || null);
+              }}
+              className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
+            >
+              <option value="" disabled>Sélectionner un joueur...</option>
+              {loading && <option disabled>Chargement des joueurs...</option>}
+              {!loading && targetPlayers.map((player) => (
+                <option key={player.id} value={player.id}>
+                  {player.username}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label htmlFor="bounty-amount" className="text-sm font-medium text-white font-mono">Montant de la prime</label>

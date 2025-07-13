@@ -113,24 +113,33 @@ const GameUI = () => {
     if (isCurrentPosition) {
       switch (interaction_type) {
         case 'Action':
-          const lowerCaseType = type.toLowerCase().trim();
-          if (lowerCaseType.includes('marché')) {
-            setIsMarketOpen(true);
-          } else if (lowerCaseType.includes('scouts')) {
-            setIsFactionScoutsModalOpen(true);
-          } else if (lowerCaseType.includes('metro') || lowerCaseType.includes('métro')) {
-            setIsMetroOpen(true);
-          } else if (lowerCaseType.includes('banque')) {
-            setIsBankOpen(true);
-          } else if (lowerCaseType.includes('commissariat')) {
-            setIsBountyOpen(true);
-          } else {
-            setModalState({
-              isOpen: true,
-              title: formatZoneName(type),
-              description: "Cette action n'est pas encore configurée.",
-              actions: [{ label: "Compris", onClick: closeModal }],
-            });
+          switch (id) {
+            case 10: // Marché
+              setIsMarketOpen(true);
+              break;
+            case 2: // Commissariat
+              setIsBountyOpen(true);
+              break;
+            case 23: // Metro
+              setIsMetroOpen(true);
+              break;
+            case 12: // Faction: Scouts
+              setIsFactionScoutsModalOpen(true);
+              break;
+            default:
+              // Fallback for actions not defined by ID, like the bank
+              const lowerCaseType = type.toLowerCase().trim();
+              if (lowerCaseType.includes('banque')) {
+                setIsBankOpen(true);
+              } else {
+                setModalState({
+                  isOpen: true,
+                  title: formatZoneName(type),
+                  description: "Cette action n'est pas encore configurée.",
+                  actions: [{ label: "Compris", onClick: closeModal }],
+                });
+              }
+              break;
           }
           break;
         
