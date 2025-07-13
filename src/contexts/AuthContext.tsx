@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, ReactNode, useMemo, use
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { showError } from '@/utils/toast';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   role: string | null;
   signOut: () => Promise<void>;
+  bannedInfo: { isBanned: boolean; reason: string | null };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,16 +31,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
+  const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
   const navigate = useNavigate();
   const location = useLocation();
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    setBannedInfo({ isBanned: false, reason: null });
     navigate('/');
   }, [navigate]);
 
   useEffect(() => {
     const checkUserAndProfile = async (session: Session | null) => {
+      setBannedInfo({ isBanned: false, reason: null });
       if (session?.user) {
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -50,13 +53,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         if (error && error.code !== 'PGRST116') {
           console.error('Error fetching profile:', error);
+          setLoading(false);
+          return;
         }
 
         if (profile) {
           if (profile.is_banned) {
-            await signOut();
-            const reason = profile.ban_reason ? `Raison : ${profile.ban_reason}` : "Aucune raison spécifiée.";
-            showError(`Votre compte a été banni. ${reason}`);
+            setBannedInfo({ isBanned: true, reason: profile.ban_reason });
+            setLoading(false);
             return;
           }
 
@@ -67,8 +71,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             navigate('/game');
           }
         }
-      } else {
-        setRole(null);
       }
       setLoading(false);
     };
@@ -88,7 +90,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate, location.pathname, signOut]);
+  }, [navigate, location.pathname]);
 
   const value = useMemo(() => ({
     user,
@@ -96,7 +98,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     loading,
     role,
     signOut,
-  }), [user, session, loading, role, signOut]);
+    bannedInfo,
+  }), [user, session, loading, role, signOut, bannedInfo]);
 
   return (
     <AuthContext.Provider value={value}>

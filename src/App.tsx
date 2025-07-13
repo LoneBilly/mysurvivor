@@ -11,9 +11,10 @@ import AdminRoute from './components/AdminRoute';
 import PublicRoute from './components/PublicRoute';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import BannedOverlay from './components/BannedOverlay';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, bannedInfo } = useAuth();
 
   if (loading) {
     return (
@@ -26,8 +27,73 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
     );
   }
 
+  if (bannedInfo.isBanned) {
+    return (
+      <div className="h-full flex items-center justify-center landing-page-bg">
+        <div className="text-center text-white">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+        </div>
+      </div>
+    );
+  }
+
   return user ? children : <Navigate to="/login" />;
 };
+
+const AppContent = () => {
+  const { bannedInfo } = useAuth();
+
+  return (
+    <>
+      {bannedInfo.isBanned && <BannedOverlay />}
+      <Routes>
+        <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        
+        <Route
+          path="/game"
+          element={
+            <PrivateRoute>
+              <Game />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/create-profile"
+          element={
+            <PrivateRoute>
+              <CreateProfile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Toaster
+        position="top-center"
+        richColors
+        className="z-[99999]"
+        toastOptions={{
+          classNames: {
+            toast: 'bg-slate-900/90 backdrop-blur-sm text-white border-slate-700/50 shadow-2xl pointer-events-auto',
+            title: 'text-sm font-semibold',
+            description: 'text-xs',
+            closeButton: 'absolute right-2.5 top-2.5 rounded-md p-1 text-white/50 opacity-80 hover:opacity-100 hover:text-white focus:opacity-100 focus:ring-2 focus:ring-white/50 transition-opacity',
+          },
+          onMouseDown: (e) => e.stopPropagation(),
+          onClick: (e) => e.stopPropagation(),
+        }}
+      />
+    </>
+  );
+}
 
 function App() {
   useEffect(() => {
@@ -52,51 +118,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          
-          <Route
-            path="/game"
-            element={
-              <PrivateRoute>
-                <Game />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/create-profile"
-            element={
-              <PrivateRoute>
-                <CreateProfile />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <Admin />
-              </AdminRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster
-          position="top-center"
-          richColors
-          className="z-[99999]"
-          toastOptions={{
-            classNames: {
-              toast: 'bg-slate-900/90 backdrop-blur-sm text-white border-slate-700/50 shadow-2xl pointer-events-auto',
-              title: 'text-sm font-semibold',
-              description: 'text-xs',
-              closeButton: 'absolute right-2.5 top-2.5 rounded-md p-1 text-white/50 opacity-80 hover:opacity-100 hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/50 transition-opacity',
-            },
-            onMouseDown: (e) => e.stopPropagation(),
-            onClick: (e) => e.stopPropagation(),
-          }}
-        />
+        <AppContent />
       </AuthProvider>
     </Router>
   );
