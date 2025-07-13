@@ -105,6 +105,7 @@ export interface Item {
   icon: string | null;
   type: string;
   use_action_text: string;
+  signedIconUrl?: string;
 }
 
 export interface MarketListing {

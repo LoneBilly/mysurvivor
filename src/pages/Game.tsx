@@ -14,12 +14,11 @@ const Game = () => {
   const [loading, setLoading] = useState(true);
   const [playerData, setPlayerData] = useState<FullPlayerData | null>(null);
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<(Item & { signedIconUrl?: string })[]>([]);
 
   const loadGameData = async (user: User) => {
     setLoading(true);
 
-    // Fetch all game data in parallel
     const [playerDataRes, mapDataRes, itemsDataRes, constructionJobsRes] = await Promise.all([
       supabase.rpc('get_full_player_data', { p_user_id: user.id }),
       supabase.from('map_layout').select('*'),
@@ -27,7 +26,6 @@ const Game = () => {
       supabase.from('construction_jobs').select('*').eq('player_id', user.id)
     ]);
 
-    // Handle Player Data
     if (playerDataRes.error) {
       showError("Erreur critique lors du chargement des données du joueur.");
       console.error(playerDataRes.error);
@@ -37,7 +35,6 @@ const Game = () => {
     const fullPlayerData = playerDataRes.data;
     fullPlayerData.constructionJobs = constructionJobsRes.data || [];
 
-    // Handle Map Data
     if (mapDataRes.error) {
       showError("Erreur critique lors du chargement de la carte.");
       console.error(mapDataRes.error);
@@ -46,33 +43,33 @@ const Game = () => {
     }
     setMapLayout(mapDataRes.data);
 
-    // Handle Items Data and Preload Icons
     if (itemsDataRes.error) {
       showError("Erreur critique lors du chargement des objets.");
       console.error(itemsDataRes.error);
       setLoading(false);
       return;
     }
-    const itemsData = itemsDataRes.data;
-    setItems(itemsData);
+    
+    const itemsData = itemsDataRes.data as Item[];
+    const enrichedItems = await Promise.all(
+      itemsData.map(async (item) => {
+        if (item.icon && item.icon.includes('.')) {
+          const signedUrl = await getCachedSignedUrl(item.icon);
+          return { ...item, signedIconUrl: signedUrl || undefined };
+        }
+        return item;
+      })
+    );
+    setItems(enrichedItems);
 
-    // Preload all item icons from storage to warm up the cache
-    const iconPreloadPromises = itemsData
-      .filter(item => item.icon && item.icon.includes('.'))
-      .map(item => getCachedSignedUrl(item.icon!));
-    await Promise.all(iconPreloadPromises);
-
-    // Now that cache is warm, populate inventory with signed URLs
     if (fullPlayerData.inventory) {
-      fullPlayerData.inventory = await Promise.all(
-        fullPlayerData.inventory.map(async (item: InventoryItem) => {
-          if (item.items?.icon && item.items.icon.includes('.')) {
-            const signedUrl = await getCachedSignedUrl(item.items.icon);
-            return { ...item, items: { ...item.items, signedIconUrl: signedUrl || undefined } };
-          }
-          return item;
-        })
-      );
+      fullPlayerData.inventory = fullPlayerData.inventory.map((invItem: InventoryItem) => {
+        const itemDetails = enrichedItems.find(i => i.id === invItem.item_id);
+        if (itemDetails && invItem.items) {
+          invItem.items.signedIconUrl = itemDetails.signedIconUrl;
+        }
+        return invItem;
+      });
     }
     setPlayerData(fullPlayerData);
 
@@ -95,15 +92,13 @@ const Game = () => {
       console.error(playerDataError || jobsError);
     } else {
        if (fullPlayerData.inventory) {
-        fullPlayerData.inventory = await Promise.all(
-          fullPlayerData.inventory.map(async (item: InventoryItem) => {
-            if (item.items?.icon && item.items.icon.includes('.')) {
-              const signedUrl = await getCachedSignedUrl(item.items.icon);
-              return { ...item, items: { ...item.items, signedIconUrl: signedUrl || undefined } };
-            }
-            return item;
-          })
-        );
+        fullPlayerData.inventory = fullPlayerData.inventory.map((invItem: InventoryItem) => {
+          const itemDetails = items.find(i => i.id === invItem.item_id);
+          if (itemDetails && invItem.items) {
+            invItem.items.signedIconUrl = itemDetails.signedIconUrl;
+          }
+          return invItem;
+        });
       }
       fullPlayerData.constructionJobs = constructionJobs || [];
       setPlayerData(fullPlayerData);
