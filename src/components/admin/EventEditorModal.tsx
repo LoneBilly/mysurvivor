@@ -235,3 +235,6 @@ const EventEditorModal = ({ isOpen, onClose, event, onSave }: EventEditorModalPr
       <ZoneIconEditorModal isOpen={isIconEditorOpen} onClose={() => setIsIconEditorOpen(false)} currentIcon={icon} onSave={setIcon} />
     </>
   );
+};
+
+export default EventEditorModal;
