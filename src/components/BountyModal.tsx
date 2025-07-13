@@ -94,7 +94,10 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) =
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+      <DialogContent 
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700"
+      >
         <DialogHeader className="text-center">
           <Shield className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Commissariat</DialogTitle>

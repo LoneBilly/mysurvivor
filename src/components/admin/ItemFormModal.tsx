@@ -216,7 +216,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
-          onOpenAutoFocus={item ? (e) => e.preventDefault() : undefined}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6"
         >
           <DialogHeader className="text-center">
@@ -227,7 +227,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           <form onSubmit={handleSubmit} className="space-y-4 pt-4">
             <div>
               <Label htmlFor="name" className="text-gray-300 font-mono">Nom</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} autoFocus={!item} />
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} />
               {checkingName && <Loader2 className="w-4 h-4 animate-spin text-white mt-1" />}
               {nameExists && !checkingName && <p className="text-red-400 text-sm mt-1">Ce nom existe déjà !</p>}
             </div>

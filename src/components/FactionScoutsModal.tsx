@@ -163,6 +163,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
+          onOpenAutoFocus={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => {
             const target = e.target as HTMLElement;
             if (target.closest('[data-sonner-toast]')) {
@@ -267,6 +268,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
 
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
         <DialogContent 
+          onOpenAutoFocus={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => {
             const target = e.target as HTMLElement;
             if (target.closest('[data-sonner-toast]')) {
