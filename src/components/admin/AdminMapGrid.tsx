@@ -31,12 +31,10 @@ const AdminMapGrid = ({ mapLayout, onMapUpdate, onZoneSelect }: AdminMapGridProp
     const grid: (MapCell | null)[][] = Array(7).fill(null).map(() => Array(7).fill(null));
     if (!mapLayout.length) return grid;
 
-    mapLayout
-      .filter(cell => cell.type !== 'unknown' && !(cell.x === 3 && cell.y === 1))
-      .forEach(cell => {
-        if (!grid[cell.y]) grid[cell.y] = Array(7).fill(null);
-        grid[cell.y][cell.x] = cell;
-      });
+    mapLayout.forEach(cell => {
+      if (!grid[cell.y]) grid[cell.y] = Array(7).fill(null);
+      grid[cell.y][cell.x] = cell;
+    });
     return grid;
   };
 

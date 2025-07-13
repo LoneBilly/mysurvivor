@@ -12,7 +12,8 @@ import { Item } from '@/types/admin';
 import * as LucideIcons from "lucide-react";
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
-import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface Event {
   id: number;
@@ -213,7 +214,7 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
             <div className="flex items-end"><Button onClick={handleSaveZoneEvent} disabled={!selectedZoneId} className="w-full">Ajouter</Button></div>
           </div>
           <div><Label>Effets (si succès)</Label><div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">{STAT_OPTIONS.map(stat => <div key={stat}><Label className="text-xs">{stat}</Label><Input type="number" min="-100" max="100" value={effects[stat] || ''} onChange={(e) => setEffects(prev => ({ ...prev, [stat]: Number(e.target.value) || 0 }))} className="bg-gray-800 border-gray-600" placeholder="0" /></div>)}</div></div>
-          <div><Label>Récompense d'objet (si succès)</Label><div className="grid grid-cols-2 gap-4 mt-2"><select value={rewardItem.id?.toString() || ''} onChange={(e) => setRewardItem(prev => ({ ...prev, id: Number(e.target.value) || null }))} className="w-full p-2 bg-gray-800 border border-gray-600 rounded"><option value="">Choisir un objet...</option>{allItems.map(item => <option key={item.id} value={item.id.toString()}>{item.name}</option>)}</select><div><Label className="text-xs">Quantité</Label><Input type="number" min="1" value={rewardItem.quantity} onChange={(e) => setRewardItem(prev => ({ ...prev, quantity: Number(e.target.value) || 1 }))} className="bg-gray-800 border-gray-600" /></div></div></div>
+          <div><Label>Récompense d'objet (si succès)</Label><div className="grid grid-cols-2 gap-4 mt-2"><Select value={rewardItem.id?.toString() || ''} onValueChange={(val) => setRewardItem(prev => ({ ...prev, id: Number(val) || null }))}><SelectTrigger className="bg-gray-800 border-gray-600"><SelectValue placeholder="Choisir un objet..." /></SelectTrigger><SelectContent>{allItems.map(item => <SelectItem key={item.id} value={item.id.toString()}>{item.name}</SelectItem>)}</SelectContent></Select><div><Label className="text-xs">Quantité</Label><Input type="number" min="1" value={rewardItem.quantity} onChange={(e) => setRewardItem(prev => ({ ...prev, quantity: Number(e.target.value) || 1 }))} className="bg-gray-800 border-gray-600" /></div></div></div>
           <div className="space-y-2">{zoneEvents.map(ze => { const zone = resourceZones.find(z => z.id === ze.zone_id); const item = allItems.find(i => i.id === ze.effects.item?.id); return (<div key={ze.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"><div className="flex-grow"><p className="font-semibold">{zone?.type} ({zone?.x}, {zone?.y})</p><p className="text-sm text-gray-400">Apparition: {ze.spawn_chance}% | Succès: {ze.success_chance}%</p>{ze.effects.stats && Object.keys(ze.effects.stats).length > 0 && <p className="text-xs text-blue-300">Effets: {Object.entries(ze.effects.stats).map(([s, v]) => `${v > 0 ? '+' : ''}${v} ${s}`).join(', ')}</p>}{ze.effects.item && <p className="text-xs text-green-300">Récompense: {item?.name} x{ze.effects.item.quantity}</p>}</div><Button size="sm" variant="destructive" onClick={() => handleRemoveZoneEvent(ze.id)}><Trash2 className="w-4 h-4" /></Button></div>); })}</div>
         </CardContent>
       </Card>

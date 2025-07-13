@@ -54,15 +54,13 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
 
     const discoveredSet = new Set(discoveredZones);
 
-    mapLayout
-      .filter(cell => cell.type !== 'unknown' && !(cell.x === 3 && cell.y === 1))
-      .forEach(cell => {
-        if (!grid[cell.y]) grid[cell.y] = [];
-        grid[cell.y][cell.x] = {
-          ...cell,
-          discovered: discoveredSet.has(cell.id),
-        };
-      });
+    mapLayout.forEach(cell => {
+      if (!grid[cell.y]) grid[cell.y] = [];
+      grid[cell.y][cell.x] = {
+        ...cell,
+        discovered: discoveredSet.has(cell.id),
+      };
+    });
     return grid;
   };
 
