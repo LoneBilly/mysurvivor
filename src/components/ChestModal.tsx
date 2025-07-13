@@ -2,7 +2,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction } from "@/types/game";
 import { Box, Trash2 } from "lucide-react";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChestModalProps {
   isOpen: boolean;
@@ -11,12 +12,22 @@ interface ChestModalProps {
   onUpdate: () => void;
 }
 
-const ChestModal = ({ isOpen, onClose, construction }: ChestModalProps) => {
+const ChestModal = ({ isOpen, onClose, construction, onUpdate }: ChestModalProps) => {
   if (!construction) return null;
 
-  const handleDemolish = () => {
-    showError("La démolition depuis cette modale sera bientôt disponible.");
-    onClose();
+  const handleDemolish = async () => {
+    const { error } = await supabase.rpc('demolish_building_to_foundation', {
+      p_x: construction.x,
+      p_y: construction.y,
+    });
+
+    if (error) {
+      showError(error.message || "Erreur lors de la démolition.");
+    } else {
+      showSuccess("Bâtiment démoli. Il reste une fondation.");
+      onUpdate();
+      onClose();
+    }
   };
 
   return (
