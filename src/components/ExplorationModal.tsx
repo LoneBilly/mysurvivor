@@ -46,6 +46,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [progress, setProgress] = useState(0);
   const [foundItems, setFoundItems] = useState<FoundItem[] | null>(null);
   const [inventoryFullError, setInventoryFullError] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(0);
 
   const fetchPotentialLoot = useCallback(async () => {
     if (!zone) return;
@@ -80,37 +81,11 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       setProgress(0);
       setFoundItems(null);
       setInventoryFullError(false);
+      setRemainingTime(0);
     }
   }, [isOpen, activeTab, fetchPotentialLoot, fetchScoutedTargets]);
 
-  const handleStartExploration = async () => {
-    if (!zone) return;
-    const { error } = await supabase.rpc('start_exploration', { p_zone_id: zone.id });
-    if (error) {
-      showError(error.message);
-      return;
-    }
-    
-    onUpdate(); // Update energy display
-    setIsExploring(true);
-    setProgress(0);
-    setFoundItems(null);
-    setInventoryFullError(false);
-
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        const next = prev + 100 / EXPLORATION_DURATION_S;
-        if (next >= 100) {
-          clearInterval(interval);
-          finishExploration();
-          return 100;
-        }
-        return next;
-      });
-    }, 1000);
-  };
-
-  const finishExploration = async () => {
+  const finishExploration = useCallback(async () => {
     if (!zone) return;
     const { data, error } = await supabase.rpc('finish_exploration', { p_zone_id: zone.id });
     if (error) {
@@ -125,10 +100,44 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
           return item;
         })
       );
-      setFoundItems(itemsWithUrls);
+      if (itemsWithUrls.length > 0) {
+        setFoundItems(itemsWithUrls);
+      } else {
+        setFoundItems(null);
+        showInfo("Vous n'avez rien trouvé cette fois-ci.");
+      }
     }
     setIsExploring(false);
+  }, [zone]);
+
+  useEffect(() => {
+    if (!isExploring) return;
+
+    if (remainingTime > 0) {
+      const timer = setTimeout(() => {
+        setRemainingTime(remainingTime - 1);
+        setProgress(prev => Math.min(100, prev + 100 / EXPLORATION_DURATION_S));
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      finishExploration();
+    }
+  }, [isExploring, remainingTime, finishExploration]);
+
+  const handleStartExploration = async () => {
+    if (!zone) return;
+    const { error } = await supabase.rpc('start_exploration', { p_zone_id: zone.id });
+    if (error) {
+      showError(error.message);
+      return;
+    }
+    
+    onUpdate(); // Update energy display
+    setIsExploring(true);
     setProgress(0);
+    setFoundItems(null);
+    setInventoryFullError(false);
+    setRemainingTime(EXPLORATION_DURATION_S);
   };
 
   const handleCollectOne = async (itemToCollect: FoundItem) => {
@@ -146,13 +155,19 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       }
     } else {
       showSuccess(`${itemToCollect.name} x${itemToCollect.quantity} ajouté à l'inventaire !`);
-      setFoundItems(currentItems => currentItems?.filter(item => item.item_id !== itemToCollect.item_id) || null);
+      setFoundItems(currentItems => {
+        const newItems = currentItems?.filter(item => item.item_id !== itemToCollect.item_id);
+        return newItems && newItems.length > 0 ? newItems : null;
+      });
       onUpdate();
     }
   };
 
   const handleDiscardOne = (itemToDiscard: FoundItem) => {
-    setFoundItems(currentItems => currentItems?.filter(item => item.item_id !== itemToDiscard.item_id) || null);
+    setFoundItems(currentItems => {
+      const newItems = currentItems?.filter(item => item.item_id !== itemToDiscard.item_id);
+      return newItems && newItems.length > 0 ? newItems : null;
+    });
     showInfo(`${itemToDiscard.name} a été jeté.`);
   };
 
@@ -178,7 +193,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               <div className="space-y-4">
                 <h3 className="font-bold text-center">Butin trouvé !</h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-black/20 rounded-lg">
-                  {foundItems.length > 0 ? foundItems.map((item, index) => (
+                  {foundItems.map((item, index) => (
                     <div key={`${item.item_id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
                       <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                         <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
@@ -189,12 +204,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                         <Button size="sm" variant="destructive" onClick={() => handleDiscardOne(item)}><X className="w-4 h-4" /></Button>
                       </div>
                     </div>
-                  )) : (
-                    <div className="text-center text-gray-400 p-4">
-                      <p>Vous avez tout traité.</p>
-                      <Button onClick={onClose} className="mt-2">Fermer</Button>
-                    </div>
-                  )}
+                  ))}
                 </div>
                 {inventoryFullError && (
                   <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center space-y-2">
@@ -209,7 +219,9 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               <div className="text-center space-y-3">
                 <p>Exploration en cours...</p>
                 <Progress value={progress} />
-                <p className="text-sm text-gray-400">Ne fermez pas cette fenêtre.</p>
+                <p className="text-sm text-gray-400 font-mono">
+                  Temps restant : {remainingTime}s
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
