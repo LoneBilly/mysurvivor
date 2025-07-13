@@ -32,6 +32,9 @@ const AdminMapGrid = ({ mapLayout, onMapUpdate, onZoneSelect }: AdminMapGridProp
     if (!mapLayout.length) return grid;
 
     mapLayout.forEach(cell => {
+      if (cell.type === 'unknown' || (cell.x === 3 && cell.y === 1)) {
+        return;
+      }
       if (!grid[cell.y]) grid[cell.y] = Array(7).fill(null);
       grid[cell.y][cell.x] = cell;
     });
