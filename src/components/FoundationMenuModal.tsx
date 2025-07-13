@@ -48,17 +48,22 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
       <Tooltip>
         <TooltipTrigger asChild>
           <div className={cn(
-            "relative w-16 h-16 bg-black/20 rounded-lg border flex flex-col items-center justify-center p-1 text-center",
+            "relative w-16 h-16 bg-black/20 rounded-lg border",
             hasEnough ? "border-white/10" : "border-red-500/50"
           )}>
-            <div className="w-8 h-8 flex items-center justify-center mb-1">
+            <div className="absolute inset-0 flex items-center justify-center">
               {itemDetail ? (
-                <ItemIcon iconName={iconUrl || itemDetail.icon} alt={itemDetail.name} />
+                <div className="w-8 h-8 relative">
+                  <ItemIcon iconName={iconUrl || itemDetail.icon} alt={itemDetail.name} />
+                </div>
               ) : (
                 <Loader2 className="w-5 h-5 animate-spin" />
               )}
             </div>
-            <span className={cn("text-xs font-mono", hasEnough ? "text-white" : "text-red-400")}>
+            <span className={cn(
+                "absolute bottom-1 right-1.5 text-sm font-bold z-10",
+                hasEnough ? "text-white" : "text-red-400"
+            )} style={{ textShadow: '1px 1px 2px black' }}>
               {required}
             </span>
           </div>
