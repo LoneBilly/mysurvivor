@@ -1,0 +1,117 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { supabase } from '@/integrations/supabase/client';
+import { showError, showSuccess } from '@/utils/toast';
+import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2 } from 'lucide-react';
+import ActionModal from './ActionModal';
+
+const buildings = [
+  { name: 'Coffre basique', type: 'chest', energy: 20, icon: Box },
+  { name: 'Mur', type: 'wall', energy: 10, icon: BrickWall },
+  { name: 'Tourelle', type: 'turret', energy: 50, icon: TowerControl },
+  { name: 'Groupe électrogène', type: 'generator', energy: 50, icon: Zap },
+  { name: 'Piège à loup', type: 'trap', energy: 30, icon: AlertTriangle },
+  { name: 'Établi', type: 'workbench', energy: 30, icon: Hammer },
+  { name: 'Four', type: 'furnace', energy: 30, icon: CookingPot },
+];
+
+interface FoundationMenuModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  x: number | null;
+  y: number | null;
+  onUpdate: () => void;
+}
+
+const FoundationMenuModal = ({ isOpen, onClose, x, y, onUpdate }: FoundationMenuModalProps) => {
+  const [loading, setLoading] = useState(false);
+  const [isDemolishModalOpen, setIsDemolishModalOpen] = useState(false);
+
+  const handleBuild = async (buildingType: string) => {
+    if (x === null || y === null) return;
+    setLoading(true);
+    const { error } = await supabase.rpc('start_building_on_foundation', {
+      p_x: x,
+      p_y: y,
+      p_building_type: buildingType,
+    });
+    setLoading(false);
+
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Construction démarrée !");
+      onUpdate();
+      onClose();
+    }
+  };
+
+  const handleDemolish = async () => {
+    if (x === null || y === null) return;
+    setIsDemolishModalOpen(false);
+    setLoading(true);
+    const { error } = await supabase.rpc('demolish_foundation', { p_x: x, p_y: y });
+    setLoading(false);
+
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Fondation démolie.");
+      onUpdate();
+      onClose();
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+          <DialogHeader>
+            <DialogTitle>Construire sur la fondation</DialogTitle>
+            <DialogDescription>Choisissez un bâtiment à construire. Chaque construction prend 1 minute.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2 pr-2">
+            {buildings.map((b) => {
+              const Icon = b.icon;
+              return (
+                <div key={b.type} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-6 h-6 text-gray-300" />
+                    <div>
+                      <p className="font-semibold">{b.name}</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span className="flex items-center gap-1"><Zap size={12} /> {b.energy}</span>
+                        <span className="flex items-center gap-1"><Clock size={12} /> 1m</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={() => handleBuild(b.type)} disabled={loading}>
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Construire'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="destructive" onClick={() => setIsDemolishModalOpen(true)} className="w-full flex items-center gap-2">
+              <Trash2 className="w-4 h-4" /> Démolir la fondation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ActionModal
+        isOpen={isDemolishModalOpen}
+        onClose={() => setIsDemolishModalOpen(false)}
+        title="Confirmer la démolition"
+        description="Êtes-vous sûr de vouloir démolir cette fondation ? Cette action est irréversible."
+        actions={[
+          { label: "Confirmer", onClick: handleDemolish, variant: "destructive" },
+          { label: "Annuler", onClick: () => setIsDemolishModalOpen(false), variant: "secondary" },
+        ]}
+      />
+    </>
+  );
+};
+
+export default FoundationMenuModal;

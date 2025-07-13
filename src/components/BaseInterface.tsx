@@ -1,16 +1,17 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob } from "@/types/game";
+import FoundationMenuModal from "./FoundationMenuModal";
 
 interface BaseCell {
   x: number;
   y: number;
-  type: 'campfire' | 'foundation' | 'empty' | 'in_progress';
+  type: string;
   canBuild?: boolean;
   ends_at?: string;
 }
@@ -71,6 +72,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const hasCentered = useRef(false);
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [buildTime, setBuildTime] = useState(0);
+  const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
 
   const hasActiveJob = initialConstructionJobs.length > 0;
 
@@ -132,7 +134,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     } else {
       currentConstructions.forEach((c: BaseConstruction) => {
         if (newGrid[c.y]?.[c.x]) {
-          newGrid[c.y][c.x].type = c.type as 'campfire' | 'foundation';
+          newGrid[c.y][c.x].type = c.type;
           if (c.type === 'campfire') {
             campPos = { x: c.x, y: c.y };
           }
@@ -192,6 +194,12 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
+    
+    if (cell.type === 'foundation') {
+      setFoundationMenu({ isOpen: true, x, y });
+      return;
+    }
+
     if (!cell.canBuild || cell.type !== 'empty' || hasActiveJob) return;
 
     const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
@@ -213,7 +221,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
 
   const getCellContent = (cell: BaseCell) => {
     if (cell.type === 'campfire') return "🔥";
-    if (cell.type === 'foundation') return "";
+    if (cell.type === 'foundation') return <Hammer className="w-6 h-6 text-gray-400" />;
     if (cell.type === 'in_progress' && cell.ends_at) {
       return (
         <div className="flex flex-col items-center justify-center text-white gap-1">
@@ -246,7 +254,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const getCellStyle = (cell: BaseCell) => {
     switch (cell.type) {
       case 'campfire': return "bg-orange-400/20 border-orange-400/30";
-      case 'foundation': return "bg-white/20 border-white/30";
+      case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
       case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse";
       case 'empty':
         if (cell.canBuild) {
@@ -256,7 +264,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
           return "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer border-dashed";
         }
         return "bg-black/20 border-white/10";
-      default: return "bg-black/20 border-white/10";
+      default: return "bg-gray-600/20 border-gray-500/30"; // Pour les autres types de bâtiments
     }
   };
 
@@ -298,7 +306,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
                   width: CELL_SIZE_PX,
                   height: CELL_SIZE_PX,
                 }}
-                disabled={!cell.canBuild || hasActiveJob}
+                disabled={(!cell.canBuild && cell.type !== 'foundation') || (cell.canBuild && hasActiveJob)}
               >
                 {getCellContent(cell)}
               </button>
@@ -320,6 +328,13 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       >
         <LocateFixed className="w-5 h-5" />
       </Button>
+      <FoundationMenuModal
+        isOpen={foundationMenu?.isOpen || false}
+        onClose={() => setFoundationMenu(null)}
+        x={foundationMenu?.x ?? null}
+        y={foundationMenu?.y ?? null}
+        onUpdate={onUpdate}
+      />
     </div>
   );
 };
