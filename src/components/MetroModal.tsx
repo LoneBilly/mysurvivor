@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Loader2, TramFront, Ticket } from 'lucide-react';
 import { MapCell } from '@/types/game';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useGame } from '@/contexts/GameContext';
 
 interface MetroModalProps {
@@ -96,18 +95,19 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
           </div>
           <div>
             <label htmlFor="destination" className="text-sm font-medium text-white font-mono">Destination</label>
-            <Select value={selectedZoneId} onValueChange={setSelectedZoneId}>
-              <SelectTrigger id="destination" className="w-full mt-1 bg-white/5 border-white/20">
-                <SelectValue placeholder="Choisir une destination..." />
-              </SelectTrigger>
-              <SelectContent>
-                {travelOptions.map(zone => (
-                  <SelectItem key={zone.id} value={zone.id.toString()}>
-                    {zone.type} ({zone.x}, {zone.y})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              id="destination"
+              value={selectedZoneId}
+              onChange={(e) => setSelectedZoneId(e.target.value)}
+              className="w-full mt-1 bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white focus:ring-white/30 focus:border-white/30"
+            >
+              <option value="" disabled>Choisir une destination...</option>
+              {travelOptions.map(zone => (
+                <option key={zone.id} value={zone.id.toString()}>
+                  {zone.type} ({zone.x}, {zone.y})
+                </option>
+              ))}
+            </select>
           </div>
           <Button onClick={handleTravel} disabled={loading || !selectedZoneId || metroTickets < 1} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Utiliser 1 ticket'}
