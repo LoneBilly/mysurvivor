@@ -326,7 +326,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                   className="w-full" 
                   disabled={!canExplore}
                 >
-                  {canExplore ? `Lancer l'exploration (${EXPLORATION_COST} énergie, ${EXPLORATION_DURATION_S}s)` : "Exploration impossible - Aucun butin disponible"}
+                  {canExplore ? `Lancer l'exploration (${EXPLORATION_COST} énergie, ${EXPLORATION_DURATION_S}s)` : "Exploration indisponible"}
                 </Button>
               </div>
             )}
