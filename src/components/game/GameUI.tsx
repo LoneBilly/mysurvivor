@@ -105,36 +105,47 @@ const GameUI = () => {
     }
 
     if (isCurrentPosition) {
-      const { count: lootCount } = await supabase.from('zone_items').select('*', { count: 'exact', head: true }).eq('zone_id', id);
-      
-      const actions: typeof modalState.actions = [];
-      if (isBaseLocation) actions.push({ label: "Aller au campement", onClick: handleEnterBase });
-      if (lootCount && lootCount > 0) actions.push({ label: "Explorer", onClick: () => handleExploreAction(cell) });
-      if (currentState.playerState.base_position_x === null) actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
-
-      if (actions.length === 1 && actions[0].label === "Explorer") {
-        handleExploreAction(cell);
-        return;
-      }
-
       switch (interaction_type) {
         case 'Action':
-          if (type === 'marché') setIsMarketOpen(true);
-          else if (type === 'Faction: Scouts') setIsFactionScoutsModalOpen(true);
-          else setModalState({ isOpen: true, title: formatZoneName(type), description: "Cette action n'est pas encore configurée.", actions: [{ label: "Compris", onClick: closeModal }] });
+          if (type === 'marché') {
+            setIsMarketOpen(true);
+          } else if (type === 'Faction: Scouts') {
+            setIsFactionScoutsModalOpen(true);
+          } else {
+            setModalState({
+              isOpen: true,
+              title: formatZoneName(type),
+              description: "Cette action n'est pas encore configurée.",
+              actions: [{ label: "Compris", onClick: closeModal }],
+            });
+          }
           break;
         
         case 'Ressource':
-          if (actions.length > 0) {
-            setModalState({ isOpen: true, title: formatZoneName(type), description: "Que souhaitez-vous faire ici ?", actions });
-          } else {
-            setModalState({ isOpen: true, title: formatZoneName(type), description: "Il n'y a rien à faire ici pour le moment.", actions: [{ label: "Compris", onClick: closeModal }] });
+          const actions: typeof modalState.actions = [];
+          if (isBaseLocation) {
+            actions.push({ label: "Aller au campement", onClick: handleEnterBase });
           }
+          actions.push({ label: "Explorer", onClick: () => handleExploreAction(cell) });
+          if (currentState.playerState.base_position_x === null) {
+            actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
+          }
+          setModalState({
+            isOpen: true,
+            title: formatZoneName(type),
+            description: "Que souhaitez-vous faire ici ?",
+            actions,
+          });
           break;
 
         case 'Non défini':
         default:
-          setModalState({ isOpen: true, title: formatZoneName(type), description: "Cette zone est pour le moment indisponible.", actions: [{ label: "Compris", onClick: closeModal }] });
+          setModalState({
+            isOpen: true,
+            title: formatZoneName(type),
+            description: "Cette zone est pour le moment indisponible.",
+            actions: [{ label: "Compris", onClick: closeModal }],
+          });
           break;
       }
     } else {
