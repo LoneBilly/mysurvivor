@@ -81,8 +81,18 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     if (!itemFrom) return;
 
     const itemTo = newSlots[toIndex];
-    newSlots[fromIndex] = itemTo;
-    newSlots[toIndex] = itemFrom;
+
+    // Optimistic update
+    if (itemTo && itemFrom.item_id === itemTo.item_id && itemFrom.items?.stackable) {
+      // Merge stacks
+      const newItemTo = { ...itemTo, quantity: itemTo.quantity + itemFrom.quantity };
+      newSlots[toIndex] = newItemTo;
+      newSlots[fromIndex] = null;
+    } else {
+      // Swap items
+      newSlots[fromIndex] = itemTo;
+      newSlots[toIndex] = itemFrom;
+    }
     setSlots(newSlots);
 
     const { error } = await supabase.rpc('swap_inventory_items', {
@@ -94,8 +104,10 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
         showError("Erreur de mise à jour de l'inventaire.");
         console.error(error);
         setSlots(originalSlots);
+    } else {
+        onUpdate(true);
     }
-  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user]);
+  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user, onUpdate]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {

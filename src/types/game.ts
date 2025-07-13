@@ -11,6 +11,7 @@ export interface ItemDetails {
   icon: string | null;
   type?: string;
   use_action_text: string;
+  stackable: boolean;
 }
 
 export interface InventoryItem {
