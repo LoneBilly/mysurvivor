@@ -134,7 +134,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     const newGrid = grid.map(row => row.map(cell => ({ ...cell, canBuild: false })));
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
-        if (newGrid[y][x].type === 'campfire' || newGrid[y][x].type === 'foundation') {
+        if (newGrid[y][x].type !== 'empty' && newGrid[y][x].type !== 'in_progress') {
           const adjacentPositions = [
             { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
           ];

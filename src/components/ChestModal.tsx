@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
-import { Box, Trash2 } from "lucide-react";
+import { Box, Trash2, Loader2 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
