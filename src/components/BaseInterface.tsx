@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface BaseCell {
   x: number;
@@ -80,6 +81,7 @@ interface BaseInterfaceProps {
 
 const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs, onUpdate }: BaseInterfaceProps) => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const [loading, setLoading] = useState(true);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const [buildTime, setBuildTime] = useState(0);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
+  const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
 
   const hasActiveJob = initialConstructionJobs.length > 0;
 
@@ -206,42 +209,54 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     }
   }, [isActive, loading, gridData, campfirePosition, centerViewport]);
 
+  const handleCancelConstruction = async (x: number, y: number) => {
+    if (!gridData) return;
+    const originalGridData = gridData;
+    const newGrid = JSON.parse(JSON.stringify(gridData));
+    newGrid[y][x].type = 'empty';
+    newGrid[y][x].ends_at = undefined;
+    newGrid[y][x].showTrash = false;
+    setGridData(updateCanBuild(newGrid));
+
+    const { error } = await supabase.rpc('cancel_construction_job', { p_x: x, p_y: y });
+
+    if (error) {
+      showError(error.message || "Erreur lors de l'annulation.");
+      setGridData(originalGridData);
+    } else {
+      onUpdate();
+    }
+  };
+
   const handleCellClick = async (x: number, y: number) => {
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
+    const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
     
     if (cell.type === 'in_progress' && cell.ends_at) {
-      if (cell.showTrash) {
-        const originalGridData = gridData;
-        const newGrid = JSON.parse(JSON.stringify(gridData));
-        newGrid[y][x].type = 'empty';
-        newGrid[y][x].ends_at = undefined;
-        newGrid[y][x].showTrash = false;
-        setGridData(updateCanBuild(newGrid));
-
-        const { error } = await supabase.rpc('cancel_foundation_construction', { p_x: x, p_y: y });
-
-        if (error) {
-          showError(error.message || "Erreur lors de l'annulation.");
-          setGridData(originalGridData);
+      if (isMobile) {
+        if (cell.showTrash) {
+          handleCancelConstruction(x, y);
         } else {
-          onUpdate();
+          const newGrid = JSON.parse(JSON.stringify(gridData));
+          newGrid[y][x].showTrash = true;
+          setGridData(newGrid);
+          setTimeout(() => {
+            setGridData(currentGrid => {
+              if (currentGrid && currentGrid[y][x].showTrash) {
+                const finalGrid = JSON.parse(JSON.stringify(currentGrid));
+                finalGrid[y][x].showTrash = false;
+                return finalGrid;
+              }
+              return currentGrid;
+            });
+          }, 2000);
         }
-      } else {
-        const newGrid = JSON.parse(JSON.stringify(gridData));
-        newGrid[y][x].showTrash = true;
-        setGridData(newGrid);
-        setTimeout(() => {
-          setGridData(currentGrid => {
-            if (currentGrid && currentGrid[y][x].showTrash) {
-              const finalGrid = JSON.parse(JSON.stringify(currentGrid));
-              finalGrid[y][x].showTrash = false;
-              return finalGrid;
-            }
-            return currentGrid;
-          });
-        }, 2000);
+      } else { // Desktop
+        if (isHovered) {
+          handleCancelConstruction(x, y);
+        }
       }
       return;
     }
@@ -320,7 +335,8 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
     if (cell.type === 'in_progress' && cell.ends_at) {
-      if (cell.showTrash) {
+      const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
+      if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
         return <Trash2 className="w-8 h-8 text-red-500" />;
       }
       return (
@@ -392,6 +408,8 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
               <button
                 key={`${x}-${y}`}
                 onClick={() => handleCellClick(x, y)}
+                onMouseEnter={() => !isMobile && cell.type === 'in_progress' && setHoveredConstruction({x, y})}
+                onMouseLeave={() => !isMobile && setHoveredConstruction(null)}
                 className={cn(
                   "absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
                   getCellStyle(cell)
