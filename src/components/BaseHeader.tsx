@@ -23,7 +23,7 @@ const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps)
           <Icon className="w-5 h-5 text-white flex-shrink-0" />
         )}
       </div>
-      <span className="hidden sm:inline font-mono text-sm text-gray-300">{label}:</span>
+      <span className="hidden sm:inline font-mono text-sm text-gray-300">{itemIcon?.name || label}:</span>
       <span className="font-mono text-sm font-bold text-white">{value}</span>
     </div>
   );
