@@ -8,11 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Event, MapCell } from '@/types/admin';
 import { Loader2, Trash2, HelpCircle } from 'lucide-react';
-import ActionModal from '../ActionModal';
+import ActionModal from '@/components/ActionModal';
 import ZoneIconEditorModal from './ZoneIconEditorModal';
 import * as LucideIcons from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ZoneEventSetting {
   zone_id: number;
