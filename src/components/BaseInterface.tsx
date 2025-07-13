@@ -539,7 +539,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
                   width: CELL_SIZE_PX,
                   height: CELL_SIZE_PX,
                 }}
-                disabled={(!cell.canBuild && !Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'in_progress') || (cell.canBuild && hasActiveJob) || (cell.type === 'foundation' && hasActiveJob)}
               >
                 {getCellContent(cell)}
               </button>
