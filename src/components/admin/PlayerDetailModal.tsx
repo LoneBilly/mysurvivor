@@ -34,7 +34,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
   const [isStatEditorOpen, setIsStatEditorOpen] = useState(false);
-  const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+  const [modalState, setModalState] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const [banReason, setBanReason] = useState('');
 
   const currentBaseZone = mapLayout.find(
@@ -103,13 +103,30 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
       showSuccess(`Le statut de ${player.username} a été mis à jour.`);
       onPlayerUpdate({ ...player, is_banned: newBanStatus, ban_reason: newBanStatus ? banReason : null });
     }
-    setIsBanModalOpen(false);
+    setModalState({ ...modalState, isOpen: false });
     setBanReason('');
   };
 
   const openBanModal = () => {
     setBanReason(player.ban_reason || '');
-    setIsBanModalOpen(true);
+    setModalState({
+      isOpen: true,
+      title: `${player.is_banned ? 'Lever le bannissement' : 'Bannir'} ${player.username}`,
+      description: (
+        <div className="space-y-2 mt-4">
+          <p>{`Êtes-vous sûr de vouloir ${player.is_banned ? 'autoriser de nouveau' : 'bannir'} ce joueur ?`}</p>
+          {!player.is_banned && (
+            <Textarea
+              placeholder="Raison du bannissement (optionnel)"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              className="bg-white/5 border-white/20"
+            />
+          )}
+        </div>
+      ),
+      onConfirm: handleToggleBan,
+    });
   };
 
   return (
@@ -200,24 +217,15 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
         </DialogContent>
       </Dialog>
       <ActionModal
-        isOpen={isBanModalOpen}
-        onClose={() => setIsBanModalOpen(false)}
-        title={`${player.is_banned ? 'Lever le bannissement' : 'Bannir'} ${player.username}`}
-        description={<p>{`Êtes-vous sûr de vouloir ${player.is_banned ? 'autoriser de nouveau' : 'bannir'} ce joueur ?`}</p>}
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+        title={modalState.title}
+        description={modalState.description}
         actions={[
-          { label: "Confirmer", onClick: handleToggleBan, variant: "destructive" },
-          { label: "Annuler", onClick: () => setIsBanModalOpen(false), variant: "secondary" },
+          { label: "Confirmer", onClick: modalState.onConfirm, variant: "destructive" },
+          { label: "Annuler", onClick: () => setModalState({ ...modalState, isOpen: false }), variant: "secondary" },
         ]}
-      >
-        {!player.is_banned && (
-          <Textarea
-            placeholder="Raison du bannissement (optionnel)"
-            value={banReason}
-            onChange={(e) => setBanReason(e.target.value)}
-            className="bg-white/5 border-white/20 mt-4"
-          />
-        )}
-      </ActionModal>
+      />
       <AdminInventoryModal 
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}

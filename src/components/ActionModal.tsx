@@ -19,10 +19,9 @@ interface ActionModalProps {
     onClick: () => void;
     variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null;
   }[];
-  children?: React.ReactNode;
 }
 
-const ActionModal = ({ isOpen, onClose, title, description, actions, children }: ActionModalProps) => {
+const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
@@ -38,7 +37,6 @@ const ActionModal = ({ isOpen, onClose, title, description, actions, children }:
             </DialogDescription>
           )}
         </DialogHeader>
-        {children}
         {actions.length > 0 && (
           <DialogFooter className="mt-6 sm:justify-center">
             <div className="flex w-full flex-col sm:flex-row gap-3">

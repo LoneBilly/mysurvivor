@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { MapCell } from "@/types/game";
 import { Lock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
-import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface GameGridProps {
   mapLayout: MapCell[];
@@ -24,6 +24,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
     y: number;
   } | null>(null);
 
+  // Recalculate container size on resize
   useEffect(() => {
     const updateSize = () => {
       if (!containerRef.current) return;
@@ -32,26 +33,29 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
       const parentWidth = container.clientWidth;
       const parentHeight = container.clientHeight;
       
+      // Use the smaller dimension to maintain aspect ratio
       const size = Math.min(parentWidth, parentHeight);
       setContainerSize(size);
     };
 
+    // Initial calculation
     updateSize();
+    
+    // Add resize listener
     window.addEventListener('resize', updateSize);
+    
+    // Cleanup
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const generateGrid = (): (MapCell & { discovered: boolean } | null)[][] => {
-    const grid: (MapCell & { discovered: boolean } | null)[][] = Array(7).fill(null).map(() => Array(7).fill(null));
+  const generateGrid = (): (MapCell & { discovered: boolean })[][] => {
+    const grid: (MapCell & { discovered: boolean })[][] = Array(7).fill(null).map(() => []);
     if (!mapLayout.length) return grid;
 
     const discoveredSet = new Set(discoveredZones);
 
     mapLayout.forEach(cell => {
-      if (cell.type === 'unknown' || (cell.x === 3 && cell.y === 1)) {
-        return;
-      }
-      if (!grid[cell.y]) grid[cell.y] = Array(7).fill(null);
+      if (!grid[cell.y]) grid[cell.y] = [];
       grid[cell.y][cell.x] = {
         ...cell,
         discovered: discoveredSet.has(cell.id),
@@ -61,6 +65,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   };
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
+    if (!cell || cell.type === 'unknown') return null;
     if (!cell.discovered) return <Lock className="w-1/2 h-1/2 text-gray-400" />;
     
     const IconComponent = cell.icon ? (LucideIcons as any)[cell.icon] : LucideIcons.Building2;
@@ -73,6 +78,10 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   };
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
+    if (!cell || cell.type === 'unknown') {
+      return "bg-black/20 border-transparent cursor-default";
+    }
+
     if (!cell.discovered) {
       return cn(
         "bg-white/5 border-white/10 text-gray-300 cursor-pointer",
@@ -93,7 +102,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   };
 
   const handleMouseEnter = (e: React.MouseEvent, cell: MapCell & { discovered: boolean }) => {
-    if (isMobile) return;
+    if (isMobile || !cell || cell.type === 'unknown') return;
     const content = cell.discovered ? formatZoneName(cell.type) : "Zone non découverte";
     setTooltip({
       visible: true,
@@ -135,31 +144,28 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
           >
             {grid.map((row, y) =>
               row.map((cell, x) => (
-                cell ? (
-                  <button
-                    key={`${x}-${y}`}
-                    onClick={() => onCellSelect(cell)}
-                    className={cn(
-                      "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
-                      getCellStyle(cell)
-                    )}
-                    onMouseEnter={(e) => handleMouseEnter(e, cell)}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    {getCellContent(cell)}
-                    {playerPosition.x === x && playerPosition.y === y && (
-                      <div className="absolute top-1 right-1 w-2.5 h-2.5">
-                        <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
-                        <div className="w-full h-full rounded-full bg-sky-400 relative border-2 border-gray-900"></div>
-                      </div>
-                    )}
-                    {basePosition && basePosition.x === x && basePosition.y === y && (
-                      <div className="absolute inset-0 border-2 border-dashed border-green-400/80 pointer-events-none rounded-lg"></div>
-                    )}
-                  </button>
-                ) : (
-                  <div key={`${x}-${y}`} className="aspect-square rounded-md" />
-                )
+                <button
+                  key={`${x}-${y}`}
+                  onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
+                  disabled={!cell || cell.type === 'unknown'}
+                  className={cn(
+                    "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
+                    getCellStyle(cell)
+                  )}
+                  onMouseEnter={(e) => cell && handleMouseEnter(e, cell)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {getCellContent(cell)}
+                  {playerPosition.x === x && playerPosition.y === y && (
+                    <div className="absolute top-1 right-1 w-2.5 h-2.5">
+                      <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
+                      <div className="w-full h-full rounded-full bg-sky-400 relative border-2 border-gray-900"></div>
+                    </div>
+                  )}
+                  {basePosition && basePosition.x === x && basePosition.y === y && (
+                    <div className="absolute inset-0 border-2 border-dashed border-green-400/80 pointer-events-none rounded-lg"></div>
+                  )}
+                </button>
               ))
             )}
           </div>
