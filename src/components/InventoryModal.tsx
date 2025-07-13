@@ -13,6 +13,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { InventoryItem } from "@/types/game";
 import ItemDetailModal from "./ItemDetailModal";
 import { useAuth } from "@/contexts/AuthContext";
+import QuantitySliderModal from "./QuantitySliderModal";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -29,6 +30,14 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
+  const [quantityModalState, setQuantityModalState] = useState<{
+    isOpen: boolean;
+    item: InventoryItem | null;
+    onConfirm: (quantity: number) => void;
+    title: string;
+    description?: string;
+    confirmLabel: string;
+  }>({ isOpen: false, item: null, onConfirm: () => {}, title: '', confirmLabel: 'Confirmer' });
   
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -168,45 +177,49 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     showError("Cette fonctionnalité n'est pas encore disponible.");
   };
 
-  const handleDropOneItem = async () => {
-    if (!detailedItem) return;
-
+  const performDrop = async (item: InventoryItem, quantity: number) => {
     let error;
-    if (detailedItem.quantity > 1) {
+    if (item.quantity > quantity) {
       ({ error } = await supabase
         .from('inventories')
-        .update({ quantity: detailedItem.quantity - 1 })
-        .eq('id', detailedItem.id));
+        .update({ quantity: item.quantity - quantity })
+        .eq('id', item.id));
     } else {
       ({ error } = await supabase
         .from('inventories')
         .delete()
-        .eq('id', detailedItem.id));
+        .eq('id', item.id));
     }
 
     if (error) {
       showError("Erreur lors de la suppression de l'objet.");
     } else {
-      showSuccess("Objet jeté.");
+      showSuccess(`${quantity} objet(s) jeté(s).`);
       setDetailedItem(null);
       onUpdate(true);
     }
   };
 
-  const handleDropAllItems = async () => {
+  const handleDropOneItem = () => {
     if (!detailedItem) return;
+    performDrop(detailedItem, 1);
+  };
 
-    const { error } = await supabase
-      .from('inventories')
-      .delete()
-      .eq('id', detailedItem.id);
-
-    if (error) {
-      showError("Erreur lors de la suppression des objets.");
+  const handleDropItems = () => {
+    if (!detailedItem) return;
+    if (detailedItem.quantity > 1) {
+      setQuantityModalState({
+        isOpen: true,
+        item: detailedItem,
+        title: "Jeter des objets",
+        description: "Choisissez combien d'objets jeter.",
+        confirmLabel: "Jeter",
+        onConfirm: (quantity) => {
+          performDrop(detailedItem, quantity);
+        }
+      });
     } else {
-      showSuccess("Objets jetés.");
-      setDetailedItem(null);
-      onUpdate(true);
+      performDrop(detailedItem, 1);
     }
   };
 
@@ -286,7 +299,16 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           item={detailedItem}
           onUse={handleUseItem}
           onDropOne={handleDropOneItem}
-          onDropAll={handleDropAllItems}
+          onDropAll={handleDropItems}
+        />
+        <QuantitySliderModal
+          isOpen={quantityModalState.isOpen}
+          onClose={() => setQuantityModalState({ ...quantityModalState, isOpen: false })}
+          item={quantityModalState.item}
+          onConfirm={quantityModalState.onConfirm}
+          title={quantityModalState.title}
+          description={quantityModalState.description}
+          confirmLabel={quantityModalState.confirmLabel}
         />
       </DialogContent>
     </Dialog>
