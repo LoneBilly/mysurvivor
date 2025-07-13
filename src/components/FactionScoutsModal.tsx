@@ -14,7 +14,6 @@ import ActionModal from './ActionModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from './ui/input';
 import CreditsInfo from './CreditsInfo';
-import CountdownTimer from './CountdownTimer'; // Import the new component
 
 interface FactionScoutsModalProps {
   isOpen: boolean;
@@ -33,7 +32,50 @@ interface FactionScoutsModalProps {
 type ScoutablePlayer = { id: string; username: string };
 
 const SCOUT_COST = 1000;
-const SCOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes in milliseconds
+const SCOUT_DURATION_MS = 30 * 60 * 1000;
+
+const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () => void }) => {
+  const calculateState = useCallback(() => {
+    const startTime = new Date(endTime).getTime() - SCOUT_DURATION_MS;
+    const now = Date.now();
+    const diff = new Date(endTime).getTime() - now;
+
+    if (diff <= 0) return { remaining: 'Terminé', progress: 100, isFinished: true };
+    
+    const minutes = Math.floor((diff / 1000 / 60) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+    const remaining = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    const progress = Math.min(100, ((now - startTime) / SCOUT_DURATION_MS) * 100);
+    return { remaining, progress, isFinished: false };
+  }, [endTime]);
+
+  const [state, setState] = useState(calculateState);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    if (state.isFinished) return;
+    const interval = setInterval(() => {
+      const newState = calculateState();
+      setState(newState);
+      if (newState.isFinished) {
+        clearInterval(interval);
+        onCompleteRef.current();
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [state.isFinished, calculateState]);
+
+  return (
+    <>
+      <Progress value={state.progress} className="h-2" />
+      <div className="flex items-center justify-between text-xs text-gray-400 mt-2">
+        <span>Progression</span>
+        <span className="font-mono">{state.remaining}</span>
+      </div>
+    </>
+  );
+};
 
 const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissions, loading, refreshScoutingData, onPurchaseCredits }: FactionScoutsModalProps) => {
   const [activeTab, setActiveTab] = useState('send');
@@ -164,7 +206,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
                               <span className="text-gray-300 flex items-center gap-1.5"><Users size={14} /> Cible</span>
                               <span className="font-bold">{mission.target_username}</span>
                             </div>
-                            <CountdownTimer endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={refreshScoutingData} totalDurationMs={SCOUT_DURATION_MS} />
+                            <Countdown endTime={new Date(new Date(mission.started_at).getTime() + SCOUT_DURATION_MS).toISOString()} onComplete={refreshScoutingData} />
                           </CardContent>
                         </Card>
                       ))
@@ -240,21 +282,30 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
             <DialogDescription className="text-gray-300">Choisissez une cible à espionner.</DialogDescription>
           </DialogHeader>
           <div className="py-4 flex flex-col items-center gap-6">
-            <select
-              value={selectedPlayer?.id || ''}
-              onChange={(e) => {
-                const player = scoutablePlayers.find(p => p.id === e.target.value);
-                setSelectedPlayer(player || null);
-              }}
-              className="w-full max-w-xs bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
-            >
-              <option value="" disabled>Sélectionner un joueur...</option>
-              {scoutablePlayers.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.username}
-                </option>
-              ))}
-            </select>
+            <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full max-w-xs justify-between bg-white/5 border-white/20 hover:bg-white/10 text-white">
+                  {selectedPlayer ? selectedPlayer.username : "Sélectionner un joueur..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Rechercher un joueur..." />
+                  <CommandList>
+                    <CommandEmpty>Aucun joueur trouvé.</CommandEmpty>
+                    <CommandGroup>
+                      {scoutablePlayers.map((player) => (
+                        <CommandItem key={player.id} value={player.username} onSelect={() => { setSelectedPlayer(player); setIsComboboxOpen(false); }}>
+                          <Check className={cn("mr-2 h-4 w-4", selectedPlayer?.id === player.id ? "opacity-100" : "opacity-0")} />
+                          {player.username}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <Button onClick={confirmSendScout} disabled={!selectedPlayer || sendScoutLoading || credits < SCOUT_COST} className="w-full max-w-xs">
               {sendScoutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                 <span className="flex items-center justify-center gap-2">

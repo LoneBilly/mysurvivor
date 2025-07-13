@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Loader2, Coins, Shield, List, PlusCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import CountdownTimer from './CountdownTimer';
 
 interface BountyModalProps {
   isOpen: boolean;
@@ -16,9 +15,7 @@ interface BountyModalProps {
 }
 
 type TargetPlayer = { id: string; username: string };
-type ActiveBounty = { placer_username: string; target_username: string; amount: number; created_at: string; expires_at: string };
-
-const BOUNTY_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+type ActiveBounty = { placer_username: string; target_username: string; amount: number; created_at: string };
 
 const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) => {
   const [activeTab, setActiveTab] = useState('place');
@@ -89,12 +86,7 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) =
     if (error) {
       showError(error.message);
     } else {
-      const existingBounty = activeBounties.find(b => b.target_username === selectedPlayer.username);
-      if (existingBounty) {
-        showSuccess(`Prime sur ${selectedPlayer.username} augmentée de ${bountyAmount} crédits et renouvelée pour 24h !`);
-      } else {
-        showSuccess(`Prime de ${bountyAmount} crédits placée sur ${selectedPlayer.username} !`);
-      }
+      showSuccess(`Prime de ${bountyAmount} crédits placée sur ${selectedPlayer.username} !`);
       onUpdate();
       onClose();
     }
@@ -164,7 +156,6 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) =
                   <div>
                     <p className="font-bold">{bounty.target_username}</p>
                     <p className="text-xs text-gray-400">Par: {bounty.placer_username}</p>
-                    <CountdownTimer endTime={bounty.expires_at} onComplete={fetchActiveBounties} totalDurationMs={BOUNTY_DURATION_MS} />
                   </div>
                   <div className="font-bold flex items-center gap-1 text-yellow-400">
                     {bounty.amount} <Coins size={14} />
