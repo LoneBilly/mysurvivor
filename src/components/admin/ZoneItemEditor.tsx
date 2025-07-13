@@ -10,7 +10,6 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
 import ZoneIconEditorModal from './ZoneIconEditorModal';
 import ItemFormModal from './ItemFormModal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const getZoneIconComponent = (iconName: string | null): React.ElementType => {
     if (!iconName) return LucideIcons.Map;
@@ -240,16 +239,11 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         </div>
         <div className="mt-4">
           <Label className="text-sm font-medium text-gray-400">Type d'interaction</Label>
-          <Select value={interactionType} onValueChange={(value: 'Ressource' | 'Action' | 'Non défini') => handleInteractionTypeSave(value)}>
-            <SelectTrigger className="w-full mt-1 bg-gray-900/50 border-gray-600">
-              <SelectValue placeholder="Définir le type d'interaction" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Ressource">Ressource (Exploration, Campement)</SelectItem>
-              <SelectItem value="Action">Action (Marché, Faction)</SelectItem>
-              <SelectItem value="Non défini">Non défini (Indisponible)</SelectItem>
-            </SelectContent>
-          </Select>
+          <select value={interactionType} onChange={(e) => handleInteractionTypeSave(e.target.value as any)} className="w-full mt-1 bg-gray-900/50 border-gray-600 p-2 rounded-lg">
+            <option value="Ressource">Ressource (Exploration, Campement)</option>
+            <option value="Action">Action (Marché, Faction)</option>
+            <option value="Non défini">Non défini (Indisponible)</option>
+          </select>
         </div>
         <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full sm:flex-1">
@@ -263,20 +257,15 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
             />
           </div>
           <div className="flex w-full sm:w-auto gap-3">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600">
-                <SelectValue placeholder="Filtrer par type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="Ressources">Ressources</SelectItem>
-                <SelectItem value="Armes">Armes</SelectItem>
-                <SelectItem value="Nourriture">Nourriture</SelectItem>
-                <SelectItem value="Soins">Soins</SelectItem>
-                <SelectItem value="Items divers">Items divers</SelectItem>
-                <SelectItem value="Items craftés">Items craftés</SelectItem>
-              </SelectContent>
-            </Select>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600 p-2 rounded-lg">
+              <option value="all">Tous les types</option>
+              <option value="Ressources">Ressources</option>
+              <option value="Armes">Armes</option>
+              <option value="Nourriture">Nourriture</option>
+              <option value="Soins">Soins</option>
+              <option value="Items divers">Items divers</option>
+              <option value="Items craftés">Items craftés</option>
+            </select>
             <Button onClick={handleCreateItem} className="flex-shrink-0">
               <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Ajouter</span>
