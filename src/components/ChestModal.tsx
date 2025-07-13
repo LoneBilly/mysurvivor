@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
-import { Box, Trash2, Loader2 } from "lucide-react";
+import { Box, Trash2 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
@@ -21,9 +21,8 @@ interface ChestModalProps {
 }
 
 const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
-  const { playerData } = useGame();
+  const { playerData, setPlayerData } = useGame();
   const [chestItems, setChestItems] = useState<ChestItem[]>([]);
-  const [loading, setLoading] = useState(false);
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
@@ -31,7 +30,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
   const fetchChestContents = useCallback(async () => {
     if (!construction) return;
-    setLoading(true);
     const { data, error } = await supabase
       .from('chest_items')
       .select('*, items(*)')
@@ -42,7 +40,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     } else {
       setChestItems(data as ChestItem[]);
     }
-    setLoading(false);
   }, [construction]);
 
   useEffect(() => {
@@ -104,45 +101,81 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       draggedItemNode.current = null;
     }
 
-    if (draggedItem && dragOver) {
-      const { source, index: fromIndex } = draggedItem;
-      const { target, index: toIndex } = dragOver;
+    if (!draggedItem || !dragOver) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
 
-      let error;
-      if (source === 'inventory' && target === 'inventory') {
-        ({ error } = await supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex }));
-      } else if (source === 'chest' && target === 'chest') {
-        if (!construction) return;
-        ({ error } = await supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex }));
-      } else if (source === 'inventory' && target === 'chest') {
-        const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
-        if (!itemToMove || !construction) return;
-        ({ error } = await supabase.rpc('move_item_to_chest', {
-            p_inventory_id: itemToMove.id,
-            p_chest_id: construction.id,
-            p_quantity_to_move: itemToMove.quantity,
-            p_target_slot: toIndex
-        }));
-      } else if (source === 'chest' && target === 'inventory') {
-        const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
-        if (!itemToMove) return;
-        ({ error } = await supabase.rpc('move_item_from_chest', {
-            p_chest_item_id: itemToMove.id,
-            p_quantity_to_move: itemToMove.quantity,
-            p_target_slot: toIndex
-        }));
-      }
+    const { source, index: fromIndex } = draggedItem;
+    const { target, index: toIndex } = dragOver;
 
-      if (error) {
-        showError(error.message || "Erreur de transfert.");
-      }
-      
-      await onUpdate();
-      await fetchChestContents();
+    if (source === target && fromIndex === toIndex) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
+
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    const originalChestItems = JSON.parse(JSON.stringify(chestItems));
+
+    let rpcPromise;
+
+    // Optimistic update
+    if (source === 'inventory' && target === 'inventory') {
+      const newPlayerData = JSON.parse(JSON.stringify(playerData));
+      const fromItem = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === fromIndex);
+      const toItem = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === toIndex);
+      if (fromItem) fromItem.slot_position = toIndex;
+      if (toItem) toItem.slot_position = fromIndex;
+      setPlayerData(newPlayerData);
+      rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
+    } else if (source === 'chest' && target === 'chest') {
+      const newChestItems = [...chestItems];
+      const fromItem = newChestItems.find(i => i.slot_position === fromIndex);
+      const toItem = newChestItems.find(i => i.slot_position === toIndex);
+      if (fromItem) fromItem.slot_position = toIndex;
+      if (toItem) toItem.slot_position = fromIndex;
+      setChestItems(newChestItems);
+      if (!construction) return;
+      rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
+    } else if (source === 'inventory' && target === 'chest') {
+      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
+      if (!itemToMove || !construction) return;
+      rpcPromise = supabase.rpc('move_item_to_chest', {
+          p_inventory_id: itemToMove.id,
+          p_chest_id: construction.id,
+          p_quantity_to_move: itemToMove.quantity,
+          p_target_slot: toIndex
+      });
+    } else if (source === 'chest' && target === 'inventory') {
+      const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
+      if (!itemToMove) return;
+      rpcPromise = supabase.rpc('move_item_from_chest', {
+          p_chest_item_id: itemToMove.id,
+          p_quantity_to_move: itemToMove.quantity,
+          p_target_slot: toIndex
+      });
     }
 
     setDraggedItem(null);
     setDragOver(null);
+
+    if (rpcPromise) {
+      // We don't show a loading state to make it feel instant
+      // We will refresh the state from the DB after the call to ensure consistency
+      const { error } = await rpcPromise;
+      if (error) {
+        showError(error.message || "Erreur de transfert.");
+        // Revert state on error
+        setPlayerData(originalPlayerData);
+        setChestItems(originalChestItems);
+      } else {
+        // Refresh data to get the true state from the server (handles merges, etc.)
+        await onUpdate();
+        await fetchChestContents();
+      }
+    }
   };
 
   useEffect(() => {
@@ -209,11 +242,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
           </DialogDescription>
         </DialogHeader>
         <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
-          {loading && (
-            <div className="absolute inset-0 bg-slate-800/50 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </div>
-          )}
           {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
           {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
         </div>
