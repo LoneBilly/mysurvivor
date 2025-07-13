@@ -33,7 +33,7 @@ interface BuildingDefinition {
 
 const resourceToItemName: { [key: string]: string } = {
   wood: 'Bois',
-  metal: 'Pierre', // This must remain 'Pierre' to match the item name in DB
+  metal: 'Pierre',
   components: 'Composants'
 };
 
@@ -44,7 +44,7 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
   const iconUrl = itemDetail ? getIconUrl(itemDetail.icon) : null;
 
   const displayName = useMemo(() => {
-    if (resource === 'metal') return 'Métal';
+    if (resource === 'metal') return 'Pierre';
     if (resource === 'wood') return 'Bois';
     if (resource === 'components') return 'Composants';
     return itemDetail?.name || resource;
