@@ -3,7 +3,7 @@ import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall,
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { showError, showSuccess } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
@@ -111,8 +111,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
     if (!user) return;
     setLoading(true);
-    hasCentered.current = false;
-
+    
     let currentConstructions = [...constructions];
     const campfire = currentConstructions.find(c => c.type === 'campfire');
     const isCampfireInvalid = !campfire || campfire.x >= GRID_SIZE || campfire.y >= GRID_SIZE;
@@ -192,6 +191,12 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     });
   }, []);
 
+  useEffect(() => {
+    if (!isActive) {
+      hasCentered.current = false;
+    }
+  }, [isActive]);
+
   useLayoutEffect(() => {
     if (isActive && !loading && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
@@ -206,7 +211,6 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     
     if (cell.type === 'in_progress' && cell.ends_at) {
       if (cell.showTrash) {
-        // Second click: cancel construction
         const originalGridData = gridData;
         const newGrid = JSON.parse(JSON.stringify(gridData));
         newGrid[y][x].type = 'empty';
@@ -220,11 +224,9 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
           showError(error.message || "Erreur lors de l'annulation.");
           setGridData(originalGridData);
         } else {
-          showSuccess("Construction annulée.");
           onUpdate();
         }
       } else {
-        // First click: show trash icon
         const newGrid = JSON.parse(JSON.stringify(gridData));
         newGrid[y][x].showTrash = true;
         setGridData(newGrid);
@@ -247,6 +249,11 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       return;
     }
 
+    if (Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'foundation' && cell.type !== 'campfire') {
+      showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
+      return;
+    }
+
     if (!cell.canBuild || cell.type !== 'empty' || hasActiveJob) return;
 
     const originalGridData = gridData;
@@ -261,7 +268,6 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       showError(error.message || "Erreur lors de la construction.");
       setGridData(originalGridData);
     } else {
-      showSuccess("Construction de la fondation démarrée !");
       onUpdate();
     }
   };
@@ -278,7 +284,6 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       showError(error.message);
       setGridData(originalGridData);
     } else {
-      showSuccess("Fondation démolie.");
       onUpdate();
     }
   };
@@ -296,7 +301,6 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       showError(error.message);
       setGridData(originalGridData);
     } else {
-      showSuccess("Construction démarrée !");
       onUpdate();
     }
   };
@@ -323,7 +327,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       return (
         <div className="relative w-full h-full flex items-center justify-center group">
           <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
-          <div className="absolute bottom-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
+          <div className="absolute top-1 right-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1.5 py-0.5 rounded">
             <Zap size={12} className="text-yellow-400" />
             <span className="text-white">90</span>
           </div>
@@ -346,7 +350,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
           return "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer border-dashed";
         }
         return "bg-black/20 border-white/10";
-      default: return "bg-gray-600/20 border-gray-500/30"; // Pour les autres types de bâtiments
+      default: return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
     }
   };
 
@@ -388,7 +392,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
                   width: CELL_SIZE_PX,
                   height: CELL_SIZE_PX,
                 }}
-                disabled={(!cell.canBuild && cell.type !== 'foundation' && cell.type !== 'in_progress') || (cell.canBuild && hasActiveJob) || (cell.type === 'foundation' && hasActiveJob)}
+                disabled={(!cell.canBuild && !Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'in_progress') || (cell.canBuild && hasActiveJob) || (cell.type === 'foundation' && hasActiveJob)}
               >
                 {getCellContent(cell)}
               </button>
