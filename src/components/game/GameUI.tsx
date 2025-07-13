@@ -19,6 +19,9 @@ import PurchaseCreditsModal from "../PurchaseCreditsModal";
 import FactionScoutsModal from "../FactionScoutsModal";
 import { useGame } from "@/contexts/GameContext";
 import ExplorationModal from "../ExplorationModal";
+import MetroModal from "../MetroModal";
+import BankModal from "../BankModal";
+import BountyModal from "../BountyModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -38,6 +41,9 @@ const GameUI = () => {
   const [isFactionScoutsModalOpen, setIsFactionScoutsModalOpen] = useState(false);
   const [isExplorationModalOpen, setIsExplorationModalOpen] = useState(false);
   const [selectedZoneForExploration, setSelectedZoneForExploration] = useState<MapCell | null>(null);
+  const [isMetroOpen, setIsMetroOpen] = useState(false);
+  const [isBankOpen, setIsBankOpen] = useState(false);
+  const [isBountyOpen, setIsBountyOpen] = useState(false);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -111,6 +117,12 @@ const GameUI = () => {
             setIsMarketOpen(true);
           } else if (type === 'Faction: Scouts') {
             setIsFactionScoutsModalOpen(true);
+          } else if (type === 'metro') {
+            setIsMetroOpen(true);
+          } else if (type === 'banque') {
+            setIsBankOpen(true);
+          } else if (type === 'commissariat') {
+            setIsBountyOpen(true);
           } else {
             setModalState({
               isOpen: true,
@@ -200,6 +212,8 @@ const GameUI = () => {
 
   if (!isViewReady) return <div className="h-full flex items-center justify-center bg-gray-950"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
 
+  const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
+
   return (
     <div className="h-full flex flex-col text-white">
       <GameHeader spawnDate={playerData.playerState.spawn_date} onLeaderboard={() => setIsLeaderboardOpen(true)} onOptions={() => setIsOptionsOpen(true)} currentView={currentView} onBackToMap={handleBackToMap} />
@@ -222,6 +236,9 @@ const GameUI = () => {
       <PurchaseCreditsModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
       <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={() => refreshPlayerData()} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} />
       <ExplorationModal isOpen={isExplorationModalOpen} onClose={() => setIsExplorationModalOpen(false)} zone={selectedZoneForExploration} onUpdate={refreshPlayerData} onOpenInventory={() => setIsInventoryOpen(true)} />
+      <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} onUpdate={refreshPlayerData} />
+      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshPlayerData} />
+      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} />
     </div>
   );
 };
