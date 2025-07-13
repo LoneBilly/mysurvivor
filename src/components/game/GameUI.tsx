@@ -114,15 +114,15 @@ const GameUI = () => {
       switch (interaction_type) {
         case 'Action':
           const lowerCaseType = type.toLowerCase().trim();
-          if (lowerCaseType === 'marché') {
+          if (lowerCaseType.includes('marché')) {
             setIsMarketOpen(true);
-          } else if (lowerCaseType === 'faction: scouts') {
+          } else if (lowerCaseType.includes('scouts')) {
             setIsFactionScoutsModalOpen(true);
-          } else if (lowerCaseType === 'metro' || lowerCaseType === 'métro') {
+          } else if (lowerCaseType.includes('metro') || lowerCaseType.includes('métro')) {
             setIsMetroOpen(true);
-          } else if (lowerCaseType === 'banque') {
+          } else if (lowerCaseType.includes('banque')) {
             setIsBankOpen(true);
-          } else if (lowerCaseType === 'commissariat') {
+          } else if (lowerCaseType.includes('commissariat')) {
             setIsBountyOpen(true);
           } else {
             setModalState({
