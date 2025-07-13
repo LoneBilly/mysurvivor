@@ -76,22 +76,25 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     const originalSlots = [...slots];
     const newSlots = [...slots];
-    const itemFrom = newSlots[fromIndex];
+    const fromItem = newSlots[fromIndex];
     
-    if (!itemFrom) return;
+    if (!fromItem) return;
 
-    const itemTo = newSlots[toIndex];
+    const toItem = newSlots[toIndex];
 
     // Optimistic update
-    if (itemTo && itemFrom.item_id === itemTo.item_id && itemFrom.items?.stackable) {
-      // Merge stacks
-      const newItemTo = { ...itemTo, quantity: itemTo.quantity + itemFrom.quantity };
-      newSlots[toIndex] = newItemTo;
+    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+      const fromItemInArr = newSlots[fromIndex]!;
+      const toItemInArr = newSlots[toIndex]!;
+      toItemInArr.quantity += fromItemInArr.quantity;
       newSlots[fromIndex] = null;
     } else {
-      // Swap items
-      newSlots[fromIndex] = itemTo;
-      newSlots[toIndex] = itemFrom;
+      const fromItemInArr = newSlots[fromIndex];
+      const toItemInArr = newSlots[toIndex];
+      newSlots[fromIndex] = toItemInArr;
+      newSlots[toIndex] = fromItemInArr;
+      if (fromItemInArr) fromItemInArr.slot_position = toIndex;
+      if (toItemInArr) toItemInArr.slot_position = fromIndex;
     }
     setSlots(newSlots);
 

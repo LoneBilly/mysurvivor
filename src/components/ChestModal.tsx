@@ -158,41 +158,79 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       document.body.removeChild(draggedItemNode.current);
       draggedItemNode.current = null;
     }
-
+  
     if (!draggedItem || !dragOver) {
       setDraggedItem(null);
       setDragOver(null);
       return;
     }
-
+  
     const { source, index: fromIndex } = draggedItem;
     const { target, index: toIndex } = dragOver;
-
+  
     setDraggedItem(null);
     setDragOver(null);
-
+  
     if (source === target && fromIndex === toIndex) return;
-
+  
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     const originalChestItems = JSON.parse(JSON.stringify(chestItems));
-
+  
+    // --- START OPTIMISTIC UPDATE ---
+    let newInventory = [...playerData.inventory];
+    let newChestItems = [...chestItems];
     let rpcPromise;
-
+  
+    const fromItem = source === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newChestItems.find(i => i.slot_position === fromIndex);
+    const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newChestItems.find(i => i.slot_position === toIndex);
+  
+    if (!fromItem) return;
+  
+    // Case 1: Merge
+    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+      if (source === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
+      else newChestItems = newChestItems.filter(i => i.id !== fromItem.id);
+  
+      if (target === 'inventory') newInventory = newInventory.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
+      else newChestItems = newChestItems.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
+    } 
+    // Case 2: Swap/Move
+    else {
+      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newChestItems.findIndex(i => i.id === fromItem.id);
+      const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newChestItems.splice(fromItemInSourceIdx, 1);
+      movedItem.slot_position = toIndex;
+  
+      if (toItem) {
+        const toItemInTargetIdx = target === 'inventory' ? newInventory.findIndex(i => i.id === toItem.id) : newChestItems.findIndex(i => i.id === toItem.id);
+        const [itemToSwap] = target === 'inventory' ? newInventory.splice(toItemInTargetIdx, 1) : newChestItems.splice(toItemInTargetIdx, 1);
+        itemToSwap.slot_position = fromIndex;
+        if (source === 'inventory') newInventory.push(itemToSwap);
+        else newChestItems.push(itemToSwap);
+      }
+  
+      if (target === 'inventory') newInventory.push(movedItem);
+      else newChestItems.push(movedItem);
+    }
+  
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+    setChestItems(newChestItems);
+    // --- END OPTIMISTIC UPDATE ---
+  
     if (source === 'inventory' && target === 'inventory') {
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'chest' && target === 'chest') {
       if (!construction) return;
       rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'inventory' && target === 'chest') {
-      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
+      const itemToMove = originalPlayerData.inventory.find(i => i.slot_position === fromIndex);
       if (!itemToMove || !construction) return;
       rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: itemToMove.id, p_chest_id: construction.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     } else if (source === 'chest' && target === 'inventory') {
-      const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
+      const itemToMove = originalChestItems.find(i => i.slot_position === fromIndex);
       if (!itemToMove) return;
       rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: itemToMove.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     }
-
+  
     if (rpcPromise) {
       const { error } = await rpcPromise;
       if (error) {
@@ -200,7 +238,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         setPlayerData(originalPlayerData);
         setChestItems(originalChestItems);
       } else {
-        await onUpdate();
+        await onUpdate(true);
         await fetchChestContents();
       }
     }
