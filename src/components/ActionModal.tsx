@@ -3,7 +3,6 @@ import {
   CustomDialogContent as DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/CustomDialog";
 import { Button } from "@/components/ui/button";
@@ -32,9 +31,9 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription className="text-gray-300 mt-2 text-base">
+            <div className="text-gray-300 mt-2 text-base">
               {description}
-            </DialogDescription>
+            </div>
           )}
         </DialogHeader>
         {actions.length > 0 && (

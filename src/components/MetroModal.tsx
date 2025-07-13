@@ -6,6 +6,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { Loader2, TramFront, Ticket } from 'lucide-react';
 import { MapCell } from '@/types/game';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useGame } from '@/contexts/GameContext';
 
 interface MetroModalProps {
   isOpen: boolean;
@@ -17,11 +18,23 @@ interface MetroModalProps {
 }
 
 const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, onUpdate }: MetroModalProps) => {
+  const { playerData } = useGame();
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [buyLoading, setBuyLoading] = useState(false);
+
+  const metroTickets = useMemo(() => {
+    const ticketItem = playerData.inventory.find(item => item.items?.name === 'Ticket de métro');
+    return ticketItem ? ticketItem.quantity : 0;
+  }, [playerData.inventory]);
 
   const travelOptions = useMemo(() => {
-    return mapLayout.filter(zone => discoveredZones.includes(zone.id) && zone.id !== currentZoneId);
+    return mapLayout.filter(zone => 
+      discoveredZones.includes(zone.id) && 
+      zone.id !== currentZoneId &&
+      zone.type !== 'unknown' &&
+      !(zone.x === 3 && zone.y === 1)
+    );
   }, [mapLayout, discoveredZones, currentZoneId]);
 
   useEffect(() => {
@@ -51,6 +64,18 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
     }
   };
 
+  const handleBuyTicket = async () => {
+    setBuyLoading(true);
+    const { error } = await supabase.rpc('buy_metro_ticket');
+    setBuyLoading(false);
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Ticket de métro acheté !");
+      onUpdate();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
@@ -60,9 +85,15 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
           <DialogDescription>Voyagez rapidement vers une zone découverte.</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <p className="text-center text-sm flex items-center justify-center gap-2">
-            Coût du voyage: 1 <Ticket className="w-4 h-4 inline-block" /> Ticket de métro
-          </p>
+          <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+            <div className="text-sm flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-yellow-400" />
+              <span>Vos tickets: <span className="font-bold">{metroTickets}</span></span>
+            </div>
+            <Button onClick={handleBuyTicket} size="sm" disabled={buyLoading}>
+              {buyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Acheter (10 crédits)'}
+            </Button>
+          </div>
           <div>
             <label htmlFor="destination" className="text-sm font-medium text-white font-mono">Destination</label>
             <Select value={selectedZoneId} onValueChange={setSelectedZoneId}>
@@ -78,8 +109,8 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={handleTravel} disabled={loading || !selectedZoneId} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Voyager'}
+          <Button onClick={handleTravel} disabled={loading || !selectedZoneId || metroTickets < 1} className="w-full">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Utiliser 1 ticket'}
           </Button>
         </div>
       </DialogContent>

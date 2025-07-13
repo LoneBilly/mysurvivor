@@ -80,7 +80,7 @@ const BankModal = ({ isOpen, onClose, credits, bankBalance, onUpdate }: BankModa
         <DialogHeader className="text-center">
           <Landmark className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Banque Centrale</DialogTitle>
-          <DialogDescription>Gérez vos finances en toute sécurité.</DialogDescription>
+          <DialogDescription>L'argent placé ici est en sécurité et ne sera pas perdu en cas de mort.</DialogDescription>
         </DialogHeader>
         <div className="text-center my-4 p-3 bg-white/5 rounded-lg">
           <p className="text-sm text-gray-400">Solde en main</p>
