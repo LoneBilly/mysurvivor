@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,11 +14,24 @@ interface BaseCell {
   type: string;
   canBuild?: boolean;
   ends_at?: string;
+  showTrash?: boolean;
 }
 
 const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
+
+const buildingIcons: { [key: string]: React.ElementType } = {
+  chest: Box,
+  wall: BrickWall,
+  turret: TowerControl,
+  generator: Zap,
+  trap: AlertTriangle,
+  workbench: Hammer,
+  furnace: CookingPot,
+  foundation: Hammer,
+  campfire: () => <>🔥</>,
+};
 
 const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
   const calculateRemaining = useCallback(() => {
@@ -110,7 +123,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false }))
+      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
     );
 
     let campPos: { x: number; y: number } | null = null;
@@ -192,25 +205,44 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     const cell = gridData[y][x];
     
     if (cell.type === 'in_progress' && cell.ends_at) {
-      const originalGridData = gridData;
-      const newGrid = JSON.parse(JSON.stringify(gridData));
-      newGrid[y][x].type = 'empty';
-      newGrid[y][x].ends_at = undefined;
-      setGridData(updateCanBuild(newGrid));
+      if (cell.showTrash) {
+        // Second click: cancel construction
+        const originalGridData = gridData;
+        const newGrid = JSON.parse(JSON.stringify(gridData));
+        newGrid[y][x].type = 'empty';
+        newGrid[y][x].ends_at = undefined;
+        newGrid[y][x].showTrash = false;
+        setGridData(updateCanBuild(newGrid));
 
-      const { error } = await supabase.rpc('cancel_foundation_construction', { p_x: x, p_y: y });
+        const { error } = await supabase.rpc('cancel_foundation_construction', { p_x: x, p_y: y });
 
-      if (error) {
-        showError(error.message || "Erreur lors de l'annulation.");
-        setGridData(originalGridData);
+        if (error) {
+          showError(error.message || "Erreur lors de l'annulation.");
+          setGridData(originalGridData);
+        } else {
+          showSuccess("Construction annulée.");
+          onUpdate();
+        }
       } else {
-        showSuccess("Construction annulée.");
-        onUpdate();
+        // First click: show trash icon
+        const newGrid = JSON.parse(JSON.stringify(gridData));
+        newGrid[y][x].showTrash = true;
+        setGridData(newGrid);
+        setTimeout(() => {
+          setGridData(currentGrid => {
+            if (currentGrid && currentGrid[y][x].showTrash) {
+              const finalGrid = JSON.parse(JSON.stringify(currentGrid));
+              finalGrid[y][x].showTrash = false;
+              return finalGrid;
+            }
+            return currentGrid;
+          });
+        }, 2000);
       }
       return;
     }
     
-    if (cell.type === 'foundation') {
+    if (cell.type === 'foundation' && !hasActiveJob) {
       setFoundationMenu({ isOpen: true, x, y });
       return;
     }
@@ -270,9 +302,13 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   };
 
   const getCellContent = (cell: BaseCell) => {
-    if (cell.type === 'campfire') return "🔥";
-    if (cell.type === 'foundation') return <Hammer className="w-6 h-6 text-gray-400" />;
+    const Icon = buildingIcons[cell.type];
+    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
+
     if (cell.type === 'in_progress' && cell.ends_at) {
+      if (cell.showTrash) {
+        return <Trash2 className="w-8 h-8 text-red-500" />;
+      }
       return (
         <div className="flex flex-col items-center justify-center text-white gap-1">
           <Loader2 className="w-5 h-5 animate-spin" />
@@ -352,7 +388,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
                   width: CELL_SIZE_PX,
                   height: CELL_SIZE_PX,
                 }}
-                disabled={(!cell.canBuild && cell.type !== 'foundation' && cell.type !== 'in_progress') || (cell.canBuild && hasActiveJob)}
+                disabled={(!cell.canBuild && cell.type !== 'foundation' && cell.type !== 'in_progress') || (cell.canBuild && hasActiveJob) || (cell.type === 'foundation' && hasActiveJob)}
               >
                 {getCellContent(cell)}
               </button>
