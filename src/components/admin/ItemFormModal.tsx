@@ -16,6 +16,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Loader2, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
+import { getPublicIconUrl } from '@/utils/imageUrls';
 import ActionModal from '../ActionModal';
 
 interface ItemFormModalProps {
@@ -66,9 +67,9 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
       if (initialIcon) {
         setIsValidatingIcon(true);
-        const { data: urlData } = supabase.storage.from('items.icons').getPublicUrl(initialIcon);
-        if (urlData.publicUrl) {
-          setPreviewUrl(urlData.publicUrl);
+        const url = getPublicIconUrl(initialIcon);
+        if (url) {
+          setPreviewUrl(url);
           setIconExists(true); 
         } else {
           setIconExists(false);
@@ -134,8 +135,8 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         return;
       }
       setIsValidatingIcon(true);
-      const { data: urlData } = supabase.storage.from('items.icons').getPublicUrl(debouncedIcon);
-      setPreviewUrl(urlData.publicUrl);
+      const url = getPublicIconUrl(debouncedIcon);
+      setPreviewUrl(url);
       setIsValidatingIcon(false);
     };
 

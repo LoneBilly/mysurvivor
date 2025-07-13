@@ -8,6 +8,7 @@ import GameUI from '@/components/game/GameUI';
 import { showError } from '@/utils/toast';
 import { GameProvider } from '@/contexts/GameContext';
 import { preloadImages } from '@/utils/preloadImages';
+import { getPublicIconUrl } from '@/utils/imageUrls';
 
 const Game = () => {
   const { user } = useAuth();
@@ -44,10 +45,10 @@ const Game = () => {
     const urlsToPreload: string[] = [];
     for (const item of itemsData) {
       if (item.icon) {
-        const { data: urlData } = supabase.storage.from('items.icons').getPublicUrl(item.icon);
-        if (urlData.publicUrl) {
-          urlMap.set(item.icon, urlData.publicUrl);
-          urlsToPreload.push(urlData.publicUrl);
+        const publicUrl = getPublicIconUrl(item.icon);
+        if (publicUrl) {
+          urlMap.set(item.icon, publicUrl);
+          urlsToPreload.push(publicUrl);
         }
       }
     }
