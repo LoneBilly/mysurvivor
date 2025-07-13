@@ -52,8 +52,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
   };
 
   const handleInteractionEnd = () => {
-    if (interactionState.current && !interactionState.current.isDragging) {
-      onItemClick(item!);
+    if (item && interactionState.current && !interactionState.current.isDragging) {
+      onItemClick(item);
     }
     interactionState.current = null;
   };

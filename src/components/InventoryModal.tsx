@@ -287,6 +287,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           onUse={handleUseItem}
           onDropOne={handleDropOneItem}
           onDropAll={handleDropAllItems}
+          source="inventory"
         />
       </DialogContent>
     </Dialog>

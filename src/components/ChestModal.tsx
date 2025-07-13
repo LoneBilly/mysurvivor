@@ -4,9 +4,10 @@ import { BaseConstruction, InventoryItem } from "@/types/game";
 import { Box, Trash2 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
+import ItemDetailModal from "./ItemDetailModal";
 
 const CHEST_SLOTS = 10;
 
@@ -23,6 +24,7 @@ interface ChestModalProps {
 const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
   const { playerData, setPlayerData } = useGame();
   const [chestItems, setChestItems] = useState<ChestItem[]>([]);
+  const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
@@ -50,6 +52,62 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
   const handleDemolishClick = () => {
     onDemolish(construction!);
+  };
+
+  const handleItemClick = (item: InventoryItem, source: 'inventory' | 'chest') => {
+    if (item) {
+      setDetailedItem({ item, source });
+    }
+  };
+
+  const handleTransfer = async (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => {
+    if (!construction) return;
+    setDetailedItem(null);
+
+    let rpcName: string;
+    let rpcParams: any;
+
+    if (source === 'inventory') {
+      rpcName = 'move_item_to_chest';
+      rpcParams = { p_inventory_id: item.id, p_chest_id: construction.id, p_quantity_to_move: quantity };
+    } else {
+      rpcName = 'move_item_from_chest';
+      rpcParams = { p_chest_item_id: item.id, p_quantity_to_move: quantity };
+    }
+
+    const { error } = await supabase.rpc(rpcName, rpcParams);
+
+    if (error) {
+      showError(error.message || "Erreur de transfert.");
+    } else {
+      showSuccess("Transfert réussi.");
+    }
+    await onUpdate();
+    await fetchChestContents();
+  };
+
+  const handleDrop = async (item: InventoryItem, source: 'inventory' | 'chest', quantity: number) => {
+    setDetailedItem(null);
+    let rpcPromise;
+    if (source === 'chest') {
+      rpcPromise = supabase.rpc('drop_chest_item', { p_chest_item_id: item.id, p_quantity_to_drop: quantity });
+    } else {
+      const action = item.quantity > quantity ? 'update' : 'delete';
+      if (action === 'delete') {
+        rpcPromise = supabase.from('inventories').delete().eq('id', item.id);
+      } else {
+        rpcPromise = supabase.from('inventories').update({ quantity: item.quantity - quantity }).eq('id', item.id);
+      }
+    }
+    
+    const { error } = await rpcPromise;
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Objet jeté.");
+      await onUpdate();
+      await fetchChestContents();
+    }
   };
 
   const handleDragStart = (index: number, source: 'inventory' | 'chest', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
@@ -110,68 +168,38 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     const { source, index: fromIndex } = draggedItem;
     const { target, index: toIndex } = dragOver;
 
-    if (source === target && fromIndex === toIndex) {
-      setDraggedItem(null);
-      setDragOver(null);
-      return;
-    }
+    setDraggedItem(null);
+    setDragOver(null);
+
+    if (source === target && fromIndex === toIndex) return;
 
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     const originalChestItems = JSON.parse(JSON.stringify(chestItems));
 
     let rpcPromise;
 
-    // Optimistic update
     if (source === 'inventory' && target === 'inventory') {
-      const newPlayerData = JSON.parse(JSON.stringify(playerData));
-      const fromItem = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === fromIndex);
-      const toItem = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === toIndex);
-      if (fromItem) fromItem.slot_position = toIndex;
-      if (toItem) toItem.slot_position = fromIndex;
-      setPlayerData(newPlayerData);
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'chest' && target === 'chest') {
-      const newChestItems = [...chestItems];
-      const fromItem = newChestItems.find(i => i.slot_position === fromIndex);
-      const toItem = newChestItems.find(i => i.slot_position === toIndex);
-      if (fromItem) fromItem.slot_position = toIndex;
-      if (toItem) toItem.slot_position = fromIndex;
-      setChestItems(newChestItems);
       if (!construction) return;
       rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'inventory' && target === 'chest') {
       const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
       if (!itemToMove || !construction) return;
-      rpcPromise = supabase.rpc('move_item_to_chest', {
-          p_inventory_id: itemToMove.id,
-          p_chest_id: construction.id,
-          p_quantity_to_move: itemToMove.quantity,
-          p_target_slot: toIndex
-      });
+      rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: itemToMove.id, p_chest_id: construction.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     } else if (source === 'chest' && target === 'inventory') {
       const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
       if (!itemToMove) return;
-      rpcPromise = supabase.rpc('move_item_from_chest', {
-          p_chest_item_id: itemToMove.id,
-          p_quantity_to_move: itemToMove.quantity,
-          p_target_slot: toIndex
-      });
+      rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: itemToMove.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     }
 
-    setDraggedItem(null);
-    setDragOver(null);
-
     if (rpcPromise) {
-      // We don't show a loading state to make it feel instant
-      // We will refresh the state from the DB after the call to ensure consistency
       const { error } = await rpcPromise;
       if (error) {
         showError(error.message || "Erreur de transfert.");
-        // Revert state on error
         setPlayerData(originalPlayerData);
         setChestItems(originalChestItems);
       } else {
-        // Refresh data to get the true state from the server (handles merges, etc.)
         await onUpdate();
         await fetchChestContents();
       }
@@ -216,7 +244,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
                 index={index}
                 isUnlocked={type === 'chest' || index < playerData.playerState.unlocked_slots}
                 onDragStart={(idx, node, e) => handleDragStart(idx, type, node, e)}
-                onItemClick={() => {}}
+                onItemClick={(clickedItem) => handleItemClick(clickedItem, type)}
                 isBeingDragged={draggedItem?.source === type && draggedItem?.index === index}
                 isDragOver={dragOver?.target === type && dragOver?.index === index}
               />
@@ -230,29 +258,41 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   if (!construction) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <Box className="w-7 h-7 text-white" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Coffre</DialogTitle>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <Box className="w-7 h-7 text-white" />
+              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Coffre</DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
+              Stockez vos objets en sécurité.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
+            {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
+            {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
-          <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
-            Stockez vos objets en sécurité.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
-          {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
-          {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
-        </div>
-        <DialogFooter className="mt-4">
-          <Button variant="destructive" onClick={handleDemolishClick}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Détruire le coffre
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="mt-4">
+            <Button variant="destructive" onClick={handleDemolishClick}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Détruire le coffre
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ItemDetailModal
+        isOpen={!!detailedItem}
+        onClose={() => setDetailedItem(null)}
+        item={detailedItem?.item || null}
+        source={detailedItem?.source}
+        onTransfer={handleTransfer}
+        onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
+        onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
+        onUse={() => {}}
+      />
+    </>
   );
 };
 
