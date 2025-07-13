@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Loader2, TramFront, Ticket } from 'lucide-react';
-import { MapCell } from '@/types/game';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MapCell, InventoryItem } from '@/types/game';
 
 interface MetroModalProps {
   isOpen: boolean;
@@ -14,11 +13,16 @@ interface MetroModalProps {
   discoveredZones: number[];
   currentZoneId: number;
   onUpdate: () => void;
+  inventory: InventoryItem[];
+  credits: number;
 }
 
-const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, onUpdate }: MetroModalProps) => {
+const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, onUpdate, inventory, credits }: MetroModalProps) => {
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  const ticketItem = useMemo(() => inventory.find(item => item.items?.name === 'Ticket de métro'), [inventory]);
+  const ticketCount = ticketItem?.quantity || 0;
 
   const travelOptions = useMemo(() => {
     return mapLayout.filter(zone => discoveredZones.includes(zone.id) && zone.id !== currentZoneId);
@@ -29,6 +33,18 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
       setSelectedZoneId('');
     }
   }, [isOpen]);
+
+  const handleBuyTicket = async () => {
+    setLoading(true);
+    const { error } = await supabase.rpc('buy_metro_ticket');
+    setLoading(false);
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Ticket de métro acheté !");
+      onUpdate();
+    }
+  };
 
   const handleTravel = async () => {
     if (!selectedZoneId) {
@@ -60,25 +76,30 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
           <DialogDescription>Voyagez rapidement vers une zone découverte.</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <p className="text-center text-sm flex items-center justify-center gap-2">
-            Coût du voyage: 1 <Ticket className="w-4 h-4 inline-block" /> Ticket de métro
-          </p>
+          <div className="text-center p-3 bg-white/5 rounded-lg">
+            <p className="text-sm text-gray-400">Vos tickets</p>
+            <p className="text-lg font-bold flex items-center justify-center gap-2">{ticketCount} <Ticket className="w-4 h-4" /></p>
+            <Button variant="link" onClick={handleBuyTicket} disabled={loading || credits < 10} className="text-sm h-auto p-0 mt-2 text-yellow-400 hover:text-yellow-300">
+              Acheter un ticket (10 crédits)
+            </Button>
+          </div>
           <div>
             <label htmlFor="destination" className="text-sm font-medium text-white font-mono">Destination</label>
-            <Select value={selectedZoneId} onValueChange={setSelectedZoneId}>
-              <SelectTrigger id="destination" className="w-full mt-1 bg-white/5 border-white/20">
-                <SelectValue placeholder="Choisir une destination..." />
-              </SelectTrigger>
-              <SelectContent>
-                {travelOptions.map(zone => (
-                  <SelectItem key={zone.id} value={zone.id.toString()}>
-                    {zone.type} ({zone.x}, {zone.y})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              id="destination"
+              value={selectedZoneId}
+              onChange={(e) => setSelectedZoneId(e.target.value)}
+              className="native-select mt-1 bg-white/5 border-white/20"
+            >
+              <option value="">Choisir une destination...</option>
+              {travelOptions.map(zone => (
+                <option key={zone.id} value={zone.id.toString()}>
+                  {zone.type} ({zone.x}, {zone.y})
+                </option>
+              ))}
+            </select>
           </div>
-          <Button onClick={handleTravel} disabled={loading || !selectedZoneId} className="w-full">
+          <Button onClick={handleTravel} disabled={loading || !selectedZoneId || ticketCount === 0} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Voyager'}
           </Button>
         </div>

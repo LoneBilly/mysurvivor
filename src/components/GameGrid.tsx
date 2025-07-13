@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { MapCell } from "@/types/game";
 import { Lock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 interface GameGridProps {
   mapLayout: MapCell[];
@@ -54,7 +54,11 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
 
     const discoveredSet = new Set(discoveredZones);
 
-    mapLayout.forEach(cell => {
+    const filteredMapLayout = mapLayout.filter(cell => 
+        !(cell.x === 3 && cell.y === 1) && cell.type !== 'unknown'
+    );
+
+    filteredMapLayout.forEach(cell => {
       if (!grid[cell.y]) grid[cell.y] = [];
       grid[cell.y][cell.x] = {
         ...cell,
