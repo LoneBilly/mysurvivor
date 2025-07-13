@@ -19,9 +19,6 @@ import PurchaseCreditsModal from "../PurchaseCreditsModal";
 import FactionScoutsModal from "../FactionScoutsModal";
 import { useGame } from "@/contexts/GameContext";
 import ExplorationModal from "../ExplorationModal";
-import MetroModal from "../MetroModal";
-import BankModal from "../BankModal";
-import BountyModal from "../BountyModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -41,11 +38,6 @@ const GameUI = () => {
   const [isFactionScoutsModalOpen, setIsFactionScoutsModalOpen] = useState(false);
   const [isExplorationModalOpen, setIsExplorationModalOpen] = useState(false);
   const [selectedZoneForExploration, setSelectedZoneForExploration] = useState<MapCell | null>(null);
-  
-  const [isMetroOpen, setIsMetroOpen] = useState(false);
-  const [isBankOpen, setIsBankOpen] = useState(false);
-  const [isBountyOpen, setIsBountyOpen] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -115,12 +107,11 @@ const GameUI = () => {
     if (isCurrentPosition) {
       switch (interaction_type) {
         case 'Action':
-          if (type === 'marché') setIsMarketOpen(true);
-          else if (type === 'Faction: Scouts') setIsFactionScoutsModalOpen(true);
-          else if (type === 'métro') setIsMetroOpen(true);
-          else if (type === 'banque') setIsBankOpen(true);
-          else if (type === 'commissariat') setIsBountyOpen(true);
-          else {
+          if (type === 'marché') {
+            setIsMarketOpen(true);
+          } else if (type === 'Faction: Scouts') {
+            setIsFactionScoutsModalOpen(true);
+          } else {
             setModalState({
               isOpen: true,
               title: formatZoneName(type),
@@ -145,6 +136,7 @@ const GameUI = () => {
             actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
           }
 
+          // Si il n'y a qu'une seule action possible (explorer), ouvrir directement la modale d'exploration
           if (actions.length === 1 && actions[0].label === "Explorer") {
             handleExploreAction(cell);
           } else {
@@ -201,45 +193,6 @@ const GameUI = () => {
     }
   };
 
-  const handleMetroTravel = async (zoneId: number) => {
-    setActionLoading(true);
-    const { error } = await supabase.rpc('use_metro_ticket', { p_target_zone_id: zoneId });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Voyage réussi !");
-      await refreshPlayerData();
-      setIsMetroOpen(false);
-    }
-    setActionLoading(false);
-  };
-
-  const handleBankTransaction = async (type: 'deposit' | 'withdraw', amount: number) => {
-    setActionLoading(true);
-    const rpcName = type === 'deposit' ? 'deposit_credits' : 'withdraw_credits';
-    const { error } = await supabase.rpc(rpcName, { p_amount: amount });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Transaction réussie !");
-      await refreshPlayerData();
-    }
-    setActionLoading(false);
-  };
-
-  const handlePlaceBounty = async (targetId: string, amount: number) => {
-    setActionLoading(true);
-    const { error } = await supabase.rpc('place_bounty', { p_target_id: targetId, p_amount: amount });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Prime placée avec succès !");
-      await refreshPlayerData();
-      setIsBountyOpen(false);
-    }
-    setActionLoading(false);
-  };
-
   const scoutingMissions = useMemo(() => ({
     inProgress: playerData.scoutingMissions.filter(m => m.status === 'in_progress'),
     completed: playerData.scoutingMissions.filter(m => m.status === 'completed'),
@@ -269,9 +222,6 @@ const GameUI = () => {
       <PurchaseCreditsModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
       <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={() => refreshPlayerData()} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} />
       <ExplorationModal isOpen={isExplorationModalOpen} onClose={() => setIsExplorationModalOpen(false)} zone={selectedZoneForExploration} onUpdate={refreshPlayerData} onOpenInventory={() => setIsInventoryOpen(true)} />
-      <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} discoveredZones={playerData.playerState.zones_decouvertes} mapLayout={mapLayout} onTravel={handleMetroTravel} loading={actionLoading} />
-      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onTransaction={handleBankTransaction} loading={actionLoading} />
-      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} onBountyPlaced={handlePlaceBounty} loading={actionLoading} />
     </div>
   );
 };

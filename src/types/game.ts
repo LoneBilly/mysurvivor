@@ -65,7 +65,6 @@ export interface PlayerState {
   unlocked_slots: number;
   credits: number;
   sale_slots: number;
-  bank_balance: number | null;
 }
 
 export interface FullPlayerData {
