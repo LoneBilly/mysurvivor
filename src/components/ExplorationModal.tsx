@@ -202,6 +202,13 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     showInfo(`${itemToDiscard.name} a été jeté.`);
   };
 
+  useEffect(() => {
+    if (foundItems !== null && foundItems.length === 0) {
+      showInfo("Vous avez traité tout le butin.");
+      setFoundItems(null);
+    }
+  }, [foundItems]);
+
   const filteredScoutedTargets = useMemo(() => {
     if (!zone) return [];
     return scoutedTargets.filter(target => target.base_zone_type === zone.type);
@@ -213,6 +220,11 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     if (!iconName) return AlertTriangle;
     const Icon = (LucideIcons as any)[iconName];
     return Icon || AlertTriangle;
+  };
+
+  const resetView = () => {
+    setFoundItems(null);
+    setEventResult(null);
   };
 
   return (
@@ -232,7 +244,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               <div className="space-y-4">
                 <h3 className="font-bold text-center">Résultats de l'exploration</h3>
                 
-                {/* Event Result */}
                 {eventResult && (
                   <div className={`p-3 rounded-lg border ${eventResult.success ? 'bg-blue-500/10 border-blue-500/30' : 'bg-gray-500/10 border-gray-500/30'}`}>
                     <div className="flex items-center gap-3">
@@ -255,7 +266,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                   </div>
                 )}
 
-                {/* Loot Results */}
                 {foundItems && (
                   <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-black/20 rounded-lg">
                     <h4 className="font-semibold text-center">Butin trouvé</h4>
@@ -280,6 +290,12 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                     <Button onClick={onOpenInventory} variant="destructive" size="sm">
                       Ouvrir l'inventaire
                     </Button>
+                  </div>
+                )}
+
+                {!foundItems && (
+                  <div className="text-center pt-2">
+                    <Button onClick={resetView}>Continuer</Button>
                   </div>
                 )}
               </div>

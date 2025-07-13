@@ -11,12 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2, ArrowLeft, Map, Users, Package, Zap } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Admin = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedZone, setSelectedZone] = useState<MapCell | null>(null);
+  const [activeTab, setActiveTab] = useState('map');
 
   const fetchMapLayout = useCallback(async () => {
     setLoading(true);
@@ -55,6 +59,29 @@ const Admin = () => {
     return <div className="h-full bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
   }
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'map':
+        return (
+          <div className="w-full h-full flex items-center justify-center">
+            {selectedZone ? (
+              <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
+            ) : (
+              <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
+            )}
+          </div>
+        );
+      case 'players':
+        return <PlayerManager mapLayout={mapLayout} />;
+      case 'items':
+        return <ItemManager />;
+      case 'events':
+        return <EventManager mapLayout={mapLayout} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="h-full bg-gray-900 text-white flex flex-col">
       <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0 p-4 sm:p-8">
@@ -70,34 +97,36 @@ const Admin = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="map" className="w-full flex flex-col flex-1 min-h-0">
-          <div className="flex justify-center">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-2xl mb-6 flex-shrink-0">
-              <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
-              <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
-              <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
-              <TabsTrigger value="events"><Zap className="w-4 h-4 mr-2" />Events</TabsTrigger>
-            </TabsList>
+        {isMobile ? (
+          <div className="mb-6">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full bg-gray-800 border-gray-700">
+                <SelectValue placeholder="Sélectionner une section" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="map">Carte</SelectItem>
+                <SelectItem value="players">Joueurs</SelectItem>
+                <SelectItem value="items">Items</SelectItem>
+                <SelectItem value="events">Events</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <TabsContent value="map" className="flex-1 min-h-0">
-            <div className="w-full h-full flex items-center justify-center">
-              {selectedZone ? (
-                <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
-              ) : (
-                <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
-              )}
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
+            <div className="flex justify-center">
+              <TabsList className="grid w-full grid-cols-4 max-w-2xl mb-6 flex-shrink-0">
+                <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
+                <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
+                <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
+                <TabsTrigger value="events"><Zap className="w-4 h-4 mr-2" />Events</TabsTrigger>
+              </TabsList>
             </div>
-          </TabsContent>
-          <TabsContent value="players" className="flex-1 min-h-0">
-            <PlayerManager mapLayout={mapLayout} />
-          </TabsContent>
-          <TabsContent value="items" className="flex-1 min-h-0">
-            <ItemManager />
-          </TabsContent>
-          <TabsContent value="events" className="flex-1 min-h-0">
-            <EventManager mapLayout={mapLayout} />
-          </TabsContent>
-        </Tabs>
+          </Tabs>
+        )}
+        
+        <div className="flex-1 min-h-0">
+          {renderContent()}
+        </div>
       </div>
     </div>
   );

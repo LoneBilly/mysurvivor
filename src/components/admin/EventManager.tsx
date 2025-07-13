@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Plus, Edit, Trash2, Zap, Search, ArrowLeft } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { MapCell } from '@/types/game';
+import { Item } from '@/types/admin';
 import * as LucideIcons from "lucide-react";
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface Event {
   id: number;
@@ -27,7 +29,10 @@ interface ZoneEvent {
   event_id: number;
   spawn_chance: number;
   success_chance: number;
-  effects: Record<string, number>;
+  effects: {
+    stats?: Record<string, number>;
+    item?: { id: number; quantity: number };
+  };
   created_at: string;
 }
 
@@ -40,6 +45,7 @@ const STAT_OPTIONS = ['vie', 'faim', 'soif', 'energie'];
 const EventManager = ({ mapLayout }: EventManagerProps) => {
   const isMobile = useIsMobile();
   const [events, setEvents] = useState<Event[]>([]);
+  const [allItems, setAllItems] = useState<Item[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [zoneEvents, setZoneEvents] = useState<ZoneEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,20 +60,28 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
   const [spawnChance, setSpawnChance] = useState(10);
   const [successChance, setSuccessChance] = useState(50);
   const [effects, setEffects] = useState<Record<string, number>>({});
+  const [rewardItem, setRewardItem] = useState<{ id: number | null; quantity: number }>({ id: null, quantity: 1 });
   
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; event: Event | null }>({ isOpen: false, event: null });
 
   const resourceZones = mapLayout.filter(zone => zone.interaction_type === 'Ressource');
 
-  const fetchEvents = useCallback(async () => {
+  const fetchInitialData = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('events').select('*').order('name');
-    if (error) {
-      showError("Impossible de charger les événements.");
-    } else {
-      setEvents(data || []);
+    try {
+      const [eventsRes, itemsRes] = await Promise.all([
+        supabase.from('events').select('*').order('name'),
+        supabase.from('items').select('id, name').order('name')
+      ]);
+      if (eventsRes.error) throw eventsRes.error;
+      if (itemsRes.error) throw itemsRes.error;
+      setEvents(eventsRes.data || []);
+      setAllItems(itemsRes.data || []);
+    } catch (error) {
+      showError("Impossible de charger les données initiales.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const fetchZoneEvents = useCallback(async (eventId: number) => {
@@ -80,8 +94,8 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
   }, []);
 
   useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   useEffect(() => {
     if (selectedEvent) {
@@ -94,19 +108,9 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
       showError("Le nom de l'événement est requis.");
       return;
     }
-
-    const eventData = {
-      name: eventName.trim(),
-      description: eventDescription.trim() || null,
-      icon: eventIcon.trim() || null,
-    };
-
-    const promise = selectedEvent
-      ? supabase.from('events').update(eventData).eq('id', selectedEvent.id).select().single()
-      : supabase.from('events').insert(eventData).select().single();
-
+    const eventData = { name: eventName.trim(), description: eventDescription.trim() || null, icon: eventIcon.trim() || null };
+    const promise = selectedEvent ? supabase.from('events').update(eventData).eq('id', selectedEvent.id).select().single() : supabase.from('events').insert(eventData).select().single();
     const { data, error } = await promise;
-
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
@@ -130,25 +134,24 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
     } else {
       showSuccess("Événement supprimé !");
       setEvents(prev => prev.filter(e => e.id !== deleteModal.event!.id));
-      if (selectedEvent?.id === deleteModal.event.id) {
-        setSelectedEvent(null);
-      }
+      if (selectedEvent?.id === deleteModal.event.id) setSelectedEvent(null);
     }
     setDeleteModal({ isOpen: false, event: null });
   };
 
   const handleSaveZoneEvent = async () => {
     if (!selectedEvent || !selectedZoneId) return;
-    const { error } = await supabase.from('zone_events').upsert({
-      zone_id: selectedZoneId, event_id: selectedEvent.id, spawn_chance: spawnChance,
-      success_chance: successChance, effects,
-    }, { onConflict: 'zone_id,event_id' });
+    const effectsPayload: any = { stats: effects };
+    if (rewardItem.id && rewardItem.quantity > 0) {
+      effectsPayload.item = { id: rewardItem.id, quantity: rewardItem.quantity };
+    }
+    const { error } = await supabase.from('zone_events').upsert({ zone_id: selectedZoneId, event_id: selectedEvent.id, spawn_chance: spawnChance, success_chance: successChance, effects: effectsPayload }, { onConflict: 'zone_id,event_id' });
     if (error) {
       showError("Erreur lors de la sauvegarde.");
     } else {
       showSuccess("Configuration de zone sauvegardée !");
       fetchZoneEvents(selectedEvent.id);
-      setSelectedZoneId(null); setSpawnChance(10); setSuccessChance(50); setEffects({});
+      setSelectedZoneId(null); setSpawnChance(10); setSuccessChance(50); setEffects({}); setRewardItem({ id: null, quantity: 1 });
     }
   };
 
@@ -177,21 +180,9 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
   };
 
   const filteredEvents = events.filter(event => event.name.toLowerCase().includes(searchTerm.toLowerCase()));
-
-  const resetForm = () => {
-    setEventName(''); setEventDescription(''); setEventIcon('');
-  };
-
-  const openCreateForm = () => {
-    setSelectedEvent(null);
-    resetForm();
-    setIsCreatingEvent(true);
-  };
-
-  const closeDetails = () => {
-    setSelectedEvent(null);
-    setIsCreatingEvent(false);
-  };
+  const resetForm = () => { setEventName(''); setEventDescription(''); setEventIcon(''); };
+  const openCreateForm = () => { setSelectedEvent(null); resetForm(); setIsCreatingEvent(true); };
+  const closeDetails = () => { setSelectedEvent(null); setIsCreatingEvent(false); };
 
   const EventList = (
     <div className="p-4 space-y-2">
@@ -199,14 +190,7 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
         const IconComponent = getIconComponent(event.icon);
         return (
           <Card key={event.id} className={cn("cursor-pointer transition-colors bg-gray-700/50 border-gray-600", selectedEvent?.id === event.id && "border-blue-500 bg-blue-500/10")} onClick={() => setSelectedEvent(event)}>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <IconComponent className="w-5 h-5 flex-shrink-0" />
-                <div className="flex-grow min-w-0">
-                  <p className="font-semibold truncate">{event.name}</p>
-                </div>
-              </div>
-            </CardContent>
+            <CardContent className="p-3"><div className="flex items-center gap-3"><IconComponent className="w-5 h-5 flex-shrink-0" /><div className="flex-grow min-w-0"><p className="font-semibold truncate">{event.name}</p></div></div></CardContent>
           </Card>
         );
       })}
@@ -217,16 +201,7 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
     <div className="space-y-4">
       {isMobile && <Button variant="ghost" onClick={closeDetails} className="mb-2"><ArrowLeft className="w-4 h-4 mr-2" />Retour</Button>}
       <Card className="bg-gray-700/50 border-gray-600">
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            {(() => { const Icon = getIconComponent(selectedEvent?.icon); return <Icon className="w-6 h-6" />; })()}
-            {selectedEvent?.name}
-          </CardTitle>
-          <div className="flex gap-1">
-            <Button size="icon" variant="ghost" onClick={() => startEditingEvent(selectedEvent!)}><Edit className="w-4 h-4" /></Button>
-            <Button size="icon" variant="ghost" onClick={() => setDeleteModal({ isOpen: true, event: selectedEvent })}><Trash2 className="w-4 h-4" /></Button>
-          </div>
-        </CardHeader>
+        <CardHeader className="flex-row items-center justify-between"><CardTitle className="flex items-center gap-2">{(() => { const Icon = getIconComponent(selectedEvent?.icon); return <Icon className="w-6 h-6" />; })()}{selectedEvent?.name}</CardTitle><div className="flex gap-1"><Button size="icon" variant="ghost" onClick={() => startEditingEvent(selectedEvent!)}><Edit className="w-4 h-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteModal({ isOpen: true, event: selectedEvent })}><Trash2 className="w-4 h-4" /></Button></div></CardHeader>
         <CardContent><p className="text-gray-300">{selectedEvent?.description || 'Aucune description'}</p></CardContent>
       </Card>
       <Card className="bg-gray-700/50 border-gray-600">
@@ -239,7 +214,8 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
             <div className="flex items-end"><Button onClick={handleSaveZoneEvent} disabled={!selectedZoneId} className="w-full">Ajouter</Button></div>
           </div>
           <div><Label>Effets (si succès)</Label><div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">{STAT_OPTIONS.map(stat => <div key={stat}><Label className="text-xs">{stat}</Label><Input type="number" min="-100" max="100" value={effects[stat] || ''} onChange={(e) => setEffects(prev => ({ ...prev, [stat]: Number(e.target.value) || 0 }))} className="bg-gray-800 border-gray-600" placeholder="0" /></div>)}</div></div>
-          <div className="space-y-2">{zoneEvents.map(ze => { const zone = resourceZones.find(z => z.id === ze.zone_id); return (<div key={ze.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"><div className="flex-grow"><p className="font-semibold">{zone?.type} ({zone?.x}, {zone?.y})</p><p className="text-sm text-gray-400">Apparition: {ze.spawn_chance}% | Succès: {ze.success_chance}%</p>{Object.keys(ze.effects).length > 0 && <p className="text-xs text-blue-300">Effets: {Object.entries(ze.effects).map(([s, v]) => `${v > 0 ? '+' : ''}${v} ${s}`).join(', ')}</p>}</div><Button size="sm" variant="destructive" onClick={() => handleRemoveZoneEvent(ze.id)}><Trash2 className="w-4 h-4" /></Button></div>); })}</div>
+          <div><Label>Récompense d'objet (si succès)</Label><div className="grid grid-cols-2 gap-4 mt-2"><Select value={rewardItem.id?.toString() || ''} onValueChange={(val) => setRewardItem(prev => ({ ...prev, id: Number(val) || null }))}><SelectTrigger className="bg-gray-800 border-gray-600"><SelectValue placeholder="Choisir un objet..." /></SelectTrigger><SelectContent>{allItems.map(item => <SelectItem key={item.id} value={item.id.toString()}>{item.name}</SelectItem>)}</SelectContent></Select><div><Label className="text-xs">Quantité</Label><Input type="number" min="1" value={rewardItem.quantity} onChange={(e) => setRewardItem(prev => ({ ...prev, quantity: Number(e.target.value) || 1 }))} className="bg-gray-800 border-gray-600" /></div></div></div>
+          <div className="space-y-2">{zoneEvents.map(ze => { const zone = resourceZones.find(z => z.id === ze.zone_id); const item = allItems.find(i => i.id === ze.effects.item?.id); return (<div key={ze.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"><div className="flex-grow"><p className="font-semibold">{zone?.type} ({zone?.x}, {zone?.y})</p><p className="text-sm text-gray-400">Apparition: {ze.spawn_chance}% | Succès: {ze.success_chance}%</p>{ze.effects.stats && Object.keys(ze.effects.stats).length > 0 && <p className="text-xs text-blue-300">Effets: {Object.entries(ze.effects.stats).map(([s, v]) => `${v > 0 ? '+' : ''}${v} ${s}`).join(', ')}</p>}{ze.effects.item && <p className="text-xs text-green-300">Récompense: {item?.name} x{ze.effects.item.quantity}</p>}</div><Button size="sm" variant="destructive" onClick={() => handleRemoveZoneEvent(ze.id)}><Trash2 className="w-4 h-4" /></Button></div>); })}</div>
         </CardContent>
       </Card>
     </div>
