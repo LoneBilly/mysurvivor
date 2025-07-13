@@ -134,10 +134,11 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         } else {
           showInfo(`Événement: ${event_result.name} - Vous avez évité le pire.`);
         }
+        onUpdate(); // Refresh player data to show new stats
       }
     }
     setIsExploring(false);
-  }, [zone]);
+  }, [zone, onUpdate]);
 
   useEffect(() => {
     if (!isExploring) return;

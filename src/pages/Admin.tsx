@@ -72,7 +72,7 @@ const Admin = () => {
 
         <Tabs defaultValue="map" className="w-full flex flex-col flex-1 min-h-0">
           <div className="flex justify-center">
-            <TabsList className="grid grid-cols-4 max-w-2xl mb-6 flex-shrink-0">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-2xl mb-6 flex-shrink-0">
               <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
               <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
               <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
