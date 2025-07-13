@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Search, Shield, Clock, Package, Check, X } from 'lucide-react';
+import { Loader2, Search, Shield, Package, Check, X } from 'lucide-react';
 import { MapCell, Item } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { getCachedSignedUrl } from '@/utils/iconCache';
@@ -29,9 +29,10 @@ interface ExplorationModalProps {
   onClose: () => void;
   zone: MapCell | null;
   onUpdate: () => void;
+  onOpenInventory: () => void;
 }
 
-const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalProps) => {
+const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
   const [activeTab, setActiveTab] = useState('exploration');
   const [potentialLoot, setPotentialLoot] = useState<Item[]>([]);
   const [scoutedTargets, setScoutedTargets] = useState<ScoutedTarget[]>([]);
@@ -39,6 +40,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
   const [isExploring, setIsExploring] = useState(false);
   const [progress, setProgress] = useState(0);
   const [foundItems, setFoundItems] = useState<FoundItem[] | null>(null);
+  const [inventoryFullError, setInventoryFullError] = useState(false);
 
   const fetchPotentialLoot = useCallback(async () => {
     if (!zone) return;
@@ -72,6 +74,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
       setIsExploring(false);
       setProgress(0);
       setFoundItems(null);
+      setInventoryFullError(false);
     }
   }, [isOpen, activeTab, fetchPotentialLoot, fetchScoutedTargets]);
 
@@ -87,6 +90,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
     setIsExploring(true);
     setProgress(0);
     setFoundItems(null);
+    setInventoryFullError(false);
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -123,12 +127,18 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
   };
 
   const handleCollectAll = async () => {
+    setInventoryFullError(false);
     if (!foundItems || foundItems.length === 0) return;
     const itemsToCollect = foundItems.map(item => ({ item_id: item.id, quantity: item.quantity }));
     
     const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: itemsToCollect });
     if (error) {
-      showError(error.message);
+      if (error.message.includes("Votre inventaire est plein")) {
+        setInventoryFullError(true);
+        showError("Votre inventaire est plein. Libérez de l'espace pour récupérer votre butin.");
+      } else {
+        showError(error.message);
+      }
     } else {
       showSuccess("Objets ajoutés à l'inventaire !");
       setFoundItems(null);
@@ -138,7 +148,13 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
 
   const handleDiscardAll = () => {
     setFoundItems(null);
+    setInventoryFullError(false);
   };
+
+  const filteredScoutedTargets = useMemo(() => {
+    if (!zone) return [];
+    return scoutedTargets.filter(target => target.base_zone_type === zone.type);
+  }, [scoutedTargets, zone]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -166,6 +182,14 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
                     </div>
                   )) : <p className="text-center text-gray-400 p-4">Vous n'avez rien trouvé cette fois-ci.</p>}
                 </div>
+                {inventoryFullError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center space-y-2">
+                    <p className="text-red-300 text-sm">Votre inventaire est plein.</p>
+                    <Button onClick={onOpenInventory} variant="destructive" size="sm">
+                      Ouvrir l'inventaire
+                    </Button>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button onClick={handleDiscardAll} variant="outline" className="w-full"><X className="w-4 h-4 mr-2" />Jeter</Button>
                   <Button onClick={handleCollectAll} className="w-full" disabled={foundItems.length === 0}><Check className="w-4 h-4 mr-2" />Récupérer</Button>
@@ -196,7 +220,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
           <TabsContent value="pvp" className="mt-4">
             {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
               <div className="space-y-2">
-                {scoutedTargets.length > 0 ? scoutedTargets.map(target => (
+                {filteredScoutedTargets.length > 0 ? filteredScoutedTargets.map(target => (
                   <div key={target.target_player_id} className="flex justify-between items-center p-3 bg-white/10 rounded-lg">
                     <div>
                       <p className="font-bold">{target.target_username}</p>
@@ -204,7 +228,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate }: ExplorationModalP
                     </div>
                     <Button disabled>Attaquer (bientôt)</Button>
                   </div>
-                )) : <p className="text-center text-gray-400 p-4">Aucune cible repérée. Envoyez des éclaireurs !</p>}
+                )) : <p className="text-center text-gray-400 p-4">Aucun joueur repéré dans cette zone.</p>}
               </div>
             )}
           </TabsContent>
