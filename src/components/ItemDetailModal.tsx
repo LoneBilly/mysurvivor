@@ -39,7 +39,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }:
         <DialogHeader>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-lg bg-slate-700/50 border-slate-600 flex-shrink-0 relative p-1">
-              <ItemIcon iconName={item.items?.signedIconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
+              <ItemIcon iconName={item.items?.iconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
             </div>
             <div>
               <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">

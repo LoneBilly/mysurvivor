@@ -7,14 +7,14 @@ import LoadingScreen from '@/components/LoadingScreen';
 import GameUI from '@/components/game/GameUI';
 import { showError } from '@/utils/toast';
 import { GameProvider } from '@/contexts/GameContext';
-import { getCachedSignedUrl } from '@/utils/iconCache';
+import { getItemIconUrl } from '@/utils/imageUrls';
 
 const Game = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [playerData, setPlayerData] = useState<FullPlayerData | null>(null);
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
-  const [items, setItems] = useState<(Item & { signedIconUrl?: string })[]>([]);
+  const [items, setItems] = useState<(Item & { iconUrl?: string })[]>([]);
 
   const loadGameData = async (user: User) => {
     setLoading(true);
@@ -51,22 +51,17 @@ const Game = () => {
     }
     
     const itemsData = itemsDataRes.data as Item[];
-    const enrichedItems = await Promise.all(
-      itemsData.map(async (item) => {
-        if (item.icon && item.icon.includes('.')) {
-          const signedUrl = await getCachedSignedUrl(item.icon);
-          return { ...item, signedIconUrl: signedUrl || undefined };
-        }
-        return item;
-      })
-    );
+    const enrichedItems = itemsData.map(item => ({
+      ...item,
+      iconUrl: getItemIconUrl(item.icon) || undefined,
+    }));
     setItems(enrichedItems);
 
     if (fullPlayerData.inventory) {
       fullPlayerData.inventory = fullPlayerData.inventory.map((invItem: InventoryItem) => {
         const itemDetails = enrichedItems.find(i => i.id === invItem.item_id);
         if (itemDetails && invItem.items) {
-          invItem.items.signedIconUrl = itemDetails.signedIconUrl;
+          invItem.items.iconUrl = itemDetails.iconUrl;
         }
         return invItem;
       });
@@ -95,7 +90,7 @@ const Game = () => {
         fullPlayerData.inventory = fullPlayerData.inventory.map((invItem: InventoryItem) => {
           const itemDetails = items.find(i => i.id === invItem.item_id);
           if (itemDetails && invItem.items) {
-            invItem.items.signedIconUrl = itemDetails.signedIconUrl;
+            invItem.items.iconUrl = itemDetails.iconUrl;
           }
           return invItem;
         });

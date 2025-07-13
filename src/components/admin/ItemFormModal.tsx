@@ -15,12 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Loader2, AlertCircle, CheckCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
-import { getCachedSignedUrl } from '@/utils/iconCache';
+import { Loader2, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
+import { getItemIconUrl } from '@/utils/imageUrls';
 import ActionModal from '../ActionModal';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from '@/lib/utils';
 
 interface ItemFormModalProps {
   isOpen: boolean;
@@ -51,7 +48,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
   const [availableIcons, setAvailableIcons] = useState<string[]>([]);
   const [fetchingIcons, setFetchingIcons] = useState(false);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -71,15 +67,15 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
       if (initialIcon) {
         setIsValidatingIcon(true);
-        getCachedSignedUrl(initialIcon).then(url => {
-          if (url) {
-            setPreviewUrl(url);
-            setIconExists(true);
-          } else {
-            setIconExists(false);
-          }
-          setIsValidatingIcon(false);
-        });
+        const url = getItemIconUrl(initialIcon);
+        if (url) {
+          setPreviewUrl(url);
+          // We'll assume it exists if we have an initial icon, validation happens on new input
+          setIconExists(true); 
+        } else {
+          setIconExists(false);
+        }
+        setIsValidatingIcon(false);
       }
     }
   }, [isOpen, item]);
@@ -133,21 +129,16 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setCheckingName(false);
     };
 
-    const validateIcon = async () => {
+    const validateIcon = () => {
       if (!debouncedIcon) {
         setPreviewUrl(null);
         setIconExists(null);
         return;
       }
       setIsValidatingIcon(true);
-      const url = await getCachedSignedUrl(debouncedIcon);
-      if (url) {
-        setPreviewUrl(url);
-        setIconExists(true);
-      } else {
-        setPreviewUrl(null);
-        setIconExists(false);
-      }
+      const url = getItemIconUrl(debouncedIcon);
+      setPreviewUrl(url);
+      // The existence is checked via the img's onError handler
       setIsValidatingIcon(false);
     };
 
@@ -261,51 +252,27 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-12 h-12 bg-white/5 border border-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
                   {isValidatingIcon ? <Loader2 className="w-5 h-5 animate-spin" /> :
-                  previewUrl ? <img src={previewUrl} alt="Prévisualisation" className="w-full h-full object-contain p-1" /> :
+                  previewUrl ? <img src={previewUrl} alt="Prévisualisation" className="w-full h-full object-contain p-1" onError={() => setIconExists(false)} onLoad={() => setIconExists(true)} /> :
                   <AlertCircle className="w-5 h-5 text-gray-500" />}
                 </div>
                 <div className="relative w-full">
-                  <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isComboboxOpen}
-                        className="w-full justify-between bg-white/5 border-white/20 hover:bg-white/10 hover:text-white"
-                        disabled={loading || fetchingIcons}
-                      >
-                        <span className="truncate">{fetchingIcons ? "Chargement..." : (icon || "Sélectionner une icône...")}</span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        <CommandInput 
-                          placeholder="Rechercher ou taper..."
-                          onValueChange={setIcon}
-                          value={icon}
-                        />
-                        <CommandList>
-                          <CommandEmpty>Aucune icône trouvée.</CommandEmpty>
-                          <CommandGroup>
-                            {availableIcons.map((iconName) => (
-                              <CommandItem
-                                key={iconName}
-                                value={iconName}
-                                onSelect={() => {
-                                  setIcon(iconName);
-                                  setIsComboboxOpen(false);
-                                }}
-                              >
-                                <Check className={cn("mr-2 h-4 w-4", icon === iconName ? "opacity-100" : "opacity-0")} />
-                                {iconName}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <select
+                    id="icon"
+                    value={icon}
+                    onChange={(e) => setIcon(e.target.value)}
+                    disabled={loading || fetchingIcons}
+                    className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white focus:ring-white/30 focus:border-white/30"
+                  >
+                    <option value="">{fetchingIcons ? "Chargement..." : "Aucune icône"}</option>
+                    {item?.icon && !availableIcons.includes(item.icon) && (
+                      <option value={item.icon}>{item.icon} (actuelle)</option>
+                    )}
+                    {availableIcons.map((iconName) => (
+                      <option key={iconName} value={iconName}>
+                        {iconName}
+                      </option>
+                    ))}
+                  </select>
                   {!isValidatingIcon && icon && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 transform-gpu">
                       {iconExists ? <CheckCircle className="w-5 h-5 text-green-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}

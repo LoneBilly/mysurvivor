@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
 import { showSuccess, showError } from '@/utils/toast';
 import { Loader2, Package, Trash2, Edit, PlusCircle } from 'lucide-react';
-import { getCachedSignedUrl } from '@/utils/iconCache';
+import { getItemIconUrl } from '@/utils/imageUrls';
 import { Item } from '@/types/admin';
 import ActionModal from '../ActionModal';
 
@@ -26,6 +26,7 @@ interface InventoryItem {
     name: string;
     icon: string | null;
     stackable: boolean;
+    iconUrl?: string;
   };
 }
 
@@ -58,15 +59,13 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     if (error) {
       showError("Erreur lors du chargement de l'inventaire.");
     } else {
-      const inventoryWithUrls = await Promise.all(
-        (data as any[]).map(async (item) => {
-          let iconUrl = null;
-          if (item.items.icon) {
-            iconUrl = await getCachedSignedUrl(item.items.icon);
-          }
-          return { ...item, items: { ...item.items, icon: iconUrl } };
-        })
-      );
+      const inventoryWithUrls = (data as any[]).map(item => ({
+        ...item,
+        items: {
+          ...item.items,
+          iconUrl: getItemIconUrl(item.items.icon) || undefined,
+        }
+      }));
       setInventory(inventoryWithUrls);
     }
     setLoading(false);
@@ -170,8 +169,8 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
                 inventory.map((item) => (
                   <div key={item.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {item.items.icon ? (
-                        <img src={item.items.icon} alt={item.items.name} className="w-10 h-10 object-contain rounded-md bg-black/20 p-1 flex-shrink-0" />
+                      {item.items.iconUrl ? (
+                        <img src={item.items.iconUrl} alt={item.items.name} className="w-10 h-10 object-contain rounded-md bg-black/20 p-1 flex-shrink-0" />
                       ) : (
                         <Package className="w-10 h-10 text-gray-400 flex-shrink-0" />
                       )}

@@ -9,7 +9,7 @@ export interface ItemDetails {
   name: string;
   description: string | null;
   icon: string | null;
-  signedIconUrl?: string;
+  iconUrl?: string;
   type?: string;
   use_action_text: string;
 }
@@ -43,7 +43,7 @@ export interface ScoutingMission {
 }
 
 export interface PlayerState {
-  id: string;
+  id:string;
   username: string | null;
   jours_survecus: number;
   vie: number;
@@ -105,7 +105,7 @@ export interface Item {
   icon: string | null;
   type: string;
   use_action_text: string;
-  signedIconUrl?: string;
+  iconUrl?: string;
 }
 
 export interface MarketListing {
@@ -119,5 +119,5 @@ export interface MarketListing {
   price: number;
   created_at: string;
   views: number;
-  signedIconUrl?: string;
+  iconUrl?: string;
 }
