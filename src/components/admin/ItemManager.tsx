@@ -16,7 +16,7 @@ import { Item } from '@/types/admin';
 import ItemFormModal from './ItemFormModal';
 import ItemIcon from '@/components/ItemIcon';
 import { getCachedSignedUrl } from '@/utils/iconCache';
-import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ItemManager = () => {
   const [items, setItems] = useState<Item[]>([]);
