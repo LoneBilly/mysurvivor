@@ -80,7 +80,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   const handleStartExploration = async () => {
     if (!zone) return;
-    const { error } = await supabase.rpc('start_exploration', { p_zone_id: zone.id });
+    const { error } = await supabase.rpc('start_exploration', { zone_id: zone.id });
     if (error) {
       showError(error.message);
       return;
@@ -107,7 +107,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   const finishExploration = async () => {
     if (!zone) return;
-    const { data, error } = await supabase.rpc('finish_exploration', { p_zone_id: zone.id });
+    const { data, error } = await supabase.rpc('finish_exploration', { zone_id: zone.id });
     if (error) {
       showError("Une erreur est survenue lors de la récupération du butin.");
     } else {
@@ -131,7 +131,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     if (!foundItems || foundItems.length === 0) return;
     const itemsToCollect = foundItems.map(item => ({ item_id: item.id, quantity: item.quantity }));
     
-    const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: itemsToCollect });
+    const { error } = await supabase.rpc('collect_exploration_loot', { items_to_add: itemsToCollect });
     if (error) {
       if (error.message.includes("Votre inventaire est plein")) {
         setInventoryFullError(true);
@@ -161,7 +161,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
         <DialogHeader className="text-center">
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl">{zone?.type || 'Exploration'}</DialogTitle>
-          <DialogDescription className="text-gray-300">Que voulez-vous faire dans cette zone ?</DialogDescription>
+          <DialogDescription>Que voulez-vous faire dans cette zone ?</DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
           <TabsList className="grid w-full grid-cols-2">
@@ -173,8 +173,8 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               <div className="space-y-4">
                 <h3 className="font-bold text-center">Butin trouvé !</h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-black/20 rounded-lg">
-                  {foundItems.length > 0 ? foundItems.map(item => (
-                    <div key={item.id} className="flex items-center gap-3 p-2 bg-white/10 rounded">
+                  {foundItems.length > 0 ? foundItems.map((item, index) => (
+                    <div key={`${item.id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
                       <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                         <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
                       </div>
@@ -207,7 +207,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                   <h4 className="font-semibold mb-2">Butin potentiel :</h4>
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <div className="flex flex-wrap gap-2">
-                      {potentialLoot.map(item => <span key={item.id} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>)}
+                      {potentialLoot.map((item, index) => <span key={`${item.id}-${index}`} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>)}
                     </div>
                   )}
                 </div>
@@ -220,8 +220,8 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
           <TabsContent value="pvp" className="mt-4">
             {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
               <div className="space-y-2">
-                {filteredScoutedTargets.length > 0 ? filteredScoutedTargets.map(target => (
-                  <div key={target.target_player_id} className="flex justify-between items-center p-3 bg-white/10 rounded-lg">
+                {filteredScoutedTargets.length > 0 ? filteredScoutedTargets.map((target, index) => (
+                  <div key={`${target.target_player_id}-${index}`} className="flex justify-between items-center p-3 bg-white/10 rounded-lg">
                     <div>
                       <p className="font-bold">{target.target_username}</p>
                       <p className="text-sm text-gray-400">Base: {target.base_zone_type}</p>
