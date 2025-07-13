@@ -92,6 +92,15 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
 
+  const isDraggingRef = useRef(false);
+  const panState = useRef<{
+    isPanning: boolean;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
+
   const hasActiveJob = initialConstructionJobs.length > 0;
 
   const totalResources = useMemo(() => {
@@ -240,7 +249,52 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !viewportRef.current) return;
+    
+    isDraggingRef.current = false;
+    
+    panState.current = {
+      isPanning: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: viewportRef.current.scrollLeft,
+      scrollTop: viewportRef.current.scrollTop,
+    };
+    
+    viewportRef.current.style.cursor = 'grabbing';
+    viewportRef.current.style.userSelect = 'none';
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!panState.current?.isPanning || !viewportRef.current) return;
+    
+    const dx = e.clientX - panState.current.startX;
+    const dy = e.clientY - panState.current.startY;
+
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      isDraggingRef.current = true;
+    }
+    
+    if (isDraggingRef.current) {
+      e.preventDefault();
+      viewportRef.current.scrollLeft = panState.current.scrollLeft - dx;
+      viewportRef.current.scrollTop = panState.current.scrollTop - dy;
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (viewportRef.current) {
+      viewportRef.current.style.cursor = 'grab';
+      viewportRef.current.style.userSelect = 'auto';
+    }
+    panState.current = null;
+  };
+
   const handleCellClick = async (x: number, y: number) => {
+    if (isDraggingRef.current) {
+      return;
+    }
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
@@ -414,7 +468,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       return (
         <div className="relative w-full h-full flex items-center justify-center group">
           <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
-          <div className="absolute top-1 right-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1.5 py-0.5 rounded">
+          <div className="absolute bottom-1 right-1 flex items-center gap-1 text-xs font-mono">
             <Zap size={12} className="text-yellow-400" />
             <span className="text-white">90</span>
           </div>
@@ -454,8 +508,12 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     <div className="relative w-full h-full">
       <div
         ref={viewportRef}
-        className="w-full h-full overflow-auto no-scrollbar"
+        className="w-full h-full overflow-auto no-scrollbar cursor-grab"
         style={{ opacity: gridData ? 1 : 0, transition: 'opacity 0.5s' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       >
         <div
           className="relative"
