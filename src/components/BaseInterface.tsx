@@ -500,6 +500,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         y={foundationMenu?.y ?? null}
         onBuild={handleBuildOnFoundation}
         onDemolish={handleDemolishFoundation}
+        playerResources={playerData.playerState}
       />
       <ChestModal
         isOpen={chestModalState.isOpen}

@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
 import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2, TreeDeciduous, Cog } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from '@/lib/utils';
 
 const buildings = [
   { name: 'Coffre basique', type: 'chest', icon: Box, costs: { energy: 20, wood: 20, metal: 0, components: 0 } },
@@ -23,18 +25,48 @@ interface FoundationMenuModalProps {
   y: number | null;
   onBuild: (x: number, y: number, building: Building) => void;
   onDemolish: (x: number, y: number) => void;
+  playerResources: {
+    energie: number;
+    wood: number;
+    metal: number;
+    components: number;
+  };
 }
 
-const CostItem = ({ icon: Icon, value }: { icon: React.ElementType, value: number }) => {
-  if (value === 0) return null;
+const resourceDetails: { [key: string]: { name: string; icon: React.ElementType } } = {
+  energy: { name: 'Énergie', icon: Zap },
+  wood: { name: 'Bois', icon: TreeDeciduous },
+  metal: { name: 'Métal', icon: Hammer },
+  components: { name: 'Composants', icon: Cog },
+};
+
+const CostSlot = ({ resource, required, available }: { resource: string; required: number; available: number }) => {
+  if (required === 0) return null;
+  const hasEnough = available >= required;
+  const details = resourceDetails[resource];
+  if (!details) return null;
+  const Icon = details.icon;
+
   return (
-    <span className="flex items-center gap-1">
-      <Icon size={12} /> {value}
-    </span>
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-2 bg-black/20 px-2 py-1 rounded-md border border-white/10">
+            <Icon className={cn("w-4 h-4", hasEnough ? "text-gray-300" : "text-red-400")} />
+            <span className={cn("text-sm font-mono", hasEnough ? "text-white" : "text-red-400")}>
+              {required}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
+          <p>{details.name}: {available} / {required}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
-const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish }: FoundationMenuModalProps) => {
+const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playerResources }: FoundationMenuModalProps) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -73,22 +105,41 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish }: Fou
         <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2 pr-2">
           {buildings.map((b) => {
             const Icon = b.icon;
+            const canAfford = Object.entries(b.costs).every(([resource, cost]) => {
+              return playerResources[resource as keyof typeof playerResources] >= cost;
+            });
             return (
               <div key={b.type} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Icon className="w-6 h-6 text-gray-300" />
-                  <div>
+                  <Icon className="w-8 h-8 text-gray-300 flex-shrink-0" />
+                  <div className="space-y-2">
                     <p className="font-semibold">{b.name}</p>
-                    <div className="flex items-center gap-3 text-xs text-gray-400">
-                      <CostItem icon={Zap} value={b.costs.energy} />
-                      <CostItem icon={TreeDeciduous} value={b.costs.wood} />
-                      <CostItem icon={Hammer} value={b.costs.metal} />
-                      <CostItem icon={Cog} value={b.costs.components} />
-                      <span className="flex items-center gap-1"><Clock size={12} /> 1m</span>
+                    <div className="flex items-center gap-2">
+                      {Object.entries(b.costs).map(([resource, cost]) => (
+                        <CostSlot
+                          key={resource}
+                          resource={resource}
+                          required={cost}
+                          available={playerResources[resource as keyof typeof playerResources]}
+                        />
+                      ))}
+                       <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 rounded-md border border-white/10">
+                              <Clock className="w-4 h-4 text-gray-300" />
+                              <span className="text-sm font-mono text-white">1m</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
+                            <p>Temps de construction</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                 </div>
-                <Button onClick={() => handleBuildClick(b)} disabled={loading}>
+                <Button onClick={() => handleBuildClick(b)} disabled={loading || !canAfford} className="ml-4">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Construire'}
                 </Button>
               </div>
