@@ -68,11 +68,22 @@ export interface PlayerState {
   bank_balance: number | null;
 }
 
+export interface ConstructionJob {
+  id: number;
+  player_id: string;
+  x: number;
+  y: number;
+  type: string;
+  ends_at: string;
+  created_at: string;
+}
+
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
   baseConstructions: BaseConstruction[];
   scoutingMissions: ScoutingMission[];
+  constructionJobs?: ConstructionJob[];
 }
 
 export interface MapCell {

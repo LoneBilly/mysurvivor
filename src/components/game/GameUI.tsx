@@ -234,7 +234,12 @@ const GameUI = () => {
         </div>
         <div className={cn("relative w-full h-full", currentView !== 'base' && "hidden")}>
           <BaseHeader resources={{ wood: playerData.playerState.wood, metal: playerData.playerState.metal, components: playerData.playerState.components }} />
-          <BaseInterface isActive={currentView === 'base'} initialConstructions={playerData.baseConstructions} />
+          <BaseInterface
+            isActive={currentView === 'base'}
+            initialConstructions={playerData.baseConstructions}
+            initialConstructionJobs={playerData.constructionJobs || []}
+            onUpdate={refreshPlayerData}
+          />
         </div>
       </main>
       <GameFooter stats={playerData.playerState} credits={playerData.playerState.credits} onInventaire={() => setIsInventoryOpen(true)} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { FullPlayerData, MapCell, Item, InventoryItem } from '@/types/game';
+import { FullPlayerData, MapCell, Item, InventoryItem, ConstructionJob } from '@/types/game';
 import LoadingScreen from '@/components/LoadingScreen';
 import GameUI from '@/components/game/GameUI';
 import { showError } from '@/utils/toast';
@@ -20,10 +20,11 @@ const Game = () => {
     setLoading(true);
 
     // Fetch all game data in parallel
-    const [playerDataRes, mapDataRes, itemsDataRes] = await Promise.all([
+    const [playerDataRes, mapDataRes, itemsDataRes, constructionJobsRes] = await Promise.all([
       supabase.rpc('get_full_player_data', { p_user_id: user.id }),
       supabase.from('map_layout').select('*'),
-      supabase.from('items').select('*')
+      supabase.from('items').select('*'),
+      supabase.from('construction_jobs').select('*').eq('player_id', user.id)
     ]);
 
     // Handle Player Data
@@ -34,6 +35,7 @@ const Game = () => {
       return;
     }
     const fullPlayerData = playerDataRes.data;
+    fullPlayerData.constructionJobs = constructionJobsRes.data || [];
 
     // Handle Map Data
     if (mapDataRes.error) {
@@ -86,9 +88,11 @@ const Game = () => {
   const refreshPlayerData = async () => {
     if (!user) return;
     const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
-    if (playerDataError) {
+    const { data: constructionJobs, error: jobsError } = await supabase.from('construction_jobs').select('*').eq('player_id', user.id);
+
+    if (playerDataError || jobsError) {
       showError("Erreur lors de la mise à jour des données.");
-      console.error(playerDataError);
+      console.error(playerDataError || jobsError);
     } else {
        if (fullPlayerData.inventory) {
         fullPlayerData.inventory = await Promise.all(
@@ -101,6 +105,7 @@ const Game = () => {
           })
         );
       }
+      fullPlayerData.constructionJobs = constructionJobs || [];
       setPlayerData(fullPlayerData);
     }
   };

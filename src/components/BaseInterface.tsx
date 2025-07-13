@@ -1,36 +1,76 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { Plus, Loader2, LocateFixed } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction } from "@/types/game";
+import { BaseConstruction, ConstructionJob } from "@/types/game";
 
 interface BaseCell {
   x: number;
   y: number;
-  type: 'campfire' | 'foundation' | 'empty';
+  type: 'campfire' | 'foundation' | 'empty' | 'in_progress';
   canBuild?: boolean;
+  ends_at?: string;
 }
 
 const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
 
+const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
+  const calculateRemaining = useCallback(() => {
+    const diff = new Date(endsAt).getTime() - Date.now();
+    if (diff <= 0) {
+      return { totalSeconds: 0, formatted: 'Terminé' };
+    }
+    
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return { totalSeconds, formatted: `${days}j` };
+    if (hours > 0) return { totalSeconds, formatted: `${hours}h ${minutes}m` };
+    if (minutes > 0) return { totalSeconds, formatted: `${minutes}m ${seconds}s` };
+    return { totalSeconds, formatted: `${seconds}s` };
+  }, [endsAt]);
+
+  const [remaining, setRemaining] = useState(calculateRemaining());
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    if (remaining.totalSeconds <= 0) {
+      setTimeout(() => onCompleteRef.current(), 1000);
+      return;
+    }
+    const timer = setInterval(() => {
+      setRemaining(calculateRemaining());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [remaining.totalSeconds, calculateRemaining]);
+
+  return <span className="text-xs font-mono">{remaining.formatted}</span>;
+};
+
 interface BaseInterfaceProps {
   isActive: boolean;
   initialConstructions: BaseConstruction[];
+  initialConstructionJobs: ConstructionJob[];
+  onUpdate: () => Promise<void>;
 }
 
-const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) => {
+const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs, onUpdate }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const [loading, setLoading] = useState(true);
   const viewportRef = useRef<HTMLDivElement>(null);
   const hasCentered = useRef(false);
-  const [lastBuiltCell, setLastBuiltCell] = useState<{ x: number; y: number } | null>(null);
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
+  const [buildTime, setBuildTime] = useState(0);
 
   const updateCanBuild = (grid: BaseCell[][]): BaseCell[][] => {
     const newGrid = grid.map(row => row.map(cell => ({ ...cell, canBuild: false })));
@@ -51,7 +91,7 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
     return newGrid;
   };
 
-  const initializeGrid = useCallback(async (constructions: BaseConstruction[]) => {
+  const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
     if (!user) return;
     setLoading(true);
     hasCentered.current = false;
@@ -71,7 +111,7 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
 
     let campPos: { x: number; y: number } | null = null;
 
-    if (currentConstructions.length === 0) {
+    if (currentConstructions.length === 0 && jobs.length === 0) {
       const newCampX = Math.floor(GRID_SIZE / 2);
       const newCampY = Math.floor(GRID_SIZE / 2);
       
@@ -96,6 +136,12 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
           }
         }
       });
+      jobs.forEach((job: ConstructionJob) => {
+        if (newGrid[job.y]?.[job.x]) {
+          newGrid[job.y][job.x].type = 'in_progress';
+          newGrid[job.y][job.x].ends_at = job.ends_at;
+        }
+      });
     }
 
     const finalGrid = updateCanBuild(newGrid);
@@ -106,9 +152,15 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
 
   useEffect(() => {
     if (initialConstructions) {
-      initializeGrid(initialConstructions);
+      initializeGrid(initialConstructions, initialConstructionJobs);
+      const foundationCount = initialConstructions.filter(c => c.type === 'foundation').length;
+      if (foundationCount === 0) {
+        setBuildTime(15);
+      } else {
+        setBuildTime(2 * (foundationCount ** 2) + 3 * foundationCount + 10);
+      }
     }
-  }, [initialConstructions, initializeGrid]);
+  }, [initialConstructions, initialConstructionJobs, initializeGrid]);
 
   const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -134,39 +186,53 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
     }
   }, [isActive, loading, gridData, campfirePosition, centerViewport]);
 
-  useEffect(() => {
-    if (lastBuiltCell) {
-      centerViewport(lastBuiltCell.x, lastBuiltCell.y);
-    }
-  }, [lastBuiltCell, centerViewport]);
-
   const handleCellClick = async (x: number, y: number) => {
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
     if (!cell.canBuild || cell.type !== 'empty') return;
 
-    let newGrid = gridData.map(row => row.map(c => ({ ...c })));
-    newGrid[y][x].type = 'foundation';
-    newGrid[y][x].canBuild = false;
-    newGrid = updateCanBuild(newGrid);
-    setGridData(newGrid);
-    setLastBuiltCell({ x, y });
-
-    const newConstruction = { player_id: user.id, x, y, type: 'foundation' };
-    const { error } = await supabase.from('base_constructions').insert(newConstruction);
+    const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
-      showError("Erreur lors de la construction.");
-      console.error(error);
-      initializeGrid(initialConstructions);
+      showError(error.message || "Erreur lors de la construction.");
+    } else {
+      showSuccess("Construction de la fondation démarrée !");
+      onUpdate();
     }
+  };
+
+  const formatDuration = (totalSeconds: number): string => {
+    if (totalSeconds < 60) return `${totalSeconds}s`;
+    if (totalSeconds < 3600) return `${Math.round(totalSeconds / 60)}m`;
+    if (totalSeconds < 86400) return `${Math.round(totalSeconds / 3600)}h`;
+    return `${Math.round(totalSeconds / 86400)}j`;
   };
 
   const getCellContent = (cell: BaseCell) => {
     if (cell.type === 'campfire') return "🔥";
     if (cell.type === 'foundation') return "";
-    if (cell.canBuild) return <Plus className="w-6 h-6 text-gray-400" />;
+    if (cell.type === 'in_progress' && cell.ends_at) {
+      return (
+        <div className="flex flex-col items-center justify-center text-white gap-1">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <Countdown endsAt={cell.ends_at} onComplete={onUpdate} />
+        </div>
+      );
+    }
+    if (cell.canBuild) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-1 text-gray-400">
+          <Plus className="w-6 h-6" />
+          <div className="flex items-center gap-1 text-xs font-mono">
+            <Zap size={12} className="text-yellow-400" /> 5
+          </div>
+          <div className="flex items-center gap-1 text-xs font-mono">
+            <Clock size={12} /> {formatDuration(buildTime)}
+          </div>
+        </div>
+      );
+    }
     return "";
   };
 
@@ -174,6 +240,7 @@ const BaseInterface = ({ isActive, initialConstructions }: BaseInterfaceProps) =
     switch (cell.type) {
       case 'campfire': return "bg-orange-400/20 border-orange-400/30";
       case 'foundation': return "bg-white/20 border-white/30";
+      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse";
       case 'empty':
         if (cell.canBuild) return "bg-white/10 border-white/20 hover:bg-white/20 cursor-pointer border-dashed";
         return "bg-black/20 border-white/10";
