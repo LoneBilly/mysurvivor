@@ -12,6 +12,7 @@ import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 import ListItemModal from './ListItemModal';
+import CreditsInfo from './CreditsInfo';
 
 export interface MarketListing {
   listing_id: number;
@@ -258,8 +259,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
             <DialogDescription asChild>
-              <button onClick={onPurchaseCredits} className="flex items-center justify-center gap-2 text-yellow-400 font-mono hover:text-yellow-300 transition-colors animate-credit-shimmer">
-                <Coins className="w-4 h-4" /> {credits} crédits
+              <button onClick={onPurchaseCredits} className="text-yellow-400 font-mono hover:text-yellow-300 transition-colors animate-credit-shimmer">
+                <CreditsInfo credits={credits} />
               </button>
             </DialogDescription>
           </DialogHeader>

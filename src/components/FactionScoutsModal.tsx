@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import ActionModal from './ActionModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from './ui/input';
+import CreditsInfo from './CreditsInfo';
 
 interface FactionScoutsModalProps {
   isOpen: boolean;
@@ -172,8 +173,8 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
           <DialogHeader className="text-center flex-shrink-0">
             <Eye className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Éclaireurs</DialogTitle>
-            <DialogDescription className="flex items-center justify-center gap-2 text-yellow-400 font-mono">
-              <Coins className="w-4 h-4" /> {credits} crédits
+            <DialogDescription asChild>
+              <CreditsInfo credits={credits} />
             </DialogDescription>
           </DialogHeader>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-grow mt-4 min-h-0">
