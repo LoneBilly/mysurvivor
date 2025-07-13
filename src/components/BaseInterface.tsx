@@ -7,6 +7,7 @@ import { showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
+import ChestModal from "./ChestModal";
 
 interface BaseCell {
   x: number;
@@ -86,6 +87,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [buildTime, setBuildTime] = useState(0);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
+  const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
 
   const hasActiveJob = initialConstructionJobs.length > 0;
 
@@ -246,6 +248,14 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     
     if (cell.type === 'foundation' && !hasActiveJob) {
       setFoundationMenu({ isOpen: true, x, y });
+      return;
+    }
+
+    if (cell.type === 'chest') {
+      const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+      if (constructionData) {
+        setChestModalState({ isOpen: true, construction: constructionData });
+      }
       return;
     }
 
@@ -421,6 +431,12 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
         y={foundationMenu?.y ?? null}
         onBuild={handleBuildOnFoundation}
         onDemolish={handleDemolishFoundation}
+      />
+      <ChestModal
+        isOpen={chestModalState.isOpen}
+        onClose={() => setChestModalState({ isOpen: false, construction: null })}
+        construction={chestModalState.construction}
+        onUpdate={onUpdate}
       />
     </div>
   );

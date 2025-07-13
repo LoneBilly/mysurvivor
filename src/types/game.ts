@@ -23,6 +23,7 @@ export interface InventoryItem {
 }
 
 export interface BaseConstruction {
+  id: number;
   x: number;
   y: number;
   type: string;
