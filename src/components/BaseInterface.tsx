@@ -327,16 +327,8 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
   };
 
-  const handleBuildOnFoundation = async (x: number, y: number, buildingType: string) => {
-    const costs = {
-      chest: { energy: 20, wood: 20, metal: 0, components: 0 },
-      wall: { energy: 10, wood: 0, metal: 20, components: 0 },
-      turret: { energy: 50, wood: 0, metal: 10, components: 20 },
-      generator: { energy: 50, wood: 0, metal: 10, components: 20 },
-      trap: { energy: 30, wood: 0, metal: 1, components: 0 },
-      workbench: { energy: 30, wood: 5, metal: 0, components: 0 },
-      furnace: { energy: 30, wood: 0, metal: 20, components: 0 },
-    }[buildingType] || { energy: 0, wood: 0, metal: 0, components: 0 };
+  const handleBuildOnFoundation = async (x: number, y: number, building: any) => {
+    const costs = building.costs;
 
     if (playerData.playerState.energie < costs.energy || playerData.playerState.wood < costs.wood || playerData.playerState.metal < costs.metal || playerData.playerState.components < costs.components) {
       showError("Ressources insuffisantes.");
@@ -358,7 +350,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     newPlayerData.playerState.components -= costs.components;
     setPlayerData(newPlayerData);
 
-    const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: buildingType });
+    const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
 
     if (error) {
       showError(error.message);
