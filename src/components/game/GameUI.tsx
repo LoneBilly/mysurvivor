@@ -118,7 +118,7 @@ const GameUI = () => {
             setIsMarketOpen(true);
           } else if (lowerCaseType === 'faction: scouts') {
             setIsFactionScoutsModalOpen(true);
-          } else if (lowerCaseType === 'metro') {
+          } else if (lowerCaseType === 'metro' || lowerCaseType === 'métro') {
             setIsMetroOpen(true);
           } else if (lowerCaseType === 'banque') {
             setIsBankOpen(true);

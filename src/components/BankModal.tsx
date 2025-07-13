@@ -90,8 +90,8 @@ const BankModal = ({ isOpen, onClose, credits, bankBalance, onUpdate }: BankModa
         </div>
         <Tabs defaultValue="deposit" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="deposit"><ArrowDownToLine className="w-4 h-4 mr-2" />Déposer</TabsTrigger>
-            <TabsTrigger value="withdraw"><ArrowUpFromLine className="w-4 h-4 mr-2" />Retirer</TabsTrigger>
+            <TabsTrigger value="deposit"><ArrowUpFromLine className="w-4 h-4 mr-2" />Déposer</TabsTrigger>
+            <TabsTrigger value="withdraw"><ArrowDownToLine className="w-4 h-4 mr-2" />Retirer</TabsTrigger>
           </TabsList>
           <TabsContent value="deposit" className="mt-4 space-y-4">
             <Input type="number" placeholder="Montant à déposer" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="bg-white/5 border-white/20" />
