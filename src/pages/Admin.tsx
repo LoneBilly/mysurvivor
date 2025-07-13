@@ -97,34 +97,53 @@ const Admin = () => {
         </div>
 
         {isMobile ? (
-          <div className="mb-6">
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value)}
-              className="w-full bg-gray-800 border-gray-700 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="map">Carte</option>
-              <option value="players">Joueurs</option>
-              <option value="items">Items</option>
-              <option value="events">Events</option>
-            </select>
-          </div>
+          <>
+            <div className="mb-4">
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value)}
+                className="w-full bg-gray-800 border-gray-700 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="map">Carte</option>
+                <option value="players">Joueurs</option>
+                <option value="items">Items</option>
+                <option value="events">Events</option>
+              </select>
+            </div>
+            <div className="flex-1 min-h-0">
+              {renderContent()}
+            </div>
+          </>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
-            <div className="flex justify-center">
-              <TabsList className="grid w-full grid-cols-4 max-w-2xl mb-6 flex-shrink-0">
+            <div className="flex justify-center mb-4">
+              <TabsList className="grid w-full grid-cols-4 max-w-2xl flex-shrink-0">
                 <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
                 <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
                 <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
                 <TabsTrigger value="events"><Zap className="w-4 h-4 mr-2" />Events</TabsTrigger>
               </TabsList>
             </div>
+            <TabsContent value="map" className="flex-1 min-h-0">
+              <div className="w-full h-full flex items-center justify-center">
+                {selectedZone ? (
+                  <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
+                ) : (
+                  <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="players" className="flex-1 min-h-0">
+              <PlayerManager mapLayout={mapLayout} />
+            </TabsContent>
+            <TabsContent value="items" className="flex-1 min-h-0">
+              <ItemManager />
+            </TabsContent>
+            <TabsContent value="events" className="flex-1 min-h-0">
+              <EventManager mapLayout={mapLayout} />
+            </TabsContent>
           </Tabs>
         )}
-        
-        <div className="flex-1 min-h-0">
-          {renderContent()}
-        </div>
       </div>
     </div>
   );
