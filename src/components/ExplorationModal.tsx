@@ -6,15 +6,20 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Loader2, Search, Shield, Package, Check, X } from 'lucide-react';
-import { MapCell, Item } from '@/types/game';
+import { MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 
 const EXPLORATION_COST = 5;
 const EXPLORATION_DURATION_S = 30;
 
-interface FoundItem extends Item {
+interface FoundItem {
+  item_id: number;
   quantity: number;
+  name: string;
+  icon: string | null;
+  description: string | null;
+  type: string;
   signedIconUrl?: string;
 }
 
@@ -34,7 +39,7 @@ interface ExplorationModalProps {
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
   const [activeTab, setActiveTab] = useState('exploration');
-  const [potentialLoot, setPotentialLoot] = useState<Item[]>([]);
+  const [potentialLoot, setPotentialLoot] = useState<{name: string}[]>([]);
   const [scoutedTargets, setScoutedTargets] = useState<ScoutedTarget[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExploring, setIsExploring] = useState(false);
@@ -45,11 +50,11 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const fetchPotentialLoot = useCallback(async () => {
     if (!zone) return;
     setLoading(true);
-    const { data, error } = await supabase.from('zone_items').select('items(*)').eq('zone_id', zone.id);
+    const { data, error } = await supabase.from('zone_items').select('items(name)').eq('zone_id', zone.id);
     if (error) {
       showError("Impossible de charger les objets potentiels.");
     } else {
-      setPotentialLoot(data.map(d => d.items).filter(Boolean) as Item[]);
+      setPotentialLoot(data.map(d => d.items).filter(Boolean) as {name: string}[]);
     }
     setLoading(false);
   }, [zone]);
@@ -129,7 +134,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const handleCollectAll = async () => {
     setInventoryFullError(false);
     if (!foundItems || foundItems.length === 0) return;
-    const itemsToCollect = foundItems.map(item => ({ item_id: item.id, quantity: item.quantity }));
+    const itemsToCollect = foundItems.map(item => ({ item_id: item.item_id, quantity: item.quantity }));
     
     const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: itemsToCollect });
     if (error) {
@@ -174,7 +179,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 <h3 className="font-bold text-center">Butin trouvé !</h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-black/20 rounded-lg">
                   {foundItems.length > 0 ? foundItems.map((item, index) => (
-                    <div key={`${item.id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
+                    <div key={`${item.item_id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
                       <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                         <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
                       </div>
@@ -207,7 +212,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                   <h4 className="font-semibold mb-2">Butin potentiel :</h4>
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <div className="flex flex-wrap gap-2">
-                      {potentialLoot.map((item, index) => <span key={`${item.id}-${index}`} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>)}
+                      {potentialLoot.map((item, index) => <span key={`${item.name}-${index}`} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>)}
                     </div>
                   )}
                 </div>
