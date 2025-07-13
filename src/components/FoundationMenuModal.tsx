@@ -2,18 +2,21 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2, TreeDeciduous, Cog } from 'lucide-react';
+import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
+import { Item } from '@/types/game';
+import { getCachedSignedUrl } from '@/utils/iconCache';
+import ItemIcon from './ItemIcon';
 
 const buildings = [
-  { name: 'Coffre basique', type: 'chest', icon: Box, costs: { energy: 20, wood: 20, metal: 0, components: 0 } },
-  { name: 'Mur', type: 'wall', icon: BrickWall, costs: { energy: 10, wood: 0, metal: 20, components: 0 } },
-  { name: 'Tourelle', type: 'turret', icon: TowerControl, costs: { energy: 50, wood: 0, metal: 10, components: 20 } },
-  { name: 'Groupe électrogène', type: 'generator', icon: Zap, costs: { energy: 50, wood: 0, metal: 10, components: 20 } },
-  { name: 'Piège à loup', type: 'trap', icon: AlertTriangle, costs: { energy: 30, wood: 0, metal: 1, components: 0 } },
-  { name: 'Établi', type: 'workbench', icon: Hammer, costs: { energy: 30, wood: 5, metal: 0, components: 0 } },
-  { name: 'Four', type: 'furnace', icon: CookingPot, costs: { energy: 30, wood: 0, metal: 20, components: 0 } },
+  { name: 'Coffre basique', type: 'chest', icon: Box, costs: { energy: 20, wood: 20 } },
+  { name: 'Mur', type: 'wall', icon: BrickWall, costs: { energy: 10, metal: 20 } },
+  { name: 'Tourelle', type: 'turret', icon: TowerControl, costs: { energy: 50, metal: 10, components: 20 } },
+  { name: 'Groupe électrogène', type: 'generator', icon: Zap, costs: { energy: 50, metal: 10, components: 20 } },
+  { name: 'Piège à loup', type: 'trap', icon: AlertTriangle, costs: { energy: 30, metal: 1 } },
+  { name: 'Établi', type: 'workbench', icon: Hammer, costs: { energy: 30, wood: 5 } },
+  { name: 'Four', type: 'furnace', icon: CookingPot, costs: { energy: 30, metal: 20 } },
 ];
 
 type Building = typeof buildings[0];
@@ -31,49 +34,76 @@ interface FoundationMenuModalProps {
     metal: number;
     components: number;
   };
+  items: Item[];
 }
 
-const resourceDetails: { [key: string]: { name: string; icon: React.ElementType } } = {
-  energy: { name: 'Énergie', icon: Zap },
-  wood: { name: 'Bois', icon: TreeDeciduous },
-  metal: { name: 'Métal', icon: Hammer },
-  components: { name: 'Composants', icon: Cog },
+const resourceToItemName: { [key: string]: string } = {
+  wood: 'Bois',
+  metal: 'Pierre',
+  components: 'Composants'
 };
 
-const CostSlot = ({ resource, required, available }: { resource: string; required: number; available: number }) => {
+const CostDisplay = ({ resource, required, available, itemDetail }: { resource: string; required: number; available: number; itemDetail?: Item & { signedIconUrl?: string } }) => {
   if (required === 0) return null;
   const hasEnough = available >= required;
-  const details = resourceDetails[resource];
-  if (!details) return null;
-  const Icon = details.icon;
+  const isEnergy = resource === 'energy';
 
   return (
     <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-2 bg-black/20 px-2 py-1 rounded-md border border-white/10">
-            <Icon className={cn("w-4 h-4", hasEnough ? "text-gray-300" : "text-red-400")} />
+          <div className={cn("flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md border", hasEnough ? "border-white/10" : "border-red-500/50")}>
+            {isEnergy ? (
+              <Zap className={cn("w-4 h-4", hasEnough ? "text-yellow-400" : "text-red-400")} />
+            ) : (
+              <div className="w-5 h-5 relative">
+                {itemDetail ? (
+                  <ItemIcon iconName={itemDetail.signedIconUrl || itemDetail.icon} alt={itemDetail.name} />
+                ) : (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
+              </div>
+            )}
             <span className={cn("text-sm font-mono", hasEnough ? "text-white" : "text-red-400")}>
               {required}
             </span>
           </div>
         </TooltipTrigger>
         <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
-          <p>{details.name}: {available} / {required}</p>
+          <p>{isEnergy ? 'Énergie' : itemDetail?.name}: {available} / {required}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
 };
 
-const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playerResources }: FoundationMenuModalProps) => {
+const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playerResources, items }: FoundationMenuModalProps) => {
   const [loading, setLoading] = useState(false);
+  const [itemDetails, setItemDetails] = useState<{[key: string]: Item & { signedIconUrl?: string }}>({});
 
   useEffect(() => {
-    if (!isOpen) {
-      setLoading(false);
+    const fetchItemDetails = async () => {
+      const neededItemNames = Object.values(resourceToItemName);
+      const itemsToFetch = items.filter(item => neededItemNames.includes(item.name));
+      
+      const details: {[key: string]: Item & { signedIconUrl?: string }} = {};
+      for (const item of itemsToFetch) {
+        const key = Object.keys(resourceToItemName).find(k => resourceToItemName[k] === item.name);
+        if (key) {
+          let signedIconUrl: string | undefined = undefined;
+          if (item.icon && item.icon.includes('.')) {
+            signedIconUrl = await getCachedSignedUrl(item.icon) || undefined;
+          }
+          details[key] = { ...item, signedIconUrl };
+        }
+      }
+      setItemDetails(details);
+    };
+
+    if (isOpen && items.length > 0) {
+      fetchItemDetails();
     }
-  }, [isOpen]);
+  }, [isOpen, items]);
 
   const handleBuildClick = (building: Building) => {
     if (x === null || y === null) {
@@ -97,36 +127,39 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playe
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+      <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
         <DialogHeader>
           <DialogTitle>Construire sur la fondation</DialogTitle>
           <DialogDescription>Choisissez un bâtiment à construire. Chaque construction prend 1 minute.</DialogDescription>
         </DialogHeader>
-        <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2 pr-2">
+        <div className="py-4 max-h-[60vh] overflow-y-auto space-y-3 pr-2">
           {buildings.map((b) => {
             const Icon = b.icon;
-            const canAfford = Object.entries(b.costs).every(([resource, cost]) => {
-              return playerResources[resource as keyof typeof playerResources] >= cost;
+            const costs = { ...b.costs, wood: b.costs.wood || 0, metal: b.costs.metal || 0, components: b.costs.components || 0 };
+            const canAfford = Object.entries(costs).every(([resource, cost]) => {
+              const resourceKey = resource === 'energy' ? 'energie' : resource;
+              return playerResources[resourceKey as keyof typeof playerResources] >= cost;
             });
             return (
-              <div key={b.type} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Icon className="w-8 h-8 text-gray-300 flex-shrink-0" />
+              <div key={b.type} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-transparent hover:border-white/20 transition-colors">
+                <div className="flex items-center gap-4">
+                  <Icon className="w-10 h-10 text-gray-300 flex-shrink-0" />
                   <div className="space-y-2">
-                    <p className="font-semibold">{b.name}</p>
-                    <div className="flex items-center gap-2">
-                      {Object.entries(b.costs).map(([resource, cost]) => (
-                        <CostSlot
+                    <p className="font-semibold text-lg">{b.name}</p>
+                    <div className="flex items-center flex-wrap gap-2">
+                      {Object.entries(costs).map(([resource, cost]) => (
+                        <CostDisplay
                           key={resource}
                           resource={resource}
                           required={cost}
-                          available={playerResources[resource as keyof typeof playerResources]}
+                          available={playerResources[resource === 'energy' ? 'energie' : resource as keyof typeof playerResources]}
+                          itemDetail={itemDetails[resource]}
                         />
                       ))}
                        <TooltipProvider delayDuration={100}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 rounded-md border border-white/10">
+                            <div className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md border border-white/10">
                               <Clock className="w-4 h-4 text-gray-300" />
                               <span className="text-sm font-mono text-white">1m</span>
                             </div>

@@ -79,7 +79,7 @@ interface BaseInterfaceProps {
 
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
-  const { playerData, setPlayerData, refreshPlayerData } = useGame();
+  const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
   const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
   
   const isMobile = useIsMobile();
@@ -501,6 +501,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         onBuild={handleBuildOnFoundation}
         onDemolish={handleDemolishFoundation}
         playerResources={playerData.playerState}
+        items={items}
       />
       <ChestModal
         isOpen={chestModalState.isOpen}
