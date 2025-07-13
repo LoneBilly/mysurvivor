@@ -26,6 +26,7 @@ interface FactionScoutsModalProps {
   };
   loading: boolean;
   refreshScoutingData: () => void;
+  onPurchaseCredits: () => void;
 }
 
 type ScoutablePlayer = { id: string; username: string };
@@ -76,7 +77,7 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
   );
 };
 
-const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissions, loading, refreshScoutingData }: FactionScoutsModalProps) => {
+const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissions, loading, refreshScoutingData, onPurchaseCredits }: FactionScoutsModalProps) => {
   const [activeTab, setActiveTab] = useState('send');
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [scoutablePlayers, setScoutablePlayers] = useState<ScoutablePlayer[]>([]);
@@ -174,7 +175,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
             <Eye className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Faction: Éclaireurs</DialogTitle>
             <DialogDescription asChild>
-              <CreditsInfo credits={credits} />
+              <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
             </DialogDescription>
           </DialogHeader>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-grow mt-4 min-h-0">

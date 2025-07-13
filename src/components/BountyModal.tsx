@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Coins, Shield } from 'lucide-react';
+import { Loader2, Coins, Shield, List, PlusCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface BountyModalProps {
   isOpen: boolean;
@@ -14,12 +15,16 @@ interface BountyModalProps {
 }
 
 type TargetPlayer = { id: string; username: string };
+type ActiveBounty = { placer_username: string; target_username: string; amount: number; created_at: string };
 
 const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) => {
+  const [activeTab, setActiveTab] = useState('place');
   const [targetPlayers, setTargetPlayers] = useState<TargetPlayer[]>([]);
+  const [activeBounties, setActiveBounties] = useState<ActiveBounty[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<TargetPlayer | null>(null);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingBounties, setLoadingBounties] = useState(false);
 
   const fetchTargetPlayers = useCallback(async () => {
     setLoading(true);
@@ -32,14 +37,29 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) =
     setLoading(false);
   }, []);
 
+  const fetchActiveBounties = useCallback(async () => {
+    setLoadingBounties(true);
+    const { data, error } = await supabase.rpc('get_active_bounties');
+    if (error) {
+      showError("Impossible de charger la liste des primes.");
+    } else {
+      setActiveBounties(data || []);
+    }
+    setLoadingBounties(false);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
-      fetchTargetPlayers();
+      if (activeTab === 'place') {
+        fetchTargetPlayers();
+      } else if (activeTab === 'list') {
+        fetchActiveBounties();
+      }
     } else {
       setSelectedPlayer(null);
       setAmount('');
     }
-  }, [isOpen, fetchTargetPlayers]);
+  }, [isOpen, activeTab, fetchTargetPlayers, fetchActiveBounties]);
 
   const handlePlaceBounty = async () => {
     if (!selectedPlayer || !amount) {
@@ -78,47 +98,72 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) =
         <DialogHeader className="text-center">
           <Shield className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Commissariat</DialogTitle>
-          <DialogDescription>Placez une prime sur la tête d'un autre survivant.</DialogDescription>
+          <DialogDescription>Placez ou consultez les primes sur la tête des survivants.</DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4">
-          <div>
-            <label className="text-sm font-medium text-white font-mono">Cible</label>
-            <select
-              value={selectedPlayer?.id || ''}
-              onChange={(e) => {
-                const player = targetPlayers.find(p => p.id === e.target.value);
-                setSelectedPlayer(player || null);
-              }}
-              className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
-            >
-              <option value="" disabled>Sélectionner un joueur...</option>
-              {loading && <option disabled>Chargement des joueurs...</option>}
-              {!loading && targetPlayers.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.username}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="bounty-amount" className="text-sm font-medium text-white font-mono">Montant de la prime</label>
-            <div className="relative mt-1">
-              <Input
-                id="bounty-amount"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="pl-8 bg-white/5 border-white/20"
-                placeholder="0"
-              />
-              <Coins className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="place"><PlusCircle className="w-4 h-4 mr-2" />Placer une prime</TabsTrigger>
+            <TabsTrigger value="list"><List className="w-4 h-4 mr-2" />Primes en cours</TabsTrigger>
+          </TabsList>
+          <TabsContent value="place" className="mt-4 space-y-4">
+            <div>
+              <label className="text-sm font-medium text-white font-mono">Cible</label>
+              <select
+                value={selectedPlayer?.id || ''}
+                onChange={(e) => {
+                  const player = targetPlayers.find(p => p.id === e.target.value);
+                  setSelectedPlayer(player || null);
+                }}
+                className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
+              >
+                <option value="" disabled>Sélectionner un joueur...</option>
+                {loading && <option disabled>Chargement des joueurs...</option>}
+                {!loading && targetPlayers.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.username}
+                  </option>
+                ))}
+              </select>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Votre solde: {credits} crédits</p>
-          </div>
-          <Button onClick={handlePlaceBounty} disabled={loading || !selectedPlayer || !amount} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Placer la prime'}
-          </Button>
-        </div>
+            <div>
+              <label htmlFor="bounty-amount" className="text-sm font-medium text-white font-mono">Montant de la prime</label>
+              <div className="relative mt-1">
+                <Input
+                  id="bounty-amount"
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="pl-8 bg-white/5 border-white/20"
+                  placeholder="0"
+                />
+                <Coins className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Votre solde: {credits} crédits</p>
+            </div>
+            <Button onClick={handlePlaceBounty} disabled={loading || !selectedPlayer || !amount} className="w-full">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Placer la prime'}
+            </Button>
+          </TabsContent>
+          <TabsContent value="list" className="mt-4 max-h-80 overflow-y-auto space-y-2">
+            {loadingBounties ? (
+              <div className="flex justify-center items-center h-32"><Loader2 className="w-6 h-6 animate-spin" /></div>
+            ) : activeBounties.length > 0 ? (
+              activeBounties.map((bounty, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <div>
+                    <p className="font-bold">{bounty.target_username}</p>
+                    <p className="text-xs text-gray-400">Par: {bounty.placer_username}</p>
+                  </div>
+                  <div className="font-bold flex items-center gap-1 text-yellow-400">
+                    {bounty.amount} <Coins size={14} />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-gray-400 py-10">Aucune prime en cours.</p>
+            )}
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

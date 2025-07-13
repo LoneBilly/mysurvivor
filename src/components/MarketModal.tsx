@@ -259,9 +259,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
             <DialogDescription asChild>
-              <button onClick={onPurchaseCredits} className="text-yellow-400 font-mono hover:text-yellow-300 transition-colors animate-credit-shimmer">
-                <CreditsInfo credits={credits} />
-              </button>
+              <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
             </DialogDescription>
           </DialogHeader>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-grow mt-4 min-h-0">

@@ -17,9 +17,10 @@ interface MetroModalProps {
   currentZoneId: number;
   credits: number;
   onUpdate: () => void;
+  onPurchaseCredits: () => void;
 }
 
-const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, credits, onUpdate }: MetroModalProps) => {
+const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, credits, onUpdate, onPurchaseCredits }: MetroModalProps) => {
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -60,12 +61,15 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+      <DialogContent 
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700"
+      >
         <DialogHeader className="text-center">
           <TramFront className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Métro Express</DialogTitle>
           <DialogDescription asChild>
-            <CreditsInfo credits={credits} className="mt-1" />
+            <CreditsInfo credits={credits} className="mt-1" onClick={onPurchaseCredits} />
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
