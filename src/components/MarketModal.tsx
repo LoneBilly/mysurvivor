@@ -10,9 +10,9 @@ import { Loader2, ShoppingCart, Store, Coins, Trash2, Undo2, Tag, ArrowUpDown, P
 import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import ActionModal from './ActionModal';
-import { getItemIconUrl } from '@/utils/imageUrls';
 import ListItemModal from './ListItemModal';
 import CreditsInfo from './CreditsInfo';
+import { useGame } from '@/contexts/GameContext';
 
 export interface MarketListing {
   listing_id: number;
@@ -25,7 +25,6 @@ export interface MarketListing {
   price: number;
   created_at: string;
   views: number;
-  iconUrl?: string;
 }
 
 const ListingSkeleton = () => (
@@ -69,6 +68,7 @@ interface MarketModalProps {
 
 const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate, onPurchaseCredits }: MarketModalProps) => {
   const { user } = useAuth();
+  const { getIconUrl } = useGame();
   const [activeTab, setActiveTab] = useState('buy');
   const [listings, setListings] = useState<MarketListing[]>([]);
   const [myListings, setMyListings] = useState<MarketListing[]>([]);
@@ -84,14 +84,10 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
     if (error) {
       showError("Impossible de charger les offres du marché.");
     } else {
-      const listingsWithUrls = (data as MarketListing[]).map(item => ({
-        ...item,
-        iconUrl: getItemIconUrl(item.item_icon) || undefined,
-      }));
-      setListings(listingsWithUrls);
+      setListings(data as MarketListing[]);
       
-      if (listingsWithUrls.length > 0) {
-        const listingIds = listingsWithUrls.map(l => l.listing_id);
+      if (data && data.length > 0) {
+        const listingIds = data.map(l => l.listing_id);
         supabase.rpc('increment_listing_views', { p_listing_ids: listingIds }).then(({ error }) => {
           if (error) {
             console.error('Failed to increment views:', error.message);
@@ -125,11 +121,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         created_at: d.created_at,
         views: d.views,
       }));
-      const listingsWithUrls = (formattedData as MarketListing[]).map(item => ({
-        ...item,
-        iconUrl: getItemIconUrl(item.item_icon) || undefined,
-      }));
-      setMyListings(listingsWithUrls);
+      setMyListings(formattedData as MarketListing[]);
     }
     setLoading(false);
   }, [user]);
@@ -278,7 +270,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                     filteredAndSortedListings.length > 0 ? filteredAndSortedListings.map(l => (
                       <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg mb-2">
                         <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                          <ItemIcon iconName={l.iconUrl || l.item_icon} alt={l.item_name} />
+                          <ItemIcon iconName={getIconUrl(l.item_icon) || l.item_icon} alt={l.item_name} />
                         </div>
                         <div className="flex-grow">
                           <p className="font-bold">{l.item_name} x{l.quantity}</p>
@@ -305,7 +297,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                       {myListings.map(l => (
                         <div key={l.listing_id} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
                           <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                            <ItemIcon iconName={l.iconUrl || l.item_icon} alt={l.item_name} />
+                            <ItemIcon iconName={getIconUrl(l.item_icon) || l.item_icon} alt={l.item_name} />
                           </div>
                           <div className="flex-grow">
                             <p className="font-bold">{l.item_name} x{l.quantity}</p>

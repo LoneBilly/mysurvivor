@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { FullPlayerData, MapCell, Item } from '@/types/game';
 
 interface GameContextType {
@@ -7,6 +7,7 @@ interface GameContextType {
   items: Item[];
   refreshPlayerData: () => Promise<void>;
   setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
+  getIconUrl: (iconName: string | null) => string | undefined;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -27,14 +28,20 @@ interface GameProviderProps {
     items: Item[];
   };
   refreshPlayerData: () => Promise<void>;
+  iconUrlMap: Map<string, string>;
 }
 
-export const GameProvider = ({ children, initialData, refreshPlayerData }: GameProviderProps) => {
+export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrlMap }: GameProviderProps) => {
   const [playerData, setPlayerData] = useState<FullPlayerData>(initialData.playerData);
 
   useEffect(() => {
     setPlayerData(initialData.playerData);
   }, [initialData.playerData]);
+
+  const getIconUrl = useCallback((iconName: string | null): string | undefined => {
+    if (!iconName) return undefined;
+    return iconUrlMap.get(iconName);
+  }, [iconUrlMap]);
 
   const value = {
     playerData,
@@ -42,6 +49,7 @@ export const GameProvider = ({ children, initialData, refreshPlayerData }: GameP
     items: initialData.items,
     refreshPlayerData,
     setPlayerData,
+    getIconUrl,
   };
 
   return (

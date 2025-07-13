@@ -15,7 +15,6 @@ import { showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import ItemFormModal from './ItemFormModal';
 import ItemIcon from '@/components/ItemIcon';
-import { getItemIconUrl } from '@/utils/imageUrls';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const ItemManager = () => {
@@ -26,6 +25,7 @@ const ItemManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const isMobile = useIsMobile();
+  const [iconUrlMap, setIconUrlMap] = useState<Map<string, string>>(new Map());
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -35,11 +35,17 @@ const ItemManager = () => {
       console.error(error);
       setItems([]);
     } else {
-      const itemsWithUrls = (data as Item[]).map(item => ({
-        ...item,
-        iconUrl: getItemIconUrl(item.icon) || undefined,
-      }));
-      setItems(itemsWithUrls);
+      setItems(data as Item[]);
+      const urlMap = new Map<string, string>();
+      for (const item of data) {
+        if (item.icon) {
+          const { data: urlData } = supabase.storage.from('items.icons').getPublicUrl(item.icon);
+          if (urlData.publicUrl) {
+            urlMap.set(item.icon, urlData.publicUrl);
+          }
+        }
+      }
+      setIconUrlMap(urlMap);
     }
     setLoading(false);
   }, []);
@@ -111,7 +117,7 @@ const ItemManager = () => {
               {filteredItems.map(item => (
                 <div key={item.id} onClick={() => handleEdit(item)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer flex items-start gap-4">
                   <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                    <ItemIcon iconName={item.iconUrl || item.icon} alt={item.name} />
+                    <ItemIcon iconName={iconUrlMap.get(item.icon || '') || item.icon} alt={item.name} />
                   </div>
                   <div className="flex-grow min-w-0">
                     <p className="font-bold text-white truncate">{item.name}</p>
@@ -147,7 +153,7 @@ const ItemManager = () => {
                   >
                     <TableCell>
                       <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative">
-                        <ItemIcon iconName={item.iconUrl || item.icon} alt={item.name} />
+                        <ItemIcon iconName={iconUrlMap.get(item.icon || '') || item.icon} alt={item.name} />
                       </div>
                     </TableCell>
                     <TableCell className="font-medium truncate">{item.name}</TableCell>

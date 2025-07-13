@@ -2,19 +2,20 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { FullPlayerData, MapCell, Item, InventoryItem, ConstructionJob } from '@/types/game';
+import { FullPlayerData, MapCell, Item } from '@/types/game';
 import LoadingScreen from '@/components/LoadingScreen';
 import GameUI from '@/components/game/GameUI';
 import { showError } from '@/utils/toast';
 import { GameProvider } from '@/contexts/GameContext';
-import { getItemIconUrl } from '@/utils/imageUrls';
+import { preloadImages } from '@/utils/preloadImages';
 
 const Game = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [playerData, setPlayerData] = useState<FullPlayerData | null>(null);
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
-  const [items, setItems] = useState<(Item & { iconUrl?: string })[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [iconUrlMap, setIconUrlMap] = useState<Map<string, string>>(new Map());
 
   const loadGameData = async (user: User) => {
     setLoading(true);
@@ -26,48 +27,35 @@ const Game = () => {
       supabase.from('construction_jobs').select('*').eq('player_id', user.id)
     ]);
 
-    if (playerDataRes.error) {
-      showError("Erreur critique lors du chargement des données du joueur.");
-      console.error(playerDataRes.error);
-      setLoading(false);
-      return;
-    }
-    const fullPlayerData = playerDataRes.data;
-    fullPlayerData.constructionJobs = constructionJobsRes.data || [];
-
-    if (mapDataRes.error) {
-      showError("Erreur critique lors du chargement de la carte.");
-      console.error(mapDataRes.error);
-      setLoading(false);
-      return;
-    }
-    setMapLayout(mapDataRes.data);
-
-    if (itemsDataRes.error) {
-      showError("Erreur critique lors du chargement des objets.");
-      console.error(itemsDataRes.error);
+    if (playerDataRes.error || mapDataRes.error || itemsDataRes.error || constructionJobsRes.error) {
+      showError("Erreur critique lors du chargement des données de jeu.");
+      console.error(playerDataRes.error || mapDataRes.error || itemsDataRes.error || constructionJobsRes.error);
       setLoading(false);
       return;
     }
     
+    const fullPlayerData = playerDataRes.data;
+    fullPlayerData.constructionJobs = constructionJobsRes.data || [];
+    setMapLayout(mapDataRes.data);
     const itemsData = itemsDataRes.data as Item[];
-    const enrichedItems = itemsData.map(item => ({
-      ...item,
-      iconUrl: getItemIconUrl(item.icon) || undefined,
-    }));
-    setItems(enrichedItems);
+    setItems(itemsData);
 
-    if (fullPlayerData.inventory) {
-      fullPlayerData.inventory = fullPlayerData.inventory.map((invItem: InventoryItem) => {
-        const itemDetails = enrichedItems.find(i => i.id === invItem.item_id);
-        if (itemDetails && invItem.items) {
-          invItem.items.iconUrl = itemDetails.iconUrl;
+    const urlMap = new Map<string, string>();
+    const urlsToPreload: string[] = [];
+    for (const item of itemsData) {
+      if (item.icon) {
+        const { data: urlData } = supabase.storage.from('items.icons').getPublicUrl(item.icon);
+        if (urlData.publicUrl) {
+          urlMap.set(item.icon, urlData.publicUrl);
+          urlsToPreload.push(urlData.publicUrl);
         }
-        return invItem;
-      });
+      }
     }
-    setPlayerData(fullPlayerData);
+    setIconUrlMap(urlMap);
 
+    await preloadImages(urlsToPreload);
+    
+    setPlayerData(fullPlayerData);
     setLoading(false);
   };
 
@@ -86,15 +74,6 @@ const Game = () => {
       showError("Erreur lors de la mise à jour des données.");
       console.error(playerDataError || jobsError);
     } else {
-       if (fullPlayerData.inventory) {
-        fullPlayerData.inventory = fullPlayerData.inventory.map((invItem: InventoryItem) => {
-          const itemDetails = items.find(i => i.id === invItem.item_id);
-          if (itemDetails && invItem.items) {
-            invItem.items.iconUrl = itemDetails.iconUrl;
-          }
-          return invItem;
-        });
-      }
       fullPlayerData.constructionJobs = constructionJobs || [];
       setPlayerData(fullPlayerData);
     }
@@ -109,7 +88,11 @@ const Game = () => {
   }
 
   return (
-    <GameProvider initialData={{ playerData, mapLayout, items }} refreshPlayerData={refreshPlayerData}>
+    <GameProvider 
+      initialData={{ playerData, mapLayout, items }} 
+      refreshPlayerData={refreshPlayerData}
+      iconUrlMap={iconUrlMap}
+    >
       <GameUI />
     </GameProvider>
   );

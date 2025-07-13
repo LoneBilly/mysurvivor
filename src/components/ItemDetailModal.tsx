@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import ItemIcon from "./ItemIcon";
 import { InventoryItem } from "@/types/game";
-import { cn } from "@/lib/utils";
+import { useGame } from "@/contexts/GameContext";
 
 interface ItemDetailModalProps {
   isOpen: boolean;
@@ -21,9 +21,11 @@ interface ItemDetailModalProps {
 }
 
 const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }: ItemDetailModalProps) => {
+  const { getIconUrl } = useGame();
   if (!item) return null;
 
   const useActionText = item.items?.use_action_text || 'Utiliser';
+  const iconUrl = getIconUrl(item.items?.icon || null);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -39,7 +41,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll }:
         <DialogHeader>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-lg bg-slate-700/50 border-slate-600 flex-shrink-0 relative p-1">
-              <ItemIcon iconName={item.items?.iconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
+              <ItemIcon iconName={iconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
             </div>
             <div>
               <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">

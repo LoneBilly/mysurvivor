@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from '@/lib/utils';
 import { Item } from '@/types/game';
 import ItemIcon from './ItemIcon';
+import { useGame } from '@/contexts/GameContext';
 
 const buildings = [
   { name: 'Coffre basique', type: 'chest', icon: Box, costs: { energy: 20, wood: 20 } },
@@ -42,10 +43,12 @@ const resourceToItemName: { [key: string]: string } = {
   components: 'Composants'
 };
 
-const CostDisplay = ({ resource, required, available, itemDetail }: { resource: string; required: number; available: number; itemDetail?: Item & { iconUrl?: string } }) => {
+const CostDisplay = ({ resource, required, available, itemDetail }: { resource: string; required: number; available: number; itemDetail?: Item }) => {
+  const { getIconUrl } = useGame();
   if (required === 0) return null;
   const hasEnough = available >= required;
   const isEnergy = resource === 'energy';
+  const iconUrl = itemDetail ? getIconUrl(itemDetail.icon) : null;
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -60,7 +63,7 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
                 <Zap className={cn("w-7 h-7", hasEnough ? "text-yellow-400" : "text-red-400")} />
               ) : (
                 itemDetail ? (
-                  <ItemIcon iconName={itemDetail.iconUrl || itemDetail.icon} alt={itemDetail.name} />
+                  <ItemIcon iconName={iconUrl || itemDetail.icon} alt={itemDetail.name} />
                 ) : (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 )
@@ -83,14 +86,14 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
 
 const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playerResources, items }: FoundationMenuModalProps) => {
   const [loading, setLoading] = useState(false);
-  const [itemDetails, setItemDetails] = useState<{[key: string]: Item & { iconUrl?: string }}>({});
+  const [itemDetails, setItemDetails] = useState<{[key: string]: Item}>({});
 
   useEffect(() => {
     const fetchItemDetails = () => {
       const neededItemNames = Object.values(resourceToItemName);
       const itemsToFetch = items.filter(item => neededItemNames.includes(item.name));
       
-      const details: {[key: string]: Item & { iconUrl?: string }} = {};
+      const details: {[key: string]: Item} = {};
       for (const item of itemsToFetch) {
         const key = Object.keys(resourceToItemName).find(k => resourceToItemName[k] === item.name);
         if (key) {

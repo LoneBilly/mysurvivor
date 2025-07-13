@@ -1,27 +1,33 @@
 import { TreeDeciduous, Hammer, Cog } from 'lucide-react';
 import { Item } from '@/types/game';
 import ItemIcon from './ItemIcon';
+import { useGame } from '@/contexts/GameContext';
 
 interface ResourceItemProps {
   icon: React.ElementType;
-  itemIcon?: Item & { iconUrl?: string };
+  itemIcon?: Item;
   label: string;
   value: number;
 }
 
-const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps) => (
-  <div className="flex items-center space-x-2 bg-white/5 px-2 sm:px-3 py-2 rounded-lg border border-white/10">
-    <div className="w-5 h-5 relative">
-      {itemIcon ? (
-        <ItemIcon iconName={itemIcon.iconUrl || itemIcon.icon} alt={itemIcon.name} />
-      ) : (
-        <Icon className="w-5 h-5 text-white flex-shrink-0" />
-      )}
+const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps) => {
+  const { getIconUrl } = useGame();
+  const iconUrl = itemIcon ? getIconUrl(itemIcon.icon) : null;
+
+  return (
+    <div className="flex items-center space-x-2 bg-white/5 px-2 sm:px-3 py-2 rounded-lg border border-white/10">
+      <div className="w-5 h-5 relative">
+        {itemIcon ? (
+          <ItemIcon iconName={iconUrl || itemIcon.icon} alt={itemIcon.name} />
+        ) : (
+          <Icon className="w-5 h-5 text-white flex-shrink-0" />
+        )}
+      </div>
+      <span className="hidden sm:inline font-mono text-sm text-gray-300">{label}:</span>
+      <span className="font-mono text-sm font-bold text-white">{value}</span>
     </div>
-    <span className="hidden sm:inline font-mono text-sm text-gray-300">{label}:</span>
-    <span className="font-mono text-sm font-bold text-white">{value}</span>
-  </div>
-);
+  );
+};
 
 interface BaseHeaderProps {
   resources: {
@@ -30,9 +36,9 @@ interface BaseHeaderProps {
     components: number;
   };
   resourceItems: {
-    wood: (Item & { iconUrl?: string }) | undefined;
-    metal: (Item & { iconUrl?: string }) | undefined;
-    components: (Item & { iconUrl?: string }) | undefined;
+    wood: Item | undefined;
+    metal: Item | undefined;
+    components: Item | undefined;
   };
 }
 

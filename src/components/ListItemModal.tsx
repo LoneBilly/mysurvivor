@@ -10,6 +10,7 @@ import { InventoryItem } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { X, Loader2, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useGame } from '@/contexts/GameContext';
 
 interface ListItemModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface ListItemModalProps {
 }
 
 const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemModalProps) => {
+  const { getIconUrl } = useGame();
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [price, setPrice] = useState('');
@@ -106,7 +108,7 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
                 )}
               >
                 <div className="absolute inset-0">
-                  <ItemIcon iconName={item.items?.iconUrl || item.items?.icon} alt={item.items?.name || ''} />
+                  <ItemIcon iconName={getIconUrl(item.items?.icon) || item.items?.icon} alt={item.items?.name || ''} />
                   {item.quantity > 0 && (
                     <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
                       x{item.quantity}
@@ -123,7 +125,7 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
             {selectedItem ? (
               <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
                 <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                  <ItemIcon iconName={selectedItem.items?.iconUrl || selectedItem.items?.icon} alt={selectedItem.items?.name || ''} />
+                  <ItemIcon iconName={getIconUrl(selectedItem.items?.icon) || selectedItem.items?.icon} alt={selectedItem.items?.name || ''} />
                 </div>
                 <div className="flex-grow">
                   <p className="font-bold">{selectedItem.items?.name}</p>

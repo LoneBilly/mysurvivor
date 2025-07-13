@@ -9,7 +9,6 @@ export interface ItemDetails {
   name: string;
   description: string | null;
   icon: string | null;
-  iconUrl?: string;
   type?: string;
   use_action_text: string;
 }
@@ -105,7 +104,6 @@ export interface Item {
   icon: string | null;
   type: string;
   use_action_text: string;
-  iconUrl?: string;
 }
 
 export interface MarketListing {
@@ -119,5 +117,4 @@ export interface MarketListing {
   price: number;
   created_at: string;
   views: number;
-  iconUrl?: string;
 }

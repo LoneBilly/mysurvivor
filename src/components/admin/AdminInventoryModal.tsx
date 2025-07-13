@@ -14,7 +14,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { PlayerProfile } from './PlayerManager';
 import { showSuccess, showError } from '@/utils/toast';
 import { Loader2, Package, Trash2, Edit, PlusCircle } from 'lucide-react';
-import { getItemIconUrl } from '@/utils/imageUrls';
 import { Item } from '@/types/admin';
 import ActionModal from '../ActionModal';
 
@@ -26,7 +25,6 @@ interface InventoryItem {
     name: string;
     icon: string | null;
     stackable: boolean;
-    iconUrl?: string;
   };
 }
 
@@ -46,6 +44,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [newItemId, setNewItemId] = useState<string>('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
+  const [iconUrlMap, setIconUrlMap] = useState<Map<string, string>>(new Map());
 
   const fetchInventory = async () => {
     if (!player) return;
@@ -59,14 +58,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     if (error) {
       showError("Erreur lors du chargement de l'inventaire.");
     } else {
-      const inventoryWithUrls = (data as any[]).map(item => ({
-        ...item,
-        items: {
-          ...item.items,
-          iconUrl: getItemIconUrl(item.items.icon) || undefined,
-        }
-      }));
-      setInventory(inventoryWithUrls);
+      setInventory(data as any[]);
     }
     setLoading(false);
   };
@@ -77,6 +69,16 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       showError("Erreur lors du chargement de la liste d'objets.");
     } else {
       setAllItems(data);
+      const urlMap = new Map<string, string>();
+      for (const item of data) {
+        if (item.icon) {
+          const { data: urlData } = supabase.storage.from('items.icons').getPublicUrl(item.icon);
+          if (urlData.publicUrl) {
+            urlMap.set(item.icon, urlData.publicUrl);
+          }
+        }
+      }
+      setIconUrlMap(urlMap);
     }
   };
 
@@ -166,29 +168,32 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
           ) : (
             <div className="mt-4 flex-grow overflow-y-auto space-y-2 pr-2">
               {inventory.length > 0 ? (
-                inventory.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {item.items.iconUrl ? (
-                        <img src={item.items.iconUrl} alt={item.items.name} className="w-10 h-10 object-contain rounded-md bg-black/20 p-1 flex-shrink-0" />
-                      ) : (
-                        <Package className="w-10 h-10 text-gray-400 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{item.items.name}</p>
-                        <p className="text-sm text-gray-400">Quantité: {item.quantity}</p>
+                inventory.map((item) => {
+                  const iconUrl = iconUrlMap.get(item.items.icon || '');
+                  return (
+                    <div key={item.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {iconUrl ? (
+                          <img src={iconUrl} alt={item.items.name} className="w-10 h-10 object-contain rounded-md bg-black/20 p-1 flex-shrink-0" />
+                        ) : (
+                          <Package className="w-10 h-10 text-gray-400 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{item.items.name}</p>
+                          <p className="text-sm text-gray-400">Quantité: {item.quantity}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => { setEditingItem(item); setEditQuantity(String(item.quantity)); }}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="hover:bg-red-500/20 hover:text-red-500" onClick={() => setItemToDelete(item)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => { setEditingItem(item); setEditQuantity(String(item.quantity)); }}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="hover:bg-red-500/20 hover:text-red-500" onClick={() => setItemToDelete(item)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center text-gray-400 py-10">
                   L'inventaire est vide.

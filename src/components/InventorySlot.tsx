@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useRef } from "react";
+import { useGame } from "@/contexts/GameContext";
 
 interface InventorySlotProps {
   item: InventoryItem | null;
@@ -21,6 +22,7 @@ interface InventorySlotProps {
 }
 
 const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver }: InventorySlotProps) => {
+  const { getIconUrl } = useGame();
   const interactionState = useRef<{
     startPos: { x: number, y: number };
     isDragging: boolean;
@@ -64,6 +66,8 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
     );
   }
 
+  const iconUrl = item ? getIconUrl(item.items?.icon) : null;
+
   return (
     <div
       data-slot-index={index}
@@ -88,7 +92,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
           <Tooltip>
             <TooltipTrigger asChild>
               <div className={cn("absolute inset-0 item-visual", isBeingDragged && "opacity-0")}>
-                <ItemIcon iconName={item.items?.iconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
+                <ItemIcon iconName={iconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
                 {item.quantity > 0 && (
                   <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
                     x{item.quantity}

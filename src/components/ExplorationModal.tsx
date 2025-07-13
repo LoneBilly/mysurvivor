@@ -8,8 +8,8 @@ import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Search, Shield, Package, Check, X, AlertTriangle } from 'lucide-react';
 import { MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
-import { getItemIconUrl } from '@/utils/imageUrls';
 import * as LucideIcons from "lucide-react";
+import { useGame } from '@/contexts/GameContext';
 
 const EXPLORATION_COST = 5;
 const EXPLORATION_DURATION_S = 30;
@@ -21,7 +21,6 @@ interface FoundItem {
   icon: string | null;
   description: string | null;
   type: string;
-  iconUrl?: string;
 }
 
 interface EventResult {
@@ -47,6 +46,7 @@ interface ExplorationModalProps {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
+  const { getIconUrl } = useGame();
   const [activeTab, setActiveTab] = useState('exploration');
   const [potentialLoot, setPotentialLoot] = useState<{name: string}[]>([]);
   const [scoutedTargets, setScoutedTargets] = useState<ScoutedTarget[]>([]);
@@ -104,13 +104,8 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     } else {
       const { loot, event_result } = data;
       
-      // Process loot
       if (loot && loot.length > 0) {
-        const itemsWithUrls = loot.map((item: FoundItem) => ({
-          ...item,
-          iconUrl: getItemIconUrl(item.icon) || undefined,
-        }));
-        setFoundItems(itemsWithUrls);
+        setFoundItems(loot);
       } else {
         setFoundItems(null);
         if (!event_result) {
@@ -118,7 +113,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         }
       }
 
-      // Process event result
       if (event_result) {
         setEventResult(event_result);
         if (event_result.success) {
@@ -129,7 +123,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         } else {
           showInfo(`Événement: ${event_result.name} - Vous avez évité le pire.`);
         }
-        onUpdate(); // Refresh player data to show new stats
+        onUpdate();
       }
     }
     setIsExploring(false);
@@ -267,7 +261,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                     {foundItems.map((item, index) => (
                       <div key={`${item.item_id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
                         <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                          <ItemIcon iconName={item.iconUrl || item.icon} alt={item.name} />
+                          <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
                         </div>
                         <p className="flex-grow">{item.name} <span className="text-gray-400">x{item.quantity}</span></p>
                         <div className="flex gap-2">

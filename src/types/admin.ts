@@ -8,7 +8,6 @@ export interface Item {
   stackable: boolean;
   type: string;
   use_action_text: string;
-  iconUrl?: string;
 }
 
 export interface ZoneItem {
