@@ -123,19 +123,30 @@ const GameUI = () => {
         
         case 'Ressource':
           const actions: typeof modalState.actions = [];
-          if (isBaseLocation) {
+          const hasBase = isBaseLocation;
+          const hasNoBase = currentState.playerState.base_position_x === null;
+          
+          if (hasBase) {
             actions.push({ label: "Aller au campement", onClick: handleEnterBase });
           }
+          
           actions.push({ label: "Explorer", onClick: () => handleExploreAction(cell) });
-          if (currentState.playerState.base_position_x === null) {
+          
+          if (hasNoBase) {
             actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
           }
-          setModalState({
-            isOpen: true,
-            title: formatZoneName(type),
-            description: "Que souhaitez-vous faire ici ?",
-            actions,
-          });
+
+          // Si il n'y a qu'une seule action possible (explorer), ouvrir directement la modale d'exploration
+          if (actions.length === 1 && actions[0].label === "Explorer") {
+            handleExploreAction(cell);
+          } else {
+            setModalState({
+              isOpen: true,
+              title: formatZoneName(type),
+              description: "Que souhaitez-vous faire ici ?",
+              actions,
+            });
+          }
           break;
 
         case 'Non défini':
