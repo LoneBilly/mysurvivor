@@ -17,7 +17,6 @@ import { Loader2, Package, Trash2, Edit, PlusCircle } from 'lucide-react';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 import { Item } from '@/types/admin';
 import ActionModal from '../ActionModal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface InventoryItem {
   id: number;
@@ -254,16 +253,16 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
           <div className="py-4 space-y-4">
             <div>
               <Label>Objet</Label>
-              <Select value={newItemId} onValueChange={setNewItemId}>
-                <SelectTrigger className="bg-white/5 border-white/20">
-                  <SelectValue placeholder="Sélectionner un objet..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {allItems.map(item => (
-                    <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={newItemId}
+                onChange={(e) => setNewItemId(e.target.value)}
+                className="w-full bg-white/5 border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/30"
+              >
+                <option value="">Sélectionner un objet...</option>
+                {allItems.map(item => (
+                  <option key={item.id} value={String(item.id)}>{item.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <Label htmlFor="new-quantity">Quantité</Label>

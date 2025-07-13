@@ -17,7 +17,6 @@ import { Item } from '@/types/admin';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Loader2, AlertCircle, CheckCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 import { getCachedSignedUrl } from '@/utils/iconCache';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import ActionModal from '../ActionModal';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -242,19 +241,20 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
             </div>
             <div>
               <Label htmlFor="type" className="text-gray-300 font-mono">Type</Label>
-              <Select value={type} onValueChange={setType} disabled={loading}>
-                <SelectTrigger id="type" className="mt-1 bg-white/5 border border-white/20 rounded-lg">
-                  <SelectValue placeholder="Sélectionner un type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ressources">Ressources</SelectItem>
-                  <SelectItem value="Armes">Armes</SelectItem>
-                  <SelectItem value="Nourriture">Nourriture</SelectItem>
-                  <SelectItem value="Soins">Soins</SelectItem>
-                  <SelectItem value="Items divers">Items divers</SelectItem>
-                  <SelectItem value="Items craftés">Items craftés</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                id="type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                disabled={loading}
+                className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/30"
+              >
+                <option value="Ressources">Ressources</option>
+                <option value="Armes">Armes</option>
+                <option value="Nourriture">Nourriture</option>
+                <option value="Soins">Soins</option>
+                <option value="Items divers">Items divers</option>
+                <option value="Items craftés">Items craftés</option>
+              </select>
             </div>
             <div>
               <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>

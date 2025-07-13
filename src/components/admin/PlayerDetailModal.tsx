@@ -16,7 +16,6 @@ import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '../ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/contexts/AuthContext';
 import { MapCell } from '@/types/game';
 import AdminStatEditorModal from './AdminStatEditorModal';
@@ -152,37 +151,33 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Rôle:</span>
-              <Select onValueChange={(value) => handleRoleChange(value as 'player' | 'admin')} value={player.role}>
-                <SelectTrigger className="w-full sm:w-[200px] bg-gray-900/50 border-gray-600">
-                  <SelectValue placeholder="Choisir un rôle..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="player">Joueur</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                value={player.role}
+                onChange={(e) => handleRoleChange(e.target.value as 'player' | 'admin')}
+                className="w-full sm:w-[200px] bg-gray-900/50 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <option value="player">Joueur</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-gray-400" />
               <span className="font-medium">Base:</span>
-              <Select 
-                onValueChange={handleBaseChange} 
-                value={currentBaseZone?.id.toString()}
+              <select
+                value={currentBaseZone?.id.toString() || ''}
+                onChange={(e) => handleBaseChange(e.target.value)}
                 disabled={!mapLayout.length}
+                className="w-full bg-gray-900/50 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                <SelectTrigger className="w-full bg-gray-900/50 border-gray-600">
-                  <SelectValue placeholder="Choisir une base..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {mapLayout
-                    .filter(cell => cell.type.toLowerCase() !== 'unknown')
-                    .map(cell => (
-                      <SelectItem key={cell.id} value={cell.id.toString()}>
-                        {cell.type} ({cell.x}, {cell.y})
-                      </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Choisir une base...</option>
+                {mapLayout
+                  .filter(cell => cell.type.toLowerCase() !== 'unknown')
+                  .map(cell => (
+                    <option key={cell.id} value={cell.id.toString()}>
+                      {cell.type} ({cell.x}, {cell.y})
+                    </option>
+                ))}
+              </select>
             </div>
             <div className="flex items-center gap-3">
               {player.is_banned ? (
