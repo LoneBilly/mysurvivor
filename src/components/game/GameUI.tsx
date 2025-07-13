@@ -235,6 +235,7 @@ const GameUI = () => {
   const resourceItems = useMemo(() => ({
     wood: items.find(i => i.name === 'Bois'),
     metal: items.find(i => i.name === 'Pierre'),
+    real_metal: items.find(i => i.name === 'Métal'),
     components: items.find(i => i.name === 'Composants'),
   }), [items]);
 
