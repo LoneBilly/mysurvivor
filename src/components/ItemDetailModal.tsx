@@ -23,15 +23,18 @@ interface ItemDetailModalProps {
   onDropAll: () => void;
   source?: 'inventory' | 'chest';
   onTransfer?: (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => void;
+  onSplit?: (item: InventoryItem, quantity: number) => void;
 }
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onSplit }: ItemDetailModalProps) => {
   const { getIconUrl } = useGame();
-  const [quantity, setQuantity] = useState(1);
+  const [transferQuantity, setTransferQuantity] = useState(1);
+  const [splitQuantity, setSplitQuantity] = useState(1);
 
   useEffect(() => {
     if (item) {
-      setQuantity(1);
+      setTransferQuantity(1);
+      setSplitQuantity(1);
     }
   }, [item]);
 
@@ -39,7 +42,13 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
 
   const handleTransferClick = () => {
     if (onTransfer && source) {
-      onTransfer(item, quantity, source);
+      onTransfer(item, transferQuantity, source);
+    }
+  };
+
+  const handleSplitClick = () => {
+    if (onSplit) {
+      onSplit(item, splitQuantity);
     }
   };
 
@@ -47,6 +56,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   const iconUrl = getIconUrl(item.items?.icon || null);
   const canUse = source !== 'chest';
   const canTransfer = !!onTransfer;
+  const canSplit = onSplit && source === 'inventory' && item.items?.stackable && item.quantity > 1;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -82,27 +92,47 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
         </div>
 
         {canTransfer && (
-          <div className="w-full space-y-4 rounded-lg bg-slate-700/50 p-4 my-4">
+          <div className="w-full space-y-4 rounded-lg bg-slate-700/50 p-4 my-2">
             <div className="flex justify-between items-center">
-              <Label htmlFor="quantity-slider">Quantité à transférer</Label>
-              <span className="font-mono text-lg font-bold">{quantity}</span>
+              <Label htmlFor="transfer-quantity-slider">Quantité à transférer</Label>
+              <span className="font-mono text-lg font-bold">{transferQuantity}</span>
             </div>
             <Slider
-              id="quantity-slider"
-              value={[quantity]}
-              onValueChange={(value) => setQuantity(value[0])}
+              id="transfer-quantity-slider"
+              value={[transferQuantity]}
+              onValueChange={(value) => setTransferQuantity(value[0])}
               min={1}
               max={item.quantity}
               step={1}
               disabled={item.quantity <= 1}
             />
             <Button onClick={handleTransferClick} className="w-full">
-              Transférer {quantity} {source === 'inventory' ? 'vers le coffre' : "vers l'inventaire"}
+              Transférer {transferQuantity} {source === 'inventory' ? 'vers le coffre' : "vers l'inventaire"}
             </Button>
           </div>
         )}
 
-        <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+        {canSplit && (
+          <div className="w-full space-y-4 rounded-lg bg-slate-700/50 p-4 my-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="split-quantity-slider">Quantité pour la nouvelle pile</Label>
+              <span className="font-mono text-lg font-bold">{splitQuantity}</span>
+            </div>
+            <Slider
+              id="split-quantity-slider"
+              value={[splitQuantity]}
+              onValueChange={(value) => setSplitQuantity(value[0])}
+              min={1}
+              max={item.quantity - 1}
+              step={1}
+            />
+            <Button onClick={handleSplitClick} className="w-full">
+              Diviser la pile
+            </Button>
+          </div>
+        )}
+
+        <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 pt-4">
           <Button onClick={onUse} disabled={!canUse} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
             {useActionText}
           </Button>

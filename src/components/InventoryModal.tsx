@@ -210,6 +210,22 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     }
   };
 
+  const handleSplitItem = async (item: InventoryItem, splitQuantity: number) => {
+    setDetailedItem(null);
+
+    const { error } = await supabase.rpc('split_inventory_item', {
+        p_inventory_id: item.id,
+        p_split_quantity: splitQuantity
+    });
+
+    if (error) {
+        showError(error.message);
+    } else {
+        showSuccess("La pile d'objets a été divisée.");
+        onUpdate();
+    }
+  };
+
   useEffect(() => {
     const moveHandler = (e: MouseEvent | TouchEvent) => {
       const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
@@ -287,6 +303,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           onUse={handleUseItem}
           onDropOne={handleDropOneItem}
           onDropAll={handleDropAllItems}
+          onSplit={handleSplitItem}
           source="inventory"
         />
       </DialogContent>
