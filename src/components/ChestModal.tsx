@@ -103,8 +103,31 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
 
     if (draggedItem && dragOver && (draggedItem.source !== dragOver.target)) {
-      // TODO: Implement RPC calls to move items
-      showError("Le transfert d'objets n'est pas encore implémenté.");
+      let error;
+      if (draggedItem.source === 'inventory' && dragOver.target === 'chest') {
+        const itemToMove = playerData.inventory.find(i => i.slot_position === draggedItem.index);
+        if (!itemToMove || !construction) return;
+        ({ error } = await supabase.rpc('move_item_to_chest', {
+            p_inventory_id: itemToMove.id,
+            p_chest_id: construction.id,
+            p_quantity_to_move: itemToMove.quantity
+        }));
+      } else if (draggedItem.source === 'chest' && dragOver.target === 'inventory') {
+        const itemToMove = chestItems[draggedItem.index];
+        if (!itemToMove) return;
+        ({ error } = await supabase.rpc('move_item_from_chest', {
+            p_chest_item_id: itemToMove.id,
+            p_quantity_to_move: itemToMove.quantity
+        }));
+      }
+
+      if (error) {
+        showError(error.message || "Erreur de transfert.");
+      } else {
+        showSuccess("Objet transféré.");
+        onUpdate();
+        fetchChestContents();
+      }
     }
 
     setDraggedItem(null);
@@ -133,29 +156,35 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     };
   }, [draggedItem, handleDragMove, handleDragEnd]);
 
-  const renderGrid = (title: string, items: (InventoryItem | null)[], totalSlots: number, type: 'inventory' | 'chest') => (
-    <div className="flex flex-col">
-      <h3 className="text-center font-bold mb-2">{title}</h3>
-      <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start">
-        {Array.from({ length: totalSlots }).map((_, index) => {
-          const item = items.find(i => i?.slot_position === index) || null;
-          return (
+  const renderGrid = (title: string, items: (InventoryItem | null)[], totalSlots: number, type: 'inventory' | 'chest') => {
+    const slots = Array.from({ length: totalSlots }).map((_, index) => {
+      if (type === 'inventory') {
+        return items.find(i => i?.slot_position === index) || null;
+      }
+      return items[index] || null;
+    });
+
+    return (
+      <div className="flex flex-col">
+        <h3 className="text-center font-bold mb-2">{title}</h3>
+        <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start">
+          {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
                 item={item}
                 index={index}
-                isUnlocked={true}
+                isUnlocked={type === 'chest' || index < playerData.playerState.unlocked_slots}
                 onDragStart={(idx, node, e) => handleDragStart(idx, type, node, e)}
                 onItemClick={() => {}}
                 isBeingDragged={draggedItem?.source === type && draggedItem?.index === index}
                 isDragOver={dragOver?.target === type && dragOver?.index === index}
               />
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (!construction) return null;
 
