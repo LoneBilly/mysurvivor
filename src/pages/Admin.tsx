@@ -5,11 +5,10 @@ import AdminMapGrid from "@/components/admin/AdminMapGrid";
 import ZoneItemEditor from "@/components/admin/ZoneItemEditor";
 import PlayerManager from "@/components/admin/PlayerManager";
 import ItemManager from "@/components/admin/ItemManager";
-import EventManager from "@/components/admin/EventManager";
 import { MapCell } from "@/types/game";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2, ArrowLeft, Map, Users, Package, Zap } from "lucide-react";
+import { Loader2, ArrowLeft, Map, Users, Package } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Admin = () => {
@@ -72,11 +71,10 @@ const Admin = () => {
 
         <Tabs defaultValue="map" className="w-full flex flex-col flex-1 min-h-0">
           <div className="flex justify-center">
-            <TabsList className="grid grid-cols-4 max-w-2xl mb-6 flex-shrink-0">
+            <TabsList className="grid grid-cols-3 max-w-lg mb-6 flex-shrink-0">
               <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
               <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
               <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
-              <TabsTrigger value="events"><Zap className="w-4 h-4 mr-2" />Événements</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="map" className="flex-1 min-h-0">
@@ -93,9 +91,6 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="items" className="flex-1 min-h-0">
             <ItemManager />
-          </TabsContent>
-          <TabsContent value="events" className="flex-1 min-h-0">
-            <EventManager />
           </TabsContent>
         </Tabs>
       </div>

@@ -105,23 +105,6 @@ const GameUI = () => {
     }
 
     if (isCurrentPosition) {
-      const possibleActions = [];
-      if (interaction_type === 'Ressource') {
-        if (isBaseLocation) {
-          possibleActions.push({ type: 'enter_base' });
-        }
-        possibleActions.push({ type: 'explore' });
-        if (currentState.playerState.base_position_x === null) {
-          possibleActions.push({ type: 'build_base' });
-        }
-      }
-
-      // Si la seule action est d'explorer, on lance directement la modale
-      if (interaction_type === 'Ressource' && possibleActions.length === 1 && possibleActions[0].type === 'explore') {
-        handleExploreAction(cell);
-        return;
-      }
-
       switch (interaction_type) {
         case 'Action':
           if (type === 'marché') {

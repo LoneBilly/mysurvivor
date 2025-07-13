@@ -107,11 +107,3 @@ export interface MarketListing {
   views: number;
   signedIconUrl?: string;
 }
-
-export interface EventResult {
-    name: string;
-    description: string;
-    icon: string;
-    effects: Record<string, number>;
-    success: boolean;
-}

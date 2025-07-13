@@ -5,12 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
-import { Loader2, Search, Shield, Package, Check, X, Heart, Utensils, Droplets, Zap } from 'lucide-react';
-import { MapCell, EventResult } from '@/types/game';
+import { Loader2, Search, Shield, Package, Check, X } from 'lucide-react';
+import { MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { getCachedSignedUrl } from '@/utils/iconCache';
-import * as LucideIcons from "lucide-react";
-import { Separator } from '../ui/separator';
 
 const EXPLORATION_COST = 5;
 const EXPLORATION_DURATION_S = 30;
@@ -39,13 +37,6 @@ interface ExplorationModalProps {
   onOpenInventory: () => void;
 }
 
-const statIcons: { [key: string]: React.ElementType } = {
-  vie: Heart,
-  faim: Utensils,
-  soif: Droplets,
-  energie: Zap,
-};
-
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
   const [activeTab, setActiveTab] = useState('exploration');
   const [potentialLoot, setPotentialLoot] = useState<{name: string}[]>([]);
@@ -54,7 +45,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [isExploring, setIsExploring] = useState(false);
   const [progress, setProgress] = useState(0);
   const [foundItems, setFoundItems] = useState<FoundItem[] | null>(null);
-  const [eventResult, setEventResult] = useState<EventResult | null>(null);
   const [inventoryFullError, setInventoryFullError] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
 
@@ -90,7 +80,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       setIsExploring(false);
       setProgress(0);
       setFoundItems(null);
-      setEventResult(null);
       setInventoryFullError(false);
       setRemainingTime(0);
     }
@@ -99,14 +88,11 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const finishExploration = useCallback(async () => {
     if (!zone) return;
     const { data, error } = await supabase.rpc('finish_exploration', { p_zone_id: zone.id });
-    
     if (error) {
       showError("Une erreur est survenue lors de la récupération du butin.");
     } else {
-      const { loot, event_result } = data;
-      
       const itemsWithUrls = await Promise.all(
-        (loot as FoundItem[]).map(async (item) => {
+        (data as FoundItem[]).map(async (item) => {
           if (item.icon && item.icon.includes('.')) {
             const signedUrl = await getCachedSignedUrl(item.icon);
             return { ...item, signedIconUrl: signedUrl || undefined };
@@ -114,24 +100,15 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
           return item;
         })
       );
-      
       if (itemsWithUrls.length > 0) {
         setFoundItems(itemsWithUrls);
       } else {
-        setFoundItems([]);
-        if (!event_result) showInfo("Vous n'avez rien trouvé cette fois-ci.");
-      }
-
-      if (event_result) {
-        setEventResult(event_result);
-        const effectText = Object.entries(event_result.effects).map(([key, value]) => `${key}: ${value > 0 ? '+' : ''}${value}`).join(', ');
-        const message = event_result.success ? `${event_result.name} ! ${effectText}` : `${event_result.name}: Échec.`;
-        showInfo(message);
+        setFoundItems(null);
+        showInfo("Vous n'avez rien trouvé cette fois-ci.");
       }
     }
     setIsExploring(false);
-    onUpdate();
-  }, [zone, onUpdate]);
+  }, [zone]);
 
   useEffect(() => {
     if (!isExploring) return;
@@ -159,7 +136,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     setIsExploring(true);
     setProgress(0);
     setFoundItems(null);
-    setEventResult(null);
     setInventoryFullError(false);
     setRemainingTime(EXPLORATION_DURATION_S);
   };
@@ -179,13 +155,19 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       }
     } else {
       showSuccess(`${itemToCollect.name} x${itemToCollect.quantity} ajouté à l'inventaire !`);
-      setFoundItems(currentItems => currentItems?.filter(item => item.item_id !== itemToCollect.item_id) || null);
+      setFoundItems(currentItems => {
+        const newItems = currentItems?.filter(item => item.item_id !== itemToCollect.item_id);
+        return newItems && newItems.length > 0 ? newItems : null;
+      });
       onUpdate();
     }
   };
 
   const handleDiscardOne = (itemToDiscard: FoundItem) => {
-    setFoundItems(currentItems => currentItems?.filter(item => item.item_id !== itemToDiscard.item_id) || null);
+    setFoundItems(currentItems => {
+      const newItems = currentItems?.filter(item => item.item_id !== itemToDiscard.item_id);
+      return newItems && newItems.length > 0 ? newItems : null;
+    });
     showInfo(`${itemToDiscard.name} a été jeté.`);
   };
 
@@ -193,83 +175,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     if (!zone) return [];
     return scoutedTargets.filter(target => target.base_zone_type === zone.type);
   }, [scoutedTargets, zone]);
-
-  const renderResults = () => {
-    const noMoreItems = !foundItems || foundItems.length === 0;
-    if (noMoreItems && !eventResult) {
-      return (
-        <div className="space-y-4">
-          <div>
-            <h4 className="font-semibold mb-2">Butin potentiel :</h4>
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-              <div className="flex flex-wrap gap-2">
-                {potentialLoot.length > 0 ? potentialLoot.map((item, index) => <span key={`${item.name}-${index}`} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>) : <p className="text-gray-400 text-sm">Aucun butin potentiel dans cette zone.</p>}
-              </div>
-            )}
-          </div>
-          <Button onClick={handleStartExploration} className="w-full" disabled={potentialLoot.length === 0}>
-            {potentialLoot.length > 0 ? `Lancer l'exploration (${EXPLORATION_COST} énergie, ${EXPLORATION_DURATION_S}s)` : "Rien à explorer ici"}
-          </Button>
-        </div>
-      );
-    }
-
-    const EventIcon = eventResult?.icon ? (LucideIcons as any)[eventResult.icon] || LucideIcons.AlertTriangle : null;
-
-    return (
-      <div className="space-y-4">
-        <h3 className="font-bold text-center">Rapport d'exploration</h3>
-        {eventResult && (
-          <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-            <div className="flex items-center gap-3 mb-2">
-              {EventIcon && <EventIcon className="w-6 h-6 text-white" />}
-              <h4 className="font-semibold">{eventResult.name}</h4>
-            </div>
-            <p className="text-sm text-gray-300 mb-2">{eventResult.description}</p>
-            {eventResult.success && Object.keys(eventResult.effects).length > 0 && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {Object.entries(eventResult.effects).map(([key, value]) => {
-                  const StatIcon = statIcons[key];
-                  return (
-                    <div key={key} className="flex items-center gap-1 text-sm">
-                      {StatIcon && <StatIcon className="w-4 h-4" />}
-                      <span className="capitalize">{key}:</span>
-                      <span className={value > 0 ? 'text-green-400' : 'text-red-400'}>{value > 0 ? '+' : ''}{value}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-        {foundItems && foundItems.length > 0 && (
-          <>
-            {eventResult && <Separator className="bg-white/10" />}
-            <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-black/20 rounded-lg">
-              {foundItems.map((item, index) => (
-                <div key={`${item.item_id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
-                  <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                    <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
-                  </div>
-                  <p className="flex-grow">{item.name} <span className="text-gray-400">x{item.quantity}</span></p>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleCollectOne(item)}><Check className="w-4 h-4" /></Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDiscardOne(item)}><X className="w-4 h-4" /></Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        {inventoryFullError && (
-          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center space-y-2">
-            <p className="text-red-300 text-sm">Votre inventaire est plein.</p>
-            <Button onClick={onOpenInventory} variant="destructive" size="sm">Ouvrir l'inventaire</Button>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -284,7 +189,33 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
             <TabsTrigger value="pvp"><Shield className="w-4 h-4 mr-2" />PvP</TabsTrigger>
           </TabsList>
           <TabsContent value="exploration" className="mt-4">
-            {isExploring ? (
+            {foundItems ? (
+              <div className="space-y-4">
+                <h3 className="font-bold text-center">Butin trouvé !</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-black/20 rounded-lg">
+                  {foundItems.map((item, index) => (
+                    <div key={`${item.item_id}-${index}`} className="flex items-center gap-3 p-2 bg-white/10 rounded">
+                      <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                        <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
+                      </div>
+                      <p className="flex-grow">{item.name} <span className="text-gray-400">x{item.quantity}</span></p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleCollectOne(item)}><Check className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDiscardOne(item)}><X className="w-4 h-4" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {inventoryFullError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center space-y-2">
+                    <p className="text-red-300 text-sm">Votre inventaire est plein.</p>
+                    <Button onClick={onOpenInventory} variant="destructive" size="sm">
+                      Ouvrir l'inventaire
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : isExploring ? (
               <div className="text-center space-y-3">
                 <p>Exploration en cours...</p>
                 <Progress value={progress} />
@@ -292,7 +223,21 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                   Temps restant : {remainingTime}s
                 </p>
               </div>
-            ) : renderResults()}
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Butin potentiel :</h4>
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    <div className="flex flex-wrap gap-2">
+                      {potentialLoot.map((item, index) => <span key={`${item.name}-${index}`} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>)}
+                    </div>
+                  )}
+                </div>
+                <Button onClick={handleStartExploration} className="w-full">
+                  Lancer l'exploration ({EXPLORATION_COST} énergie, {EXPLORATION_DURATION_S}s)
+                </Button>
+              </div>
+            )}
           </TabsContent>
           <TabsContent value="pvp" className="mt-4">
             {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
