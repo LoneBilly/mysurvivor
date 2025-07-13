@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,6 +93,19 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
 
   const hasActiveJob = initialConstructionJobs.length > 0;
+
+  const totalResources = useMemo(() => {
+    const inventoryWood = playerData.inventory.find(i => i.items?.name === 'Bois')?.quantity || 0;
+    const inventoryMetal = playerData.inventory.find(i => i.items?.name === 'Pierre')?.quantity || 0;
+    const inventoryComponents = playerData.inventory.find(i => i.items?.name === 'Composants')?.quantity || 0;
+    
+    return {
+      energie: playerData.playerState.energie,
+      wood: playerData.playerState.wood + inventoryWood,
+      metal: playerData.playerState.metal + inventoryMetal,
+      components: playerData.playerState.components + inventoryComponents,
+    };
+  }, [playerData.playerState, playerData.inventory]);
 
   const updateCanBuild = (grid: BaseCell[][]): BaseCell[][] => {
     const newGrid = grid.map(row => row.map(cell => ({ ...cell, canBuild: false })));
@@ -329,7 +342,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const handleBuildOnFoundation = async (x: number, y: number, building: any) => {
     const costs = building.costs;
 
-    if (playerData.playerState.energie < costs.energy || playerData.playerState.wood < costs.wood || playerData.playerState.metal < costs.metal || playerData.playerState.components < costs.components) {
+    if (playerData.playerState.energie < costs.energy || totalResources.wood < costs.wood || totalResources.metal < costs.metal || totalResources.components < costs.components) {
       showError("Ressources insuffisantes.");
       return;
     }
@@ -344,9 +357,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= costs.energy;
-    newPlayerData.playerState.wood -= costs.wood;
-    newPlayerData.playerState.metal -= costs.metal;
-    newPlayerData.playerState.components -= costs.components;
+    // La déduction des ressources se fait côté serveur, on ne la simule plus ici
     setPlayerData(newPlayerData);
 
     const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
@@ -499,7 +510,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         y={foundationMenu?.y ?? null}
         onBuild={handleBuildOnFoundation}
         onDemolish={handleDemolishFoundation}
-        playerResources={playerData.playerState}
+        playerResources={totalResources}
         items={items}
       />
       <ChestModal
