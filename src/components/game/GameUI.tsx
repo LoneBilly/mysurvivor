@@ -29,7 +29,7 @@ const formatZoneName = (name: string): string => {
 };
 
 const GameUI = () => {
-  const { playerData, setPlayerData, mapLayout, refreshPlayerData } = useGame();
+  const { playerData, setPlayerData, mapLayout, items, refreshPlayerData } = useGame();
   
   const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
   const [isViewReady, setIsViewReady] = useState(false);
@@ -220,6 +220,24 @@ const GameUI = () => {
     completed: playerData.scoutingMissions.filter(m => m.status === 'completed'),
   }), [playerData.scoutingMissions]);
 
+  const totalResources = useMemo(() => {
+    const inventoryWood = playerData.inventory.find(i => i.items?.name === 'Bois')?.quantity || 0;
+    const inventoryMetal = playerData.inventory.find(i => i.items?.name === 'Pierre')?.quantity || 0;
+    const inventoryComponents = playerData.inventory.find(i => i.items?.name === 'Composants')?.quantity || 0;
+    
+    return {
+      wood: playerData.playerState.wood + inventoryWood,
+      metal: playerData.playerState.metal + inventoryMetal,
+      components: playerData.playerState.components + inventoryComponents,
+    };
+  }, [playerData.playerState, playerData.inventory]);
+
+  const resourceItems = useMemo(() => ({
+    wood: items.find(i => i.name === 'Bois'),
+    metal: items.find(i => i.name === 'Pierre'),
+    components: items.find(i => i.name === 'Composants'),
+  }), [items]);
+
   if (!isViewReady) return <div className="h-full flex items-center justify-center bg-gray-950"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
 
   const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
@@ -233,12 +251,9 @@ const GameUI = () => {
           <GameGrid mapLayout={mapLayout} onCellSelect={handleCellSelect} discoveredZones={playerData.playerState.zones_decouvertes} playerPosition={{ x: playerData.playerState.position_x, y: playerData.playerState.position_y }} basePosition={playerData.playerState.base_position_x !== null ? { x: playerData.playerState.base_position_x, y: playerData.playerState.base_position_y! } : null} />
         </div>
         <div className={cn("relative w-full h-full", currentView !== 'base' && "hidden")}>
-          <BaseHeader resources={{ wood: playerData.playerState.wood, metal: playerData.playerState.metal, components: playerData.playerState.components }} />
+          <BaseHeader resources={totalResources} resourceItems={resourceItems} />
           <BaseInterface
             isActive={currentView === 'base'}
-            initialConstructions={playerData.baseConstructions}
-            initialConstructionJobs={playerData.constructionJobs || []}
-            onUpdate={refreshPlayerData}
           />
         </div>
       </main>

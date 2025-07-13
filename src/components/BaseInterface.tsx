@@ -210,7 +210,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const handleCancelConstruction = async (x: number, y: number) => {
     if (!gridData) return;
     const originalGridData = gridData;
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
 
     const newGrid = JSON.parse(JSON.stringify(gridData));
     newGrid[y][x].type = 'empty';
@@ -508,6 +507,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         onClose={() => setChestModalState({ isOpen: false, construction: null })}
         construction={chestModalState.construction}
         onDemolish={handleDemolishBuilding}
+        onUpdate={refreshPlayerData}
       />
     </div>
   );

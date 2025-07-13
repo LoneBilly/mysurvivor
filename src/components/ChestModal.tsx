@@ -1,21 +1,163 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction } from "@/types/game";
-import { Box, Trash2 } from "lucide-react";
+import { BaseConstruction, InventoryItem } from "@/types/game";
+import { Box, Trash2, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { showError, showSuccess } from "@/utils/toast";
+import { useGame } from "@/contexts/GameContext";
+import InventorySlot from "./InventorySlot";
+
+const CHEST_SLOTS = 10;
+
+interface ChestItem extends InventoryItem {}
 
 interface ChestModalProps {
   isOpen: boolean;
   onClose: () => void;
   construction: BaseConstruction | null;
   onDemolish: (construction: BaseConstruction) => void;
+  onUpdate: () => void;
 }
 
-const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalProps) => {
-  if (!construction) return null;
+const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
+  const { playerData } = useGame();
+  const [chestItems, setChestItems] = useState<ChestItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
+  const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
+
+  const fetchChestContents = useCallback(async () => {
+    if (!construction) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('chest_items')
+      .select('*, items(*)')
+      .eq('chest_id', construction.id);
+    
+    if (error) {
+      showError("Impossible de charger le contenu du coffre.");
+    } else {
+      setChestItems(data as ChestItem[]);
+    }
+    setLoading(false);
+  }, [construction]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchChestContents();
+    }
+  }, [isOpen, fetchChestContents]);
 
   const handleDemolishClick = () => {
-    onDemolish(construction);
+    onDemolish(construction!);
   };
+
+  const handleDragStart = (index: number, source: 'inventory' | 'chest', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItem({ index, source });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  };
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
+    
+    if (slotElement) {
+      const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
+      const target = slotElement.getAttribute('data-slot-target') as 'inventory' | 'chest';
+      if (index !== -1) {
+        setDragOver({ index, target });
+        return;
+      }
+    }
+    setDragOver(null);
+  }, []);
+
+  const handleDragEnd = async () => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+
+    if (draggedItem && dragOver && (draggedItem.source !== dragOver.target)) {
+      // TODO: Implement RPC calls to move items
+      showError("Le transfert d'objets n'est pas encore implémenté.");
+    }
+
+    setDraggedItem(null);
+    setDragOver(null);
+  };
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd]);
+
+  const renderGrid = (title: string, items: (InventoryItem | null)[], totalSlots: number, type: 'inventory' | 'chest') => (
+    <div className="flex flex-col">
+      <h3 className="text-center font-bold mb-2">{title}</h3>
+      <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start">
+        {Array.from({ length: totalSlots }).map((_, index) => {
+          const item = items.find(i => i?.slot_position === index) || null;
+          return (
+            <div key={index} data-slot-target={type}>
+              <InventorySlot
+                item={item}
+                index={index}
+                isUnlocked={true}
+                onDragStart={(idx, node, e) => handleDragStart(idx, type, node, e)}
+                onItemClick={() => {}}
+                isBeingDragged={draggedItem?.source === type && draggedItem?.index === index}
+                isDragOver={dragOver?.target === type && dragOver?.index === index}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  if (!construction) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -29,20 +171,16 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalPro
             Stockez vos objets en sécurité.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
-          <div className="flex flex-col">
-            <h3 className="text-center font-bold mb-2">Contenu du coffre (10 slots)</h3>
-            <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 flex items-center justify-center">
-              <p className="text-center text-gray-400 p-4">Le stockage du coffre sera bientôt disponible.</p>
-            </div>
+        {loading ? (
+          <div className="flex-grow flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin" />
           </div>
-          <div className="flex flex-col">
-            <h3 className="text-center font-bold mb-2">Votre inventaire</h3>
-            <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 flex items-center justify-center">
-              <p className="text-center text-gray-400 p-4">L'affichage de l'inventaire sera bientôt disponible.</p>
-            </div>
+        ) : (
+          <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
+            {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
+            {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
-        </div>
+        )}
         <DialogFooter className="mt-4">
           <Button variant="destructive" onClick={handleDemolishClick}>
             <Trash2 className="w-4 h-4 mr-2" />
