@@ -2,32 +2,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction } from "@/types/game";
 import { Box, Trash2 } from "lucide-react";
-import { showError, showSuccess } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ChestModalProps {
   isOpen: boolean;
   onClose: () => void;
   construction: BaseConstruction | null;
-  onUpdate: () => void;
+  onDemolish: (construction: BaseConstruction) => void;
 }
 
-const ChestModal = ({ isOpen, onClose, construction, onUpdate }: ChestModalProps) => {
+const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalProps) => {
   if (!construction) return null;
 
-  const handleDemolish = async () => {
-    const { error } = await supabase.rpc('demolish_building_to_foundation', {
-      p_x: construction.x,
-      p_y: construction.y,
-    });
-
-    if (error) {
-      showError(error.message || "Erreur lors de la démolition.");
-    } else {
-      showSuccess("Bâtiment démoli. Il reste une fondation.");
-      onUpdate();
-      onClose();
-    }
+  const handleDemolishClick = () => {
+    onDemolish(construction);
   };
 
   return (
@@ -57,7 +44,7 @@ const ChestModal = ({ isOpen, onClose, construction, onUpdate }: ChestModalProps
           </div>
         </div>
         <DialogFooter className="mt-4">
-          <Button variant="destructive" onClick={handleDemolish}>
+          <Button variant="destructive" onClick={handleDemolishClick}>
             <Trash2 className="w-4 h-4 mr-2" />
             Détruire le coffre
           </Button>

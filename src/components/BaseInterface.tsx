@@ -9,6 +9,7 @@ import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useGame } from "@/contexts/GameContext";
 
 interface BaseCell {
   x: number;
@@ -31,7 +32,7 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   trap: AlertTriangle,
   workbench: Hammer,
   furnace: CookingPot,
-  foundation: Hammer,
+  foundation: Plus,
   campfire: () => <>🔥</>,
 };
 
@@ -74,20 +75,19 @@ const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => v
 
 interface BaseInterfaceProps {
   isActive: boolean;
-  initialConstructions: BaseConstruction[];
-  initialConstructionJobs: ConstructionJob[];
-  onUpdate: () => Promise<void>;
 }
 
-const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs, onUpdate }: BaseInterfaceProps) => {
+const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
+  const { playerData, setPlayerData, refreshPlayerData } = useGame();
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
+  
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
   const [loading, setLoading] = useState(true);
   const viewportRef = useRef<HTMLDivElement>(null);
   const hasCentered = useRef(false);
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
-  const [buildTime, setBuildTime] = useState(0);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
@@ -174,8 +174,6 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   useEffect(() => {
     if (initialConstructions) {
       initializeGrid(initialConstructions, initialConstructionJobs);
-      const constructionCount = initialConstructions.length;
-      setBuildTime(9 * constructionCount + 15);
     }
   }, [initialConstructions, initialConstructionJobs, initializeGrid]);
 
@@ -212,6 +210,8 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const handleCancelConstruction = async (x: number, y: number) => {
     if (!gridData) return;
     const originalGridData = gridData;
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+
     const newGrid = JSON.parse(JSON.stringify(gridData));
     newGrid[y][x].type = 'empty';
     newGrid[y][x].ends_at = undefined;
@@ -224,7 +224,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       showError(error.message || "Erreur lors de l'annulation.");
       setGridData(originalGridData);
     } else {
-      onUpdate();
+      refreshPlayerData();
     }
   };
 
@@ -253,7 +253,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
             });
           }, 2000);
         }
-      } else { // Desktop
+      } else {
         if (isHovered) {
           handleCancelConstruction(x, y);
         }
@@ -281,19 +281,33 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
 
     if (!cell.canBuild || cell.type !== 'empty' || hasActiveJob) return;
 
+    const energyCost = 90;
+    if (playerData.playerState.energie < energyCost) {
+      showError("Énergie insuffisante.");
+      return;
+    }
+
     const originalGridData = gridData;
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    
     const newGrid = JSON.parse(JSON.stringify(gridData));
+    const buildTime = 9 * playerData.baseConstructions.length + 15;
     newGrid[y][x].type = 'in_progress';
     newGrid[y][x].ends_at = new Date(Date.now() + buildTime * 1000).toISOString();
     setGridData(updateCanBuild(newGrid));
+
+    const newPlayerData = JSON.parse(JSON.stringify(playerData));
+    newPlayerData.playerState.energie -= energyCost;
+    setPlayerData(newPlayerData);
 
     const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de la construction.");
       setGridData(originalGridData);
+      setPlayerData(originalPlayerData);
     } else {
-      onUpdate();
+      refreshPlayerData();
     }
   };
 
@@ -309,24 +323,69 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       showError(error.message);
       setGridData(originalGridData);
     } else {
-      onUpdate();
+      refreshPlayerData();
     }
   };
 
   const handleBuildOnFoundation = async (x: number, y: number, buildingType: string) => {
+    const costs = {
+      chest: { energy: 20, wood: 20, metal: 0, components: 0 },
+      wall: { energy: 10, wood: 0, metal: 20, components: 0 },
+      turret: { energy: 50, wood: 0, metal: 10, components: 20 },
+      generator: { energy: 50, wood: 0, metal: 10, components: 20 },
+      trap: { energy: 30, wood: 0, metal: 1, components: 0 },
+      workbench: { energy: 30, wood: 5, metal: 0, components: 0 },
+      furnace: { energy: 30, wood: 0, metal: 20, components: 0 },
+    }[buildingType] || { energy: 0, wood: 0, metal: 0, components: 0 };
+
+    if (playerData.playerState.energie < costs.energy || playerData.playerState.wood < costs.wood || playerData.playerState.metal < costs.metal || playerData.playerState.components < costs.components) {
+      showError("Ressources insuffisantes.");
+      return;
+    }
+
     const originalGridData = gridData;
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+
     const newGrid = JSON.parse(JSON.stringify(gridData));
     newGrid[y][x].type = 'in_progress';
     newGrid[y][x].ends_at = new Date(Date.now() + 60 * 1000).toISOString();
     setGridData(updateCanBuild(newGrid));
+
+    const newPlayerData = JSON.parse(JSON.stringify(playerData));
+    newPlayerData.playerState.energie -= costs.energy;
+    newPlayerData.playerState.wood -= costs.wood;
+    newPlayerData.playerState.metal -= costs.metal;
+    newPlayerData.playerState.components -= costs.components;
+    setPlayerData(newPlayerData);
 
     const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: buildingType });
 
     if (error) {
       showError(error.message);
       setGridData(originalGridData);
+      setPlayerData(originalPlayerData);
     } else {
-      onUpdate();
+      refreshPlayerData();
+    }
+  };
+
+  const handleDemolishBuilding = async (construction: BaseConstruction) => {
+    const { x, y, type } = construction;
+    if (!gridData) return;
+
+    const originalGridData = gridData;
+    const newGrid = JSON.parse(JSON.stringify(gridData));
+    newGrid[y][x].type = 'foundation';
+    setGridData(updateCanBuild(newGrid));
+    setChestModalState({ isOpen: false, construction: null });
+
+    const { error } = await supabase.rpc('demolish_building_to_foundation', { p_x: x, p_y: y });
+
+    if (error) {
+      showError(error.message || "Erreur de démolition.");
+      setGridData(originalGridData);
+    } else {
+      refreshPlayerData();
     }
   };
 
@@ -342,7 +401,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       return (
         <div className="flex flex-col items-center justify-center text-white gap-1">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <Countdown endsAt={cell.ends_at} onComplete={onUpdate} />
+          <Countdown endsAt={cell.ends_at} onComplete={refreshPlayerData} />
         </div>
       );
     }
@@ -454,7 +513,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
         isOpen={chestModalState.isOpen}
         onClose={() => setChestModalState({ isOpen: false, construction: null })}
         construction={chestModalState.construction}
-        onUpdate={onUpdate}
+        onDemolish={handleDemolishBuilding}
       />
     </div>
   );
