@@ -110,23 +110,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
   };
 
-  const handleSplitItem = async (item: InventoryItem, quantity: number) => {
-    if (!item) return;
-    setDetailedItem(null);
-  
-    const { error } = await supabase.rpc('split_inventory_item', {
-      p_inventory_id: item.id,
-      p_split_quantity: quantity,
-    });
-  
-    if (error) {
-      showError(error.message || "Erreur lors de la division de l'objet.");
-    } else {
-      showSuccess("La pile d'objets a été divisée.");
-      onUpdate();
-    }
-  };
-
   const handleDragStart = (index: number, source: 'inventory' | 'chest', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     setDraggedItem({ index, source });
@@ -195,43 +178,10 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
     let rpcPromise;
 
-    // Optimistic update
     if (source === 'inventory' && target === 'inventory') {
-      const fromItem = playerData.inventory.find(i => i.slot_position === fromIndex);
-      const toItem = playerData.inventory.find(i => i.slot_position === toIndex);
-      
-      if (fromItem && toItem && fromItem.item_id === toItem.id && fromItem.items?.stackable) {
-        const newInventory = playerData.inventory.filter(i => i.id !== fromItem.id).map(i => 
-          i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i
-        );
-        setPlayerData(prev => ({ ...prev, inventory: newInventory }));
-      } else {
-        const newInventory = playerData.inventory.map(i => {
-          if (i?.slot_position === fromIndex) return { ...i, slot_position: toIndex };
-          if (i?.slot_position === toIndex) return { ...i, slot_position: fromIndex };
-          return i;
-        });
-        setPlayerData(prev => ({ ...prev, inventory: newInventory }));
-      }
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'chest' && target === 'chest') {
       if (!construction) return;
-      const fromItem = chestItems.find(i => i.slot_position === fromIndex);
-      const toItem = chestItems.find(i => i.slot_position === toIndex);
-
-      if (fromItem && toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
-        const newChestItems = chestItems.filter(i => i.id !== fromItem.id).map(i => 
-          i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i
-        );
-        setChestItems(newChestItems);
-      } else {
-        const newChestItems = chestItems.map(i => {
-          if (i?.slot_position === fromIndex) return { ...i, slot_position: toIndex };
-          if (i?.slot_position === toIndex) return { ...i, slot_position: fromIndex };
-          return i;
-        });
-        setChestItems(newChestItems);
-      }
       rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'inventory' && target === 'chest') {
       const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
@@ -341,7 +291,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
         onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
-        onSplit={handleSplitItem}
       />
     </>
   );
