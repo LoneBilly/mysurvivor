@@ -80,7 +80,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   const handleStartExploration = async () => {
     if (!zone) return;
-    const { error } = await supabase.rpc('start_exploration', { zone_id: zone.id });
+    const { error } = await supabase.rpc('start_exploration', { p_zone_id: zone.id });
     if (error) {
       showError(error.message);
       return;
@@ -107,7 +107,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   const finishExploration = async () => {
     if (!zone) return;
-    const { data, error } = await supabase.rpc('finish_exploration', { zone_id: zone.id });
+    const { data, error } = await supabase.rpc('finish_exploration', { p_zone_id: zone.id });
     if (error) {
       showError("Une erreur est survenue lors de la récupération du butin.");
     } else {
@@ -131,7 +131,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     if (!foundItems || foundItems.length === 0) return;
     const itemsToCollect = foundItems.map(item => ({ item_id: item.id, quantity: item.quantity }));
     
-    const { error } = await supabase.rpc('collect_exploration_loot', { items_to_add: itemsToCollect });
+    const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: itemsToCollect });
     if (error) {
       if (error.message.includes("Votre inventaire est plein")) {
         setInventoryFullError(true);
