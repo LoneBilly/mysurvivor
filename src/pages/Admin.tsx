@@ -58,29 +58,6 @@ const Admin = () => {
     return <div className="h-full bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'map':
-        return (
-          <div className="w-full h-full flex items-center justify-center">
-            {selectedZone ? (
-              <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
-            ) : (
-              <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
-            )}
-          </div>
-        );
-      case 'players':
-        return <PlayerManager mapLayout={mapLayout} />;
-      case 'items':
-        return <ItemManager />;
-      case 'events':
-        return <EventManager mapLayout={mapLayout} />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="h-full bg-gray-900 text-white flex flex-col">
       <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0 p-4 sm:p-8">
@@ -119,12 +96,43 @@ const Admin = () => {
                 <TabsTrigger value="events"><Zap className="w-4 h-4 mr-2" />Events</TabsTrigger>
               </TabsList>
             </div>
+            <TabsContent value="map" className="flex-grow min-h-0">
+              <div className="w-full h-full flex items-center justify-center">
+                {selectedZone ? (
+                  <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
+                ) : (
+                  <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="players" className="flex-grow min-h-0">
+              <PlayerManager mapLayout={mapLayout} />
+            </TabsContent>
+            <TabsContent value="items" className="flex-grow min-h-0">
+              <ItemManager />
+            </TabsContent>
+            <TabsContent value="events" className="flex-grow min-h-0">
+              <EventManager mapLayout={mapLayout} />
+            </TabsContent>
           </Tabs>
         )}
         
-        <div className="flex-1 min-h-0">
-          {renderContent()}
-        </div>
+        {isMobile && (
+          <div className="flex-1 min-h-0">
+            {activeTab === 'map' && (
+              <div className="w-full h-full flex items-center justify-center">
+                {selectedZone ? (
+                  <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
+                ) : (
+                  <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
+                )}
+              </div>
+            )}
+            {activeTab === 'players' && <PlayerManager mapLayout={mapLayout} />}
+            {activeTab === 'items' && <ItemManager />}
+            {activeTab === 'events' && <EventManager mapLayout={mapLayout} />}
+          </div>
+        )}
       </div>
     </div>
   );
