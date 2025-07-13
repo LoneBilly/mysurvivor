@@ -72,6 +72,8 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [buildTime, setBuildTime] = useState(0);
 
+  const hasActiveJob = initialConstructionJobs.length > 0;
+
   const updateCanBuild = (grid: BaseCell[][]): BaseCell[][] => {
     const newGrid = grid.map(row => row.map(cell => ({ ...cell, canBuild: false })));
     for (let y = 0; y < GRID_SIZE; y++) {
@@ -190,7 +192,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
-    if (!cell.canBuild || cell.type !== 'empty') return;
+    if (!cell.canBuild || cell.type !== 'empty' || hasActiveJob) return;
 
     const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
@@ -221,14 +223,19 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       );
     }
     if (cell.canBuild) {
+      if (hasActiveJob) {
+        return <Clock className="w-8 h-8 text-gray-600" />;
+      }
       return (
-        <div className="flex flex-col items-center justify-center gap-1 text-gray-400">
-          <Plus className="w-6 h-6" />
-          <div className="flex items-center gap-1 text-xs font-mono">
-            <Zap size={12} className="text-yellow-400" /> 5
+        <div className="relative w-full h-full flex items-center justify-center group">
+          <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
+          <div className="absolute bottom-1 left-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
+            <Zap size={12} className="text-yellow-400" />
+            <span className="text-white">5</span>
           </div>
-          <div className="flex items-center gap-1 text-xs font-mono">
-            <Clock size={12} /> {formatDuration(buildTime)}
+          <div className="absolute bottom-1 right-1 flex items-center gap-1 text-xs font-mono bg-black/50 px-1 rounded">
+            <Clock size={12} className="text-sky-400" />
+            <span className="text-white">{formatDuration(buildTime)}</span>
           </div>
         </div>
       );
@@ -242,7 +249,12 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
       case 'foundation': return "bg-white/20 border-white/30";
       case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse";
       case 'empty':
-        if (cell.canBuild) return "bg-white/10 border-white/20 hover:bg-white/20 cursor-pointer border-dashed";
+        if (cell.canBuild) {
+          if (hasActiveJob) {
+            return "bg-black/20 border-white/10 cursor-not-allowed";
+          }
+          return "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer border-dashed";
+        }
         return "bg-black/20 border-white/10";
       default: return "bg-black/20 border-white/10";
     }
@@ -286,7 +298,7 @@ const BaseInterface = ({ isActive, initialConstructions, initialConstructionJobs
                   width: CELL_SIZE_PX,
                   height: CELL_SIZE_PX,
                 }}
-                disabled={!cell.canBuild}
+                disabled={!cell.canBuild || hasActiveJob}
               >
                 {getCellContent(cell)}
               </button>
