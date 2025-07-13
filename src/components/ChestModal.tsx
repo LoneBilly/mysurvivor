@@ -8,6 +8,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemDetailModal from "./ItemDetailModal";
+import ActionModal from "./ActionModal";
 
 const CHEST_SLOTS = 10;
 
@@ -25,6 +26,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   const { playerData, setPlayerData } = useGame();
   const [chestItems, setChestItems] = useState<ChestItem[]>([]);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
+  const [isDemolishModalOpen, setIsDemolishModalOpen] = useState(false);
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
@@ -51,6 +53,11 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   }, [isOpen, fetchChestContents]);
 
   const handleDemolishClick = () => {
+    setIsDemolishModalOpen(true);
+  };
+
+  const confirmDemolish = () => {
+    setIsDemolishModalOpen(false);
     onDemolish(construction!);
   };
 
@@ -176,45 +183,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     const originalChestItems = JSON.parse(JSON.stringify(chestItems));
   
-    // --- START OPTIMISTIC UPDATE ---
-    let newInventory = [...playerData.inventory];
-    let newChestItems = [...chestItems];
     let rpcPromise;
-  
-    const fromItem = source === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newChestItems.find(i => i.slot_position === fromIndex);
-    const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newChestItems.find(i => i.slot_position === toIndex);
-  
-    if (!fromItem) return;
-  
-    // Case 1: Merge
-    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
-      if (source === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
-      else newChestItems = newChestItems.filter(i => i.id !== fromItem.id);
-  
-      if (target === 'inventory') newInventory = newInventory.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
-      else newChestItems = newChestItems.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
-    } 
-    // Case 2: Swap/Move
-    else {
-      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newChestItems.findIndex(i => i.id === fromItem.id);
-      const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newChestItems.splice(fromItemInSourceIdx, 1);
-      movedItem.slot_position = toIndex;
-  
-      if (toItem) {
-        const toItemInTargetIdx = target === 'inventory' ? newInventory.findIndex(i => i.id === toItem.id) : newChestItems.findIndex(i => i.id === toItem.id);
-        const [itemToSwap] = target === 'inventory' ? newInventory.splice(toItemInTargetIdx, 1) : newChestItems.splice(toItemInTargetIdx, 1);
-        itemToSwap.slot_position = fromIndex;
-        if (source === 'inventory') newInventory.push(itemToSwap);
-        else newChestItems.push(itemToSwap);
-      }
-  
-      if (target === 'inventory') newInventory.push(movedItem);
-      else newChestItems.push(movedItem);
-    }
-  
-    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
-    setChestItems(newChestItems);
-    // --- END OPTIMISTIC UPDATE ---
   
     if (source === 'inventory' && target === 'inventory') {
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
@@ -222,11 +191,11 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       if (!construction) return;
       rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'inventory' && target === 'chest') {
-      const itemToMove = originalPlayerData.inventory.find(i => i.slot_position === fromIndex);
+      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
       if (!itemToMove || !construction) return;
       rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: itemToMove.id, p_chest_id: construction.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     } else if (source === 'chest' && target === 'inventory') {
-      const itemToMove = originalChestItems.find(i => i.slot_position === fromIndex);
+      const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
       if (!itemToMove) return;
       rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: itemToMove.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     }
@@ -238,7 +207,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         setPlayerData(originalPlayerData);
         setChestItems(originalChestItems);
       } else {
-        await onUpdate(true);
+        await onUpdate();
         await fetchChestContents();
       }
     }
@@ -329,6 +298,16 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
         onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
+      />
+      <ActionModal
+        isOpen={isDemolishModalOpen}
+        onClose={() => setIsDemolishModalOpen(false)}
+        title="Détruire le coffre"
+        description={chestItems.length > 0 ? "Ce coffre contient des objets. Si vous le détruisez, tout son contenu sera perdu. Êtes-vous sûr ?" : "Êtes-vous sûr de vouloir détruire ce coffre vide ?"}
+        actions={[
+          { label: "Confirmer la démolition", onClick: confirmDemolish, variant: "destructive" },
+          { label: "Annuler", onClick: () => setIsDemolishModalOpen(false), variant: "secondary" },
+        ]}
       />
     </>
   );

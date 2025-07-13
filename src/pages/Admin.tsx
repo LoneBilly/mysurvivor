@@ -7,10 +7,11 @@ import PlayerManager from "@/components/admin/PlayerManager";
 import ItemManager from "@/components/admin/ItemManager";
 import EventManager from "@/components/admin/EventManager";
 import BuildingManager from "@/components/admin/BuildingManager";
+import CraftingManager from "@/components/admin/CraftingManager";
 import { MapCell } from "@/types/game";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2, ArrowLeft, Map, Users, Package, Zap, Wrench } from "lucide-react";
+import { Loader2, ArrowLeft, Map, Users, Package, Zap, Wrench, Hammer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -79,6 +80,8 @@ const Admin = () => {
         return <EventManager mapLayout={mapLayout} />;
       case 'buildings':
         return <BuildingManager />;
+      case 'craft':
+        return <CraftingManager />;
       default:
         return null;
     }
@@ -112,6 +115,7 @@ const Admin = () => {
                 <option value="items">Items</option>
                 <option value="events">Events</option>
                 <option value="buildings">Bâtiments</option>
+                <option value="craft">Craft</option>
               </select>
             </div>
             <div className="flex-1 min-h-0">
@@ -121,12 +125,13 @@ const Admin = () => {
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
             <div className="flex justify-center mb-4">
-              <TabsList className="grid w-full grid-cols-5 max-w-3xl flex-shrink-0">
+              <TabsList className="grid w-full grid-cols-6 max-w-4xl flex-shrink-0">
                 <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
                 <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
                 <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
                 <TabsTrigger value="events"><Zap className="w-4 h-4 mr-2" />Events</TabsTrigger>
                 <TabsTrigger value="buildings"><Wrench className="w-4 h-4 mr-2" />Bâtiments</TabsTrigger>
+                <TabsTrigger value="craft"><Hammer className="w-4 h-4 mr-2" />Craft</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="map" className="flex-1 min-h-0">
@@ -149,6 +154,9 @@ const Admin = () => {
             </TabsContent>
             <TabsContent value="buildings" className="flex-1 min-h-0">
               <BuildingManager />
+            </TabsContent>
+            <TabsContent value="craft" className="flex-1 min-h-0">
+              <CraftingManager />
             </TabsContent>
           </Tabs>
         )}
