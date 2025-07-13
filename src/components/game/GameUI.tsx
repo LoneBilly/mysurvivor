@@ -105,48 +105,31 @@ const GameUI = () => {
     }
 
     if (isCurrentPosition) {
+      const actions: typeof modalState.actions = [];
+      
       switch (interaction_type) {
         case 'Action':
-          if (type === 'marché') {
-            setIsMarketOpen(true);
-          } else if (type === 'Faction: Scouts') {
-            setIsFactionScoutsModalOpen(true);
-          } else {
-            setModalState({
-              isOpen: true,
-              title: formatZoneName(type),
-              description: "Cette action n'est pas encore configurée.",
-              actions: [{ label: "Compris", onClick: closeModal }],
-            });
-          }
-          break;
+          if (type === 'marché') setIsMarketOpen(true);
+          else if (type === 'Faction: Scouts') setIsFactionScoutsModalOpen(true);
+          else setModalState({ isOpen: true, title: formatZoneName(type), description: "Cette action n'est pas encore configurée.", actions: [{ label: "Compris", onClick: closeModal }] });
+          return;
         
         case 'Ressource':
-          const actions: typeof modalState.actions = [];
-          if (isBaseLocation) {
-            actions.push({ label: "Aller au campement", onClick: handleEnterBase });
-          }
+          if (isBaseLocation) actions.push({ label: "Aller au campement", onClick: handleEnterBase });
           actions.push({ label: "Explorer", onClick: () => handleExploreAction(cell) });
-          if (currentState.playerState.base_position_x === null) {
-            actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
+          if (currentState.playerState.base_position_x === null) actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
+          
+          if (actions.length === 1 && actions[0].label === "Explorer") {
+            handleExploreAction(cell);
+          } else {
+            setModalState({ isOpen: true, title: formatZoneName(type), description: "Que souhaitez-vous faire ici ?", actions });
           }
-          setModalState({
-            isOpen: true,
-            title: formatZoneName(type),
-            description: "Que souhaitez-vous faire ici ?",
-            actions,
-          });
-          break;
+          return;
 
         case 'Non défini':
         default:
-          setModalState({
-            isOpen: true,
-            title: formatZoneName(type),
-            description: "Cette zone est pour le moment indisponible.",
-            actions: [{ label: "Compris", onClick: closeModal }],
-          });
-          break;
+          setModalState({ isOpen: true, title: formatZoneName(type), description: "Cette zone est pour le moment indisponible.", actions: [{ label: "Compris", onClick: closeModal }] });
+          return;
       }
     } else {
       const distance = Math.abs(currentState.playerState.position_x - x) + Math.abs(currentState.playerState.position_y - y);
