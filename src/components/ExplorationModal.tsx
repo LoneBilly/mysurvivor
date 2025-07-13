@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Search, Shield, Package, Check, X } from 'lucide-react';
 import { MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
@@ -131,12 +131,12 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     setProgress(0);
   };
 
-  const handleCollectAll = async () => {
+  const handleCollectOne = async (itemToCollect: FoundItem) => {
     setInventoryFullError(false);
-    if (!foundItems || foundItems.length === 0) return;
-    const itemsToCollect = foundItems.map(item => ({ item_id: item.item_id, quantity: item.quantity }));
+    const payload = [{ item_id: itemToCollect.item_id, quantity: itemToCollect.quantity }];
     
-    const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: itemsToCollect });
+    const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: payload });
+
     if (error) {
       if (error.message.includes("Votre inventaire est plein")) {
         setInventoryFullError(true);
@@ -145,15 +145,15 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         showError(error.message);
       }
     } else {
-      showSuccess("Objets ajoutés à l'inventaire !");
-      setFoundItems(null);
+      showSuccess(`${itemToCollect.name} x${itemToCollect.quantity} ajouté à l'inventaire !`);
+      setFoundItems(currentItems => currentItems?.filter(item => item.item_id !== itemToCollect.item_id) || null);
       onUpdate();
     }
   };
 
-  const handleDiscardAll = () => {
-    setFoundItems(null);
-    setInventoryFullError(false);
+  const handleDiscardOne = (itemToDiscard: FoundItem) => {
+    setFoundItems(currentItems => currentItems?.filter(item => item.item_id !== itemToDiscard.item_id) || null);
+    showInfo(`${itemToDiscard.name} a été jeté.`);
   };
 
   const filteredScoutedTargets = useMemo(() => {
@@ -183,9 +183,18 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                       <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                         <ItemIcon iconName={item.signedIconUrl || item.icon} alt={item.name} />
                       </div>
-                      <p>{item.name} <span className="text-gray-400">x{item.quantity}</span></p>
+                      <p className="flex-grow">{item.name} <span className="text-gray-400">x{item.quantity}</span></p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleCollectOne(item)}><Check className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDiscardOne(item)}><X className="w-4 h-4" /></Button>
+                      </div>
                     </div>
-                  )) : <p className="text-center text-gray-400 p-4">Vous n'avez rien trouvé cette fois-ci.</p>}
+                  )) : (
+                    <div className="text-center text-gray-400 p-4">
+                      <p>Vous avez tout traité.</p>
+                      <Button onClick={onClose} className="mt-2">Fermer</Button>
+                    </div>
+                  )}
                 </div>
                 {inventoryFullError && (
                   <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center space-y-2">
@@ -195,10 +204,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                     </Button>
                   </div>
                 )}
-                <div className="flex gap-2">
-                  <Button onClick={handleDiscardAll} variant="outline" className="w-full"><X className="w-4 h-4 mr-2" />Jeter</Button>
-                  <Button onClick={handleCollectAll} className="w-full" disabled={foundItems.length === 0}><Check className="w-4 h-4 mr-2" />Récupérer</Button>
-                </div>
               </div>
             ) : isExploring ? (
               <div className="text-center space-y-3">
