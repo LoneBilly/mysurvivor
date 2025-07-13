@@ -3,7 +3,7 @@ import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall,
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { showError } from "@/utils/toast";
+import { showError, showInfo } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
@@ -315,6 +315,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
     const cell = gridData[y][x];
     const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
+
+    if (cell.canBuild && cell.type === 'empty' && optimisticHasActiveJob) {
+      showInfo("Une construction est déjà en cours.");
+      return;
+    }
     
     if (cell.type === 'in_progress' && cell.ends_at) {
       if (isMobile) {
@@ -480,7 +485,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
     if (cell.canBuild) {
       if (optimisticHasActiveJob) {
-        return <Clock className="w-8 h-8 text-gray-600" />;
+        return null;
       }
       return (
         <div className="relative w-full h-full flex items-center justify-center group">
@@ -500,10 +505,17 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       case 'campfire': return "bg-orange-400/20 border-orange-400/30";
       case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
       case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
+      case 'chest': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
+      case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
+      case 'trap': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'workbench': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
+      case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
       case 'empty':
         if (cell.canBuild) {
           if (optimisticHasActiveJob) {
-            return "bg-black/20 border-white/10 cursor-not-allowed";
+            return "bg-black/50 border-transparent cursor-not-allowed";
           }
           return "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer border-dashed";
         }

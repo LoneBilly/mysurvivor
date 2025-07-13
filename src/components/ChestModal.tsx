@@ -24,6 +24,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   const { playerData } = useGame();
   const [chestItems, setChestItems] = useState<ChestItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [transferring, setTransferring] = useState(false);
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
@@ -87,8 +88,10 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     
     if (slotElement) {
       const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
-      const target = slotElement.getAttribute('data-slot-target') as 'inventory' | 'chest';
-      if (index !== -1) {
+      const targetElement = (slotElement as HTMLElement).closest('[data-slot-target]');
+      const target = targetElement?.getAttribute('data-slot-target') as 'inventory' | 'chest' | undefined;
+
+      if (index !== -1 && target) {
         setDragOver({ index, target });
         return;
       }
@@ -103,10 +106,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
 
     if (draggedItem && dragOver && (draggedItem.source !== dragOver.target)) {
+      setTransferring(true);
       let error;
       if (draggedItem.source === 'inventory' && dragOver.target === 'chest') {
         const itemToMove = playerData.inventory.find(i => i.slot_position === draggedItem.index);
-        if (!itemToMove || !construction) return;
+        if (!itemToMove || !construction) {
+          setTransferring(false);
+          return;
+        }
         ({ error } = await supabase.rpc('move_item_to_chest', {
             p_inventory_id: itemToMove.id,
             p_chest_id: construction.id,
@@ -114,7 +121,10 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         }));
       } else if (draggedItem.source === 'chest' && dragOver.target === 'inventory') {
         const itemToMove = chestItems[draggedItem.index];
-        if (!itemToMove) return;
+        if (!itemToMove) {
+          setTransferring(false);
+          return;
+        }
         ({ error } = await supabase.rpc('move_item_from_chest', {
             p_chest_item_id: itemToMove.id,
             p_quantity_to_move: itemToMove.quantity
@@ -125,9 +135,10 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         showError(error.message || "Erreur de transfert.");
       } else {
         showSuccess("Objet transféré.");
-        onUpdate();
-        fetchChestContents();
+        await onUpdate();
+        await fetchChestContents();
       }
+      setTransferring(false);
     }
 
     setDraggedItem(null);
@@ -200,16 +211,16 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             Stockez vos objets en sécurité.
           </DialogDescription>
         </DialogHeader>
-        {loading ? (
-          <div className="flex-grow flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin" />
-          </div>
-        ) : (
-          <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
-            {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
-            {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
-          </div>
-        )}
+        <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
+          {(loading || transferring) && (
+            <div className="absolute inset-0 bg-slate-800/50 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              {transferring && <p className="ml-2">Transfert en cours...</p>}
+            </div>
+          )}
+          {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
+          {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
+        </div>
         <DialogFooter className="mt-4">
           <Button variant="destructive" onClick={handleDemolishClick}>
             <Trash2 className="w-4 h-4 mr-2" />

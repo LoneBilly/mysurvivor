@@ -9,6 +9,7 @@ import { Item } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { useGame } from '@/contexts/GameContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from "@/components/ui/skeleton";
 
 const buildingIcons: { [key: string]: React.ElementType } = {
   chest: Box,
@@ -101,6 +102,26 @@ interface FoundationMenuModalProps {
   items: Item[];
 }
 
+const BuildingSkeleton = () => (
+  <div className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+      <div className="flex items-center gap-3">
+        <Skeleton className="w-10 h-10 rounded-md" />
+        <Skeleton className="h-6 w-32 rounded-md" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-8 w-16 rounded-md" />
+        <Skeleton className="h-8 w-20 rounded-md" />
+      </div>
+    </div>
+    <div className="flex flex-wrap gap-2 mb-4">
+      <Skeleton className="w-16 h-16 rounded-lg" />
+      <Skeleton className="w-16 h-16 rounded-lg" />
+    </div>
+    <Skeleton className="h-10 w-full rounded-md" />
+  </div>
+);
+
 const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playerResources, items }: FoundationMenuModalProps) => {
   const [loading, setLoading] = useState(false);
   const [buildings, setBuildings] = useState<BuildingDefinition[]>([]);
@@ -172,7 +193,10 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playe
         </DialogHeader>
         <div className="py-4 max-h-[60vh] overflow-y-auto space-y-4 pr-2">
           {loading ? (
-            <div className="flex justify-center items-center h-40"><Loader2 className="w-8 h-8 animate-spin" /></div>
+            <div className="space-y-4">
+              <BuildingSkeleton />
+              <BuildingSkeleton />
+            </div>
           ) : (
             buildings.map((b) => {
               const Icon = buildingIcons[b.type];
