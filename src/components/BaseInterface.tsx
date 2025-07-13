@@ -36,6 +36,17 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   campfire: () => <>🔥</>,
 };
 
+interface BuildingDefinition {
+  type: string;
+  name: string;
+  icon: string;
+  build_time_seconds: number;
+  cost_energy: number;
+  cost_wood: number;
+  cost_metal: number;
+  cost_components: number;
+}
+
 const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
   const calculateRemaining = useCallback(() => {
     const diff = new Date(endsAt).getTime() - Date.now();
@@ -393,10 +404,8 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
   };
 
-  const handleBuildOnFoundation = async (x: number, y: number, building: any) => {
-    const costs = building.costs;
-
-    if (playerData.playerState.energie < costs.energy || totalResources.wood < costs.wood || totalResources.metal < costs.metal || totalResources.components < costs.components) {
+  const handleBuildOnFoundation = async (x: number, y: number, building: BuildingDefinition) => {
+    if (playerData.playerState.energie < building.cost_energy || totalResources.wood < building.cost_wood || totalResources.metal < building.cost_metal || totalResources.components < building.cost_components) {
       showError("Ressources insuffisantes.");
       return;
     }
@@ -406,11 +415,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
     const newGrid = JSON.parse(JSON.stringify(gridData));
     newGrid[y][x].type = 'in_progress';
-    newGrid[y][x].ends_at = new Date(Date.now() + 60 * 1000).toISOString();
+    newGrid[y][x].ends_at = new Date(Date.now() + building.build_time_seconds * 1000).toISOString();
     setGridData(updateCanBuild(newGrid));
 
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
-    newPlayerData.playerState.energie -= costs.energy;
+    newPlayerData.playerState.energie -= building.cost_energy;
     // La déduction des ressources se fait côté serveur, on ne la simule plus ici
     setPlayerData(newPlayerData);
 
