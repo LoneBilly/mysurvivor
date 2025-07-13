@@ -48,24 +48,24 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const generateGrid = (): ((MapCell & { discovered: boolean }) | null)[][] => {
-    const grid: ((MapCell & { discovered: boolean }) | null)[][] = Array(7).fill(null).map(() => Array(7).fill(null));
+  const generateGrid = (): (MapCell & { discovered: boolean })[][] => {
+    const grid: (MapCell & { discovered: boolean })[][] = Array(7).fill(null).map(() => []);
     if (!mapLayout.length) return grid;
 
     const discoveredSet = new Set(discoveredZones);
 
     mapLayout.forEach(cell => {
-        if (cell.y >= 0 && cell.y < 7 && cell.x >= 0 && cell.x < 7) {
-            grid[cell.y][cell.x] = {
-                ...cell,
-                discovered: discoveredSet.has(cell.id),
-            };
-        }
+      if (!grid[cell.y]) grid[cell.y] = [];
+      grid[cell.y][cell.x] = {
+        ...cell,
+        discovered: discoveredSet.has(cell.id),
+      };
     });
     return grid;
   };
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
+    if (!cell || cell.type === 'unknown') return null;
     if (!cell.discovered) return <Lock className="w-1/2 h-1/2 text-gray-400" />;
     
     const IconComponent = cell.icon ? (LucideIcons as any)[cell.icon] : LucideIcons.Building2;
@@ -78,6 +78,10 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   };
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
+    if (!cell || cell.type === 'unknown') {
+      return "bg-black/20 border-transparent cursor-default";
+    }
+
     if (!cell.discovered) {
       return cn(
         "bg-white/5 border-white/10 text-gray-300 cursor-pointer",
@@ -98,7 +102,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   };
 
   const handleMouseEnter = (e: React.MouseEvent, cell: MapCell & { discovered: boolean }) => {
-    if (isMobile) return;
+    if (isMobile || !cell || cell.type === 'unknown') return;
     const content = cell.discovered ? formatZoneName(cell.type) : "Zone non découverte";
     setTooltip({
       visible: true,
@@ -139,34 +143,30 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
             className="grid grid-cols-7 gap-1 md:gap-1.5 p-2 md:p-3 w-full h-full"
           >
             {grid.map((row, y) =>
-              row.map((cell, x) =>
-                cell ? (
-                  <button
-                    key={`${x}-${y}`}
-                    onClick={() => onCellSelect(cell)}
-                    disabled={!cell}
-                    className={cn(
-                      "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
-                      getCellStyle(cell)
-                    )}
-                    onMouseEnter={(e) => handleMouseEnter(e, cell)}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    {getCellContent(cell)}
-                    {playerPosition.x === x && playerPosition.y === y && (
-                      <div className="absolute top-1 right-1 w-2.5 h-2.5">
-                        <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
-                        <div className="w-full h-full rounded-full bg-sky-400 relative border-2 border-gray-900"></div>
-                      </div>
-                    )}
-                    {basePosition && basePosition.x === x && basePosition.y === y && (
-                      <div className="absolute inset-0 border-2 border-dashed border-green-400/80 pointer-events-none rounded-lg"></div>
-                    )}
-                  </button>
-                ) : (
-                  <div key={`${x}-${y}`} className="aspect-square rounded-lg" />
-                )
-              )
+              row.map((cell, x) => (
+                <button
+                  key={`${x}-${y}`}
+                  onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
+                  disabled={!cell || cell.type === 'unknown'}
+                  className={cn(
+                    "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
+                    getCellStyle(cell)
+                  )}
+                  onMouseEnter={(e) => cell && handleMouseEnter(e, cell)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {getCellContent(cell)}
+                  {playerPosition.x === x && playerPosition.y === y && (
+                    <div className="absolute top-1 right-1 w-2.5 h-2.5">
+                      <div className="w-full h-full rounded-full bg-sky-400 animate-ping absolute"></div>
+                      <div className="w-full h-full rounded-full bg-sky-400 relative border-2 border-gray-900"></div>
+                    </div>
+                  )}
+                  {basePosition && basePosition.x === x && basePosition.y === y && (
+                    <div className="absolute inset-0 border-2 border-dashed border-green-400/80 pointer-events-none rounded-lg"></div>
+                  )}
+                </button>
+              ))
             )}
           </div>
         </div>
@@ -184,3 +184,6 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
       )}
     </>
   );
+};
+
+export default GameGrid;

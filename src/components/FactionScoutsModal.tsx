@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Eye, Send, FileText, Coins, Shield, MapPin, Users, Star, Trash2 } from 'lucide-react';
+import { Loader2, Eye, Send, FileText, Coins, Check, ChevronsUpDown, Shield, MapPin, Users, Star, Trash2 } from 'lucide-react';
 import { ScoutingMission } from '@/types/game';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from '@/lib/utils';
 import ActionModal from './ActionModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,7 +79,8 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
   const [activeTab, setActiveTab] = useState('send');
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [scoutablePlayers, setScoutablePlayers] = useState<ScoutablePlayer[]>([]);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
+  const [selectedPlayer, setSelectedPlayer] = useState<ScoutablePlayer | null>(null);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const [sendScoutLoading, setSendScoutLoading] = useState(false);
   const [actionModal, setActionModal] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; variant?: "default" | "destructive" }>({ isOpen: false, onConfirm: () => {}, title: '', description: '', variant: 'default' });
   const [reportSearchTerm, setReportSearchTerm] = useState('');
@@ -97,10 +100,7 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
   }, [isOpen, activeTab, scoutablePlayers.length, fetchScoutablePlayers]);
 
   const handleSendScout = async () => {
-    if (!selectedPlayerId) return;
-    const selectedPlayer = scoutablePlayers.find(p => p.id === selectedPlayerId);
     if (!selectedPlayer) return;
-
     setActionModal({ ...actionModal, isOpen: false });
     setSendScoutLoading(true);
     const { error } = await supabase.rpc('send_scout', { p_target_player_id: selectedPlayer.id });
@@ -111,14 +111,12 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
     } else {
       showSuccess(`Éclaireur envoyé vers la base de ${selectedPlayer.username} !`);
       onUpdate();
-      setSelectedPlayerId('');
+      setSelectedPlayer(null);
       setIsSendModalOpen(false);
     }
   };
 
   const confirmSendScout = () => {
-    if (!selectedPlayerId) return;
-    const selectedPlayer = scoutablePlayers.find(p => p.id === selectedPlayerId);
     if (!selectedPlayer) return;
     setActionModal({ isOpen: true, onConfirm: handleSendScout, title: 'Confirmer la mission', description: `Envoyer un éclaireur vers la base de ${selectedPlayer?.username} pour ${SCOUT_COST} crédits ?`, variant: 'default' });
   };
@@ -280,19 +278,31 @@ const FactionScoutsModal = ({ isOpen, onClose, credits, onUpdate, scoutingMissio
             <DialogDescription className="text-gray-300">Choisissez une cible à espionner.</DialogDescription>
           </DialogHeader>
           <div className="py-4 flex flex-col items-center gap-6">
-            <select
-              value={selectedPlayerId}
-              onChange={(e) => setSelectedPlayerId(e.target.value)}
-              className="w-full max-w-xs justify-between bg-white/5 border-white/20 p-2 rounded-lg focus:ring-white/30 focus:border-white/30"
-            >
-              <option value="">Sélectionner un joueur...</option>
-              {scoutablePlayers.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.username}
-                </option>
-              ))}
-            </select>
-            <Button onClick={confirmSendScout} disabled={!selectedPlayerId || sendScoutLoading || credits < SCOUT_COST} className="w-full max-w-xs">
+            <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full max-w-xs justify-between bg-white/5 border-white/20 hover:bg-white/10 text-white">
+                  {selectedPlayer ? selectedPlayer.username : "Sélectionner un joueur..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Rechercher un joueur..." />
+                  <CommandList>
+                    <CommandEmpty>Aucun joueur trouvé.</CommandEmpty>
+                    <CommandGroup>
+                      {scoutablePlayers.map((player) => (
+                        <CommandItem key={player.id} value={player.username} onSelect={() => { setSelectedPlayer(player); setIsComboboxOpen(false); }}>
+                          <Check className={cn("mr-2 h-4 w-4", selectedPlayer?.id === player.id ? "opacity-100" : "opacity-0")} />
+                          {player.username}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Button onClick={confirmSendScout} disabled={!selectedPlayer || sendScoutLoading || credits < SCOUT_COST} className="w-full max-w-xs">
               {sendScoutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                 <span className="flex items-center justify-center gap-2">
                   Envoyer pour <Coins className="w-4 h-4" /> {SCOUT_COST}

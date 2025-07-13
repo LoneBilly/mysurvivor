@@ -17,6 +17,7 @@ import ItemFormModal from './ItemFormModal';
 import ItemIcon from '@/components/ItemIcon';
 import { getCachedSignedUrl } from '@/utils/iconCache';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const ItemManager = () => {
   const [items, setItems] = useState<Item[]>([]);
@@ -91,15 +92,20 @@ const ItemManager = () => {
                 className="pl-10 bg-gray-900 border-gray-700"
               />
             </div>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full sm:w-[180px] bg-gray-900 border-gray-700 p-2 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-              <option value="all">Tous les types</option>
-              <option value="Ressources">Ressources</option>
-              <option value="Armes">Armes</option>
-              <option value="Nourriture">Nourriture</option>
-              <option value="Soins">Soins</option>
-              <option value="Items divers">Items divers</option>
-              <option value="Items craftés">Items craftés</option>
-            </select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-gray-900 border-gray-700">
+                <SelectValue placeholder="Filtrer par type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="Ressources">Ressources</SelectItem>
+                <SelectItem value="Armes">Armes</SelectItem>
+                <SelectItem value="Nourriture">Nourriture</SelectItem>
+                <SelectItem value="Soins">Soins</SelectItem>
+                <SelectItem value="Items divers">Items divers</SelectItem>
+                <SelectItem value="Items craftés">Items craftés</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={handleCreate} className="w-full sm:w-auto">
             <PlusCircle className="w-4 h-4 mr-2" />
