@@ -14,6 +14,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import CraftingRecipeFormModal from './CraftingRecipeFormModal';
 import ActionModal from '../ActionModal';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface CraftingRecipe {
   id: number;
@@ -35,6 +36,7 @@ const CraftingManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<CraftingRecipe | null>(null);
   const [recipeToDelete, setRecipeToDelete] = useState<CraftingRecipe | null>(null);
+  const isMobile = useIsMobile();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -108,29 +110,48 @@ const CraftingManager = () => {
           </Button>
         </div>
         <div className="flex-grow overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
-                <TableHead>Résultat</TableHead>
-                <TableHead>Ingrédients</TableHead>
-                <TableHead>Temps</TableHead>
-                <TableHead className="w-[150px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          {isMobile ? (
+            <div className="p-4 space-y-3">
               {recipes.map(recipe => (
-                <TableRow key={recipe.id} className="border-gray-700">
-                  <TableCell className="font-medium">{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</TableCell>
-                  <TableCell>{renderIngredients(recipe)}</TableCell>
-                  <TableCell className="flex items-center gap-2"><Clock className="w-4 h-4" /> {recipe.craft_time_seconds}s</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(recipe)}><Edit className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => setRecipeToDelete(recipe)}><Trash2 className="w-4 h-4" /></Button>
-                  </TableCell>
-                </TableRow>
+                <div key={recipe.id} onClick={() => handleEdit(recipe)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-white">{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</p>
+                    <div className="flex items-center gap-1 text-sm"><Clock size={14} /> {recipe.craft_time_seconds}s</div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-700/50 text-sm text-gray-300">
+                    <p className="font-semibold mb-1">Ingrédients:</p>
+                    <div className="pl-2 space-y-1">
+                      {renderIngredients(recipe)}
+                    </div>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
+                  <TableHead>Résultat</TableHead>
+                  <TableHead>Ingrédients</TableHead>
+                  <TableHead>Temps</TableHead>
+                  <TableHead className="w-[150px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recipes.map(recipe => (
+                  <TableRow key={recipe.id} className="border-gray-700">
+                    <TableCell className="font-medium">{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</TableCell>
+                    <TableCell>{renderIngredients(recipe)}</TableCell>
+                    <TableCell className="flex items-center gap-2"><Clock className="w-4 h-4" /> {recipe.craft_time_seconds}s</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(recipe)}><Edit className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setRecipeToDelete(recipe)}><Trash2 className="w-4 h-4" /></Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
       <CraftingRecipeFormModal
