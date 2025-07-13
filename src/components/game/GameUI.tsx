@@ -113,7 +113,7 @@ const GameUI = () => {
     if (isCurrentPosition) {
       switch (interaction_type) {
         case 'Action':
-          const lowerCaseType = type.toLowerCase();
+          const lowerCaseType = type.toLowerCase().trim();
           if (lowerCaseType === 'marché') {
             setIsMarketOpen(true);
           } else if (lowerCaseType === 'faction: scouts') {
