@@ -102,6 +102,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
+  const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
+
+  useEffect(() => {
+    setOptimisticHasActiveJob(initialConstructionJobs.length > 0);
+  }, [initialConstructionJobs]);
 
   const isDraggingRef = useRef(false);
   const panState = useRef<{
@@ -111,8 +116,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     scrollLeft: number;
     scrollTop: number;
   } | null>(null);
-
-  const hasActiveJob = initialConstructionJobs.length > 0;
 
   const totalResources = useMemo(() => {
     const inventoryWood = playerData.inventory.find(i => i.items?.name === 'Bois')?.quantity || 0;
@@ -249,12 +252,14 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     newGrid[y][x].ends_at = undefined;
     newGrid[y][x].showTrash = false;
     setGridData(updateCanBuild(newGrid));
+    setOptimisticHasActiveJob(false);
 
     const { error } = await supabase.rpc('cancel_construction_job', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de l'annulation.");
       setGridData(originalGridData);
+      setOptimisticHasActiveJob(true);
     } else {
       refreshPlayerData();
     }
@@ -338,7 +343,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       return;
     }
     
-    if (cell.type === 'foundation' && !hasActiveJob) {
+    if (cell.type === 'foundation' && !optimisticHasActiveJob) {
       setFoundationMenu({ isOpen: true, x, y });
       return;
     }
@@ -356,7 +361,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       return;
     }
 
-    if (!cell.canBuild || cell.type !== 'empty' || hasActiveJob) return;
+    if (!cell.canBuild || cell.type !== 'empty' || optimisticHasActiveJob) return;
 
     const energyCost = 90;
     if (playerData.playerState.energie < energyCost) {
@@ -372,6 +377,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     newGrid[y][x].type = 'in_progress';
     newGrid[y][x].ends_at = new Date(Date.now() + buildTime * 1000).toISOString();
     setGridData(updateCanBuild(newGrid));
+    setOptimisticHasActiveJob(true);
 
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= energyCost;
@@ -383,6 +389,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       showError(error.message || "Erreur lors de la construction.");
       setGridData(originalGridData);
       setPlayerData(originalPlayerData);
+      setOptimisticHasActiveJob(false);
     } else {
       refreshPlayerData();
     }
@@ -417,10 +424,10 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     newGrid[y][x].type = 'in_progress';
     newGrid[y][x].ends_at = new Date(Date.now() + building.build_time_seconds * 1000).toISOString();
     setGridData(updateCanBuild(newGrid));
+    setOptimisticHasActiveJob(true);
 
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= building.cost_energy;
-    // La déduction des ressources se fait côté serveur, on ne la simule plus ici
     setPlayerData(newPlayerData);
 
     const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
@@ -429,6 +436,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       showError(error.message);
       setGridData(originalGridData);
       setPlayerData(originalPlayerData);
+      setOptimisticHasActiveJob(false);
     } else {
       refreshPlayerData();
     }
@@ -471,7 +479,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       );
     }
     if (cell.canBuild) {
-      if (hasActiveJob) {
+      if (optimisticHasActiveJob) {
         return <Clock className="w-8 h-8 text-gray-600" />;
       }
       return (
@@ -494,7 +502,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
       case 'empty':
         if (cell.canBuild) {
-          if (hasActiveJob) {
+          if (optimisticHasActiveJob) {
             return "bg-black/20 border-white/10 cursor-not-allowed";
           }
           return "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer border-dashed";

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
@@ -33,7 +33,7 @@ interface BuildingDefinition {
 
 const resourceToItemName: { [key: string]: string } = {
   wood: 'Bois',
-  metal: 'Pierre',
+  metal: 'Pierre', // This must remain 'Pierre' to match the item name in DB
   components: 'Composants'
 };
 
@@ -42,6 +42,13 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
   if (required === 0) return null;
   const hasEnough = available >= required;
   const iconUrl = itemDetail ? getIconUrl(itemDetail.icon) : null;
+
+  const displayName = useMemo(() => {
+    if (resource === 'metal') return 'Métal';
+    if (resource === 'wood') return 'Bois';
+    if (resource === 'components') return 'Composants';
+    return itemDetail?.name || resource;
+  }, [resource, itemDetail]);
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -69,7 +76,7 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
           </div>
         </TooltipTrigger>
         <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
-          <p className="font-bold">{itemDetail?.name}</p>
+          <p className="font-bold">{displayName}</p>
           <p className={cn(hasEnough ? "text-gray-300" : "text-red-400")}>Requis: {required}</p>
           <p className="text-gray-300">En stock: {available}</p>
         </TooltipContent>
