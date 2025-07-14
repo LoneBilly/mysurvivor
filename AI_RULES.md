@@ -1,10 +1,3 @@
-# Consignes
-
-- Tu dois toujours t'assurer que le code que tu écris rend une expérience d'utilisation fluide, sans délais d'affichages ni chargement bloquants visibles.
-Tu dois partir d'un point de vue optimiste donc faire toutes les mises à jour d'interface client immédiatement mais toujours t'assurer de faire les vérifications serveur necessaire en fond quand c'est utile pour éviter toute triche de la part des clients.
-Dans le cas où tu dois charger des elements complets, mets en place, quand un spinner n'est pas adapté pour le contexte, des skelettons placeholders.
-Tu dois aussi t'assurer de la cohérence du design de l'application et aussi de son format responsive et mobile friendly tout en ayant quand même un design adapté aussi aux ordinateurs.
-
 # Tech Stack
 
 - You are building a React application.
