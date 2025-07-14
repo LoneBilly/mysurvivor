@@ -55,24 +55,12 @@ interface BaseInterfaceProps {
 
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
-  const { playerData, refreshPlayerData, items, loadingGameData } = useGame();
-  
-  // Ensure playerData is not null before destructuring
-  if (!playerData) {
-    // This case should ideally be handled by GameContent's loading state,
-    // but as a safeguard, we can show a loading spinner here too.
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-white">
-        <Loader2 className="w-8 h-8 animate-spin mb-4" />
-        <p>Chargement de la base...</p>
-      </div>
-    );
-  }
-
-  const { baseConstructions, constructionJobs = [] } = playerData;
+  const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
   
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
+  const [loading, setLoading] = useState(true);
   const viewportRef = useRef<HTMLDivElement>(null);
   const hasCentered = useRef(false);
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
@@ -80,11 +68,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [workbenchModalState, setWorkbenchModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
-  const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(constructionJobs.length > 0);
+  const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
 
   useEffect(() => {
-    setOptimisticHasActiveJob(constructionJobs.length > 0);
-  }, [constructionJobs]);
+    setOptimisticHasActiveJob(initialConstructionJobs.length > 0);
+  }, [initialConstructionJobs]);
 
   const isDraggingRef = useRef(false);
   const panState = useRef<{
@@ -129,6 +117,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
   const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
     if (!user) return;
+    setLoading(true);
     
     let currentConstructions = [...constructions];
     const campfire = currentConstructions.find(c => c.type === 'campfire');
@@ -149,10 +138,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       
       if (insertError) {
         showError("Impossible de créer le campement initial.");
+        setLoading(false);
         return;
       }
       
-      await refreshPlayerData(); // Refresh data after creating campfire
+      await refreshPlayerData();
       return;
     }
 
@@ -180,13 +170,14 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     const finalGrid = updateCanBuild(newGrid);
     setGridData(finalGrid);
     setCampfirePosition(campPos);
+    setLoading(false);
   }, [user, refreshPlayerData]);
 
   useEffect(() => {
-    if (baseConstructions) {
-      initializeGrid(baseConstructions, constructionJobs);
+    if (initialConstructions) {
+      initializeGrid(initialConstructions, initialConstructionJobs);
     }
-  }, [baseConstructions, constructionJobs, initializeGrid]);
+  }, [initialConstructions, initialConstructionJobs, initializeGrid]);
 
   const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -212,11 +203,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   }, [isActive]);
 
   useLayoutEffect(() => {
-    if (isActive && !loadingGameData && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
+    if (isActive && !loading && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
       centerViewport(campfirePosition.x, campfirePosition.y, false);
       hasCentered.current = true;
     }
-  }, [isActive, loadingGameData, gridData, campfirePosition, centerViewport]);
+  }, [isActive, loading, gridData, campfirePosition, centerViewport]);
 
   const handleCancelConstruction = async (x: number, y: number) => {
     if (!gridData) return;
@@ -320,12 +311,12 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
         // Allow interaction with specific buildings
         if (cell.type === 'chest') {
-          const constructionData = baseConstructions.find(c => c.x === x && c.y === y);
+          const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
           if (constructionData) {
             setChestModalState({ isOpen: true, construction: constructionData });
           }
         } else if (cell.type === 'workbench') {
-          const constructionData = baseConstructions.find(c => c.x === x && c.y === y);
+          const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
           if (constructionData) {
             setWorkbenchModalState({ isOpen: true, construction: constructionData });
           }
@@ -344,7 +335,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     if (cell.type === 'chest') {
-      const constructionData = baseConstructions.find(c => c.x === x && c.y === y);
+      const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
       if (constructionData) {
         setChestModalState({ isOpen: true, construction: constructionData });
       }
@@ -352,7 +343,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     if (cell.type === 'workbench') {
-      const constructionData = baseConstructions.find(c => c.x === x && c.y === y);
+      const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
       if (constructionData) {
         setWorkbenchModalState({ isOpen: true, construction: constructionData });
       }
@@ -373,6 +364,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     const originalGridData = gridData;
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     
     const newGrid = JSON.parse(JSON.stringify(gridData));
     const buildTime = 9 * playerData.baseConstructions.length + 15;
@@ -381,20 +373,19 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     setGridData(updateCanBuild(newGrid));
     setOptimisticHasActiveJob(true);
 
-    // Optimistic update for player energy
-    const newPlayerState = { ...playerData.playerState, energie: playerData.playerState.energie - energyCost };
-    refreshPlayerData(); // Trigger a full refresh after optimistic update
+    const newPlayerData = JSON.parse(JSON.stringify(playerData));
+    newPlayerData.playerState.energie -= energyCost;
+    setPlayerData(newPlayerData);
 
     const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de la construction.");
       setGridData(originalGridData);
-      // Revert player state if RPC fails
-      refreshPlayerData(); 
+      setPlayerData(originalPlayerData);
       setOptimisticHasActiveJob(false);
     } else {
-      // No need to refresh here, as it's already triggered optimistically
+      refreshPlayerData();
     }
   };
 
@@ -421,6 +412,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     const originalGridData = gridData;
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
 
     const newGrid = JSON.parse(JSON.stringify(gridData));
     newGrid[y][x].type = 'in_progress';
@@ -428,26 +420,19 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     setGridData(updateCanBuild(newGrid));
     setOptimisticHasActiveJob(true);
 
-    // Optimistic update for player resources
-    const newPlayerState = { 
-      ...playerData.playerState, 
-      energie: playerData.playerState.energie - building.cost_energy,
-      wood: playerData.playerState.wood - building.cost_wood,
-      metal: playerData.playerState.metal - building.cost_metal,
-      components: playerData.playerState.components - building.cost_components,
-    };
-    refreshPlayerData(); // Trigger a full refresh after optimistic update
+    const newPlayerData = JSON.parse(JSON.stringify(playerData));
+    newPlayerData.playerState.energie -= building.cost_energy;
+    setPlayerData(newPlayerData);
 
     const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
 
     if (error) {
       showError(error.message);
       setGridData(originalGridData);
-      // Revert player state if RPC fails
-      refreshPlayerData();
+      setPlayerData(originalPlayerData);
       setOptimisticHasActiveJob(false);
     } else {
-      // No need to refresh here, as it's already triggered optimistically
+      refreshPlayerData();
     }
   };
 
@@ -473,7 +458,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellContent = (cell: BaseCell) => {
-    const construction = baseConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
     const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
     const hasOutput = construction && construction.output_item_id;
 
@@ -520,7 +505,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellStyle = (cell: BaseCell) => {
-    const construction = baseConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
     const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
     const hasOutput = construction && construction.output_item_id;
 
@@ -552,7 +537,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
   };
 
-  if (loadingGameData) {
+  if (loading) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-white">
         <Loader2 className="w-8 h-8 animate-spin mb-4" />
