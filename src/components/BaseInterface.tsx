@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, Cog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ interface BaseCell {
   canBuild?: boolean;
   ends_at?: string;
   showTrash?: boolean;
+  isCrafting?: boolean;
 }
 
 const GRID_SIZE = 31;
@@ -56,7 +57,7 @@ interface BaseInterfaceProps {
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
-  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs: initialCraftingJobs = [] } = playerData;
   
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
@@ -129,7 +130,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
+      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false, isCrafting: false }))
     );
 
     let campPos: { x: number; y: number } | null = null;
@@ -157,6 +158,10 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
           if (c.type === 'campfire') {
             campPos = { x: c.x, y: c.y };
           }
+          const craftingJob = initialCraftingJobs.find(job => job.workbench_id === c.id);
+          if (craftingJob) {
+            newGrid[c.y][c.x].isCrafting = true;
+          }
         }
       });
       jobs.forEach((job: ConstructionJob) => {
@@ -171,7 +176,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     setGridData(finalGrid);
     setCampfirePosition(campPos);
     setLoading(false);
-  }, [user]);
+  }, [user, initialCraftingJobs]);
 
   useEffect(() => {
     if (initialConstructions) {
@@ -459,7 +464,16 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
   const getCellContent = (cell: BaseCell) => {
     const Icon = buildingIcons[cell.type];
-    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
+    if (Icon) {
+      return (
+        <div className="relative w-full h-full flex items-center justify-center">
+          <Icon className="w-6 h-6 text-gray-300" />
+          {cell.isCrafting && (
+            <Cog className="absolute w-4 h-4 text-yellow-400 animate-spin" style={{ animationDuration: '3s' }} />
+          )}
+        </div>
+      );
+    }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
