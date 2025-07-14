@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, Check, BookOpen, Clock } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, Check, BookOpen, Clock, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -30,15 +30,30 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [craftingJob, setCraftingJob] = useState<CraftingJob | null>(null);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'crafting' } | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
-  const [isCrafting, setIsCrafting] = useState(false);
+  
+  const [isContinuousCrafting, setIsContinuousCrafting] = useState(false);
+  const [maxCraftCount, setMaxCraftCount] = useState(0);
+  const [currentCraftCount, setCurrentCraftCount] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const craftTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; from: 'inventory' | 'crafting'; fromIndex: number } | null>(null);
   const [dragOver, setDragOver] = useState<{ target: 'inventory' | 'crafting'; index: number } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const displayedInventory = useMemo(() => {
-    const itemsInCraftingIds = new Set(ingredientSlots.filter(Boolean).map(item => item!.id));
-    return playerData.inventory.filter(item => !itemsInCraftingIds.has(item.id));
+    const itemsInCrafting = new Map<number, number>();
+    ingredientSlots.forEach(item => {
+      if (item) {
+        const currentQty = itemsInCrafting.get(item.item_id) || 0;
+        itemsInCrafting.set(item.item_id, currentQty + item.quantity);
+      }
+    });
+
+    return playerData.inventory.map(invItem => {
+      const usedQuantity = itemsInCrafting.get(invItem.item_id) || 0;
+      return { ...invItem, quantity: invItem.quantity - usedQuantity };
+    }).filter(item => item.quantity > 0);
   }, [playerData.inventory, ingredientSlots]);
 
   const fetchRecipes = useCallback(async () => {
@@ -57,6 +72,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setMatchedRecipe(null);
       setResultItem(null);
       setDetailedItem(null);
+      setIsContinuousCrafting(false);
+      if (craftTimerRef.current) clearInterval(craftTimerRef.current);
     }
   }, [isOpen, construction, playerData.craftingJobs, fetchRecipes]);
 
@@ -100,20 +117,83 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleCraft = async () => {
-    if (!matchedRecipe || !construction) return;
-    setIsCrafting(true);
-    const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
-    if (error) {
-      showError(error.message);
-      setIsCrafting(false);
+  const handleStartContinuousCraft = () => {
+    if (!matchedRecipe) return;
+
+    const craftableCounts = [
+      matchedRecipe.ingredient1_id ? Math.floor((ingredientSlots.find(i => i?.item_id === matchedRecipe.ingredient1_id)?.quantity || 0) / matchedRecipe.ingredient1_quantity) : Infinity,
+      matchedRecipe.ingredient2_id ? Math.floor((ingredientSlots.find(i => i?.item_id === matchedRecipe.ingredient2_id)?.quantity || 0) / matchedRecipe.ingredient2_quantity) : Infinity,
+      matchedRecipe.ingredient3_id ? Math.floor((ingredientSlots.find(i => i?.item_id === matchedRecipe.ingredient3_id)?.quantity || 0) / matchedRecipe.ingredient3_quantity) : Infinity,
+    ];
+    const maxPossible = Math.min(...craftableCounts);
+    
+    if (maxPossible > 0) {
+      setMaxCraftCount(maxPossible);
+      setCurrentCraftCount(0);
+      setIsContinuousCrafting(true);
     } else {
-      showSuccess("Fabrication lancée !");
-      setIngredientSlots([null, null, null]);
-      onUpdate();
-      setIsCrafting(false);
+      showError("Ressources insuffisantes pour fabriquer cet objet.");
     }
   };
+
+  const handleStopCrafting = () => {
+    setIsContinuousCrafting(false);
+    if (craftTimerRef.current) {
+      clearInterval(craftTimerRef.current);
+      craftTimerRef.current = null;
+    }
+    setProgress(0);
+    showInfo("Fabrication arrêtée.");
+  };
+
+  useEffect(() => {
+    if (!isContinuousCrafting || !matchedRecipe) {
+      return;
+    }
+
+    const craftNextItem = async () => {
+      if (currentCraftCount >= maxCraftCount) {
+        setIsContinuousCrafting(false);
+        showSuccess("Fabrication en série terminée !");
+        return;
+      }
+
+      const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction!.id, p_recipe_id: matchedRecipe.id });
+      if (error) {
+        showError(error.message);
+        setIsContinuousCrafting(false);
+        return;
+      }
+
+      const newSlots = [...ingredientSlots];
+      if (matchedRecipe.ingredient1_id) newSlots.find(i => i?.item_id === matchedRecipe.ingredient1_id)!.quantity -= matchedRecipe.ingredient1_quantity;
+      if (matchedRecipe.ingredient2_id) newSlots.find(i => i?.item_id === matchedRecipe.ingredient2_id)!.quantity -= matchedRecipe.ingredient2_quantity;
+      if (matchedRecipe.ingredient3_id) newSlots.find(i => i?.item_id === matchedRecipe.ingredient3_id)!.quantity -= matchedRecipe.ingredient3_quantity;
+      setIngredientSlots(newSlots.filter(s => s && s.quantity > 0));
+
+      const craftTime = matchedRecipe.craft_time_seconds * 1000;
+      const startTime = Date.now();
+      craftTimerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const newProgress = Math.min(100, (elapsed / craftTime) * 100);
+        setProgress(newProgress);
+
+        if (elapsed >= craftTime) {
+          if (craftTimerRef.current) clearInterval(craftTimerRef.current);
+          onUpdate();
+          setCurrentCraftCount(prev => prev + 1);
+        }
+      }, 100);
+    };
+
+    craftNextItem();
+
+    return () => {
+      if (craftTimerRef.current) {
+        clearInterval(craftTimerRef.current);
+      }
+    };
+  }, [isContinuousCrafting, currentCraftCount, maxCraftCount, matchedRecipe, construction, onUpdate]);
 
   const handleCollect = async () => {
     if (!craftingJob) return;
@@ -385,14 +465,29 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             </div>
             <div className="col-span-2" />
           </div>
-          {matchedRecipe && (
+          {matchedRecipe && !isContinuousCrafting && (
             <div className="text-center text-sm text-gray-300">
               <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
             </div>
           )}
-          <Button onClick={handleCraft} disabled={!matchedRecipe || isCrafting} className="w-full">
-            {isCrafting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Hammer className="w-4 h-4 mr-2" /> Fabriquer</>}
-          </Button>
+          {isContinuousCrafting ? (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm text-gray-300">
+                <span>Fabrication en cours...</span>
+                <span>{currentCraftCount} / {maxCraftCount}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Progress value={progress} className="flex-grow" />
+                <Button variant="destructive" size="icon" onClick={handleStopCrafting} className="w-8 h-8 flex-shrink-0">
+                  <Square className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button onClick={handleStartContinuousCraft} disabled={!matchedRecipe} className="w-full">
+              <Hammer className="w-4 h-4 mr-2" /> Fabriquer
+            </Button>
+          )}
         </div>
       </div>
       <div>
