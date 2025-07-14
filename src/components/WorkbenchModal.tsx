@@ -200,16 +200,21 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       <div>
         <h3 className="font-bold text-center mb-2">Établi</h3>
         <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
-          <div className="flex items-center justify-center gap-2">
+          <div className="grid grid-cols-5 gap-2">
+            <div />
             {ingredientSlots.map((item, index) => (
               <CraftingSlot key={index} item={item} onDrop={(e) => handleDrop(e, index)} onClear={() => handleClearSlot(index)} isDragOver={dragOverSlot === index} />
             ))}
+            <div />
           </div>
-          <div className="flex items-center justify-center gap-2">
-            <ArrowRight className="w-8 h-8 text-gray-500" />
-            <div className="relative w-20 h-20 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
+          <div className="grid grid-cols-5 items-center gap-2">
+            <div className="col-span-2 flex justify-end">
+                <ArrowRight className="w-8 h-8 text-gray-500" />
+            </div>
+            <div className="relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
               {resultItem && <ItemIcon iconName={useGame().getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />}
             </div>
+            <div className="col-span-2" />
           </div>
           {matchedRecipe && (
             <div className="text-center text-sm text-gray-300">
