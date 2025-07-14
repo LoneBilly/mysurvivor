@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, BookOpen } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -35,6 +35,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [itemToCollect, setItemToCollect] = useState<InventoryItem | null>(null);
   const [isDraggingOutput, setIsDraggingOutput] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isAutoCrafting, setIsAutoCrafting] = useState(false);
+  const wasCrafting = useRef(false);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -73,6 +75,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setCurrentJob(null);
       setItemToCollect(null);
       setProgress(0);
+      setIsAutoCrafting(false);
     }
   }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes]);
 
@@ -175,19 +178,42 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleStartCraft = async () => {
+  const handleStartCraft = async (isNewChain: boolean = true) => {
     if (!matchedRecipe || !construction) return;
+
+    if (isNewChain) {
+        setIsAutoCrafting(false);
+    }
+
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
     if (error) {
-      showError(error.message);
-      setIsLoadingAction(false);
+        showError(error.message);
+        setIsAutoCrafting(false);
     } else {
-      showSuccess("Fabrication lancée !");
-      await onUpdate();
-      setIsLoadingAction(false);
+        if (isNewChain) showSuccess("Fabrication lancée !");
+        await onUpdate();
     }
+    setIsLoadingAction(false);
   };
+
+  const handleStartAutoCraft = () => {
+      if (!matchedRecipe) return;
+      setIsAutoCrafting(true);
+      handleStartCraft(false);
+  };
+
+  useEffect(() => {
+      if (wasCrafting.current && !currentJob && isAutoCrafting) {
+          if (matchedRecipe) {
+              handleStartCraft(false);
+          } else {
+              setIsAutoCrafting(false);
+              showSuccess("Fabrication en série terminée.");
+          }
+      }
+      wasCrafting.current = !!currentJob;
+  }, [currentJob, isAutoCrafting, matchedRecipe]);
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
@@ -314,9 +340,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
                           </div>
                         )}
-                        <Button onClick={handleStartCraft} disabled={!matchedRecipe || isLoadingAction} className="w-full max-w-xs">
-                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Hammer className="w-4 h-4 mr-2" /> Fabriquer</>}
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button onClick={() => handleStartCraft(true)} disabled={!matchedRecipe || isLoadingAction}>
+                                {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : "Fabriquer x1"}
+                            </Button>
+                            <Button onClick={handleStartAutoCraft} disabled={!matchedRecipe || isLoadingAction || maxCraftableQuantity <= 1}>
+                                {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : `Fabriquer tout (${maxCraftableQuantity})`}
+                            </Button>
+                        </div>
                       </>
                     )}
                   </div>

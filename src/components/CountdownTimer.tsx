@@ -8,10 +8,11 @@ interface CountdownTimerProps {
 const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const completedRef = useRef(false);
 
   const calculateRemaining = useCallback(() => {
     const diff = new Date(endTime).getTime() - Date.now();
-    if (diff <= 0) {
+    if (diff < 1000) {
       return { totalSeconds: 0, formatted: 'Terminé' };
     }
     
@@ -30,21 +31,25 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   const [remaining, setRemaining] = useState(calculateRemaining());
 
   useEffect(() => {
+    completedRef.current = false;
+    setRemaining(calculateRemaining());
+  }, [endTime, calculateRemaining]);
+
+  useEffect(() => {
     if (remaining.totalSeconds <= 0) {
-      onCompleteRef.current();
+      if (!completedRef.current) {
+        completedRef.current = true;
+        setTimeout(() => onCompleteRef.current(), 250);
+      }
       return;
     }
 
     const timer = setInterval(() => {
-      const newRemaining = calculateRemaining();
-      if (newRemaining.totalSeconds <= 0) {
-        clearInterval(timer);
-      }
-      setRemaining(newRemaining);
+      setRemaining(calculateRemaining());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [remaining.totalSeconds, calculateRemaining]);
+  }, [remaining, calculateRemaining]);
 
   return <>{remaining.formatted}</>;
 };
