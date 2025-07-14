@@ -49,38 +49,8 @@ const CraftingSlot = ({ item, onClear, isDragOver, onClick }: { item: InventoryI
   );
 };
 
-const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
-  const calculateRemaining = useCallback(() => {
-    const diff = new Date(endsAt).getTime() - Date.now();
-    if (diff <= 0) return { totalSeconds: 0, formatted: 'Terminé' };
-    
-    const totalSeconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    return { totalSeconds, formatted: `${minutes}m ${seconds}s` };
-  }, [endsAt]);
-
-  const [remaining, setRemaining] = useState(calculateRemaining());
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
-  useEffect(() => {
-    if (remaining.totalSeconds <= 0) {
-      setTimeout(() => onCompleteRef.current(), 1000);
-      return;
-    }
-    const timer = setInterval(() => {
-      setRemaining(calculateRemaining());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [remaining.totalSeconds, calculateRemaining]);
-
-  return <>{remaining.formatted}</>;
-};
-
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, items, refreshPlayerData } = useGame();
+  const { playerData, setPlayerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -89,7 +59,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
 
-  const [draggedItem, setDraggedItem] = useState<InventoryItem | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; fromInventory: boolean } | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
 
   const displayedInventory = useMemo(() => {
@@ -208,14 +178,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
-  const handleDragStart = (item: InventoryItem) => {
-    setDraggedItem(item);
+  const handleDragStart = (item: InventoryItem, fromInventory: boolean) => {
+    setDraggedItem({ item, fromInventory });
   };
 
   const handleDrop = (slotIndex: number) => {
     if (draggedItem) {
       const newSlots = [...ingredientSlots];
-      newSlots[slotIndex] = draggedItem;
+      newSlots[slotIndex] = draggedItem.item;
       setIngredientSlots(newSlots);
     }
     setDraggedItem(null);
@@ -252,7 +222,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           {item && <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />}
         </div>
         <Progress value={progress} />
-        <p className="text-sm text-gray-400">Se termine dans <Clock className="inline w-3 h-3" /> <Countdown endsAt={craftingJob.ends_at} onComplete={refreshPlayerData} /></p>
+        <p className="text-sm text-gray-400">Se termine dans <Clock className="inline w-3 h-3" /> <Countdown endsAt={craftingJob.ends_at} onComplete={onUpdate} /></p>
       </div>
     );
   };
@@ -312,7 +282,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
             const item = displayedInventory.find(i => i.slot_position === index);
             return (
-              <div key={index} draggable={!!item} onDragStart={() => item && handleDragStart(item)}>
+              <div key={index} draggable={!!item} onDragStart={() => item && handleDragStart(item, true)}>
                 <InventorySlot 
                   item={item} 
                   index={index} 
@@ -361,6 +331,24 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
   );
+};
+
+const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
+  const calculateRemaining = useCallback(() => new Date(endsAt).getTime() - Date.now(), [endsAt]);
+  const [remaining, setRemaining] = useState(calculateRemaining());
+
+  useEffect(() => {
+    if (remaining <= 0) {
+      onComplete();
+      return;
+    }
+    const timer = setInterval(() => setRemaining(calculateRemaining()), 1000);
+    return () => clearInterval(timer);
+  }, [remaining, onComplete]);
+
+  const seconds = Math.floor((remaining / 1000) % 60);
+  const minutes = Math.floor((remaining / (1000 * 60)) % 60);
+  return <>{`${minutes}m ${seconds}s`}</>;
 };
 
 export default WorkbenchModal;
