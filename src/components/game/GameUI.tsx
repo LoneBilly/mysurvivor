@@ -236,7 +236,7 @@ const GameUI = () => {
     return {
       wood: playerData.playerState.wood + inventoryWood + chestWood,
       metal: playerData.playerState.metal + inventoryMetal + chestMetal,
-      components: playerData.playerState.components + inventoryComponents,
+      components: playerData.playerState.components + inventoryComponents + chestComponents,
     };
   }, [playerData, items]);
 

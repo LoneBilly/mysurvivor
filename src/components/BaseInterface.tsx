@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, Cog } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +20,6 @@ interface BaseCell {
   canBuild?: boolean;
   ends_at?: string;
   showTrash?: boolean;
-  isCrafting?: boolean;
 }
 
 const GRID_SIZE = 31;
@@ -57,7 +56,7 @@ interface BaseInterfaceProps {
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
-  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs: initialCraftingJobs = [] } = playerData;
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
   
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
@@ -130,7 +129,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false, isCrafting: false }))
+      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
     );
 
     let campPos: { x: number; y: number } | null = null;
@@ -152,15 +151,11 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       newGrid[newCampY][newCampX].type = 'campfire';
       campPos = { x: newCampX, y: newCampY };
     } else {
-      const activeWorkbenchIds = new Set(initialCraftingJobs.map(job => job.workbench_id));
       currentConstructions.forEach((c: BaseConstruction) => {
         if (newGrid[c.y]?.[c.x]) {
           newGrid[c.y][c.x].type = c.type;
           if (c.type === 'campfire') {
             campPos = { x: c.x, y: c.y };
-          }
-          if (c.type === 'workbench' && activeWorkbenchIds.has(c.id)) {
-            newGrid[c.y][c.x].isCrafting = true;
           }
         }
       });
@@ -176,7 +171,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     setGridData(finalGrid);
     setCampfirePosition(campPos);
     setLoading(false);
-  }, [user, initialCraftingJobs]);
+  }, [user]);
 
   useEffect(() => {
     if (initialConstructions) {
@@ -464,14 +459,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
   const getCellContent = (cell: BaseCell) => {
     const Icon = buildingIcons[cell.type];
-    if (Icon) {
-      return (
-        <>
-          <Icon className="w-6 h-6 text-gray-300" />
-          {cell.isCrafting && <Cog className="absolute top-1 right-1 w-4 h-4 text-yellow-400 animate-spin-slow" />}
-        </>
-      );
-    }
+    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
@@ -509,39 +497,28 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellStyle = (cell: BaseCell) => {
-    const styles = {
-      campfire: "bg-orange-400/20 border-orange-400/30",
-      foundation: "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer",
-      in_progress: "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50",
-      chest: "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer",
-      wall: "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer",
-      turret: "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer",
-      generator: "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer",
-      trap: "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer",
-      workbench: "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer",
-      furnace: "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer",
-    };
-
-    if (cell.type === 'workbench' && cell.isCrafting) {
-      return `${styles.workbench} animate-pulse border-yellow-400`;
-    }
-
-    if (styles[cell.type]) {
-      return styles[cell.type];
-    }
-
-    if (cell.type === 'empty') {
-      if (cell.canBuild) {
-        const baseStyle = "bg-white/5 border-white/10 border-dashed";
-        if (optimisticHasActiveJob) {
-          return `${baseStyle} cursor-not-allowed`;
+    switch (cell.type) {
+      case 'campfire': return "bg-orange-400/20 border-orange-400/30";
+      case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
+      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
+      case 'chest': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
+      case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
+      case 'trap': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'workbench': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
+      case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
+      case 'empty':
+        if (cell.canBuild) {
+          const baseStyle = "bg-white/5 border-white/10 border-dashed";
+          if (optimisticHasActiveJob) {
+            return `${baseStyle} cursor-not-allowed`;
+          }
+          return `${baseStyle} hover:bg-white/10 cursor-pointer`;
         }
-        return `${baseStyle} hover:bg-white/10 cursor-pointer`;
-      }
-      return "bg-black/20 border-white/10";
+        return "bg-black/20 border-white/10";
+      default: return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
     }
-    
-    return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
   };
 
   if (loading) {
