@@ -458,6 +458,14 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellContent = (cell: BaseCell) => {
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
+    const hasOutput = construction && construction.output_item_id;
+
+    if (cell.type === 'workbench' && (isCrafting || hasOutput)) {
+      return <Hammer className="w-8 h-8 text-yellow-400 animate-pulse" />;
+    }
+
     const Icon = buildingIcons[cell.type];
     if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
@@ -497,6 +505,14 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellStyle = (cell: BaseCell) => {
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
+    const hasOutput = construction && construction.output_item_id;
+
+    if (cell.type === 'workbench' && (isCrafting || hasOutput)) {
+      return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
+    }
+
     switch (cell.type) {
       case 'campfire': return "bg-orange-400/20 border-orange-400/30";
       case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";

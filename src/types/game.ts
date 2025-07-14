@@ -27,6 +27,8 @@ export interface BaseConstruction {
   x: number;
   y: number;
   type: string;
+  output_item_id: number | null;
+  output_quantity: number | null;
 }
 
 export interface ScoutingMission {
@@ -100,6 +102,10 @@ export interface CraftingJob {
   started_at: string;
   ends_at: string;
   status: 'in_progress' | 'completed';
+  result_item_id: number;
+  result_quantity: number;
+  result_item_name: string;
+  result_item_icon: string;
 }
 
 export interface ChestItem {
@@ -115,6 +121,7 @@ export interface FullPlayerData {
   constructionJobs?: ConstructionJob[];
   craftingJobs?: CraftingJob[];
   chestItems?: ChestItem[];
+  workbenchItems: InventoryItem[];
 }
 
 export interface MapCell {
