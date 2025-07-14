@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -10,6 +10,7 @@ import InventorySlot from "./InventorySlot";
 import ItemIcon from "./ItemIcon";
 import { Progress } from "./ui/progress";
 import { cn } from "@/lib/utils";
+import ItemDetailModal from "./ItemDetailModal";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ interface WorkbenchModalProps {
   onUpdate: () => void;
 }
 
-const CraftingSlot = ({ item, onDrop, onClear, isDragOver }: { item: InventoryItem | null, onDrop: (e: React.DragEvent<HTMLDivElement>) => void, onClear: () => void, isDragOver: boolean }) => {
+const CraftingSlot = ({ item, onDrop, onClear, isDragOver, onDragEnter, onDragLeave, onClick }: { item: InventoryItem | null, onDrop: (e: React.DragEvent<HTMLDivElement>) => void, onClear: () => void, isDragOver: boolean, onDragEnter: () => void, onDragLeave: () => void, onClick: () => void }) => {
   const { getIconUrl } = useGame();
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => e.preventDefault();
 
@@ -27,10 +28,14 @@ const CraftingSlot = ({ item, onDrop, onClear, isDragOver }: { item: InventoryIt
     <div
       onDrop={onDrop}
       onDragOver={handleDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onClick={onClick}
       className={cn(
         "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
         "bg-slate-900/50 border-slate-700",
-        isDragOver && "bg-slate-700/80 ring-2 ring-slate-400 border-slate-400"
+        isDragOver && "bg-slate-700/80 ring-2 ring-slate-400 border-slate-400",
+        item && "cursor-pointer"
       )}
     >
       {item && (
@@ -39,7 +44,7 @@ const CraftingSlot = ({ item, onDrop, onClear, isDragOver }: { item: InventoryIt
           <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
             x{item.quantity}
           </span>
-          <Button size="icon" variant="ghost" onClick={onClear} className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500">
+          <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onClear(); }} className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500">
             <Trash2 className="w-3 h-3" />
           </Button>
         </>
@@ -56,6 +61,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [resultItem, setResultItem] = useState<Item | null>(null);
   const [craftingJob, setCraftingJob] = useState<CraftingJob | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+  const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -72,6 +78,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setIngredientSlots([null, null, null]);
       setMatchedRecipe(null);
       setResultItem(null);
+      setDetailedItem(null);
     }
   }, [isOpen, construction, playerData.craftingJobs, fetchRecipes]);
 
@@ -160,6 +167,29 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
+  const handleDropItem = async (item: InventoryItem, quantity: number) => {
+    setDetailedItem(null);
+    let error;
+    if (item.quantity > quantity) {
+        ({ error } = await supabase
+            .from('inventories')
+            .update({ quantity: item.quantity - quantity })
+            .eq('id', item.id));
+    } else {
+        ({ error } = await supabase
+            .from('inventories')
+            .delete()
+            .eq('id', item.id));
+    }
+
+    if (error) {
+        showError("Erreur lors de la suppression de l'objet.");
+    } else {
+        showSuccess("Objet jeté.");
+        onUpdate();
+    }
+  };
+
   const renderCraftingProgress = () => {
     if (!craftingJob) return null;
     const recipe = recipes.find(r => r.id === craftingJob.recipe_id);
@@ -203,7 +233,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           <div className="grid grid-cols-5 gap-2">
             <div />
             {ingredientSlots.map((item, index) => (
-              <CraftingSlot key={index} item={item} onDrop={(e) => handleDrop(e, index)} onClear={() => handleClearSlot(index)} isDragOver={dragOverSlot === index} />
+              <CraftingSlot 
+                key={index} 
+                item={item} 
+                onDrop={(e) => handleDrop(e, index)} 
+                onClear={() => handleClearSlot(index)} 
+                isDragOver={dragOverSlot === index}
+                onDragEnter={() => setDragOverSlot(index)}
+                onDragLeave={() => setDragOverSlot(null)}
+                onClick={() => item && setDetailedItem(item)}
+              />
             ))}
             <div />
           </div>
@@ -233,7 +272,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             const item = playerData.inventory.find(i => i.slot_position === index);
             return (
               <div key={index} draggable={!!item} onDragStart={(e) => item && handleDragStart(e, item)}>
-                <InventorySlot item={item} index={index} isUnlocked={true} onDragStart={() => {}} onItemClick={() => {}} isBeingDragged={false} isDragOver={false} />
+                <InventorySlot item={item} index={index} isUnlocked={true} onDragStart={() => {}} onItemClick={(item) => setDetailedItem(item)} isBeingDragged={false} isDragOver={false} />
               </div>
             );
           })}
@@ -243,24 +282,34 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <Hammer className="w-7 h-7 text-white" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Établi</DialogTitle>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <Hammer className="w-7 h-7 text-white" />
+              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Établi</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="py-4">
+            {craftingJob ? renderCraftingProgress() : renderCraftingInterface()}
           </div>
-        </DialogHeader>
-        <div className="py-4">
-          {craftingJob ? renderCraftingProgress() : renderCraftingInterface()}
-        </div>
-        <DialogFooter>
-          <Button variant="destructive" onClick={() => construction && onDemolish(construction)}>
-            <Trash2 className="w-4 h-4 mr-2" /> Détruire l'établi
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="destructive" onClick={() => construction && onDemolish(construction)}>
+              <Trash2 className="w-4 h-4 mr-2" /> Détruire l'établi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ItemDetailModal
+        isOpen={!!detailedItem}
+        onClose={() => setDetailedItem(null)}
+        item={detailedItem}
+        onUse={() => showError("Vous ne pouvez pas utiliser un objet depuis l'établi.")}
+        onDropOne={() => detailedItem && handleDropItem(detailedItem, 1)}
+        onDropAll={() => detailedItem && handleDropItem(detailedItem, detailedItem.quantity)}
+      />
+    </>
   );
 };
 

@@ -15,16 +15,16 @@ const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps)
   const iconUrl = itemIcon ? getIconUrl(itemIcon.icon) : null;
 
   return (
-    <div className="flex items-center space-x-2 bg-white/5 px-2 sm:px-3 py-2 rounded-lg border border-white/10">
-      <div className="w-5 h-5 relative">
+    <div className="flex items-center space-x-2 bg-white/5 px-3 py-2 rounded-lg border border-white/10">
+      <div className="w-6 h-6 relative">
         {itemIcon ? (
           <ItemIcon iconName={iconUrl || itemIcon.icon} alt={label} />
         ) : (
-          <Icon className="w-5 h-5 text-white flex-shrink-0" />
+          <Icon className="w-6 h-6 text-white flex-shrink-0" />
         )}
       </div>
       <span className="hidden sm:inline font-mono text-sm text-gray-300">{itemIcon?.name || label}:</span>
-      <span className="font-mono text-sm font-bold text-white">{value}</span>
+      <span className="font-mono font-bold text-white">{value}</span>
     </div>
   );
 };
