@@ -79,12 +79,36 @@ export interface ConstructionJob {
   created_at: string;
 }
 
+export interface CraftingRecipe {
+  id: number;
+  result_item_id: number;
+  result_quantity: number;
+  ingredient1_id: number;
+  ingredient1_quantity: number;
+  ingredient2_id: number | null;
+  ingredient2_quantity: number | null;
+  ingredient3_id: number | null;
+  ingredient3_quantity: number | null;
+  craft_time_seconds: number;
+}
+
+export interface CraftingJob {
+  id: number;
+  workbench_id: number;
+  player_id: string;
+  recipe_id: number;
+  started_at: string;
+  ends_at: string;
+  status: 'in_progress' | 'completed';
+}
+
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
   baseConstructions: BaseConstruction[];
   scoutingMissions: ScoutingMission[];
   constructionJobs?: ConstructionJob[];
+  craftingJobs?: CraftingJob[];
 }
 
 export interface MapCell {
