@@ -22,7 +22,7 @@ interface WorkbenchModalProps {
 }
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, setPlayerData, items, refreshPlayerData } = useGame();
+  const { playerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -37,8 +37,18 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const displayedInventory = useMemo(() => {
-    const itemsInCraftingIds = new Set(ingredientSlots.filter(Boolean).map(item => item!.id));
-    return playerData.inventory.filter(item => !itemsInCraftingIds.has(item.id));
+    const itemsInCrafting = new Map<number, number>();
+    ingredientSlots.forEach(item => {
+      if (item) {
+        const currentQty = itemsInCrafting.get(item.item_id) || 0;
+        itemsInCrafting.set(item.item_id, currentQty + item.quantity);
+      }
+    });
+
+    return playerData.inventory.map(invItem => {
+      const usedQuantity = itemsInCrafting.get(invItem.item_id) || 0;
+      return { ...invItem, quantity: invItem.quantity - usedQuantity };
+    }).filter(item => item.quantity > 0);
   }, [playerData.inventory, ingredientSlots]);
 
   const fetchRecipes = useCallback(async () => {
@@ -155,19 +165,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const handleTransferToWorkbench = (item: InventoryItem, quantity: number) => {
     setDetailedItem(null);
     const newSlots = [...ingredientSlots];
-    const newInventory = [...playerData.inventory];
-
-    const invItemIndex = newInventory.findIndex(i => i.id === item.id);
-    if (invItemIndex === -1 || newInventory[invItemIndex].quantity < quantity) {
-      showError("Erreur ou quantité insuffisante.");
-      return;
-    }
     
-    const itemToMove = { ...newInventory[invItemIndex], quantity };
-    newInventory[invItemIndex].quantity -= quantity;
-    if (newInventory[invItemIndex].quantity === 0) {
-      newInventory.splice(invItemIndex, 1);
+    const itemInInventory = playerData.inventory.find(i => i.id === item.id);
+    if (!itemInInventory) return;
+    const alreadyInWorkbench = newSlots.filter(s => s?.item_id === item.item_id).reduce((acc, curr) => acc + (curr?.quantity || 0), 0);
+    if (itemInInventory.quantity < alreadyInWorkbench + quantity) {
+        showError("Quantité insuffisante dans l'inventaire.");
+        return;
     }
+
+    const itemToMove = { ...item, quantity };
 
     const existingSlotIndex = newSlots.findIndex(slot => slot?.item_id === item.item_id);
     if (existingSlotIndex !== -1) {
@@ -182,13 +189,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
     
     setIngredientSlots(newSlots);
-    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
   };
 
   const handleTransferFromWorkbench = (item: InventoryItem, quantity: number) => {
     setDetailedItem(null);
     const newSlots = [...ingredientSlots];
-    const newInventory = [...playerData.inventory];
     const slotIndex = newSlots.findIndex(slot => slot?.id === item.id);
 
     if (slotIndex === -1) return;
@@ -196,22 +201,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const itemInSlot = newSlots[slotIndex]!;
     if (quantity > itemInSlot.quantity) return;
 
-    const itemToMove = { ...itemInSlot, quantity };
     if (quantity === itemInSlot.quantity) {
       newSlots[slotIndex] = null;
     } else {
       newSlots[slotIndex] = { ...itemInSlot, quantity: itemInSlot.quantity - quantity };
     }
-
-    const invItemIndex = newInventory.findIndex(i => i.item_id === itemToMove.item_id);
-    if (invItemIndex > -1) {
-      newInventory[invItemIndex].quantity += quantity;
-    } else {
-      newInventory.push(itemToMove);
-    }
     
     setIngredientSlots(newSlots);
-    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
   };
 
   const handleDragStart = (item: InventoryItem, from: 'inventory' | 'crafting', fromIndex: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
@@ -273,47 +269,44 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
     if (from === target && fromIndex === toIndex) return;
 
-    const newIngredients = [...ingredientSlots];
-    const newInventory = [...playerData.inventory];
-
-    if (from === 'inventory' && target === 'crafting') {
-      const invIdx = newInventory.findIndex(i => i.id === dragged.id);
-      if (invIdx === -1) return;
-      const [itemToMove] = newInventory.splice(invIdx, 1);
-      const itemAtTarget = newIngredients[toIndex];
-      newIngredients[toIndex] = itemToMove;
-      if (itemAtTarget) newInventory.push(itemAtTarget);
-    } else if (from === 'crafting' && target === 'inventory') {
-      const itemToMove = newIngredients[fromIndex];
-      if (!itemToMove) return;
-      newIngredients[fromIndex] = null;
-      const itemAtTarget = newInventory.find(i => i.slot_position === toIndex);
-      if (itemAtTarget) {
-        const idx = newInventory.findIndex(i => i.id === itemAtTarget.id);
-        const [swappedItem] = newInventory.splice(idx, 1);
-        newIngredients[fromIndex] = swappedItem;
-      }
-      itemToMove.slot_position = toIndex;
-      newInventory.push(itemToMove);
-    } else if (from === 'crafting' && target === 'crafting') {
-      const temp = newIngredients[fromIndex];
-      newIngredients[fromIndex] = newIngredients[toIndex];
-      newIngredients[toIndex] = temp;
-    } else if (from === 'inventory' && target === 'inventory') {
-      const fromItem = newInventory.find(i => i.id === dragged.id);
+    if (from === 'inventory' && target === 'inventory') {
+      const fromItem = playerData.inventory.find(i => i.id === dragged.id);
       if (!fromItem) return;
-      const originalFromSlot = fromItem.slot_position;
-      const { error } = await supabase.rpc('swap_inventory_items', { p_from_slot: originalFromSlot, p_to_slot: toIndex });
+      const { error } = await supabase.rpc('swap_inventory_items', { p_from_slot: fromItem.slot_position, p_to_slot: toIndex });
       if (error) {
         showError("Erreur de mise à jour de l'inventaire.");
-        return;
+      } else {
+        await onUpdate(true);
       }
-      await onUpdate(true);
       return;
     }
 
+    const newIngredients = [...ingredientSlots];
+
+    if (from === 'crafting' && target === 'crafting') {
+      const temp = newIngredients[fromIndex];
+      newIngredients[fromIndex] = newIngredients[toIndex];
+      newIngredients[toIndex] = temp;
+    } else if (from === 'inventory' && target === 'crafting') {
+      const itemToMove = playerData.inventory.find(i => i.id === dragged.id);
+      if (!itemToMove) return;
+      const swappedOutItem = newIngredients[toIndex];
+      newIngredients[toIndex] = itemToMove;
+      const oldSlotIndex = newIngredients.findIndex((slot, i) => i !== toIndex && slot?.id === itemToMove.id);
+      if (oldSlotIndex > -1) {
+        newIngredients[oldSlotIndex] = swappedOutItem;
+      }
+    } else if (from === 'crafting' && target === 'inventory') {
+      const itemToMove = newIngredients[fromIndex];
+      if (!itemToMove) return;
+      const itemAtTarget = displayedInventory.find(i => i.slot_position === toIndex);
+      newIngredients[fromIndex] = null;
+      if (itemAtTarget) {
+        newIngredients[fromIndex] = itemAtTarget;
+      }
+    }
+    
     setIngredientSlots(newIngredients);
-    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
   };
 
   useEffect(() => {
@@ -354,18 +347,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       );
     }
 
-    const startTime = new Date(craftingJob.started_at).getTime();
-    const endTime = new Date(craftingJob.ends_at).getTime();
-    const now = Date.now();
-    const progress = Math.min(100, ((now - startTime) / (endTime - startTime)) * 100);
-
     return (
       <div className="text-center space-y-4">
         <p>Fabrication de <span className="font-bold">{item?.name}</span> en cours...</p>
         <div className="w-20 h-20 mx-auto bg-slate-700/50 rounded-lg border border-slate-600 flex items-center justify-center relative">
           {item && <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />}
         </div>
-        <Progress value={progress} />
+        <Progress value={0} />
         <p className="text-sm text-gray-400"><Clock className="inline w-3 h-3 mr-1" /><CountdownTimer endTime={craftingJob.ends_at} onComplete={onUpdate} /></p>
       </div>
     );
