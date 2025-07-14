@@ -1,13 +1,16 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { FullPlayerData, MapCell, Item } from '@/types/game';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { showError } from '@/utils/toast';
 
 interface GameContextType {
-  playerData: FullPlayerData;
+  playerData: FullPlayerData | null;
   mapLayout: MapCell[];
   items: Item[];
   refreshPlayerData: () => Promise<void>;
-  setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
   getIconUrl: (iconName: string | null) => string | undefined;
+  loadingGameData: boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -22,35 +25,50 @@ export const useGame = () => {
 
 interface GameProviderProps {
   children: ReactNode;
-  initialData: {
-    playerData: FullPlayerData;
-    mapLayout: MapCell[];
-    items: Item[];
-  };
-  refreshPlayerData: () => Promise<void>;
+  initialMapLayout: MapCell[];
+  initialItems: Item[];
   iconUrlMap: Map<string, string>;
 }
 
-export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrlMap }: GameProviderProps) => {
-  const [playerData, setPlayerData] = useState<FullPlayerData>(initialData.playerData);
-
-  useEffect(() => {
-    setPlayerData(initialData.playerData);
-  }, [initialData.playerData]);
+export const GameProvider = ({ children, initialMapLayout, initialItems, iconUrlMap }: GameProviderProps) => {
+  const { user } = useAuth();
+  const [playerData, setPlayerData] = useState<FullPlayerData | null>(null);
+  const [loadingGameData, setLoadingGameData] = useState(true);
 
   const getIconUrl = useCallback((iconName: string | null): string | undefined => {
     if (!iconName) return undefined;
     return iconUrlMap.get(iconName);
   }, [iconUrlMap]);
 
+  const refreshPlayerData = useCallback(async () => {
+    if (!user) return;
+    setLoadingGameData(true);
+    const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
+
+    if (playerDataError) {
+      showError("Erreur lors de la mise à jour des données.");
+      console.error(playerDataError);
+      setPlayerData(null);
+    } else {
+      setPlayerData(fullPlayerData);
+    }
+    setLoadingGameData(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      refreshPlayerData();
+    }
+  }, [user, refreshPlayerData]);
+
   const value = useMemo(() => ({
     playerData,
-    mapLayout: initialData.mapLayout,
-    items: initialData.items,
+    mapLayout: initialMapLayout,
+    items: initialItems,
     refreshPlayerData,
-    setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, getIconUrl]);
+    loadingGameData,
+  }), [playerData, initialMapLayout, initialItems, refreshPlayerData, getIconUrl, loadingGameData]);
 
   return (
     <GameContext.Provider value={value}>
