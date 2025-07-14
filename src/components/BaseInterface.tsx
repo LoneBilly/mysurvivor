@@ -11,6 +11,7 @@ import ChestModal from "./ChestModal";
 import WorkbenchModal from "./WorkbenchModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useGame } from "@/contexts/GameContext";
+import CountdownTimer from "./CountdownTimer";
 
 interface BaseCell {
   x: number;
@@ -47,43 +48,6 @@ interface BuildingDefinition {
   cost_metal: number;
   cost_components: number;
 }
-
-const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
-  const calculateRemaining = useCallback(() => {
-    const diff = new Date(endsAt).getTime() - Date.now();
-    if (diff <= 0) {
-      return { totalSeconds: 0, formatted: 'Terminé' };
-    }
-    
-    const totalSeconds = Math.floor(diff / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    if (days > 0) return { totalSeconds, formatted: `${days}j` };
-    if (hours > 0) return { totalSeconds, formatted: `${hours}h ${minutes}m` };
-    if (minutes > 0) return { totalSeconds, formatted: `${minutes}m ${seconds}s` };
-    return { totalSeconds, formatted: `${seconds}s` };
-  }, [endsAt]);
-
-  const [remaining, setRemaining] = useState(calculateRemaining());
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
-  useEffect(() => {
-    if (remaining.totalSeconds <= 0) {
-      setTimeout(() => onCompleteRef.current(), 1000);
-      return;
-    }
-    const timer = setInterval(() => {
-      setRemaining(calculateRemaining());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [remaining.totalSeconds, calculateRemaining]);
-
-  return <span className="text-xs font-mono">{remaining.formatted}</span>;
-};
 
 interface BaseInterfaceProps {
   isActive: boolean;
@@ -505,7 +469,9 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       return (
         <div className="flex flex-col items-center justify-center text-white gap-1">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <Countdown endsAt={cell.ends_at} onComplete={refreshPlayerData} />
+          <span className="text-xs font-mono">
+            <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+          </span>
         </div>
       );
     }

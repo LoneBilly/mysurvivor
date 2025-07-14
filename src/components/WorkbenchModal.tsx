@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check, BookOpen } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, Check, BookOpen } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -12,6 +12,7 @@ import { Progress } from "./ui/progress";
 import { cn } from "@/lib/utils";
 import ItemDetailModal from "./ItemDetailModal";
 import BlueprintModal from "./BlueprintModal";
+import CountdownTimer from "./CountdownTimer";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -21,88 +22,20 @@ interface WorkbenchModalProps {
   onUpdate: () => void;
 }
 
-const CraftingSlot = ({ item, onClear, isDragOver, onClick }: { item: InventoryItem | null, onClear: () => void, isDragOver: boolean, onClick: () => void }) => {
-  const { getIconUrl } = useGame();
-
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
-        "bg-slate-900/50 border-slate-700",
-        isDragOver && "bg-slate-700/80 ring-2 ring-slate-400 border-slate-400",
-        item && "cursor-pointer"
-      )}
-    >
-      {item && (
-        <>
-          <ItemIcon iconName={getIconUrl(item.items?.icon) || item.items?.icon} alt={item.items?.name || ''} />
-          <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-            x{item.quantity}
-          </span>
-          <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onClear(); }} className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500">
-            <Trash2 className="w-3 h-3" />
-          </Button>
-        </>
-      )}
-    </div>
-  );
-};
-
-const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
-  const calculateRemaining = useCallback(() => {
-    const diff = new Date(endsAt).getTime() - Date.now();
-    if (diff <= 0) {
-      return { totalSeconds: 0, formatted: 'Terminé' };
-    }
-    
-    const totalSeconds = Math.floor(diff / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    if (days > 0) return { totalSeconds, formatted: `${days}j` };
-    if (hours > 0) return { totalSeconds, formatted: `${hours}h ${minutes}m` };
-    if (minutes > 0) return { totalSeconds, formatted: `${minutes}m ${seconds}s` };
-    return { totalSeconds, formatted: `${seconds}s` };
-  }, [endsAt]);
-
-  const [remaining, setRemaining] = useState(calculateRemaining());
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
-  useEffect(() => {
-    if (remaining.totalSeconds <= 0) {
-      setTimeout(() => onCompleteRef.current(), 1000);
-      return;
-    }
-    const timer = setInterval(() => {
-      setRemaining(calculateRemaining());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [remaining.totalSeconds, calculateRemaining]);
-
-  return <>{remaining.formatted}</>;
-};
-
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, setPlayerData, items, refreshPlayerData } = useGame();
+  const { playerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
+  const [localInventory, setLocalInventory] = useState<InventoryItem[]>([]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
   const [resultItem, setResultItem] = useState<Item | null>(null);
   const [craftingJob, setCraftingJob] = useState<CraftingJob | null>(null);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
 
-  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; fromInventory: boolean } | null>(null);
-  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
-
-  const displayedInventory = useMemo(() => {
-    const itemsInCrafting = ingredientSlots.map(item => item?.id).filter(Boolean);
-    return playerData.inventory.filter(item => !itemsInCrafting.includes(item.id));
-  }, [playerData.inventory, ingredientSlots]);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; from: 'inventory' | 'crafting'; fromIndex: number } | null>(null);
+  const [dragOver, setDragOver] = useState<{ target: 'inventory' | 'crafting'; index: number } | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -115,13 +48,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       fetchRecipes();
       const job = playerData.craftingJobs?.find(j => j.workbench_id === construction?.id) || null;
       setCraftingJob(job);
+      setLocalInventory([...playerData.inventory]);
     } else {
       setIngredientSlots([null, null, null]);
       setMatchedRecipe(null);
       setResultItem(null);
       setDetailedItem(null);
+      setLocalInventory([]);
     }
-  }, [isOpen, construction, playerData.craftingJobs, fetchRecipes]);
+  }, [isOpen, construction, playerData.craftingJobs, playerData.inventory, fetchRecipes]);
 
   useEffect(() => {
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
@@ -131,7 +66,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
 
     const getSignature = (items: { item_id: number }[]) => items.map(i => i.item_id).sort().join(',');
-
     const slotSignature = getSignature(ingredients);
 
     for (const recipe of recipes) {
@@ -164,12 +98,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleClearSlot = (index: number) => {
-    const newSlots = [...ingredientSlots];
-    newSlots[index] = null;
-    setIngredientSlots(newSlots);
-  };
-
   const handleCraft = async () => {
     if (!matchedRecipe || !construction) return;
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
@@ -196,38 +124,147 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setDetailedItem(null);
     let error;
     if (item.quantity > quantity) {
-        ({ error } = await supabase
-            .from('inventories')
-            .update({ quantity: item.quantity - quantity })
-            .eq('id', item.id));
+        ({ error } = await supabase.from('inventories').update({ quantity: item.quantity - quantity }).eq('id', item.id));
     } else {
-        ({ error } = await supabase
-            .from('inventories')
-            .delete()
-            .eq('id', item.id));
+        ({ error } = await supabase.from('inventories').delete().eq('id', item.id));
     }
-
-    if (error) {
-        showError("Erreur lors de la suppression de l'objet.");
-    } else {
-        showSuccess("Objet jeté.");
-        onUpdate();
+    if (error) showError("Erreur lors de la suppression de l'objet.");
+    else {
+      showSuccess("Objet jeté.");
+      onUpdate();
     }
   };
 
-  const handleDragStart = (item: InventoryItem, fromInventory: boolean) => {
-    setDraggedItem({ item, fromInventory });
+  const handleSplitItem = async (item: InventoryItem, quantity: number) => {
+    if (!item) return;
+    setDetailedItem(null);
+    const { error } = await supabase.rpc('split_inventory_item', { p_inventory_id: item.id, p_split_quantity: quantity });
+    if (error) showError(error.message || "Erreur lors de la division de l'objet.");
+    else {
+      showSuccess("La pile d'objets a été divisée.");
+      onUpdate();
+    }
   };
 
-  const handleDrop = (slotIndex: number) => {
-    if (draggedItem) {
-      const newSlots = [...ingredientSlots];
-      newSlots[slotIndex] = draggedItem.item;
-      setIngredientSlots(newSlots);
+  const handleDragStart = (item: InventoryItem, from: 'inventory' | 'crafting', fromIndex: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItem({ item, from, fromIndex });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  };
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
     }
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
+    if (slotElement) {
+      const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
+      const targetElement = (slotElement as HTMLElement).closest('[data-slot-target]');
+      const target = targetElement?.getAttribute('data-slot-target') as 'inventory' | 'crafting' | undefined;
+      if (index !== -1 && target) {
+        setDragOver({ index, target });
+        return;
+      }
+    }
+    setDragOver(null);
+  }, []);
+
+  const handleDragEnd = () => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+    if (!draggedItem || !dragOver) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
+
+    const { item: dragged, from, fromIndex } = draggedItem;
+    const { target, index: toIndex } = dragOver;
+
+    const newLocalInventory = [...localInventory];
+    const newIngredientSlots = [...ingredientSlots];
+
+    const move = (fromArr: (InventoryItem | null)[], toArr: (InventoryItem | null)[], fromIdx: number, toIdx: number) => {
+      const fromItem = fromArr[fromIdx];
+      const toItem = toArr[toIdx];
+      toArr[toIdx] = fromItem;
+      fromArr[fromIdx] = toItem;
+    };
+
+    if (from === 'inventory' && target === 'crafting') {
+      const invIndex = newLocalInventory.findIndex(i => i.id === dragged.id);
+      move(newLocalInventory, newIngredientSlots, invIndex, toIndex);
+    } else if (from === 'crafting' && target === 'inventory') {
+      const invItemAtTarget = newLocalInventory[toIndex];
+      if (invItemAtTarget) { // Swap
+        const oldCraftingItem = newIngredientSlots[fromIndex];
+        newIngredientSlots[fromIndex] = invItemAtTarget;
+        newLocalInventory[toIndex] = oldCraftingItem;
+      } else { // Move
+        newLocalInventory[toIndex] = newIngredientSlots[fromIndex];
+        newIngredientSlots[fromIndex] = null;
+      }
+    } else if (from === 'crafting' && target === 'crafting') {
+      move(newIngredientSlots, newIngredientSlots, fromIndex, toIndex);
+    } else if (from === 'inventory' && target === 'inventory') {
+      const invFromIndex = newLocalInventory.findIndex(i => i.id === dragged.id);
+      const invToIndex = newLocalInventory.findIndex(i => i?.slot_position === toIndex);
+      if (invToIndex !== -1) { // Swap
+        const temp = newLocalInventory[invFromIndex];
+        newLocalInventory[invFromIndex] = newLocalInventory[invToIndex];
+        newLocalInventory[invToIndex] = temp;
+      } else { // Move to empty
+        const item = newLocalInventory.splice(invFromIndex, 1)[0];
+        item.slot_position = toIndex;
+        newLocalInventory.push(item);
+      }
+    }
+
+    setLocalInventory(newLocalInventory.filter(Boolean));
+    setIngredientSlots(newIngredientSlots);
+
     setDraggedItem(null);
-    setDragOverSlot(null);
+    setDragOver(null);
   };
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd]);
 
   const renderCraftingProgress = () => {
     if (!craftingJob) return null;
@@ -259,7 +296,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           {item && <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />}
         </div>
         <Progress value={progress} />
-        <p className="text-sm text-gray-400">Se termine dans <Clock className="inline w-3 h-3" /> <Countdown endsAt={craftingJob.ends_at} onComplete={onUpdate} /></p>
+        <p className="text-sm text-gray-400">Se termine dans <Clock className="inline w-3 h-3" /> <CountdownTimer endTime={craftingJob.ends_at} onComplete={onUpdate} /></p>
       </div>
     );
   };
@@ -274,21 +311,18 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           </Button>
         </div>
         <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 gap-2" data-slot-target="crafting">
             <div />
             {ingredientSlots.map((item, index) => (
-              <div 
-                key={index} 
-                onDrop={() => handleDrop(index)} 
-                onDragOver={(e) => e.preventDefault()}
-                onDragEnter={() => setDragOverSlot(index)}
-                onDragLeave={() => setDragOverSlot(null)}
-              >
-                <CraftingSlot 
-                  item={item} 
-                  onClear={() => handleClearSlot(index)} 
-                  isDragOver={dragOverSlot === index}
-                  onClick={() => item && setDetailedItem(item)}
+              <div key={index} data-slot-index={index}>
+                <InventorySlot
+                  item={item}
+                  index={index}
+                  isUnlocked={true}
+                  onDragStart={(idx, node, e) => item && handleDragStart(item, 'crafting', idx, node, e)}
+                  onItemClick={(clickedItem) => handleItemClick(clickedItem)}
+                  isBeingDragged={draggedItem?.from === 'crafting' && draggedItem?.fromIndex === index}
+                  isDragOver={dragOver?.target === 'crafting' && dragOver?.index === index}
                 />
               </div>
             ))}
@@ -315,19 +349,19 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       </div>
       <div>
         <h3 className="font-bold text-center mb-2">Inventaire</h3>
-        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
+        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto" data-slot-target="inventory">
           {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
-            const item = displayedInventory.find(i => i.slot_position === index);
+            const item = localInventory.find(i => i.slot_position === index);
             return (
-              <div key={index} draggable={!!item} onDragStart={() => item && handleDragStart(item, true)}>
+              <div key={index} data-slot-index={index}>
                 <InventorySlot 
-                  item={item} 
+                  item={item || null} 
                   index={index} 
                   isUnlocked={true} 
-                  onDragStart={() => {}} 
-                  onItemClick={(item) => setDetailedItem(item)} 
-                  isBeingDragged={false} 
-                  isDragOver={false} 
+                  onDragStart={(idx, node, e) => item && handleDragStart(item, 'inventory', idx, node, e)} 
+                  onItemClick={(clickedItem) => handleItemClick(clickedItem)} 
+                  isBeingDragged={draggedItem?.from === 'inventory' && item?.id === draggedItem.item.id}
+                  isDragOver={dragOver?.target === 'inventory' && dragOver?.index === index}
                 />
               </div>
             );
@@ -336,6 +370,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       </div>
     </div>
   );
+
+  const handleItemClick = (item: InventoryItem) => {
+    setDetailedItem(item);
+  };
 
   return (
     <>
@@ -364,6 +402,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onUse={() => showError("Vous ne pouvez pas utiliser un objet depuis l'établi.")}
         onDropOne={() => detailedItem && handleDropItem(detailedItem, 1)}
         onDropAll={() => detailedItem && handleDropItem(detailedItem, detailedItem.quantity)}
+        onSplit={handleSplitItem}
+        onUpdate={onUpdate}
       />
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
