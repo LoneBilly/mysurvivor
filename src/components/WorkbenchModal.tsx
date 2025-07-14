@@ -200,7 +200,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const handleFinalizeAndCollect = async () => {
     if (!outputSlot || !matchedRecipe || !user || isCollecting) return;
     setIsCollecting(true);
-    showInfo("Finalisation de la fabrication...");
 
     const quantityToCraft = outputSlot.quantity / matchedRecipe.result_quantity;
     const ingredientsToConsume = [];
@@ -389,22 +388,21 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const newSlots = [...ingredientSlots];
 
     if (from === 'inventory' && target === 'crafting') {
-      const itemFromInventory = playerData.inventory.find(i => i.slot_position === fromIndex);
-      if (!itemFromInventory) return;
-      const itemFromWorkbench = newSlots[toIndex];
-
-      newSlots[toIndex] = itemFromInventory;
+      const itemToMoveIn = playerData.inventory.find(i => i.slot_position === fromIndex);
+      if (!itemToMoveIn) return;
+      const itemToMoveOut = newSlots[toIndex];
       
-      const oldSlotIndex = newSlots.findIndex((s, i) => i !== toIndex && s?.id === itemFromInventory.id);
+      newSlots[toIndex] = itemToMoveIn;
+      
+      const oldSlotIndex = newSlots.findIndex((s, i) => i !== toIndex && s?.id === itemToMoveIn.id);
       if (oldSlotIndex > -1) {
-        newSlots[oldSlotIndex] = itemFromWorkbench;
+        newSlots[oldSlotIndex] = itemToMoveOut;
       }
     } else if (from === 'crafting' && target === 'inventory') {
-      const itemFromWorkbench = newSlots[fromIndex];
-      if (!itemFromWorkbench) return;
-
+      const itemToMoveOut = newSlots[fromIndex];
+      if (!itemToMoveOut) return;
       const itemInTargetInventorySlot = displayedInventory.find(i => i.slot_position === toIndex);
-      
+
       newSlots[fromIndex] = itemInTargetInventorySlot || null;
     } else if (from === 'crafting' && target === 'crafting') {
       const temp = newSlots[fromIndex];
