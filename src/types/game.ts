@@ -102,6 +102,11 @@ export interface CraftingJob {
   status: 'in_progress' | 'completed';
 }
 
+export interface ChestItem {
+  item_id: number;
+  quantity: number;
+}
+
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
@@ -109,6 +114,7 @@ export interface FullPlayerData {
   scoutingMissions: ScoutingMission[];
   constructionJobs?: ConstructionJob[];
   craftingJobs?: CraftingJob[];
+  chestItems?: ChestItem[];
 }
 
 export interface MapCell {
