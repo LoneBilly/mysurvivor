@@ -11,6 +11,7 @@ import ItemIcon from "./ItemIcon";
 import ItemDetailModal from "./ItemDetailModal";
 import BlueprintModal from "./BlueprintModal";
 import CountdownTimer from "./CountdownTimer";
+import { cn } from "@/lib/utils";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -21,7 +22,7 @@ interface WorkbenchModalProps {
 }
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
+  const { playerData, items, getIconUrl } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
@@ -32,6 +33,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [currentJob, setCurrentJob] = useState<CraftingJob | null>(null);
   const [itemToCollect, setItemToCollect] = useState<InventoryItem | null>(null);
+  const [isDraggingOutput, setIsDraggingOutput] = useState(false);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -166,17 +168,30 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsLoadingAction(false);
   };
 
-  const handleCollectItem = async () => {
-    if (!construction) return;
+  const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!itemToCollect) return;
+    setIsDraggingOutput(true);
+    e.dataTransfer.setData("text/plain", "workbench_output");
+  };
+
+  const handleDropOnInventory = async (e: React.DragEvent<HTMLDivElement>, targetSlot: number) => {
+    e.preventDefault();
+    if (!isDraggingOutput || !construction) return;
+    
     setIsLoadingAction(true);
-    const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
+    const { error } = await supabase.rpc('collect_workbench_output', { 
+      p_workbench_id: construction.id,
+      p_target_slot: targetSlot
+    });
+    setIsLoadingAction(false);
+
     if (error) {
       showError(error.message);
     } else {
       showSuccess("Objet récupéré !");
       await onUpdate();
     }
-    setIsLoadingAction(false);
+    setIsDraggingOutput(false);
   };
 
   const renderCraftingInterface = () => {
@@ -191,21 +206,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           <div className="text-sm text-gray-300 font-mono">
             <CountdownTimer endTime={currentJob.ends_at} onComplete={onUpdate} />
           </div>
-        </div>
-      );
-    }
-
-    if (itemToCollect) {
-      return (
-        <div className="text-center space-y-3 p-4 bg-black/20 rounded-lg">
-          <p className="font-semibold">Objet prêt à être récupéré</p>
-          <div className="flex items-center justify-center gap-4">
-            <div className="w-12 h-12 relative"><ItemIcon iconName={getIconUrl(itemToCollect.items?.icon) || itemToCollect.items?.icon} alt={itemToCollect.items?.name || ''} /></div>
-            <p className="font-bold text-lg">{itemToCollect.items?.name} x{itemToCollect.quantity}</p>
-          </div>
-          <Button onClick={handleCollectItem} disabled={isLoadingAction} className="w-full">
-            {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : "Récupérer"}
-          </Button>
         </div>
       );
     }
@@ -241,8 +241,23 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
               <div className="col-span-2 flex justify-end">
                   <ArrowRight className="w-8 h-8 text-gray-500" />
               </div>
-              <div className="relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
-                {resultItem && (
+              <div 
+                className={cn(
+                  "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
+                  itemToCollect && "cursor-grab active:cursor-grabbing"
+                )}
+                draggable={!!itemToCollect}
+                onDragStart={handleDragStartOutput}
+                onDragEnd={() => setIsDraggingOutput(false)}
+              >
+                {itemToCollect ? (
+                  <>
+                    <ItemIcon iconName={getIconUrl(itemToCollect.items?.icon) || itemToCollect.items?.icon} alt={itemToCollect.items?.name || ''} />
+                    <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                      x{itemToCollect.quantity}
+                    </span>
+                  </>
+                ) : resultItem && (
                   <>
                     <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
                     {matchedRecipe && (
@@ -272,7 +287,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
               const item = playerData.inventory.find(i => i.slot_position === index);
               return (
-                <div key={item?.id || index}>
+                <div 
+                  key={item?.id || index}
+                  onDrop={(e) => handleDropOnInventory(e, index)}
+                  onDragOver={(e) => e.preventDefault()}
+                >
                   <InventorySlot 
                     item={item || null} 
                     index={index} 
@@ -280,7 +299,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     onDragStart={() => {}}
                     onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
                     isBeingDragged={false}
-                    isDragOver={false}
+                    isDragOver={isDraggingOutput}
                   />
                 </div>
               );
@@ -317,11 +336,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         item={detailedItem?.item || null}
         source={detailedItem?.source}
         onUse={() => {
-          if (detailedItem?.source === 'output') {
-            handleCollectItem();
-          } else {
-            showError("Vous ne pouvez pas utiliser un objet depuis l'établi.");
-          }
+          showError("Vous ne pouvez pas utiliser un objet depuis l'établi.");
         }}
         onDropOne={() => {}}
         onDropAll={() => {}}
