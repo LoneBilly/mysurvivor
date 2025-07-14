@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, Cog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -458,6 +458,19 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellContent = (cell: BaseCell) => {
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    if (construction && cell.type === 'workbench') {
+        const isCrafting = playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
+        if (isCrafting) {
+            return (
+                <>
+                    <Hammer className="w-6 h-6 text-gray-300" />
+                    <Cog className="w-4 h-4 text-yellow-400 absolute animate-spin" style={{ animationDuration: '3s' }} />
+                </>
+            );
+        }
+    }
+
     const Icon = buildingIcons[cell.type];
     if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
