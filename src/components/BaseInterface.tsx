@@ -20,6 +20,7 @@ interface BaseCell {
   canBuild?: boolean;
   ends_at?: string;
   showTrash?: boolean;
+  isCrafting?: boolean;
 }
 
 const GRID_SIZE = 31;
@@ -56,7 +57,7 @@ interface BaseInterfaceProps {
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
-  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs: initialCraftingJobs = [] } = playerData;
   
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
@@ -129,7 +130,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
+      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false, isCrafting: false }))
     );
 
     let campPos: { x: number; y: number } | null = null;
@@ -151,11 +152,15 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       newGrid[newCampY][newCampX].type = 'campfire';
       campPos = { x: newCampX, y: newCampY };
     } else {
+      const activeCraftingWorkbenchIds = new Set(initialCraftingJobs.map(j => j.workbench_id));
       currentConstructions.forEach((c: BaseConstruction) => {
         if (newGrid[c.y]?.[c.x]) {
           newGrid[c.y][c.x].type = c.type;
           if (c.type === 'campfire') {
             campPos = { x: c.x, y: c.y };
+          }
+          if (c.type === 'workbench' && activeCraftingWorkbenchIds.has(c.id)) {
+            newGrid[c.y][c.x].isCrafting = true;
           }
         }
       });
@@ -171,7 +176,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     setGridData(finalGrid);
     setCampfirePosition(campPos);
     setLoading(false);
-  }, [user]);
+  }, [user, initialCraftingJobs]);
 
   useEffect(() => {
     if (initialConstructions) {
@@ -459,7 +464,18 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
   const getCellContent = (cell: BaseCell) => {
     const Icon = buildingIcons[cell.type];
-    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
+    if (Icon) {
+      return (
+        <>
+          <Icon className="w-6 h-6 text-gray-300" />
+          {cell.isCrafting && (
+            <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center">
+              <Hammer className="w-6 h-6 text-yellow-400 animate-pulse" />
+            </div>
+          )}
+        </>
+      );
+    }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
