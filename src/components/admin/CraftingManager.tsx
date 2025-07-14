@@ -9,12 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, PlusCircle, Edit, Trash2, Clock } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, Clock, Search } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import CraftingRecipeFormModal from './CraftingRecipeFormModal';
 import ActionModal from '../ActionModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Input } from '../ui/input';
 
 export interface CraftingRecipe {
   id: number;
@@ -36,6 +37,7 @@ const CraftingManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<CraftingRecipe | null>(null);
   const [recipeToDelete, setRecipeToDelete] = useState<CraftingRecipe | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const isMobile = useIsMobile();
 
   const fetchData = useCallback(async () => {
@@ -84,6 +86,10 @@ const CraftingManager = () => {
 
   const getItemName = (id: number | null) => items.find(i => i.id === id)?.name || 'Inconnu';
 
+  const filteredRecipes = recipes.filter(recipe =>
+    getItemName(recipe.result_item_id).toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const renderIngredients = (recipe: CraftingRecipe) => {
     const ingredients = [
       { id: recipe.ingredient1_id, qty: recipe.ingredient1_quantity },
@@ -104,25 +110,39 @@ const CraftingManager = () => {
   return (
     <>
       <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
-        <div className="p-4 border-b border-gray-700 flex justify-end">
-          <Button onClick={handleCreate}>
+        <div className="p-4 border-b border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Rechercher par résultat..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-gray-900 border-gray-700"
+            />
+          </div>
+          <Button onClick={handleCreate} className="w-full sm:w-auto">
             <PlusCircle className="w-4 h-4 mr-2" /> Créer une recette
           </Button>
         </div>
         <div className="flex-grow overflow-y-auto">
           {isMobile ? (
             <div className="p-4 space-y-3">
-              {recipes.map(recipe => (
-                <div key={recipe.id} onClick={() => handleEdit(recipe)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
+              {filteredRecipes.map(recipe => (
+                <div key={recipe.id} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700">
                   <div className="flex items-center justify-between">
                     <p className="font-bold text-white">{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</p>
-                    <div className="flex items-center gap-1 text-sm"><Clock size={14} /> {recipe.craft_time_seconds}s</div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(recipe)}><Edit className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setRecipeToDelete(recipe)}><Trash2 className="w-4 h-4 text-red-400" /></Button>
+                    </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-700/50 text-sm text-gray-300">
+                  <div className="mt-2 pt-2 border-t border-gray-700/50 text-sm text-gray-300">
                     <p className="font-semibold mb-1">Ingrédients:</p>
                     <div className="pl-2 space-y-1">
                       {renderIngredients(recipe)}
                     </div>
+                    <div className="flex items-center gap-1 text-sm mt-2"><Clock size={14} /> {recipe.craft_time_seconds}s</div>
                   </div>
                 </div>
               ))}
@@ -138,7 +158,7 @@ const CraftingManager = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recipes.map(recipe => (
+                {filteredRecipes.map(recipe => (
                   <TableRow key={recipe.id} className="border-gray-700">
                     <TableCell className="font-medium">{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</TableCell>
                     <TableCell>{renderIngredients(recipe)}</TableCell>
