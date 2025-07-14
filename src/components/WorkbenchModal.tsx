@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check, BookOpen } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -49,36 +49,8 @@ const CraftingSlot = ({ item, onClear, isDragOver, onClick }: { item: InventoryI
   );
 };
 
-const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
-  const [remaining, setRemaining] = useState(() => new Date(endsAt).getTime() - Date.now());
-  const onCompleteCalled = useRef(false);
-
-  useEffect(() => {
-    if (remaining <= 0) {
-      if (!onCompleteCalled.current) {
-        onCompleteCalled.current = true;
-        onCompleteRef.current();
-      }
-      return;
-    }
-    const timer = setInterval(() => {
-      setRemaining(new Date(endsAt).getTime() - Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [endsAt, remaining]);
-
-  if (remaining <= 0) return <>Terminé</>;
-
-  const seconds = Math.floor((remaining / 1000) % 60);
-  const minutes = Math.floor((remaining / (1000 * 60)) % 60);
-  return <>{`${minutes}m ${seconds}s`}</>;
-};
-
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, items } = useGame();
+  const { playerData, setPlayerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -203,23 +175,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     } else {
         showSuccess("Objet jeté.");
         onUpdate();
-    }
-  };
-
-  const handleSplitItem = async (item: InventoryItem, quantity: number) => {
-    if (!item) return;
-    setDetailedItem(null);
-  
-    const { error } = await supabase.rpc('split_inventory_item', {
-      p_inventory_id: item.id,
-      p_split_quantity: quantity,
-    });
-  
-    if (error) {
-      showError(error.message || "Erreur lors de la division de l'objet.");
-    } else {
-      showSuccess("La pile d'objets a été divisée.");
-      onUpdate();
     }
   };
 
@@ -372,11 +327,28 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onUse={() => showError("Vous ne pouvez pas utiliser un objet depuis l'établi.")}
         onDropOne={() => detailedItem && handleDropItem(detailedItem, 1)}
         onDropAll={() => detailedItem && handleDropItem(detailedItem, detailedItem.quantity)}
-        onSplit={handleSplitItem}
       />
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
   );
+};
+
+const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
+  const calculateRemaining = useCallback(() => new Date(endsAt).getTime() - Date.now(), [endsAt]);
+  const [remaining, setRemaining] = useState(calculateRemaining());
+
+  useEffect(() => {
+    if (remaining <= 0) {
+      onComplete();
+      return;
+    }
+    const timer = setInterval(() => setRemaining(calculateRemaining()), 1000);
+    return () => clearInterval(timer);
+  }, [remaining, onComplete]);
+
+  const seconds = Math.floor((remaining / 1000) % 60);
+  const minutes = Math.floor((remaining / (1000 * 60)) % 60);
+  return <>{`${minutes}m ${seconds}s`}</>;
 };
 
 export default WorkbenchModal;
