@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -12,6 +12,7 @@ import ItemDetailModal from "./ItemDetailModal";
 import BlueprintModal from "./BlueprintModal";
 import CountdownTimer from "./CountdownTimer";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ interface WorkbenchModalProps {
 }
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, items, getIconUrl } = useGame();
+  const { playerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
@@ -127,17 +128,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [currentJob]);
 
-  const maxCraftableQuantity = useMemo(() => {
-    if (!matchedRecipe) return 0;
-    const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
-    const craftableCounts = [
-      matchedRecipe.ingredient1_id ? Math.floor((ingredients.find(i => i.item_id === matchedRecipe.ingredient1_id)?.quantity || 0) / matchedRecipe.ingredient1_quantity) : Infinity,
-      matchedRecipe.ingredient2_id ? Math.floor((ingredients.find(i => i.item_id === matchedRecipe.ingredient2_id)?.quantity || 0) / matchedRecipe.ingredient2_quantity) : Infinity,
-      matchedRecipe.ingredient3_id ? Math.floor((ingredients.find(i => i.item_id === matchedRecipe.ingredient3_id)?.quantity || 0) / matchedRecipe.ingredient3_quantity) : Infinity,
-    ].filter(c => isFinite(c));
-    return craftableCounts.length > 0 ? Math.min(...craftableCounts) : 0;
-  }, [ingredientSlots, matchedRecipe]);
-
   useEffect(() => {
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
     if (ingredients.length === 0) {
@@ -178,42 +168,54 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleStartCraft = async (isNewChain: boolean = true) => {
+  const startNextCraftInLoop = useCallback(async () => {
     if (!matchedRecipe || !construction) return;
-
-    if (isNewChain) {
-        setIsAutoCrafting(false);
-    }
-
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
     if (error) {
-        showError(error.message);
-        setIsAutoCrafting(false);
+      showError(error.message);
+      setIsAutoCrafting(false);
     } else {
-        if (isNewChain) showSuccess("Fabrication lancée !");
-        await onUpdate();
+      await refreshPlayerData();
+    }
+    setIsLoadingAction(false);
+  }, [matchedRecipe, construction, refreshPlayerData]);
+
+  const handleStartCraftingLoop = () => {
+    if (!matchedRecipe) return;
+    setIsAutoCrafting(true);
+    startNextCraftInLoop();
+  };
+
+  const handleStopCraftingLoop = () => {
+    setIsAutoCrafting(false);
+  };
+
+  const handleCancelCraft = async () => {
+    if (!construction) return;
+    handleStopCraftingLoop();
+    setIsLoadingAction(true);
+    const { error } = await supabase.rpc('cancel_crafting_job', { p_workbench_id: construction.id });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Fabrication annulée.");
+      await refreshPlayerData();
     }
     setIsLoadingAction(false);
   };
 
-  const handleStartAutoCraft = () => {
-      if (!matchedRecipe) return;
-      setIsAutoCrafting(true);
-      handleStartCraft(false);
-  };
-
   useEffect(() => {
-      if (wasCrafting.current && !currentJob && isAutoCrafting) {
-          if (matchedRecipe) {
-              handleStartCraft(false);
-          } else {
-              setIsAutoCrafting(false);
-              showSuccess("Fabrication en série terminée.");
-          }
+    if (wasCrafting.current && !currentJob && isAutoCrafting) {
+      if (matchedRecipe) {
+        startNextCraftInLoop();
+      } else {
+        setIsAutoCrafting(false);
+        showSuccess("Fabrication en série terminée (ressources épuisées).");
       }
-      wasCrafting.current = !!currentJob;
-  }, [currentJob, isAutoCrafting, matchedRecipe]);
+    }
+    wasCrafting.current = !!currentJob;
+  }, [currentJob, isAutoCrafting, matchedRecipe, startNextCraftInLoop]);
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
@@ -326,8 +328,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   <div className="h-[60px] flex flex-col justify-center items-center">
                     {currentJob ? (
                       <div className="w-full space-y-2 px-4">
-                        <div className="w-full bg-slate-700 rounded-full h-4 border border-slate-600 overflow-hidden">
-                          <div className="bg-blue-500 h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={progress} className="flex-grow" />
+                          <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
+                            <Square className="w-4 h-4" />
+                          </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
                           <CountdownTimer endTime={currentJob.ends_at} onComplete={onUpdate} />
@@ -340,14 +345,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
                           </div>
                         )}
-                        <div className="flex gap-2">
-                            <Button onClick={() => handleStartCraft(true)} disabled={!matchedRecipe || isLoadingAction}>
-                                {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : "Fabriquer x1"}
-                            </Button>
-                            <Button onClick={handleStartAutoCraft} disabled={!matchedRecipe || isLoadingAction || maxCraftableQuantity <= 1}>
-                                {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : `Fabriquer tout (${maxCraftableQuantity})`}
-                            </Button>
-                        </div>
+                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting}>
+                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : isAutoCrafting ? "Fabrication en cours..." : "Fabriquer"}
+                        </Button>
                       </>
                     )}
                   </div>
