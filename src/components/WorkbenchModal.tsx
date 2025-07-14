@@ -23,7 +23,7 @@ interface WorkbenchModalProps {
 }
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, items, getIconUrl, refreshPlayerData } = useGame();
+  const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
@@ -38,12 +38,37 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [progress, setProgress] = useState(0);
   const [isAutoCrafting, setIsAutoCrafting] = useState(false);
   const wasCrafting = useRef(false);
+  const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
+  const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
     if (error) showError("Impossible de charger les recettes.");
     else setRecipes(data || []);
   }, []);
+
+  const fetchWorkbenchContents = useCallback(async () => {
+    if (!construction) return;
+    const { data, error } = await supabase
+      .from('workbench_items')
+      .select('*, items(*)')
+      .eq('workbench_id', construction.id);
+    
+    if (error) {
+      showError("Impossible de charger le contenu de l'établi.");
+    } else {
+      const fetchedItems = data as InventoryItem[];
+      setWorkbenchItems(fetchedItems);
+      const newSlots = Array(3).fill(null);
+      fetchedItems.forEach(item => {
+        if (item.slot_position >= 0 && item.slot_position < 3) {
+          newSlots[item.slot_position] = item;
+        }
+      });
+      setIngredientSlots(newSlots);
+    }
+  }, [construction]);
 
   useEffect(() => {
     if (isOpen && construction) {
@@ -67,6 +92,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       }
 
       fetchRecipes();
+      fetchWorkbenchContents();
     } else {
       setIngredientSlots([null, null, null]);
       setWorkbenchItems([]);
@@ -78,30 +104,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setProgress(0);
       setIsAutoCrafting(false);
     }
-  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes]);
-
-  useEffect(() => {
-    if (!construction) return;
-    const { data, error } = supabase
-      .from('workbench_items')
-      .select('*, items(*)')
-      .eq('workbench_id', construction.id)
-      .then(response => {
-        if (response.error) {
-          showError("Impossible de charger le contenu de l'établi.");
-        } else {
-          const fetchedItems = response.data as InventoryItem[];
-          setWorkbenchItems(fetchedItems);
-          const newSlots = Array(3).fill(null);
-          fetchedItems.forEach(item => {
-            if (item.slot_position >= 0 && item.slot_position < 3) {
-              newSlots[item.slot_position] = item;
-            }
-          });
-          setIngredientSlots(newSlots);
-        }
-      });
-  }, [construction, isOpen, onUpdate]);
+  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
   useEffect(() => {
     if (currentJob) {
@@ -247,6 +250,147 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsDraggingOutput(false);
   };
 
+  const handleDragStart = (index: number, source: 'inventory' | 'crafting', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItem({ index, source });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  };
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
+    
+    if (slotElement) {
+      const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
+      const targetElement = (slotElement as HTMLElement).closest('[data-slot-target]');
+      const target = targetElement?.getAttribute('data-slot-target') as 'inventory' | 'crafting' | undefined;
+
+      if (index !== -1 && target) {
+        setDragOver({ index, target });
+        return;
+      }
+    }
+    setDragOver(null);
+  }, []);
+
+  const handleDragEnd = async () => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+  
+    if (!draggedItem || !dragOver) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
+  
+    const { source, index: fromIndex } = draggedItem;
+    const { target, index: toIndex } = dragOver;
+  
+    setDraggedItem(null);
+    setDragOver(null);
+  
+    if (source === target && fromIndex === toIndex) return;
+  
+    let rpcPromise;
+  
+    if (source === 'inventory' && target === 'inventory') {
+      rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
+    } else if (source === 'crafting' && target === 'crafting') {
+      if (!construction) return;
+      rpcPromise = supabase.rpc('swap_workbench_items', { p_workbench_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
+    } else if (source === 'inventory' && target === 'crafting') {
+      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
+      if (!itemToMove || !construction) return;
+      rpcPromise = supabase.rpc('move_item_to_workbench', { p_inventory_id: itemToMove.id, p_workbench_id: construction.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
+    } else if (source === 'crafting' && target === 'inventory') {
+      const itemToMove = workbenchItems.find(i => i.slot_position === fromIndex);
+      if (!itemToMove) return;
+      rpcPromise = supabase.rpc('move_item_from_workbench', { p_workbench_item_id: itemToMove.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
+    }
+  
+    if (rpcPromise) {
+      const { error } = await rpcPromise;
+      if (error) {
+        showError(error.message || "Erreur de transfert.");
+      } else {
+        await onUpdate();
+        await fetchWorkbenchContents();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd]);
+
+  const handleTransferToWorkbench = async (item: InventoryItem, quantity: number) => {
+    if (!construction) return;
+    setDetailedItem(null);
+    const { error } = await supabase.rpc('move_item_to_workbench', { p_inventory_id: item.id, p_workbench_id: construction.id, p_quantity_to_move: quantity, p_target_slot: -1 });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Transfert réussi.");
+      await onUpdate();
+      await fetchWorkbenchContents();
+    }
+  };
+
+  const handleTransferFromWorkbench = async (item: InventoryItem, quantity: number) => {
+    setDetailedItem(null);
+    const { error } = await supabase.rpc('move_item_from_workbench', { p_workbench_item_id: item.id, p_quantity_to_move: quantity, p_target_slot: -1 });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Transfert réussi.");
+      await onUpdate();
+      await fetchWorkbenchContents();
+    }
+  };
+
+  const isResultStackable = resultItem?.stackable ?? false;
+  const canCraftLoop = isResultStackable || !itemToCollect;
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -267,7 +411,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </Button>
                 </div>
                 <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-5 gap-2" data-slot-target="crafting">
                     <div />
                     {ingredientSlots.map((item, index) => (
                       <div key={item?.id || index}>
@@ -275,10 +419,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           item={item}
                           index={index}
                           isUnlocked={true}
-                          onDragStart={() => {}}
+                          onDragStart={(idx, node, e) => handleDragStart(idx, 'crafting', node, e)}
                           onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
-                          isBeingDragged={false}
-                          isDragOver={false}
+                          isBeingDragged={draggedItem?.source === 'crafting' && draggedItem?.index === index}
+                          isDragOver={dragOver?.target === 'crafting' && dragOver?.index === index}
                         />
                       </div>
                     ))}
@@ -343,9 +487,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                         {matchedRecipe && (
                           <div className="text-center text-sm text-gray-300 mb-2">
                             <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
+                            {!canCraftLoop && <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>}
                           </div>
                         )}
-                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting}>
+                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting || !canCraftLoop}>
                           {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : isAutoCrafting ? "Fabrication en cours..." : "Fabriquer"}
                         </Button>
                       </>
@@ -355,7 +500,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
               </div>
               <div>
                 <h3 className="font-bold text-center mb-2">Inventaire</h3>
-                <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
+                <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto" data-slot-target="inventory">
                   {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
                     const item = playerData.inventory.find(i => i.slot_position === index);
                     return (
@@ -370,10 +515,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           item={item || null} 
                           index={index} 
                           isUnlocked={true} 
-                          onDragStart={() => {}}
+                          onDragStart={(idx, node, e) => handleDragStart(idx, 'inventory', node, e)}
                           onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
-                          isBeingDragged={false}
-                          isDragOver={isDraggingOutput}
+                          isBeingDragged={draggedItem?.source === 'inventory' && draggedItem?.index === index}
+                          isDragOver={isDraggingOutput || (dragOver?.target === 'inventory' && dragOver?.index === index)}
                         />
                       </div>
                     );
@@ -400,6 +545,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onDropOne={() => {}}
         onDropAll={() => {}}
         onUpdate={onUpdate}
+        onTransferToWorkbench={handleTransferToWorkbench}
+        onTransferFromWorkbench={handleTransferFromWorkbench}
       />
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
