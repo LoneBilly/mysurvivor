@@ -9,8 +9,6 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
-  const onCompleteCalled = useRef(false);
-
   const calculateRemaining = useCallback(() => {
     const diff = new Date(endTime).getTime() - Date.now();
     if (diff <= 0) {
@@ -32,25 +30,21 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   const [remaining, setRemaining] = useState(calculateRemaining());
 
   useEffect(() => {
-    setRemaining(calculateRemaining());
-    onCompleteCalled.current = false;
-  }, [endTime, calculateRemaining]);
-
-  useEffect(() => {
     if (remaining.totalSeconds <= 0) {
-      if (!onCompleteCalled.current) {
-        onCompleteRef.current();
-        onCompleteCalled.current = true;
-      }
+      onCompleteRef.current();
       return;
     }
 
     const timer = setInterval(() => {
-      setRemaining(calculateRemaining());
+      const newRemaining = calculateRemaining();
+      if (newRemaining.totalSeconds <= 0) {
+        clearInterval(timer);
+      }
+      setRemaining(newRemaining);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [remaining, calculateRemaining]);
+  }, [remaining.totalSeconds, calculateRemaining]);
 
   return <>{remaining.formatted}</>;
 };

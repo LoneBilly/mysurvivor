@@ -25,12 +25,6 @@ interface WorkbenchModalProps {
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
-  
-  const currentConstruction = useMemo(() => {
-    if (!construction) return null;
-    return playerData.baseConstructions.find(c => c.id === construction.id) || construction;
-  }, [playerData.baseConstructions, construction]);
-
   const { craftingJobs = [] } = playerData;
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
@@ -49,9 +43,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const activeJob = useMemo(() => {
-    if (!currentConstruction || !craftingJobs) return null;
-    return craftingJobs.find(job => job.workbench_id === currentConstruction.id);
-  }, [craftingJobs, currentConstruction]);
+    if (!construction || !craftingJobs) return null;
+    return craftingJobs.find(job => job.workbench_id === construction.id);
+  }, [craftingJobs, construction]);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -60,18 +54,18 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, []);
 
   const fetchWorkbenchItems = useCallback(async () => {
-    if (!currentConstruction) return;
+    if (!construction) return;
     const { data, error } = await supabase
         .from('workbench_items')
         .select('*, items(*)')
-        .eq('workbench_id', currentConstruction.id);
+        .eq('workbench_id', construction.id);
     
     if (error) {
         showError("Impossible de charger le contenu de l'établi.");
     } else {
         setWorkbenchItems(data as InventoryItem[]);
     }
-  }, [currentConstruction]);
+  }, [construction]);
 
   useEffect(() => {
     if (isOpen) {
@@ -143,13 +137,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [matchedRecipe, items]);
 
   useEffect(() => {
-    if (currentConstruction?.output_item_id && currentConstruction?.output_quantity) {
-        const itemDef = items.find(i => i.id === currentConstruction.output_item_id);
+    if (construction?.output_item_id && construction?.output_quantity) {
+        const itemDef = items.find(i => i.id === construction.output_item_id);
         if (itemDef) {
             setOutputItem({
                 id: -1,
                 item_id: itemDef.id,
-                quantity: currentConstruction.output_quantity,
+                quantity: construction.output_quantity,
                 slot_position: -1,
                 items: itemDef
             });
@@ -157,14 +151,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     } else {
         setOutputItem(null);
     }
-  }, [currentConstruction, items]);
+  }, [construction, items]);
 
   const handleStartCraft = async () => {
-    if (!matchedRecipe || !currentConstruction) return;
+    if (!matchedRecipe || !construction) return;
     setCraftingLoading(true);
     
     const { error } = await supabase.rpc('start_craft', {
-        p_workbench_id: currentConstruction.id,
+        p_workbench_id: construction.id,
         p_recipe_id: matchedRecipe.id
     });
 
@@ -180,11 +174,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   };
 
   const handleCollect = async (targetSlot: number | null = null) => {
-    if (!currentConstruction || !outputItem || isCollecting) return;
+    if (!construction || !outputItem || isCollecting) return;
     setIsCollecting(true);
 
     const { error } = await supabase.rpc('collect_workbench_output', { 
-        p_workbench_id: currentConstruction.id,
+        p_workbench_id: construction.id,
         p_target_slot: targetSlot
     });
 
@@ -225,7 +219,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
   const handleTransferToWorkbench = async (item: InventoryItem, quantity: number) => {
     setDetailedItem(null);
-    if (!currentConstruction) return;
+    if (!construction) return;
 
     const existingSlot = workbenchItems.find(i => i.item_id === item.item_id);
     let targetSlot: number;
@@ -250,7 +244,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
     const { error } = await supabase.rpc('move_item_to_workbench', {
         p_inventory_id: item.id,
-        p_workbench_id: currentConstruction.id,
+        p_workbench_id: construction.id,
         p_quantity_to_move: quantity,
         p_target_slot: targetSlot
     });
@@ -391,13 +385,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (from === 'inventory' && target === 'inventory') {
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (from === 'crafting' && target === 'crafting') {
-      if (!currentConstruction) return;
-      rpcPromise = supabase.rpc('swap_workbench_items', { p_workbench_id: currentConstruction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
+      if (!construction) return;
+      rpcPromise = supabase.rpc('swap_workbench_items', { p_workbench_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (from === 'inventory' && target === 'crafting') {
-      if (!currentConstruction) return;
+      if (!construction) return;
       rpcPromise = supabase.rpc('move_item_to_workbench', {
           p_inventory_id: fromItem.id,
-          p_workbench_id: currentConstruction.id,
+          p_workbench_id: construction.id,
           p_quantity_to_move: fromItem.quantity,
           p_target_slot: toIndex
       });
@@ -509,7 +503,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             <>
               {matchedRecipe && (
                 <div className="text-center text-sm text-gray-300">
-                  <p>Temps: {matchedRecipe.craft_time_seconds * matchedRecipe.result_quantity}s</p>
+                  <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
                 </div>
               )}
               <Button onClick={handleStartCraft} disabled={!matchedRecipe || craftingLoading || !!outputItem} className="w-full">
@@ -557,7 +551,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             {renderCraftingInterface()}
           </div>
           <DialogFooter>
-            <Button variant="destructive" onClick={() => currentConstruction && onDemolish(currentConstruction)}>
+            <Button variant="destructive" onClick={() => construction && onDemolish(construction)}>
               <Trash2 className="w-4 h-4 mr-2" /> Détruire l'établi
             </Button>
           </DialogFooter>
