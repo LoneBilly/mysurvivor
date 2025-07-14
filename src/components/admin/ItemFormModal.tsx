@@ -60,7 +60,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setIcon(initialIcon);
       setStackable(item?.stackable ?? true);
       setType(item?.type || 'Items divers');
-      setUseActionText(item?.use_action_text || 'Utiliser');
+      setUseActionText(item?.use_action_text || '');
       setNameExists(false);
       setPreviewUrl(null);
       setIconExists(null);
@@ -171,7 +171,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       icon: icon || null, 
       stackable, 
       type,
-      use_action_text: useActionText || 'Utiliser'
+      use_action_text: useActionText || null
     };
     const { error } = item
       ? await supabase.from('items').update(itemData).eq('id', item.id)
@@ -229,8 +229,8 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" disabled={loading} />
             </div>
             <div>
-              <Label htmlFor="use_action_text" className="text-gray-300 font-mono">Texte d'action</Label>
-              <Input id="use_action_text" value={useActionText} onChange={handleActionTextChange} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} />
+              <Label htmlFor="use_action_text" className="text-gray-300 font-mono">Texte d'action (optionnel)</Label>
+              <Input id="use_action_text" value={useActionText} onChange={handleActionTextChange} className="mt-1 bg-white/5 border border-white/20 rounded-lg" disabled={loading} />
             </div>
             <div>
               <Label htmlFor="type" className="text-gray-300 font-mono">Type</Label>
@@ -245,6 +245,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 <option value="Armes">Armes</option>
                 <option value="Nourriture">Nourriture</option>
                 <option value="Soins">Soins</option>
+                <option value="Outils">Outils</option>
                 <option value="Items divers">Items divers</option>
                 <option value="Items craftés">Items craftés</option>
               </select>

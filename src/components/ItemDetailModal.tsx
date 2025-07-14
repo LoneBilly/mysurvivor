@@ -66,10 +66,10 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
     }
   };
 
-  const useActionText = item.items?.use_action_text || 'Utiliser';
+  const useActionText = item.items?.use_action_text;
   const isBlueprint = useActionText === 'Lire';
   const iconUrl = getIconUrl(item.items?.icon || null);
-  const canUse = source !== 'chest';
+  const canUse = source !== 'chest' && useActionText;
   const canTransfer = !!onTransfer;
   const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
 
@@ -157,9 +157,11 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
         )}
 
         <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 pt-4 border-t border-slate-700">
-          <Button onClick={handleUseClick} disabled={!canUse} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
-            {useActionText}
-          </Button>
+          {canUse && (
+            <Button onClick={handleUseClick} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+              {useActionText}
+            </Button>
+          )}
           <div className="flex w-full gap-2">
             <Button onClick={onDropOne} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
               Jeter x1
