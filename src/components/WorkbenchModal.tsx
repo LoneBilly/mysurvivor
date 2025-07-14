@@ -161,7 +161,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   };
 
   useEffect(() => {
-    if (!isContinuousCrafting || !matchedRecipe) return;
+    if (!isContinuousCrafting || !matchedRecipe || !construction) return;
 
     const craftNextItem = () => {
       if (currentCraftCount >= maxCraftCount) {
@@ -181,33 +181,38 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         if (elapsed >= craftTime) {
           if (craftTimerRef.current) clearInterval(craftTimerRef.current);
           
-          setIngredientSlots(prevSlots => {
-            const newSlots = JSON.parse(JSON.stringify(prevSlots));
-            if (matchedRecipe.ingredient1_id) {
-                const idx = newSlots.findIndex((i: InventoryItem | null) => i?.item_id === matchedRecipe.ingredient1_id);
-                if(idx > -1) newSlots[idx]!.quantity -= matchedRecipe.ingredient1_quantity;
-            }
-            if (matchedRecipe.ingredient2_id) {
-                const idx = newSlots.findIndex((i: InventoryItem | null) => i?.item_id === matchedRecipe.ingredient2_id);
-                if(idx > -1) newSlots[idx]!.quantity -= matchedRecipe.ingredient2_quantity;
-            }
-            if (matchedRecipe.ingredient3_id) {
-                const idx = newSlots.findIndex((i: InventoryItem | null) => i?.item_id === matchedRecipe.ingredient3_id);
-                if(idx > -1) newSlots[idx]!.quantity -= matchedRecipe.ingredient3_quantity;
-            }
-            return newSlots.map((s: InventoryItem | null) => s && s.quantity > 0 ? s : null);
-          });
+          const consumeAndContinue = async () => {
+            const ingredientsToConsume = [];
+            if (matchedRecipe.ingredient1_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient1_id, quantity: matchedRecipe.ingredient1_quantity });
+            if (matchedRecipe.ingredient2_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient2_id, quantity: matchedRecipe.ingredient2_quantity });
+            if (matchedRecipe.ingredient3_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient3_id, quantity: matchedRecipe.ingredient3_quantity });
 
-          setOutputSlot(prevOutput => {
-            const resultItemDef = items.find(i => i.id === matchedRecipe.result_item_id);
-            if (!resultItemDef) return prevOutput;
-            if (!prevOutput) {
-              return { id: -1, item_id: resultItemDef.id, quantity: matchedRecipe.result_quantity, slot_position: -1, items: resultItemDef };
-            }
-            return { ...prevOutput, quantity: prevOutput.quantity + matchedRecipe.result_quantity };
-          });
+            const consumptionPromises = ingredientsToConsume.map(ing => 
+                supabase.rpc('consume_workbench_item', { p_workbench_id: construction.id, p_item_id: ing.id, p_quantity_to_consume: ing.quantity })
+            );
+            
+            const results = await Promise.all(consumptionPromises);
+            const error = results.find(r => r.error);
 
-          setCurrentCraftCount(prev => prev + 1);
+            if (error) {
+                showError(`Erreur lors de la consommation d'ingrédients: ${error.error.message}`);
+                handleStopCrafting();
+                fetchWorkbenchItems();
+            } else {
+                await fetchWorkbenchItems();
+                setOutputSlot(prevOutput => {
+                    const resultItemDef = items.find(i => i.id === matchedRecipe.result_item_id);
+                    if (!resultItemDef) return prevOutput;
+                    if (!prevOutput) {
+                        return { id: -1, item_id: resultItemDef.id, quantity: matchedRecipe.result_quantity, slot_position: -1, items: resultItemDef };
+                    }
+                    return { ...prevOutput, quantity: prevOutput.quantity + matchedRecipe.result_quantity };
+                });
+                setCurrentCraftCount(prev => prev + 1);
+            }
+          };
+
+          consumeAndContinue();
         }
       }, 100);
     };
@@ -217,30 +222,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     return () => {
       if (craftTimerRef.current) clearInterval(craftTimerRef.current);
     };
-  }, [isContinuousCrafting, currentCraftCount, maxCraftCount, matchedRecipe, items]);
+  }, [isContinuousCrafting, currentCraftCount, maxCraftCount, matchedRecipe, items, construction, fetchWorkbenchItems]);
 
   const handleFinalizeAndCollect = async (targetSlot: number | null = null) => {
-    if (!outputSlot || !matchedRecipe || !user || isCollecting) return;
+    if (!outputSlot || !user || isCollecting) return;
     setIsCollecting(true);
-
-    const quantityToCraft = outputSlot.quantity / matchedRecipe.result_quantity;
-    const ingredientsToConsume = [];
-    if (matchedRecipe.ingredient1_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient1_id, quantity: matchedRecipe.ingredient1_quantity * quantityToCraft });
-    if (matchedRecipe.ingredient2_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient2_id, quantity: matchedRecipe.ingredient2_quantity * quantityToCraft });
-    if (matchedRecipe.ingredient3_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient3_id, quantity: matchedRecipe.ingredient3_quantity * quantityToCraft });
-
-    const consumptionPromises = ingredientsToConsume.map(ing => 
-      supabase.rpc('consume_inventory_item', { p_player_id: user.id, p_item_id: ing.id, p_quantity_to_consume: ing.quantity })
-    );
-
-    const results = await Promise.all(consumptionPromises);
-    const error = results.find(r => r.error);
-
-    if (error) {
-      showError(`Erreur lors de la consommation des ingrédients: ${error.error.message}`);
-      setIsCollecting(false);
-      return;
-    }
 
     const { error: addError } = await supabase.rpc('add_item_to_inventory', { 
       p_player_id: user.id, 
