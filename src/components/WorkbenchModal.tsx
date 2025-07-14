@@ -409,91 +409,52 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setDragOver(null);
       return;
     }
-
+  
     const { from, fromIndex } = draggedItem;
     const { target, index: toIndex } = dragOver;
-
+  
     setDraggedItem(null);
     setDragOver(null);
-
+  
     if (from === target && fromIndex === toIndex) return;
-
+  
+    let rpcPromise;
+  
     if (from === 'output' && target === 'inventory') {
       await handleFinalizeAndCollect(toIndex);
       return;
     }
-
+  
     if (from === 'inventory' && target === 'inventory') {
-      const fromItem = playerData.inventory.find(i => i.slot_position === fromIndex);
-      if (!fromItem) return;
-      const { error } = await supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
-      if (error) {
-        showError(error.message);
-      } else {
-        await onUpdate(true);
-      }
-      return;
-    }
-
-    let rpcPromise;
-    const originalWorkbenchItems = [...workbenchItems];
-
-    if (from === 'crafting' && target === 'crafting') {
-        const newWorkbenchItems = [...workbenchItems];
-        const fromItemIdx = newWorkbenchItems.findIndex(i => i.slot_position === fromIndex);
-        const toItemIdx = newWorkbenchItems.findIndex(i => i.slot_position === toIndex);
-
-        if (fromItemIdx === -1) return;
-
-        const fromItem = newWorkbenchItems[fromItemIdx];
-        const toItem = toItemIdx > -1 ? newWorkbenchItems[toItemIdx] : null;
-
-        if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
-            const updatedToItem = { ...toItem, quantity: toItem.quantity + fromItem.quantity };
-            const finalItems = newWorkbenchItems.filter(i => i.id !== fromItem.id).map(i => i.id === toItem.id ? updatedToItem : i);
-            setWorkbenchItems(finalItems);
-        } else {
-            const updatedFromItem = { ...fromItem, slot_position: toIndex };
-            newWorkbenchItems[fromItemIdx] = updatedFromItem;
-            if (toItem && toItemIdx > -1) {
-                const updatedToItem = { ...toItem, slot_position: fromIndex };
-                newWorkbenchItems[toItemIdx] = updatedToItem;
-            }
-            setWorkbenchItems(newWorkbenchItems);
-        }
-        
-        if (!construction) return;
-        rpcPromise = supabase.rpc('swap_workbench_items', {
-            p_workbench_id: construction.id,
-            p_from_slot: fromIndex,
-            p_to_slot: toIndex
-        });
+      rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
+    } else if (from === 'crafting' && target === 'crafting') {
+      if (!construction) return;
+      rpcPromise = supabase.rpc('swap_workbench_items', { p_workbench_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (from === 'inventory' && target === 'crafting') {
-        const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
-        if (!itemToMove || !construction) return;
-        rpcPromise = supabase.rpc('move_item_to_workbench', {
-            p_inventory_id: itemToMove.id,
-            p_workbench_id: construction.id,
-            p_quantity_to_move: itemToMove.quantity,
-            p_target_slot: toIndex
-        });
+      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
+      if (!itemToMove || !construction) return;
+      rpcPromise = supabase.rpc('move_item_to_workbench', {
+          p_inventory_id: itemToMove.id,
+          p_workbench_id: construction.id,
+          p_quantity_to_move: itemToMove.quantity,
+          p_target_slot: toIndex
+      });
     } else if (from === 'crafting' && target === 'inventory') {
-        const itemToMove = workbenchItems.find(i => i.slot_position === fromIndex);
-        if (!itemToMove) return;
-        rpcPromise = supabase.rpc('move_item_from_workbench', {
-            p_workbench_item_id: itemToMove.id,
-            p_quantity_to_move: itemToMove.quantity,
-            p_target_slot: toIndex
-        });
+      const itemToMove = workbenchItems.find(i => i.slot_position === fromIndex);
+      if (!itemToMove) return;
+      rpcPromise = supabase.rpc('move_item_from_workbench', {
+          p_workbench_item_id: itemToMove.id,
+          p_quantity_to_move: itemToMove.quantity,
+          p_target_slot: toIndex
+      });
     }
-
+  
     if (rpcPromise) {
         const { error } = await rpcPromise;
         if (error) {
             showError(error.message);
-            if (from === 'crafting' && target === 'crafting') {
-                setWorkbenchItems(originalWorkbenchItems);
-            }
+            await onUpdate(true);
+            await fetchWorkbenchItems();
         } else {
             await onUpdate(true);
             await fetchWorkbenchItems();
