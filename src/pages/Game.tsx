@@ -21,24 +21,22 @@ const Game = () => {
   const loadGameData = async (user: User) => {
     setLoading(true);
 
-    const [playerDataRes, mapDataRes, itemsDataRes, constructionJobsRes, craftingJobsRes] = await Promise.all([
+    const [playerDataRes, mapDataRes, itemsDataRes, constructionJobsRes] = await Promise.all([
       supabase.rpc('get_full_player_data', { p_user_id: user.id }),
       supabase.from('map_layout').select('*'),
       supabase.from('items').select('*'),
-      supabase.from('construction_jobs').select('*').eq('player_id', user.id),
-      supabase.from('crafting_jobs').select('*').eq('player_id', user.id)
+      supabase.from('construction_jobs').select('*').eq('player_id', user.id)
     ]);
 
-    if (playerDataRes.error || mapDataRes.error || itemsDataRes.error || constructionJobsRes.error || craftingJobsRes.error) {
+    if (playerDataRes.error || mapDataRes.error || itemsDataRes.error || constructionJobsRes.error) {
       showError("Erreur critique lors du chargement des données de jeu.");
-      console.error(playerDataRes.error || mapDataRes.error || itemsDataRes.error || constructionJobsRes.error || craftingJobsRes.error);
+      console.error(playerDataRes.error || mapDataRes.error || itemsDataRes.error || constructionJobsRes.error);
       setLoading(false);
       return;
     }
     
     const fullPlayerData = playerDataRes.data;
     fullPlayerData.constructionJobs = constructionJobsRes.data || [];
-    fullPlayerData.craftingJobs = craftingJobsRes.data || [];
     setMapLayout(mapDataRes.data);
     const itemsData = itemsDataRes.data as Item[];
     setItems(itemsData);
@@ -72,14 +70,12 @@ const Game = () => {
     if (!user) return;
     const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
     const { data: constructionJobs, error: jobsError } = await supabase.from('construction_jobs').select('*').eq('player_id', user.id);
-    const { data: craftingJobs, error: craftingError } = await supabase.from('crafting_jobs').select('*').eq('player_id', user.id);
 
-    if (playerDataError || jobsError || craftingError) {
+    if (playerDataError || jobsError) {
       showError("Erreur lors de la mise à jour des données.");
-      console.error(playerDataError || jobsError || craftingError);
+      console.error(playerDataError || jobsError);
     } else {
       fullPlayerData.constructionJobs = constructionJobs || [];
-      fullPlayerData.craftingJobs = craftingJobs || [];
       setPlayerData(fullPlayerData);
     }
   };

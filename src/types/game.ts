@@ -79,44 +79,12 @@ export interface ConstructionJob {
   created_at: string;
 }
 
-export interface CraftingJob {
-  id: number;
-  workbench_id: number;
-  player_id: string;
-  recipe_id: number;
-  started_at: string;
-  ends_at: string;
-  status: 'in_progress' | 'completed';
-  crafting_recipes: {
-    result_item_id: number;
-    result_quantity: number;
-    items: {
-      name: string;
-      icon: string | null;
-    }
-  } | null;
-}
-
-export interface FullCraftingRecipe {
-  id: number;
-  craft_time_seconds: number;
-  result_item_id: number;
-  result_quantity: number;
-  result_item: { name: string; icon: string | null; description: string | null };
-  ingredients: {
-    item_id: number;
-    quantity: number;
-    item: { name: string; icon: string | null; };
-  }[];
-}
-
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
   baseConstructions: BaseConstruction[];
   scoutingMissions: ScoutingMission[];
   constructionJobs?: ConstructionJob[];
-  craftingJobs?: CraftingJob[];
 }
 
 export interface MapCell {

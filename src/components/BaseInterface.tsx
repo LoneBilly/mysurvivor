@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
-import WorkbenchModal from "./WorkbenchModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useGame } from "@/contexts/GameContext";
 
@@ -102,7 +101,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [workbenchModalState, setWorkbenchModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
 
@@ -345,13 +343,12 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
           }
         }
       } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (!constructionData) return;
-
+        // Allow interaction with specific buildings
         if (cell.type === 'chest') {
-          setChestModalState({ isOpen: true, construction: constructionData });
-        } else if (cell.type === 'workbench') {
-          setWorkbenchModalState({ isOpen: true, construction: constructionData });
+          const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+          if (constructionData) {
+            setChestModalState({ isOpen: true, construction: constructionData });
+          }
         } else {
           showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         }
@@ -366,16 +363,12 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       return;
     }
 
-    const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-    if (constructionData) {
-      if (cell.type === 'chest') {
+    if (cell.type === 'chest') {
+      const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+      if (constructionData) {
         setChestModalState({ isOpen: true, construction: constructionData });
-        return;
       }
-      if (cell.type === 'workbench') {
-        setWorkbenchModalState({ isOpen: true, construction: constructionData });
-        return;
-      }
+      return;
     }
 
     if (Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'foundation' && cell.type !== 'campfire') {
@@ -465,7 +458,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const handleDemolishBuilding = async (construction: BaseConstruction) => {
-    const { x, y } = construction;
+    const { x, y, type } = construction;
     if (!gridData) return;
 
     const originalGridData = gridData;
@@ -473,7 +466,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     newGrid[y][x].type = 'foundation';
     setGridData(updateCanBuild(newGrid));
     setChestModalState({ isOpen: false, construction: null });
-    setWorkbenchModalState({ isOpen: false, construction: null });
 
     const { error } = await supabase.rpc('demolish_building_to_foundation', { p_x: x, p_y: y });
 
@@ -626,13 +618,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         isOpen={chestModalState.isOpen}
         onClose={() => setChestModalState({ isOpen: false, construction: null })}
         construction={chestModalState.construction}
-        onDemolish={handleDemolishBuilding}
-        onUpdate={refreshPlayerData}
-      />
-      <WorkbenchModal
-        isOpen={workbenchModalState.isOpen}
-        onClose={() => setWorkbenchModalState({ isOpen: false, construction: null })}
-        construction={workbenchModalState.construction}
         onDemolish={handleDemolishBuilding}
         onUpdate={refreshPlayerData}
       />
