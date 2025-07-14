@@ -200,6 +200,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const handleFinalizeAndCollect = async () => {
     if (!outputSlot || !matchedRecipe || !user || isCollecting) return;
     setIsCollecting(true);
+    showInfo("Finalisation de la fabrication...");
 
     const quantityToCraft = outputSlot.quantity / matchedRecipe.result_quantity;
     const ingredientsToConsume = [];
@@ -309,6 +310,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   };
 
   const handleDragStart = (item: InventoryItem, from: 'inventory' | 'crafting' | 'output', fromIndex: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    if (isContinuousCrafting) return;
     e.preventDefault();
     setDraggedItem({ item, from, fromIndex });
     
@@ -392,34 +394,25 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       const itemFromWorkbench = newSlots[toIndex];
 
       newSlots[toIndex] = itemFromInventory;
+      
       const oldSlotIndex = newSlots.findIndex((s, i) => i !== toIndex && s?.id === itemFromInventory.id);
       if (oldSlotIndex > -1) {
         newSlots[oldSlotIndex] = itemFromWorkbench;
       }
-      setIngredientSlots(newSlots);
     } else if (from === 'crafting' && target === 'inventory') {
       const itemFromWorkbench = newSlots[fromIndex];
       if (!itemFromWorkbench) return;
 
-      const itemInTargetInventorySlot = playerData.inventory.find(i => i.slot_position === toIndex);
-
-      const updatedSlots = [...newSlots];
-      updatedSlots[fromIndex] = itemInTargetInventorySlot || null;
-      setIngredientSlots(updatedSlots);
-
-      const { error } = await supabase.rpc('swap_inventory_items', { p_from_slot: itemFromWorkbench.slot_position, p_to_slot: toIndex });
-      if (error) {
-        showError(error.message);
-        setIngredientSlots(newSlots);
-      } else {
-        await onUpdate(true);
-      }
+      const itemInTargetInventorySlot = displayedInventory.find(i => i.slot_position === toIndex);
+      
+      newSlots[fromIndex] = itemInTargetInventorySlot || null;
     } else if (from === 'crafting' && target === 'crafting') {
       const temp = newSlots[fromIndex];
       newSlots[fromIndex] = newSlots[toIndex];
       newSlots[toIndex] = temp;
-      setIngredientSlots(newSlots);
     }
+
+    setIngredientSlots(newSlots);
   };
 
   useEffect(() => {
