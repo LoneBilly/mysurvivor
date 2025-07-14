@@ -23,7 +23,7 @@ interface ItemDetailModalProps {
   onUse: () => void;
   onDropOne: () => void;
   onDropAll: () => void;
-  source?: 'inventory' | 'chest' | 'crafting' | 'output';
+  source?: 'inventory' | 'chest' | 'crafting';
   onTransfer?: (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => void;
   onTransferToWorkbench?: (item: InventoryItem, quantity: number) => void;
   onTransferFromWorkbench?: (item: InventoryItem, quantity: number) => void;
@@ -82,20 +82,16 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
     }
   };
 
-  const useActionText = source === 'output' ? 'Récupérer' : item.items?.use_action_text;
+  const useActionText = item.items?.use_action_text;
   const isBlueprint = item.items?.use_action_text === 'Lire';
   const iconUrl = getIconUrl(item.items?.icon || null);
-  const canUse = (source !== 'chest' && useActionText) || source === 'output';
+  const canUse = source !== 'chest' && useActionText;
   const canTransfer = !!onTransfer && (source === 'inventory' || source === 'chest');
   const canTransferToWorkbench = !!onTransferToWorkbench && source === 'inventory';
   const canTransferFromWorkbench = !!onTransferFromWorkbench && source === 'crafting';
   const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
 
   const handleUseClick = () => {
-    if (source === 'output') {
-      onUse();
-      return;
-    }
     if (isBlueprint) {
       handleReadBlueprint();
     } else {
@@ -226,7 +222,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
               {useActionText}
             </Button>
           )}
-          {source !== 'output' && (
+          {source !== 'crafting' && (
             <div className="flex w-full gap-2">
               <Button onClick={onDropOne} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
                 Jeter x1

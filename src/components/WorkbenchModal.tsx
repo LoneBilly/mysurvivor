@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, BookOpen } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -21,17 +21,22 @@ interface WorkbenchModalProps {
 }
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
+  const { playerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
   const [resultItem, setResultItem] = useState<Item | null>(null);
-  const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'crafting' | 'output' } | null>(null);
+  const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'crafting' } | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [currentJob, setCurrentJob] = useState<CraftingJob | null>(null);
   const [itemToCollect, setItemToCollect] = useState<InventoryItem | null>(null);
+
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; source: 'output' } | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
+  const inventoryGridRef = useRef<HTMLDivElement | null>(null);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -166,18 +171,104 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsLoadingAction(false);
   };
 
-  const handleCollectItem = async () => {
-    if (!construction) return;
-    setIsLoadingAction(true);
-    const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Objet récupéré !");
-      await onUpdate();
-    }
-    setIsLoadingAction(false);
+  const handleDragStart = (item: InventoryItem, source: 'output', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItem({ item, source });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
   };
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    let newDragOverIndex: number | null = null;
+    if (inventoryGridRef.current) {
+      const slotElements = Array.from(inventoryGridRef.current.children);
+      for (const slot of slotElements) {
+        const rect = slot.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          const potentialIndex = parseInt((slot as HTMLElement).dataset.slotIndex || '-1', 10);
+          if (potentialIndex !== -1 && potentialIndex < playerData.playerState.unlocked_slots) {
+            newDragOverIndex = potentialIndex;
+          }
+          break;
+        }
+      }
+    }
+    setDragOverIndex(newDragOverIndex);
+  }, [playerData.playerState.unlocked_slots]);
+
+  const handleDragEnd = useCallback(async () => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+
+    if (!draggedItem || dragOverIndex === null || !construction) {
+      setDraggedItem(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const toIndex = dragOverIndex;
+    setDraggedItem(null);
+    setDragOverIndex(null);
+
+    const originalItemToCollect = itemToCollect;
+    setItemToCollect(null);
+
+    const { error } = await supabase.rpc('collect_workbench_output', {
+        p_workbench_id: construction.id,
+        p_target_slot: toIndex,
+    });
+
+    if (error) {
+        showError(error.message);
+        setItemToCollect(originalItemToCollect);
+    } else {
+        showSuccess("Objet récupéré !");
+        await onUpdate();
+    }
+  }, [draggedItem, dragOverIndex, construction, itemToCollect, onUpdate]);
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd]);
 
   const renderCraftingInterface = () => {
     if (currentJob) {
@@ -198,14 +289,19 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (itemToCollect) {
       return (
         <div className="text-center space-y-3 p-4 bg-black/20 rounded-lg">
-          <p className="font-semibold">Objet prêt à être récupéré</p>
-          <div className="flex items-center justify-center gap-4">
-            <div className="w-12 h-12 relative"><ItemIcon iconName={getIconUrl(itemToCollect.items?.icon) || itemToCollect.items?.icon} alt={itemToCollect.items?.name || ''} /></div>
-            <p className="font-bold text-lg">{itemToCollect.items?.name} x{itemToCollect.quantity}</p>
+          <p className="font-semibold">Objet prêt</p>
+          <div className="flex items-center justify-center">
+            <InventorySlot
+              item={itemToCollect}
+              index={-1}
+              isUnlocked={true}
+              onDragStart={(index, node, e) => handleDragStart(itemToCollect, 'output', node, e)}
+              onItemClick={() => {}}
+              isBeingDragged={draggedItem?.source === 'output'}
+              isDragOver={false}
+            />
           </div>
-          <Button onClick={handleCollectItem} disabled={isLoadingAction} className="w-full">
-            {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : "Récupérer"}
-          </Button>
+          <p className="text-xs text-gray-400">Glissez-déposez dans votre inventaire pour récupérer.</p>
         </div>
       );
     }
@@ -268,11 +364,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         </div>
         <div>
           <h3 className="font-bold text-center mb-2">Inventaire</h3>
-          <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
+          <div ref={inventoryGridRef} className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
             {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
               const item = playerData.inventory.find(i => i.slot_position === index);
               return (
-                <div key={item?.id || index}>
+                <div key={item?.id || index} data-slot-index={index}>
                   <InventorySlot 
                     item={item || null} 
                     index={index} 
@@ -280,7 +376,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     onDragStart={() => {}}
                     onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
                     isBeingDragged={false}
-                    isDragOver={false}
+                    isDragOver={dragOverIndex === index}
                   />
                 </div>
               );
@@ -317,11 +413,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         item={detailedItem?.item || null}
         source={detailedItem?.source}
         onUse={() => {
-          if (detailedItem?.source === 'output') {
-            handleCollectItem();
-          } else {
-            showError("Vous ne pouvez pas utiliser un objet depuis l'établi.");
-          }
+          showError("Vous ne pouvez pas utiliser un objet depuis l'établi.");
         }}
         onDropOne={() => {}}
         onDropAll={() => {}}
