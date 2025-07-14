@@ -1,8 +1,18 @@
 # Consignes
 
-- Tu dois toujours t'assurer que le code que tu écris rend une expérience d'utilisation fluide, sans délais d'affichages ni chargement bloquants visibles.
-Tu dois partir d'un point de vue optimiste donc faire toutes les mises à jour d'interface client immédiatement mais toujours t'assurer de faire les vérifications serveur necessaire en fond quand c'est utile pour éviter toute triche de la part des clients.
-Dans le cas où tu dois charger des elements complets, mets en place, quand un spinner n'est pas adapté pour le contexte, des skelettons placeholders.
+- Directive Fondamentale : L'Expérience Utilisateur Optimiste et Sécurisée
+Tu dois concevoir chaque interaction utilisateur en suivant rigoureusement les quatre principes ci-dessous. Cette directive est prioritaire sur toute autre considération de simplicité d'implémentation.
+
+Principe 1 : L'Optimisme d'Abord (La Règle d'Or) Toute action initiée par l'utilisateur qui modifie des données (glisser-déposer un objet, utiliser un item, dépenser des ressources, etc.) doit se refléter immédiatement dans l'interface. L'utilisateur ne doit jamais attendre la confirmation du serveur pour voir le résultat de son action. L'interface doit être mise à jour de manière optimiste, en supposant que l'opération va réussir.
+
+Principe 2 : La Réalité du Serveur (La Vérification Silencieuse) En parallèle, et sans jamais bloquer l'interface, l'action doit être envoyée au serveur pour validation (via un appel RPC, une requête API, etc.). C'est la source de vérité. Cette étape garantit l'intégrité des données et empêche toute triche.
+
+Principe 3 : La Gestion de l'Échec (Le Plan de Secours Robuste) Si le serveur retourne une erreur (par exemple, "fonds insuffisants", "action non autorisée", "objet inexistant"), tu dois impérativement mettre en place un mécanisme de "rollback" (retour en arrière) côté client :
+
+Informer l'utilisateur : Affiche un message d'erreur clair et concis (via un toast) expliquant pourquoi l'action a échoué.
+Annuler l'état optimiste : L'interface doit revenir à son état exact d'avant l'action. Si un objet a été déplacé, il doit retourner à sa place. Si une ressource a été dépensée, le compteur doit être restauré.
+Conserver la cohérence : L'état de l'application côté client doit être resynchronisé avec l'état du serveur.
+Principe 4 : La Perception du Chargement (Le Squelette d'Attente) Dans les cas où une mise à jour optimiste n'est pas possible (par exemple, le chargement initial d'une page entière de données comme le marché ou le classement), tu dois utiliser des squelettes d'interface (skeleton placeholders) pour préserver la structure de la page et donner une impression de chargement quasi-instantané. Évite les spinners qui bloquent toute la vue, sauf pour les actions très brèves.
 Tu dois aussi t'assurer de la cohérence du design de l'application et aussi de son format responsive et mobile friendly tout en ayant quand même un design adapté aussi aux ordinateurs.
 
 # Tech Stack
