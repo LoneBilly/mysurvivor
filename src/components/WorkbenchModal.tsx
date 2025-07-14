@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import Icon from '@/components/Icon';
+import ItemIcon from '@/components/ItemIcon';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -103,7 +103,7 @@ export function WorkbenchModal({ isOpen, onClose, workbench, recipes, workbenchI
 
         return (
             <div className={`flex items-center gap-2 p-2 rounded-md ${hasEnough ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
-                <Icon name={item.icon} className="w-6 h-6" />
+                <div className="w-6 h-6 relative"><ItemIcon iconName={item.icon} alt={item.name} /></div>
                 <span>{item.name}</span>
                 <span className="font-bold ml-auto">{available} / {required}</span>
             </div>
@@ -126,7 +126,7 @@ export function WorkbenchModal({ isOpen, onClose, workbench, recipes, workbenchI
                     <p>Récupérez votre objet.</p>
                     <Card className="bg-slate-700/50 p-4">
                         <div className="flex items-center gap-4">
-                            <Icon name={outputItemDetails.icon} className="w-16 h-16" />
+                            <div className="w-16 h-16 relative"><ItemIcon iconName={outputItemDetails.icon} alt={outputItemDetails.name} /></div>
                             <div className="text-left">
                                 <p className="text-xl font-bold">{outputItemDetails.name}</p>
                                 <p className="text-lg">Quantité: {workbench.output_quantity}</p>
@@ -147,7 +147,7 @@ export function WorkbenchModal({ isOpen, onClose, workbench, recipes, workbenchI
                     <h3 className="text-2xl font-bold text-yellow-400">Fabrication en cours...</h3>
                     <Card className="bg-slate-700/50 p-4">
                         <div className="flex items-center gap-4">
-                            <Icon name={activeJob.result_item_icon} className="w-16 h-16" />
+                            <div className="w-16 h-16 relative"><ItemIcon iconName={activeJob.result_item_icon} alt={activeJob.result_item_name} /></div>
                             <div className="text-left">
                                 <p className="text-xl font-bold">{activeJob.result_item_name}</p>
                                 <p className="text-lg">Quantité: {activeJob.result_quantity}</p>
@@ -176,7 +176,7 @@ export function WorkbenchModal({ isOpen, onClose, workbench, recipes, workbenchI
                                     className={`p-3 cursor-pointer transition-colors ${selectedRecipe?.id === recipe.id ? 'bg-slate-600 border-blue-500' : 'bg-slate-700/50 border-slate-700 hover:bg-slate-700'}`}
                                     onClick={() => setSelectedRecipe(recipe)}>
                                     <div className="flex items-center gap-3">
-                                        <Icon name={allItems.find(i => i.id === recipe.result_item_id)?.icon} className="w-8 h-8" />
+                                        <div className="w-8 h-8 relative"><ItemIcon iconName={allItems.find(i => i.id === recipe.result_item_id)?.icon} alt={allItems.find(i => i.id === recipe.result_item_id)?.name || ''} /></div>
                                         <div>
                                             <p className="font-semibold">{allItems.find(i => i.id === recipe.result_item_id)?.name}</p>
                                             <p className="text-xs text-slate-400">Temps: {recipe.craft_time_seconds}s</p>
@@ -192,7 +192,7 @@ export function WorkbenchModal({ isOpen, onClose, workbench, recipes, workbenchI
                         <Card className="bg-slate-900/50 h-full flex flex-col">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3">
-                                    <Icon name={allItems.find(i => i.id === selectedRecipe.result_item_id)?.icon} className="w-10 h-10" />
+                                    <div className="w-10 h-10 relative"><ItemIcon iconName={allItems.find(i => i.id === selectedRecipe.result_item_id)?.icon} alt={allItems.find(i => i.id === selectedRecipe.result_item_id)?.name || ''} /></div>
                                     <span className="text-2xl">{allItems.find(i => i.id === selectedRecipe.result_item_id)?.name}</span>
                                 </CardTitle>
                             </CardHeader>
