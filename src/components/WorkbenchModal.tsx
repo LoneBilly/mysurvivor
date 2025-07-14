@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, InventoryItem, CraftingRecipe, Item } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
+import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
+import { Hammer, Trash2, ArrowRight, Loader2, Check, BookOpen, Clock, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -23,7 +23,7 @@ interface WorkbenchModalProps {
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { user } = useAuth();
-  const { playerData, items } = useGame();
+  const { playerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -45,8 +45,18 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const displayedInventory = useMemo(() => {
-    const itemsInCraftingIds = new Set(ingredientSlots.filter(Boolean).map(item => item!.id));
-    return playerData.inventory.filter(item => !itemsInCraftingIds.has(item.id));
+    const itemsInCrafting = new Map<number, number>();
+    ingredientSlots.forEach(item => {
+      if (item) {
+        const currentQty = itemsInCrafting.get(item.item_id) || 0;
+        itemsInCrafting.set(item.item_id, currentQty + item.quantity);
+      }
+    });
+
+    return playerData.inventory.map(invItem => {
+      const usedQuantity = itemsInCrafting.get(invItem.item_id) || 0;
+      return { ...invItem, quantity: invItem.quantity - usedQuantity };
+    }).filter(item => item.quantity > 0);
   }, [playerData.inventory, ingredientSlots]);
 
   const fetchRecipes = useCallback(async () => {
