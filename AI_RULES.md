@@ -1,5 +1,3 @@
-
-
 # Tech Stack
 
 - You are building a React application.
