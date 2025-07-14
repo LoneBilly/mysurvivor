@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, BookOpen } from "lucide-react";
@@ -34,26 +34,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [currentJob, setCurrentJob] = useState<CraftingJob | null>(null);
   const [itemToCollect, setItemToCollect] = useState<InventoryItem | null>(null);
   const [isDraggingOutput, setIsDraggingOutput] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
     if (error) showError("Impossible de charger les recettes.");
     else setRecipes(data || []);
   }, []);
-
-  const fetchWorkbenchItems = useCallback(async () => {
-    if (!construction) return;
-    const { data, error } = await supabase
-        .from('workbench_items')
-        .select('*, items(*)')
-        .eq('workbench_id', construction.id);
-    
-    if (error) {
-        showError("Impossible de charger le contenu de l'établi.");
-    } else {
-        setWorkbenchItems(data as InventoryItem[]);
-    }
-  }, [construction]);
 
   useEffect(() => {
     if (isOpen && construction) {
@@ -77,7 +64,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       }
 
       fetchRecipes();
-      fetchWorkbenchItems();
     } else {
       setIngredientSlots([null, null, null]);
       setWorkbenchItems([]);
@@ -86,18 +72,57 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setDetailedItem(null);
       setCurrentJob(null);
       setItemToCollect(null);
+      setProgress(0);
     }
-  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchItems]);
+  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes]);
 
   useEffect(() => {
-    const newSlots = Array(3).fill(null);
-    workbenchItems.forEach(item => {
-        if (item.slot_position >= 0 && item.slot_position < 3) {
-            newSlots[item.slot_position] = item;
+    if (!construction) return;
+    const { data, error } = supabase
+      .from('workbench_items')
+      .select('*, items(*)')
+      .eq('workbench_id', construction.id)
+      .then(response => {
+        if (response.error) {
+          showError("Impossible de charger le contenu de l'établi.");
+        } else {
+          const fetchedItems = response.data as InventoryItem[];
+          setWorkbenchItems(fetchedItems);
+          const newSlots = Array(3).fill(null);
+          fetchedItems.forEach(item => {
+            if (item.slot_position >= 0 && item.slot_position < 3) {
+              newSlots[item.slot_position] = item;
+            }
+          });
+          setIngredientSlots(newSlots);
         }
-    });
-    setIngredientSlots(newSlots);
-  }, [workbenchItems]);
+      });
+  }, [construction, isOpen, onUpdate]);
+
+  useEffect(() => {
+    if (currentJob) {
+      const interval = setInterval(() => {
+        const startTime = new Date(currentJob.started_at).getTime();
+        const endTime = new Date(currentJob.ends_at).getTime();
+        const now = Date.now();
+        
+        if (now >= endTime) {
+          setProgress(100);
+          clearInterval(interval);
+          return;
+        }
+
+        const totalDuration = endTime - startTime;
+        const elapsedTime = now - startTime;
+        const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
+        setProgress(newProgress);
+      }, 100);
+
+      return () => clearInterval(interval);
+    } else {
+      setProgress(0);
+    }
+  }, [currentJob]);
 
   const maxCraftableQuantity = useMemo(() => {
     if (!matchedRecipe) return 0;
@@ -111,11 +136,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [ingredientSlots, matchedRecipe]);
 
   useEffect(() => {
-    if (currentJob || itemToCollect) {
-      setMatchedRecipe(null);
-      return;
-    }
-
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
     if (ingredients.length === 0) {
       setMatchedRecipe(null);
@@ -144,7 +164,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       }
     }
     setMatchedRecipe(null);
-  }, [ingredientSlots, recipes, currentJob, itemToCollect]);
+  }, [ingredientSlots, recipes]);
 
   useEffect(() => {
     if (matchedRecipe) {
@@ -161,22 +181,27 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
     if (error) {
       showError(error.message);
+      setIsLoadingAction(false);
     } else {
       showSuccess("Fabrication lancée !");
       await onUpdate();
+      setIsLoadingAction(false);
     }
-    setIsLoadingAction(false);
   };
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
     setIsDraggingOutput(true);
-    e.dataTransfer.setData("text/plain", "workbench_output");
+    e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'workbench_output', constructionId: construction?.id }));
   };
 
   const handleDropOnInventory = async (e: React.DragEvent<HTMLDivElement>, targetSlot: number) => {
     e.preventDefault();
-    if (!isDraggingOutput || !construction) return;
+    const data = e.dataTransfer.getData("text/plain");
+    if (!data) return;
+
+    const parsedData = JSON.parse(data);
+    if (parsedData.type !== 'workbench_output' || parsedData.constructionId !== construction?.id) return;
     
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('collect_workbench_output', { 
@@ -194,122 +219,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsDraggingOutput(false);
   };
 
-  const renderCraftingInterface = () => {
-    if (currentJob) {
-      return (
-        <div className="text-center space-y-3 p-4 bg-black/20 rounded-lg">
-          <p className="font-semibold">Fabrication en cours...</p>
-          <div className="flex items-center justify-center gap-4">
-            <div className="w-12 h-12 relative"><ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} /></div>
-            <p className="font-bold text-lg">{currentJob.result_item_name}</p>
-          </div>
-          <div className="text-sm text-gray-300 font-mono">
-            <CountdownTimer endTime={currentJob.ends_at} onComplete={onUpdate} />
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-bold text-center">Établi</h3>
-            <Button variant="outline" size="sm" onClick={() => setIsBlueprintModalOpen(true)}>
-              <BookOpen className="w-4 h-4 mr-2" /> Blueprints
-            </Button>
-          </div>
-          <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
-            <div className="grid grid-cols-5 gap-2">
-              <div />
-              {ingredientSlots.map((item, index) => (
-                <div key={item?.id || index}>
-                  <InventorySlot
-                    item={item}
-                    index={index}
-                    isUnlocked={true}
-                    onDragStart={() => {}}
-                    onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
-                    isBeingDragged={false}
-                    isDragOver={false}
-                  />
-                </div>
-              ))}
-              <div />
-            </div>
-            <div className="grid grid-cols-5 items-center gap-2">
-              <div className="col-span-2 flex justify-end">
-                  <ArrowRight className="w-8 h-8 text-gray-500" />
-              </div>
-              <div 
-                className={cn(
-                  "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
-                  itemToCollect && "cursor-grab active:cursor-grabbing"
-                )}
-                draggable={!!itemToCollect}
-                onDragStart={handleDragStartOutput}
-                onDragEnd={() => setIsDraggingOutput(false)}
-              >
-                {itemToCollect ? (
-                  <>
-                    <ItemIcon iconName={getIconUrl(itemToCollect.items?.icon) || itemToCollect.items?.icon} alt={itemToCollect.items?.name || ''} />
-                    <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                      x{itemToCollect.quantity}
-                    </span>
-                  </>
-                ) : resultItem && (
-                  <>
-                    <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
-                    {matchedRecipe && (
-                      <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                        x{matchedRecipe.result_quantity}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-              <div className="col-span-2" />
-            </div>
-            {matchedRecipe && (
-              <div className="text-center text-sm text-gray-300">
-                <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
-                {maxCraftableQuantity > 1 && <p>Temps total pour {maxCraftableQuantity} crafts: {maxCraftableQuantity * matchedRecipe.craft_time_seconds}s</p>}
-              </div>
-            )}
-            <Button onClick={handleStartCraft} disabled={!matchedRecipe || isLoadingAction} className="w-full">
-              {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Hammer className="w-4 h-4 mr-2" /> Fabriquer</>}
-            </Button>
-          </div>
-        </div>
-        <div>
-          <h3 className="font-bold text-center mb-2">Inventaire</h3>
-          <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
-            {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
-              const item = playerData.inventory.find(i => i.slot_position === index);
-              return (
-                <div 
-                  key={item?.id || index}
-                  onDrop={(e) => handleDropOnInventory(e, index)}
-                  onDragOver={(e) => e.preventDefault()}
-                >
-                  <InventorySlot 
-                    item={item || null} 
-                    index={index} 
-                    isUnlocked={true} 
-                    onDragStart={() => {}}
-                    onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
-                    isBeingDragged={false}
-                    isDragOver={isDraggingOutput}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -321,7 +230,126 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             </div>
           </DialogHeader>
           <div className="py-4">
-            {renderCraftingInterface()}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-center">Établi</h3>
+                  <Button variant="outline" size="sm" onClick={() => setIsBlueprintModalOpen(true)}>
+                    <BookOpen className="w-4 h-4 mr-2" /> Blueprints
+                  </Button>
+                </div>
+                <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
+                  <div className="grid grid-cols-5 gap-2">
+                    <div />
+                    {ingredientSlots.map((item, index) => (
+                      <div key={item?.id || index}>
+                        <InventorySlot
+                          item={item}
+                          index={index}
+                          isUnlocked={true}
+                          onDragStart={() => {}}
+                          onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
+                          isBeingDragged={false}
+                          isDragOver={false}
+                        />
+                      </div>
+                    ))}
+                    <div />
+                  </div>
+                  <div className="grid grid-cols-5 items-center gap-2">
+                    <div className="col-span-2 flex justify-end">
+                        <ArrowRight className="w-8 h-8 text-gray-500" />
+                    </div>
+                    <div 
+                      className={cn(
+                        "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
+                        itemToCollect && "cursor-grab active:cursor-grabbing"
+                      )}
+                      draggable={!!itemToCollect}
+                      onDragStart={handleDragStartOutput}
+                      onDragEnd={() => setIsDraggingOutput(false)}
+                    >
+                      {currentJob ? (
+                        <>
+                          <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                            <Loader2 className="w-6 h-6 animate-spin text-white" />
+                          </div>
+                        </>
+                      ) : itemToCollect ? (
+                        <>
+                          <ItemIcon iconName={getIconUrl(itemToCollect.items?.icon) || itemToCollect.items?.icon} alt={itemToCollect.items?.name || ''} />
+                          <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                            x{itemToCollect.quantity}
+                          </span>
+                        </>
+                      ) : resultItem && (
+                        <>
+                          <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
+                          {matchedRecipe && (
+                            <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                              x{matchedRecipe.result_quantity}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <div className="col-span-2" />
+                  </div>
+                  
+                  <div className="h-[60px] flex flex-col justify-center items-center">
+                    {currentJob ? (
+                      <div className="w-full space-y-2 px-4">
+                        <div className="w-full bg-slate-700 rounded-full h-4 border border-slate-600 overflow-hidden">
+                          <div className="bg-blue-500 h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                        </div>
+                        <div className="text-center text-sm text-gray-300 font-mono">
+                          <CountdownTimer endTime={currentJob.ends_at} onComplete={onUpdate} />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {matchedRecipe && (
+                          <div className="text-center text-sm text-gray-300 mb-2">
+                            <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
+                          </div>
+                        )}
+                        <Button onClick={handleStartCraft} disabled={!matchedRecipe || isLoadingAction} className="w-full max-w-xs">
+                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Hammer className="w-4 h-4 mr-2" /> Fabriquer</>}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-bold text-center mb-2">Inventaire</h3>
+                <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
+                  {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
+                    const item = playerData.inventory.find(i => i.slot_position === index);
+                    return (
+                      <div 
+                        key={item?.id || index}
+                        onDrop={(e) => handleDropOnInventory(e, index)}
+                        onDragOver={(e) => {
+                          if (isDraggingOutput) e.preventDefault();
+                        }}
+                      >
+                        <InventorySlot 
+                          item={item || null} 
+                          index={index} 
+                          isUnlocked={true} 
+                          onDragStart={() => {}}
+                          onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
+                          isBeingDragged={false}
+                          isDragOver={isDraggingOutput}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="destructive" onClick={() => construction && onDemolish(construction)}>
