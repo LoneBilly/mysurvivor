@@ -27,8 +27,6 @@ export interface BaseConstruction {
   x: number;
   y: number;
   type: string;
-  output_item_id: number | null;
-  output_quantity: number | null;
 }
 
 export interface ScoutingMission {
