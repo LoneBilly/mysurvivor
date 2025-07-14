@@ -26,9 +26,12 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   const [chestItems, setChestItems] = useState<ChestItem[]>([]);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
 
-  const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest'; originalIndex: number } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
+  const chestGridRef = useRef<HTMLDivElement | null>(null);
+  const inventoryGridRef = useRef<HTMLDivElement | null>(null);
 
   const fetchChestContents = useCallback(async () => {
     if (!construction) return;
@@ -113,7 +116,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
   };
 
-  const handleDrop = async (item: InventoryItem, source: 'inventory' | 'chest', quantity: number) => {
+  const handleDropItem = async (item: InventoryItem, source: 'inventory' | 'chest', quantity: number) => {
     setDetailedItem(null);
     let rpcPromise;
     if (source === 'chest') {
@@ -137,9 +140,19 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
   };
 
-  const handleDragStart = (index: number, source: 'inventory' | 'chest', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+  const stopAutoScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
+
+  const handleDragStart = useCallback((index: number, source: 'inventory' | 'chest', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
-    setDraggedItem({ index, source });
+    const item = source === 'inventory' ? playerData.inventory.find(i => i.slot_position === index) : chestItems.find(i => i.slot_position === index);
+    if (!item) return;
+
+    setDraggedItem({ item, source, originalIndex: index });
     
     const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
     if (!ghostNode) return;
@@ -156,7 +169,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
     const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
     handleDragMove(clientX, clientY);
-  };
+  }, [playerData.inventory, chestItems]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
@@ -164,23 +177,48 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
     }
 
+    let newDragOver: { index: number; target: 'inventory' | 'chest' } | null = null;
     const elements = document.elementsFromPoint(clientX, clientY);
-    const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
     
-    if (slotElement) {
-      const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
-      const targetElement = (slotElement as HTMLElement).closest('[data-slot-target]');
-      const target = targetElement?.getAttribute('data-slot-target') as 'inventory' | 'chest' | undefined;
+    const inventorySlotElement = elements.find(el => el.hasAttribute('data-slot-index') && el.closest('[data-slot-target="inventory"]'));
+    const chestSlotElement = elements.find(el => el.hasAttribute('data-slot-index') && el.closest('[data-slot-target="chest"]'));
 
-      if (index !== -1 && target) {
-        setDragOver({ index, target });
-        return;
+    if (inventorySlotElement) {
+      const index = parseInt(inventorySlotElement.getAttribute('data-slot-index') || '-1', 10);
+      if (index !== -1 && index < playerData.playerState.unlocked_slots) { // Check if inventory slot is unlocked
+        newDragOver = { index, target: 'inventory' };
+      }
+    } else if (chestSlotElement) {
+      const index = parseInt(chestSlotElement.getAttribute('data-slot-index') || '-1', 10);
+      if (index !== -1 && index < CHEST_SLOTS) { // Check if chest slot is within bounds
+        newDragOver = { index, target: 'chest' };
       }
     }
-    setDragOver(null);
-  }, []);
+    setDragOver(newDragOver);
 
-  const handleDragEnd = async () => {
+    // Auto-scroll logic
+    const scrollThreshold = 60;
+    stopAutoScroll();
+
+    if (inventoryGridRef.current) {
+      const rect = inventoryGridRef.current.getBoundingClientRect();
+      if (clientY < rect.top + scrollThreshold && inventoryGridRef.current.scrollTop > 0) {
+        scrollIntervalRef.current = requestAnimationFrame(() => {
+          if (inventoryGridRef.current) inventoryGridRef.current.scrollTop -= 10;
+          handleDragMove(clientX, clientY); // Continue scrolling
+        });
+      } else if (clientY > rect.bottom - scrollThreshold && inventoryGridRef.current.scrollTop < inventoryGridRef.current.scrollHeight - inventoryGridRef.current.clientHeight) {
+        scrollIntervalRef.current = requestAnimationFrame(() => {
+          if (inventoryGridRef.current) inventoryGridRef.current.scrollTop += 10;
+          handleDragMove(clientX, clientY); // Continue scrolling
+        });
+      }
+    }
+    // Add similar logic for chestGridRef if needed
+  }, [playerData.playerState.unlocked_slots, stopAutoScroll]);
+
+  const handleDragEnd = useCallback(async () => {
+    stopAutoScroll();
     if (draggedItemNode.current) {
       document.body.removeChild(draggedItemNode.current);
       draggedItemNode.current = null;
@@ -192,13 +230,13 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       return;
     }
   
-    const { source, index: fromIndex } = draggedItem;
-    const { target, index: toIndex } = dragOver;
+    const { item: fromItem, source: fromSource, originalIndex: fromIndex } = draggedItem;
+    const { target: toTarget, index: toIndex } = dragOver;
   
     setDraggedItem(null);
     setDragOver(null);
   
-    if (source === target && fromIndex === toIndex) return;
+    if (fromSource === toTarget && fromIndex === toIndex) return;
   
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     const originalChestItems = JSON.parse(JSON.stringify(chestItems));
@@ -206,70 +244,76 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     // --- START OPTIMISTIC UPDATE ---
     let newInventory = [...playerData.inventory];
     let newChestItems = [...chestItems];
-    let rpcPromise;
   
-    const fromItem = source === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newChestItems.find(i => i.slot_position === fromIndex);
-    const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newChestItems.find(i => i.slot_position === toIndex);
-  
-    if (!fromItem) return;
-  
-    // Case 1: Merge
+    const toItem = toTarget === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newChestItems.find(i => i.slot_position === toIndex);
+    
+    // Remove from source
+    if (fromSource === 'inventory') {
+      newInventory = newInventory.filter(i => i.id !== fromItem.id);
+    } else {
+      newChestItems = newChestItems.filter(i => i.id !== fromItem.id);
+    }
+
+    // Handle merge or swap
     if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
-      if (source === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
-      else newChestItems = newChestItems.filter(i => i.id !== fromItem.id);
-  
-      if (target === 'inventory') newInventory = newInventory.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
-      else newChestItems = newChestItems.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
-    } 
-    // Case 2: Swap/Move
-    else {
-      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newChestItems.findIndex(i => i.id === fromItem.id);
-      const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newChestItems.splice(fromItemInSourceIdx, 1);
-      movedItem.slot_position = toIndex;
-  
-      if (toItem) {
-        const toItemInTargetIdx = target === 'inventory' ? newInventory.findIndex(i => i.id === toItem.id) : newChestItems.findIndex(i => i.id === toItem.id);
-        const [itemToSwap] = target === 'inventory' ? newInventory.splice(toItemInTargetIdx, 1) : newChestItems.splice(toItemInTargetIdx, 1);
-        itemToSwap.slot_position = fromIndex;
-        if (source === 'inventory') newInventory.push(itemToSwap);
-        else newChestItems.push(itemToSwap);
-      }
-  
-      if (target === 'inventory') newInventory.push(movedItem);
-      else newChestItems.push(movedItem);
+        // Merge: Add quantity to target item, fromItem is consumed
+        if (toTarget === 'inventory') {
+            newInventory = newInventory.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
+        } else {
+            newChestItems = newChestItems.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
+        }
+    } else {
+        // Swap or Move to empty slot
+        const movedItem = { ...fromItem, slot_position: toIndex };
+        if (toTarget === 'inventory') {
+            newInventory.push(movedItem);
+        } else {
+            newChestItems.push(movedItem);
+        }
+
+        if (toItem) { // If there was an item in the target slot, move it to the source's original slot
+            const swappedItem = { ...toItem, slot_position: fromIndex };
+            if (fromSource === 'inventory') {
+                newInventory.push(swappedItem);
+            } else {
+                newChestItems.push(swappedItem);
+            }
+        }
     }
   
     setPlayerData(prev => ({ ...prev, inventory: newInventory }));
     setChestItems(newChestItems);
     // --- END OPTIMISTIC UPDATE ---
   
-    if (source === 'inventory' && target === 'inventory') {
+    let rpcPromise;
+    if (fromSource === 'inventory' && toTarget === 'inventory') {
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
-    } else if (source === 'chest' && target === 'chest') {
+    } else if (fromSource === 'chest' && toTarget === 'chest') {
       if (!construction) return;
       rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
-    } else if (source === 'inventory' && target === 'chest') {
-      const itemToMove = originalPlayerData.inventory.find(i => i.slot_position === fromIndex);
-      if (!itemToMove || !construction) return;
-      rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: itemToMove.id, p_chest_id: construction.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
-    } else if (source === 'chest' && target === 'inventory') {
-      const itemToMove = originalChestItems.find(i => i.slot_position === fromIndex);
-      if (!itemToMove) return;
-      rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: itemToMove.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
+    } else if (fromSource === 'inventory' && toTarget === 'chest') {
+      if (!construction) return;
+      rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: fromItem.id, p_chest_id: construction.id, p_quantity_to_move: fromItem.quantity, p_target_slot: toIndex });
+    } else if (fromSource === 'chest' && toTarget === 'inventory') {
+      rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: fromItem.id, p_quantity_to_move: fromItem.quantity, p_target_slot: toIndex });
+    } else {
+        // This case should ideally not happen with correct dragOver logic
+        console.warn("Unhandled drag and drop scenario.");
+        return;
     }
   
     if (rpcPromise) {
       const { error } = await rpcPromise;
       if (error) {
         showError(error.message || "Erreur de transfert.");
-        setPlayerData(originalPlayerData);
-        setChestItems(originalChestItems);
+        setPlayerData(originalPlayerData); // Revert
+        setChestItems(originalChestItems); // Revert
       } else {
-        await onUpdate(true);
-        await fetchChestContents();
+        await onUpdate(true); // Full refresh from server
+        await fetchChestContents(); // Full refresh for chest
       }
     }
-  };
+  }, [draggedItem, dragOver, playerData, chestItems, construction, onUpdate]);
 
   useEffect(() => {
     const moveHandler = (e: MouseEvent | TouchEvent) => {
@@ -290,10 +334,11 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       window.removeEventListener('mouseup', endHandler);
       window.removeEventListener('touchmove', moveHandler);
       window.removeEventListener('touchend', endHandler);
+      stopAutoScroll();
     };
-  }, [draggedItem, handleDragMove, handleDragEnd]);
+  }, [draggedItem, handleDragMove, handleDragEnd, stopAutoScroll]);
 
-  const renderGrid = (title: string, items: (InventoryItem | null)[], totalSlots: number, type: 'inventory' | 'chest') => {
+  const renderGrid = (title: string, items: (InventoryItem | null)[], totalSlots: number, type: 'inventory' | 'chest', gridRef: React.RefObject<HTMLDivElement>) => {
     const slots = Array.from({ length: totalSlots }).map((_, index) => {
       return items.find(i => i?.slot_position === index) || null;
     });
@@ -301,7 +346,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     return (
       <div className="flex flex-col">
         <h3 className="text-center font-bold mb-2">{title}</h3>
-        <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start">
+        <div ref={gridRef} className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto no-scrollbar">
           {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
@@ -310,7 +355,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
                 isUnlocked={type === 'chest' || index < playerData.playerState.unlocked_slots}
                 onDragStart={(idx, node, e) => handleDragStart(idx, type, node, e)}
                 onItemClick={(clickedItem) => handleItemClick(clickedItem, type)}
-                isBeingDragged={draggedItem?.source === type && draggedItem?.index === index}
+                isBeingDragged={draggedItem?.source === type && draggedItem?.originalIndex === index}
                 isDragOver={dragOver?.target === type && dragOver?.index === index}
               />
             </div>
@@ -336,8 +381,8 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             </DialogDescription>
           </DialogHeader>
           <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
-            {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
-            {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
+            {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest', chestGridRef)}
+            {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory', inventoryGridRef)}
           </div>
           <DialogFooter className="mt-4">
             <Button variant="destructive" onClick={handleDemolishClick}>
@@ -353,9 +398,10 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         item={detailedItem?.item || null}
         source={detailedItem?.source}
         onTransfer={handleTransfer}
-        onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
-        onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
+        onDropOne={() => detailedItem && handleDropItem(detailedItem.item, detailedItem.source, 1)}
+        onDropAll={() => detailedItem && handleDropItem(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
+        onUpdate={onUpdate} // Pass onUpdate to ItemDetailModal for blueprint reading
       />
     </>
   );

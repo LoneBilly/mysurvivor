@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check, BookOpen } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -59,12 +59,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
 
-  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; fromInventory: boolean } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; originalIndex: number } | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
+  const inventoryGridRef = useRef<HTMLDivElement | null>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
 
   const displayedInventory = useMemo(() => {
-    const itemsInCrafting = ingredientSlots.map(item => item?.id).filter(Boolean);
-    return playerData.inventory.filter(item => !itemsInCrafting.includes(item.id));
+    const itemsInCrafting = new Set(ingredientSlots.filter(Boolean).map(item => item!.id));
+    return playerData.inventory.filter(item => !itemsInCrafting.has(item.id));
   }, [playerData.inventory, ingredientSlots]);
 
   const fetchRecipes = useCallback(async () => {
@@ -128,35 +131,118 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [matchedRecipe, items]);
 
   const handleClearSlot = (index: number) => {
+    const itemToReturn = ingredientSlots[index];
+    if (!itemToReturn) return;
+
+    // Optimistic update: return item to inventory
+    const newInventory = [...playerData.inventory];
+    const existingStackIndex = newInventory.findIndex(i => i.item_id === itemToReturn.item_id && i.items?.stackable);
+
+    if (existingStackIndex !== -1) {
+      newInventory[existingStackIndex].quantity += itemToReturn.quantity;
+    } else {
+      // Find first empty slot in inventory
+      let nextSlot = -1;
+      for (let i = 0; i < playerData.playerState.unlocked_slots; i++) {
+        if (!newInventory.some(invItem => invItem.slot_position === i)) {
+          nextSlot = i;
+          break;
+        }
+      }
+      if (nextSlot !== -1) {
+        newInventory.push({ ...itemToReturn, slot_position: nextSlot });
+      } else {
+        showError("Inventaire plein, impossible de retirer l'objet de l'établi.");
+        return; // Prevent optimistic update if inventory is full
+      }
+    }
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+
     const newSlots = [...ingredientSlots];
     newSlots[index] = null;
     setIngredientSlots(newSlots);
+
+    // Server call to move item back
+    supabase.rpc('move_item_from_chest', { p_chest_item_id: itemToReturn.id, p_quantity_to_move: itemToReturn.quantity, p_target_slot: itemToReturn.slot_position }) // Assuming itemToReturn.id is actually the inventory item ID
+      .then(({ error }) => {
+        if (error) {
+          showError(error.message || "Erreur lors du retour de l'objet.");
+          refreshPlayerData(); // Revert by fetching fresh data
+        } else {
+          refreshPlayerData();
+        }
+      });
   };
 
   const handleCraft = async () => {
     if (!matchedRecipe || !construction) return;
+
+    // Optimistic update: consume ingredients from inventory
+    const originalInventory = JSON.parse(JSON.stringify(playerData.inventory));
+    const newInventory = [...playerData.inventory];
+    const consumedItemIds = new Set();
+
+    ingredientSlots.forEach(slotItem => {
+      if (slotItem) {
+        const invItemIndex = newInventory.findIndex(i => i.id === slotItem.id);
+        if (invItemIndex !== -1) {
+          newInventory[invItemIndex].quantity -= slotItem.quantity;
+          if (newInventory[invItemIndex].quantity <= 0) {
+            newInventory.splice(invItemIndex, 1);
+          }
+          consumedItemIds.add(slotItem.id);
+        }
+      }
+    });
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+    setIngredientSlots([null, null, null]); // Clear crafting slots optimistically
+
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
     if (error) {
       showError(error.message);
+      setPlayerData(prev => ({ ...prev, inventory: originalInventory })); // Revert inventory
+      refreshPlayerData(); // Revert crafting slots
     } else {
       showSuccess("Fabrication lancée !");
-      onUpdate();
+      onUpdate(); // Refresh player data including new crafting job
     }
   };
 
   const handleCollect = async () => {
     if (!craftingJob) return;
+    
+    // Optimistic update: remove crafting job
+    const originalCraftingJobs = JSON.parse(JSON.stringify(playerData.craftingJobs));
+    setCraftingJob(null);
+    setPlayerData(prev => ({
+      ...prev,
+      craftingJobs: prev.craftingJobs?.filter(job => job.id !== craftingJob.id) || []
+    }));
+
     const { error } = await supabase.rpc('collect_crafted_item', { p_job_id: craftingJob.id });
     if (error) {
       showError(error.message);
+      setCraftingJob(originalCraftingJobs.find((j: CraftingJob) => j.id === craftingJob.id) || null); // Revert job
+      setPlayerData(prev => ({ ...prev, craftingJobs: originalCraftingJobs })); // Revert jobs list
     } else {
       showSuccess("Objet récupéré !");
-      onUpdate();
+      onUpdate(); // Full refresh to get new item in inventory
     }
   };
 
   const handleDropItem = async (item: InventoryItem, quantity: number) => {
     setDetailedItem(null);
+    
+    // Optimistic update: remove item from inventory
+    const originalInventory = JSON.parse(JSON.stringify(playerData.inventory));
+    const newInventory = playerData.inventory.map(invItem => {
+      if (invItem.id === item.id) {
+        return { ...invItem, quantity: invItem.quantity - quantity };
+      }
+      return invItem;
+    }).filter(invItem => invItem.quantity > 0);
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+
     let error;
     if (item.quantity > quantity) {
         ({ error } = await supabase
@@ -172,25 +258,178 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
     if (error) {
         showError("Erreur lors de la suppression de l'objet.");
+        setPlayerData(originalInventory); // Revert
     } else {
         showSuccess("Objet jeté.");
-        onUpdate();
+        onUpdate(); // Full refresh
     }
   };
 
-  const handleDragStart = (item: InventoryItem, fromInventory: boolean) => {
-    setDraggedItem({ item, fromInventory });
-  };
+  const handleDragStart = useCallback((index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const item = playerData.inventory.find(i => i.slot_position === index);
+    if (!item) return;
 
-  const handleDrop = (slotIndex: number) => {
-    if (draggedItem) {
-      const newSlots = [...ingredientSlots];
-      newSlots[slotIndex] = draggedItem.item;
-      setIngredientSlots(newSlots);
+    setDraggedItem({ item, originalIndex: index });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  }, [playerData.inventory]);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
     }
+
+    let newDragOverIndex: number | null = null;
+    const craftingSlotElements = document.querySelectorAll('[data-crafting-slot-index]');
+    
+    for (const slot of craftingSlotElements) {
+        const rect = slot.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          newDragOverIndex = parseInt((slot as HTMLElement).dataset.craftingSlotIndex || '-1', 10);
+          break;
+        }
+    }
+    setDragOverSlot(newDragOverIndex);
+
+    // Auto-scroll logic for inventory
+    const gridEl = inventoryGridRef.current;
+    if (!gridEl) return;
+    const rect = gridEl.getBoundingClientRect();
+    const scrollThreshold = 60;
+
+    stopAutoScroll();
+
+    if (clientY < rect.top + scrollThreshold && gridEl.scrollTop > 0) {
+      scrollIntervalRef.current = requestAnimationFrame(() => {
+        if (gridEl) gridEl.scrollTop -= 10;
+        handleDragMove(clientX, clientY); // Continue scrolling
+      });
+    } else if (clientY > rect.bottom - scrollThreshold && gridEl.scrollTop < gridEl.scrollHeight - gridEl.clientHeight) {
+      scrollIntervalRef.current = requestAnimationFrame(() => {
+        if (gridEl) gridEl.scrollTop += 10;
+        handleDragMove(clientX, clientY); // Continue scrolling
+      });
+    }
+  }, [stopAutoScroll]);
+
+  const handleDragEnd = useCallback(async () => {
+    stopAutoScroll();
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+
+    if (!draggedItem || dragOverSlot === null) {
+      setDraggedItem(null);
+      setDragOverSlot(null);
+      return;
+    }
+
+    const { item: fromItem, originalIndex: fromIndex } = draggedItem;
+    const toIndex = dragOverSlot;
+
     setDraggedItem(null);
     setDragOverSlot(null);
-  };
+
+    // Optimistic update: move item from inventory to crafting slot
+    const originalInventory = JSON.parse(JSON.stringify(playerData.inventory));
+    const originalIngredientSlots = JSON.parse(JSON.stringify(ingredientSlots));
+
+    const newInventory = playerData.inventory.filter(i => i.id !== fromItem.id);
+    const newIngredientSlots = [...ingredientSlots];
+
+    const existingItemInSlot = newIngredientSlots[toIndex];
+
+    if (existingItemInSlot && existingItemInSlot.item_id === fromItem.item_id && fromItem.items?.stackable) {
+      // Merge into existing stack in crafting slot
+      newIngredientSlots[toIndex] = { ...existingItemInSlot, quantity: existingItemInSlot.quantity + fromItem.quantity };
+    } else {
+      // Move to empty slot or swap
+      newIngredientSlots[toIndex] = fromItem;
+      if (existingItemInSlot) {
+        // If swapping, put the existing item back into inventory
+        const existingStackInInventory = newInventory.find(i => i.item_id === existingItemInSlot.item_id && i.items?.stackable);
+        if (existingStackInInventory) {
+          existingStackInInventory.quantity += existingItemInSlot.quantity;
+        } else {
+          // Find an empty slot in inventory for the swapped item
+          let nextSlot = -1;
+          for (let i = 0; i < playerData.playerState.unlocked_slots; i++) {
+            if (!newInventory.some(invItem => invItem.slot_position === i)) {
+              nextSlot = i;
+              break;
+            }
+          }
+          if (nextSlot !== -1) {
+            newInventory.push({ ...existingItemInSlot, slot_position: nextSlot });
+          } else {
+            showError("Inventaire plein, impossible d'échanger l'objet.");
+            setPlayerData(originalInventory); // Revert
+            setIngredientSlots(originalIngredientSlots); // Revert
+            return;
+          }
+        }
+      }
+    }
+
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+    setIngredientSlots(newIngredientSlots);
+
+    // Server call to move item
+    const { error } = await supabase.rpc('move_item_to_chest', { // Reusing move_item_to_chest for simplicity, assuming workbench slots are like chest slots
+      p_inventory_id: fromItem.id,
+      p_chest_id: construction!.id, // Assuming construction is always present here
+      p_quantity_to_move: fromItem.quantity,
+      p_target_slot: toIndex
+    });
+
+    if (error) {
+      showError(error.message || "Erreur de transfert.");
+      setPlayerData(originalInventory); // Revert
+      setIngredientSlots(originalIngredientSlots); // Revert
+    } else {
+      refreshPlayerData(); // Full refresh to sync state
+    }
+  }, [draggedItem, dragOverSlot, playerData, ingredientSlots, construction, refreshPlayerData]);
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+      stopAutoScroll();
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd, stopAutoScroll]);
 
   const renderCraftingProgress = () => {
     if (!craftingJob) return null;
@@ -213,7 +452,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const startTime = new Date(craftingJob.started_at).getTime();
     const endTime = new Date(craftingJob.ends_at).getTime();
     const now = Date.now();
-    const progress = Math.min(100, ((now - startTime) / (endTime - startTime)) * 100);
+    const progressValue = Math.min(100, ((now - startTime) / (endTime - startTime)) * 100);
 
     return (
       <div className="text-center space-y-4">
@@ -221,7 +460,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         <div className="w-20 h-20 mx-auto bg-slate-700/50 rounded-lg border border-slate-600 flex items-center justify-center relative">
           {item && <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />}
         </div>
-        <Progress value={progress} />
+        <Progress value={progressValue} />
         <p className="text-sm text-gray-400">Se termine dans <Clock className="inline w-3 h-3" /> <Countdown endsAt={craftingJob.ends_at} onComplete={onUpdate} /></p>
       </div>
     );
@@ -242,7 +481,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             {ingredientSlots.map((item, index) => (
               <div 
                 key={index} 
-                onDrop={() => handleDrop(index)} 
+                data-crafting-slot-index={index}
+                onDrop={(e) => { e.preventDefault(); handleDragEnd(); }} 
                 onDragOver={(e) => e.preventDefault()}
                 onDragEnter={() => setDragOverSlot(index)}
                 onDragLeave={() => setDragOverSlot(null)}
@@ -278,21 +518,20 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       </div>
       <div>
         <h3 className="font-bold text-center mb-2">Inventaire</h3>
-        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
+        <div ref={inventoryGridRef} className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto no-scrollbar">
           {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
             const item = displayedInventory.find(i => i.slot_position === index);
             return (
-              <div key={index} draggable={!!item} onDragStart={() => item && handleDragStart(item, true)}>
-                <InventorySlot 
-                  item={item} 
-                  index={index} 
-                  isUnlocked={true} 
-                  onDragStart={() => {}} 
-                  onItemClick={(item) => setDetailedItem(item)} 
-                  isBeingDragged={false} 
-                  isDragOver={false} 
-                />
-              </div>
+              <InventorySlot 
+                key={index} 
+                item={item} 
+                index={index} 
+                isUnlocked={true} 
+                onDragStart={handleDragStart} 
+                onItemClick={(item) => setDetailedItem(item)} 
+                isBeingDragged={draggedItem?.item.slot_position === index} 
+                isDragOver={false} 
+              />
             );
           })}
         </div>
@@ -327,6 +566,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onUse={() => showError("Vous ne pouvez pas utiliser un objet depuis l'établi.")}
         onDropOne={() => detailedItem && handleDropItem(detailedItem, 1)}
         onDropAll={() => detailedItem && handleDropItem(detailedItem, detailedItem.quantity)}
+        onUpdate={onUpdate} // Pass onUpdate to ItemDetailModal for blueprint reading
       />
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
@@ -336,15 +576,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
   const calculateRemaining = useCallback(() => new Date(endsAt).getTime() - Date.now(), [endsAt]);
   const [remaining, setRemaining] = useState(calculateRemaining());
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     if (remaining <= 0) {
-      onComplete();
+      onCompleteRef.current();
       return;
     }
     const timer = setInterval(() => setRemaining(calculateRemaining()), 1000);
     return () => clearInterval(timer);
-  }, [remaining, onComplete]);
+  }, [remaining, calculateRemaining]);
 
   const seconds = Math.floor((remaining / 1000) % 60);
   const minutes = Math.floor((remaining / (1000 * 60)) % 60);

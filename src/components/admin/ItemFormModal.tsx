@@ -33,7 +33,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [icon, setIcon] = useState('');
   const [stackable, setStackable] = useState(true);
   const [type, setType] = useState('Items divers');
-  const [useActionText, setUseActionText] = useState('Utiliser');
+  const [useActionText, setUseActionText] = useState(''); // Changed default to empty string
   const [loading, setLoading] = useState(false);
   
   const [nameExists, setNameExists] = useState(false);
@@ -60,7 +60,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setIcon(initialIcon);
       setStackable(item?.stackable ?? true);
       setType(item?.type || 'Items divers');
-      setUseActionText(item?.use_action_text || '');
+      setUseActionText(item?.use_action_text || ''); // Set to empty string if null
       setNameExists(false);
       setPreviewUrl(null);
       setIconExists(null);
@@ -171,7 +171,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       icon: icon || null, 
       stackable, 
       type,
-      use_action_text: useActionText || null
+      use_action_text: useActionText.trim() === '' ? null : useActionText // Set to null if empty
     };
     const { error } = item
       ? await supabase.from('items').update(itemData).eq('id', item.id)

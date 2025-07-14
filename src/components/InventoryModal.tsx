@@ -13,6 +13,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { InventoryItem } from "@/types/game";
 import ItemDetailModal from "./ItemDetailModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGame } from "@/contexts/GameContext";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -26,11 +27,12 @@ const TOTAL_SLOTS = 50;
 
 const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }: InventoryModalProps) => {
   const { user } = useAuth();
+  const { playerData, setPlayerData } = useGame();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   
-  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; originalIndex: number } | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -62,33 +64,42 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
       draggedItemNode.current = null;
     }
 
-    const fromIndex = draggedItemIndex;
+    if (!draggedItem || dragOverIndex === null || !user) {
+      setDraggedItem(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const fromIndex = draggedItem.originalIndex;
     const toIndex = dragOverIndex;
 
-    setDraggedItemIndex(null);
+    setDraggedItem(null);
     setDragOverIndex(null);
 
-    if (fromIndex === null || toIndex === null || fromIndex === toIndex || !user) return;
+    if (fromIndex === toIndex) return;
     if (toIndex >= unlockedSlots) {
       showError("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
       return;
     }
 
     const originalSlots = [...slots];
+    const originalInventoryData = JSON.parse(JSON.stringify(playerData.inventory));
+
+    // Optimistic update
     const newSlots = [...slots];
     const fromItem = newSlots[fromIndex];
+    const toItem = newSlots[toIndex];
     
     if (!fromItem) return;
 
-    const toItem = newSlots[toIndex];
-
-    // Optimistic update
     if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+      // Merge stacks
       const fromItemInArr = newSlots[fromIndex]!;
       const toItemInArr = newSlots[toIndex]!;
       toItemInArr.quantity += fromItemInArr.quantity;
       newSlots[fromIndex] = null;
     } else {
+      // Swap or move to empty slot
       const fromItemInArr = newSlots[fromIndex];
       const toItemInArr = newSlots[toIndex];
       newSlots[fromIndex] = toItemInArr;
@@ -97,6 +108,8 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
       if (toItemInArr) toItemInArr.slot_position = fromIndex;
     }
     setSlots(newSlots);
+    setPlayerData(prev => ({ ...prev, inventory: newSlots.filter(Boolean) as InventoryItem[] }));
+
 
     const { error } = await supabase.rpc('swap_inventory_items', {
         p_from_slot: fromIndex,
@@ -106,11 +119,12 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     if (error) {
         showError("Erreur de mise à jour de l'inventaire.");
         console.error(error);
-        setSlots(originalSlots);
+        setSlots(originalSlots); // Revert
+        setPlayerData(originalInventoryData); // Revert
     } else {
-        onUpdate(true);
+        onUpdate(true); // Full refresh from server
     }
-  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user, onUpdate]);
+  }, [draggedItem, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user, onUpdate, playerData, setPlayerData]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
@@ -139,24 +153,25 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     stopAutoScroll();
 
-    if (clientY < rect.top + scrollThreshold) {
-      const scroll = () => {
-        gridEl.scrollTop -= 10;
-        scrollIntervalRef.current = requestAnimationFrame(scroll);
-      };
-      scroll();
-    } else if (clientY > rect.bottom - scrollThreshold) {
-      const scroll = () => {
-        gridEl.scrollTop += 10;
-        scrollIntervalRef.current = requestAnimationFrame(scroll);
-      };
-      scroll();
+    if (clientY < rect.top + scrollThreshold && gridEl.scrollTop > 0) {
+      scrollIntervalRef.current = requestAnimationFrame(() => {
+        if (gridEl) gridEl.scrollTop -= 10;
+        handleDragMove(clientX, clientY); // Continue scrolling
+      });
+    } else if (clientY > rect.bottom - scrollThreshold && gridEl.scrollTop < gridEl.scrollHeight - gridEl.clientHeight) {
+      scrollIntervalRef.current = requestAnimationFrame(() => {
+        if (gridEl) gridEl.scrollTop += 10;
+        handleDragMove(clientX, clientY); // Continue scrolling
+      });
     }
   }, [unlockedSlots, stopAutoScroll]);
 
   const handleDragStart = useCallback((index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
-    setDraggedItemIndex(index);
+    const item = slots[index];
+    if (!item) return;
+
+    setDraggedItem({ item, originalIndex: index });
     
     const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
     if (!ghostNode) return;
@@ -173,7 +188,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
     handleDragMove(clientX, clientY);
-  }, [handleDragMove]);
+  }, [handleDragMove, slots]);
 
   const handleItemClick = (item: InventoryItem) => {
     setDetailedItem(item);
@@ -185,6 +200,16 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
   const handleDropOneItem = async () => {
     if (!detailedItem) return;
+
+    // Optimistic update
+    const originalSlots = [...slots];
+    const originalInventoryData = JSON.parse(JSON.stringify(playerData.inventory));
+
+    const newSlots = slots.map(slot => 
+      slot?.id === detailedItem.id ? { ...slot, quantity: slot.quantity - 1 } : slot
+    ).filter(slot => slot === null || slot.quantity > 0);
+    setSlots(newSlots);
+    setPlayerData(prev => ({ ...prev, inventory: newSlots.filter(Boolean) as InventoryItem[] }));
 
     let error;
     if (detailedItem.quantity > 1) {
@@ -201,15 +226,25 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     if (error) {
       showError("Erreur lors de la suppression de l'objet.");
+      setSlots(originalSlots); // Revert
+      setPlayerData(originalInventoryData); // Revert
     } else {
       showSuccess("Objet jeté.");
       setDetailedItem(null);
-      onUpdate(true);
+      onUpdate(true); // Full refresh
     }
   };
 
   const handleDropAllItems = async () => {
     if (!detailedItem) return;
+
+    // Optimistic update
+    const originalSlots = [...slots];
+    const originalInventoryData = JSON.parse(JSON.stringify(playerData.inventory));
+
+    const newSlots = slots.filter(slot => slot?.id !== detailedItem.id);
+    setSlots(newSlots);
+    setPlayerData(prev => ({ ...prev, inventory: newSlots.filter(Boolean) as InventoryItem[] }));
 
     const { error } = await supabase
       .from('inventories')
@@ -218,10 +253,12 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     if (error) {
       showError("Erreur lors de la suppression des objets.");
+      setSlots(originalSlots); // Revert
+      setPlayerData(originalInventoryData); // Revert
     } else {
       showSuccess("Objets jetés.");
       setDetailedItem(null);
-      onUpdate(true);
+      onUpdate(true); // Full refresh
     }
   };
 
@@ -229,6 +266,36 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     if (!item) return;
     setDetailedItem(null);
   
+    // Optimistic update
+    const originalSlots = [...slots];
+    const originalInventoryData = JSON.parse(JSON.stringify(playerData.inventory));
+
+    const newSlots = [...slots];
+    const originalItemIndex = newSlots.findIndex(s => s?.id === item.id);
+    if (originalItemIndex !== -1) {
+      newSlots[originalItemIndex] = { ...newSlots[originalItemIndex]!, quantity: newSlots[originalItemIndex]!.quantity - quantity };
+    }
+
+    let nextSlot = -1;
+    for (let i = 0; i < unlockedSlots; i++) {
+      if (!newSlots.some(s => s?.slot_position === i)) {
+        nextSlot = i;
+        break;
+      }
+    }
+
+    if (nextSlot !== -1) {
+      newSlots[nextSlot] = { ...item, id: -1, quantity: quantity, slot_position: nextSlot }; // -1 for temp ID
+    } else {
+      showError("Votre inventaire est plein. Impossible de diviser l'objet.");
+      setSlots(originalSlots); // Revert
+      setPlayerData(originalInventoryData); // Revert
+      return;
+    }
+    setSlots(newSlots);
+    setPlayerData(prev => ({ ...prev, inventory: newSlots.filter(Boolean).map(s => s?.id === -1 ? { ...s, id: Math.random() } : s) as InventoryItem[] })); // Assign temp ID
+
+
     const { error } = await supabase.rpc('split_inventory_item', {
       p_inventory_id: item.id,
       p_split_quantity: quantity,
@@ -236,34 +303,13 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   
     if (error) {
       showError(error.message || "Erreur lors de la division de l'objet.");
+      setSlots(originalSlots); // Revert
+      setPlayerData(originalInventoryData); // Revert
     } else {
       showSuccess("La pile d'objets a été divisée.");
-      onUpdate();
+      onUpdate(); // Full refresh
     }
   };
-
-  useEffect(() => {
-    const moveHandler = (e: MouseEvent | TouchEvent) => {
-      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-      handleDragMove(clientX, clientY);
-    };
-    const endHandler = () => handleDragEnd();
-
-    if (draggedItemIndex !== null) {
-      window.addEventListener('mousemove', moveHandler);
-      window.addEventListener('mouseup', endHandler);
-      window.addEventListener('touchmove', moveHandler, { passive: false });
-      window.addEventListener('touchend', endHandler);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', moveHandler);
-      window.removeEventListener('mouseup', endHandler);
-      window.removeEventListener('touchmove', moveHandler);
-      window.removeEventListener('touchend', endHandler);
-      stopAutoScroll();
-    };
-  }, [draggedItemIndex, handleDragMove, handleDragEnd, stopAutoScroll]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -271,7 +317,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
         document.body.removeChild(draggedItemNode.current);
         draggedItemNode.current = null;
       }
-      setDraggedItemIndex(null);
+      setDraggedItem(null);
       setDragOverIndex(null);
       stopAutoScroll();
     }
@@ -293,7 +339,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
         </DialogHeader>
         <div
           ref={gridRef}
-          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[60vh] overflow-y-auto"
+          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[60vh] overflow-y-auto no-scrollbar"
         >
           {loading ? (
             <div className="h-full w-full flex items-center justify-center col-span-full row-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
@@ -306,7 +352,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
                 isUnlocked={index < unlockedSlots}
                 onDragStart={handleDragStart}
                 onItemClick={handleItemClick}
-                isBeingDragged={draggedItemIndex === index}
+                isBeingDragged={draggedItem?.originalIndex === index}
                 isDragOver={dragOverIndex === index}
               />
             ))
@@ -321,6 +367,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           onDropAll={handleDropAllItems}
           onSplit={handleSplitItem}
           source="inventory"
+          onUpdate={onUpdate} // Pass onUpdate to ItemDetailModal for blueprint reading
         />
       </DialogContent>
     </Dialog>
