@@ -1,16 +1,17 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { BaseConstruction, InventoryItem, CraftingRecipe, Item } from "@/types/game";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { showError, showSuccess } from "@/utils/toast";
+import { showError, showSuccess, showInfo } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemIcon from "./ItemIcon";
+import { Progress } from "./ui/progress";
 import ItemDetailModal from "./ItemDetailModal";
 import BlueprintModal from "./BlueprintModal";
-import CountdownTimer from "./CountdownTimer";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -21,7 +22,8 @@ interface WorkbenchModalProps {
 }
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
+  const { user } = useAuth();
+  const { playerData, setPlayerData, items, getIconUrl } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
@@ -29,34 +31,19 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [resultItem, setResultItem] = useState<Item | null>(null);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'crafting' | 'output' } | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
-  const [loadingAction, setLoadingAction] = useState(false);
+  
+  const [isContinuousCrafting, setIsContinuousCrafting] = useState(false);
+  const [maxCraftCount, setMaxCraftCount] = useState(0);
+  const [currentCraftCount, setCurrentCraftCount] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const craftTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [outputSlot, setOutputSlot] = useState<InventoryItem | null>(null);
+  const [isCollecting, setIsCollecting] = useState(false);
+  const [potentialOutputQuantity, setPotentialOutputQuantity] = useState(0);
 
-  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; from: 'inventory' | 'crafting'; fromIndex: number } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; from: 'inventory' | 'crafting' | 'output'; fromIndex: number } | null>(null);
   const [dragOver, setDragOver] = useState<{ target: 'inventory' | 'crafting'; index: number } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-
-  const currentJob = useMemo(() => 
-    playerData.craftingJobs?.find(job => job.workbench_id === construction?.id),
-    [playerData.craftingJobs, construction]
-  );
-
-  const workbenchConstruction = useMemo(() => 
-    playerData.baseConstructions.find(c => c.id === construction?.id),
-    [playerData.baseConstructions, construction]
-  );
-
-  const outputItem = useMemo(() => {
-    if (!workbenchConstruction?.output_item_id) return null;
-    const itemDef = items.find(i => i.id === workbenchConstruction.output_item_id);
-    if (!itemDef) return null;
-    return {
-        id: -1,
-        item_id: itemDef.id,
-        quantity: workbenchConstruction.output_quantity || 0,
-        slot_position: -1,
-        items: itemDef
-    };
-  }, [workbenchConstruction, items]);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -88,6 +75,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setMatchedRecipe(null);
       setResultItem(null);
       setDetailedItem(null);
+      setOutputSlot(null);
+      setIsContinuousCrafting(false);
+      if (craftTimerRef.current) clearInterval(craftTimerRef.current);
     }
   }, [isOpen, fetchRecipes, fetchWorkbenchItems]);
 
@@ -101,26 +91,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIngredientSlots(newSlots);
   }, [workbenchItems]);
 
-  const { maxCrafts, totalTime } = useMemo(() => {
-    const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
-    if (ingredients.length === 0 || !matchedRecipe) {
-      return { maxCrafts: 0, totalTime: 0 };
-    }
-
-    const craftableCounts = [
-      matchedRecipe.ingredient1_id ? Math.floor((ingredients.find(i => i.item_id === matchedRecipe.ingredient1_id)?.quantity || 0) / matchedRecipe.ingredient1_quantity) : Infinity,
-      matchedRecipe.ingredient2_id ? Math.floor((ingredients.find(i => i.item_id === matchedRecipe.ingredient2_id)?.quantity || 0) / matchedRecipe.ingredient2_quantity) : Infinity,
-      matchedRecipe.ingredient3_id ? Math.floor((ingredients.find(i => i.item_id === matchedRecipe.ingredient3_id)?.quantity || 0) / matchedRecipe.ingredient3_quantity) : Infinity,
-    ].filter(c => isFinite(c));
-    
-    const maxPossible = craftableCounts.length > 0 ? Math.min(...craftableCounts) : 0;
-    return { maxCrafts: maxPossible, totalTime: maxPossible * matchedRecipe.craft_time_seconds };
-  }, [ingredientSlots, matchedRecipe]);
-
   useEffect(() => {
+    if (isContinuousCrafting) return;
+
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
     if (ingredients.length === 0) {
       setMatchedRecipe(null);
+      setPotentialOutputQuantity(0);
       return;
     }
 
@@ -141,12 +118,20 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         });
         if (hasEnough) {
           setMatchedRecipe(recipe);
+          const craftableCounts = [
+            recipe.ingredient1_id ? Math.floor((ingredients.find(i => i.item_id === recipe.ingredient1_id)?.quantity || 0) / recipe.ingredient1_quantity) : Infinity,
+            recipe.ingredient2_id ? Math.floor((ingredients.find(i => i.item_id === recipe.ingredient2_id)?.quantity || 0) / recipe.ingredient2_quantity) : Infinity,
+            recipe.ingredient3_id ? Math.floor((ingredients.find(i => i.item_id === recipe.ingredient3_id)?.quantity || 0) / recipe.ingredient3_quantity) : Infinity,
+          ].filter(c => isFinite(c));
+          const maxPossible = craftableCounts.length > 0 ? Math.min(...craftableCounts) : 0;
+          setPotentialOutputQuantity(maxPossible * recipe.result_quantity);
           return;
         }
       }
     }
     setMatchedRecipe(null);
-  }, [ingredientSlots, recipes]);
+    setPotentialOutputQuantity(0);
+  }, [ingredientSlots, recipes, isContinuousCrafting]);
 
   useEffect(() => {
     if (matchedRecipe) {
@@ -157,35 +142,109 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleStartCraft = async () => {
-    if (!matchedRecipe || !construction) return;
-    setLoadingAction(true);
-    const { error } = await supabase.rpc('start_craft', {
-        p_workbench_id: construction.id,
-        p_recipe_id: matchedRecipe.id
-    });
-    if (error) {
-        showError(error.message);
-    } else {
-        showSuccess("Fabrication lancée !");
-        onUpdate();
-    }
-    setLoadingAction(false);
+  const handleStartContinuousCraft = () => {
+    if (!matchedRecipe || potentialOutputQuantity === 0) return;
+    const maxPossible = potentialOutputQuantity / matchedRecipe.result_quantity;
+    setMaxCraftCount(maxPossible);
+    setCurrentCraftCount(0);
+    setIsContinuousCrafting(true);
   };
 
-  const handleCollect = async () => {
-    if (!construction) return;
-    setLoadingAction(true);
-    const { error } = await supabase.rpc('collect_workbench_output', {
-        p_workbench_id: construction.id
-    });
-    if (error) {
-        showError(error.message);
-    } else {
-        showSuccess("Objet récupéré !");
-        onUpdate();
+  const handleStopCrafting = () => {
+    setIsContinuousCrafting(false);
+    if (craftTimerRef.current) {
+      clearInterval(craftTimerRef.current);
+      craftTimerRef.current = null;
     }
-    setLoadingAction(false);
+    setProgress(0);
+    showInfo("Fabrication arrêtée.");
+  };
+
+  useEffect(() => {
+    if (!isContinuousCrafting || !matchedRecipe || !construction) return;
+
+    const craftNextItem = () => {
+      if (currentCraftCount >= maxCraftCount) {
+        setIsContinuousCrafting(false);
+        showSuccess("Fabrication en série terminée !");
+        return;
+      }
+
+      const craftTime = matchedRecipe.craft_time_seconds * 1000;
+      const startTime = Date.now();
+      
+      craftTimerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const newProgress = Math.min(100, (elapsed / craftTime) * 100);
+        setProgress(newProgress);
+
+        if (elapsed >= craftTime) {
+          if (craftTimerRef.current) clearInterval(craftTimerRef.current);
+          
+          const consumeAndContinue = async () => {
+            const ingredientsToConsume = [];
+            if (matchedRecipe.ingredient1_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient1_id, quantity: matchedRecipe.ingredient1_quantity });
+            if (matchedRecipe.ingredient2_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient2_id, quantity: matchedRecipe.ingredient2_quantity });
+            if (matchedRecipe.ingredient3_id) ingredientsToConsume.push({ id: matchedRecipe.ingredient3_id, quantity: matchedRecipe.ingredient3_quantity });
+
+            const consumptionPromises = ingredientsToConsume.map(ing => 
+                supabase.rpc('consume_workbench_item', { p_workbench_id: construction.id, p_item_id: ing.id, p_quantity_to_consume: ing.quantity })
+            );
+            
+            const results = await Promise.all(consumptionPromises);
+            const error = results.find(r => r.error);
+
+            if (error) {
+                showError(`Erreur lors de la consommation d'ingrédients: ${error.error.message}`);
+                handleStopCrafting();
+                fetchWorkbenchItems();
+            } else {
+                await fetchWorkbenchItems();
+                setOutputSlot(prevOutput => {
+                    const resultItemDef = items.find(i => i.id === matchedRecipe.result_item_id);
+                    if (!resultItemDef) return prevOutput;
+                    if (!prevOutput) {
+                        return { id: -1, item_id: resultItemDef.id, quantity: matchedRecipe.result_quantity, slot_position: -1, items: resultItemDef };
+                    }
+                    return { ...prevOutput, quantity: prevOutput.quantity + matchedRecipe.result_quantity };
+                });
+                setCurrentCraftCount(prev => prev + 1);
+            }
+          };
+
+          consumeAndContinue();
+        }
+      }, 100);
+    };
+
+    craftNextItem();
+
+    return () => {
+      if (craftTimerRef.current) clearInterval(craftTimerRef.current);
+    };
+  }, [isContinuousCrafting, currentCraftCount, maxCraftCount, matchedRecipe, items, construction, fetchWorkbenchItems]);
+
+  const handleFinalizeAndCollect = async (targetSlot: number | null = null) => {
+    if (!outputSlot || !user || isCollecting) return;
+    setIsCollecting(true);
+
+    const { error: addError } = await supabase.rpc('add_item_to_inventory', { 
+      p_player_id: user.id, 
+      p_item_id: outputSlot.item_id, 
+      p_quantity: outputSlot.quantity,
+      p_target_slot: targetSlot
+    });
+
+    if (addError) {
+      showError(`Erreur lors de l'ajout de l'objet à l'inventaire: ${addError.message}`);
+      setIsCollecting(false);
+      return;
+    }
+
+    showSuccess(`${outputSlot.quantity} ${outputSlot.items.name} ajoutés à l'inventaire.`);
+    setOutputSlot(null);
+    onUpdate();
+    setIsCollecting(false);
   };
 
   const handleDropItem = async (item: InventoryItem, quantity: number) => {
@@ -285,6 +344,163 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
+  const handleDragStart = (item: InventoryItem, from: 'inventory' | 'crafting' | 'output', fromIndex: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    if (isContinuousCrafting) return;
+    e.preventDefault();
+    setDraggedItem({ item, from, fromIndex });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  };
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
+    if (slotElement) {
+      const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
+      const targetElement = (slotElement as HTMLElement).closest('[data-slot-target]');
+      const target = targetElement?.getAttribute('data-slot-target') as 'inventory' | 'crafting' | undefined;
+      if (index !== -1 && target) {
+        setDragOver({ index, target });
+        return;
+      }
+    }
+    setDragOver(null);
+  }, []);
+
+  const handleDragEnd = async () => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+    if (!draggedItem || !dragOver) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
+  
+    const { from, fromIndex } = draggedItem;
+    const { target, index: toIndex } = dragOver;
+  
+    setDraggedItem(null);
+    setDragOver(null);
+  
+    if (from === target && fromIndex === toIndex) return;
+  
+    if (from === 'output' && target === 'inventory') {
+      await handleFinalizeAndCollect(toIndex);
+      return;
+    }
+  
+    // --- Optimistic Update ---
+    const originalInventory = playerData.inventory;
+    const originalWorkbenchItems = workbenchItems;
+  
+    let newInventory = [...originalInventory];
+    let newWorkbenchItems = [...originalWorkbenchItems];
+  
+    const fromItem = from === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newWorkbenchItems.find(i => i.slot_position === fromIndex);
+    if (!fromItem) return;
+  
+    const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newWorkbenchItems.find(i => i.slot_position === toIndex);
+  
+    // Remove from source
+    if (from === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
+    else newWorkbenchItems = newWorkbenchItems.filter(i => i.id !== fromItem.id);
+  
+    // Handle target item
+    if (toItem) {
+      if (target === 'inventory') newInventory = newInventory.filter(i => i.id !== toItem.id);
+      else newWorkbenchItems = newWorkbenchItems.filter(i => i.id !== toItem.id);
+      
+      // Move target item to source slot
+      if (from === 'inventory') newInventory.push({ ...toItem, slot_position: fromIndex });
+      else newWorkbenchItems.push({ ...toItem, slot_position: fromIndex });
+    }
+  
+    // Move dragged item to target slot
+    if (target === 'inventory') newInventory.push({ ...fromItem, slot_position: toIndex });
+    else newWorkbenchItems.push({ ...fromItem, slot_position: toIndex });
+  
+    // Apply optimistic update to UI
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+    setWorkbenchItems(newWorkbenchItems);
+    // --- End Optimistic Update ---
+  
+    let rpcPromise;
+    if (from === 'inventory' && target === 'inventory') {
+      rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
+    } else if (from === 'crafting' && target === 'crafting') {
+      if (!construction) return;
+      rpcPromise = supabase.rpc('swap_workbench_items', { p_workbench_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
+    } else if (from === 'inventory' && target === 'crafting') {
+      if (!construction) return;
+      rpcPromise = supabase.rpc('move_item_to_workbench', {
+          p_inventory_id: fromItem.id,
+          p_workbench_id: construction.id,
+          p_quantity_to_move: fromItem.quantity,
+          p_target_slot: toIndex
+      });
+    } else if (from === 'crafting' && target === 'inventory') {
+      rpcPromise = supabase.rpc('move_item_from_workbench', {
+          p_workbench_item_id: fromItem.id,
+          p_quantity_to_move: fromItem.quantity,
+          p_target_slot: toIndex
+      });
+    }
+  
+    if (rpcPromise) {
+        const { error } = await rpcPromise;
+        if (error) {
+            showError(error.message);
+            // Revert on error
+            setPlayerData(prev => ({ ...prev, inventory: originalInventory }));
+            setWorkbenchItems(originalWorkbenchItems);
+        } else {
+            // On success, re-fetch to ensure sync, especially for merges
+            await onUpdate(true);
+            await fetchWorkbenchItems();
+        }
+    }
+  };
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd]);
+
   const renderCraftingInterface = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
@@ -317,28 +533,52 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                 <ArrowRight className="w-8 h-8 text-gray-500" />
             </div>
             <div className="relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
-              {resultItem && (
+              {outputSlot ? (
+                <InventorySlot 
+                  item={outputSlot} 
+                  index={0} 
+                  isUnlocked={true} 
+                  onDragStart={(idx, node, e) => outputSlot && handleDragStart(outputSlot, 'output', idx, node, e)} 
+                  onItemClick={() => handleFinalizeAndCollect()}
+                  isBeingDragged={draggedItem?.from === 'output'}
+                  isDragOver={false}
+                />
+              ) : !isContinuousCrafting && resultItem ? (
                 <>
                   <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
-                  {matchedRecipe && (
+                  {potentialOutputQuantity > 0 && (
                     <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                      x{matchedRecipe.result_quantity}
+                      x{potentialOutputQuantity}
                     </span>
                   )}
                 </>
-              )}
+              ) : null}
             </div>
             <div className="col-span-2" />
           </div>
-          {matchedRecipe && (
+          {matchedRecipe && !isContinuousCrafting && (
             <div className="text-center text-sm text-gray-300">
-              <p>Temps par unité: {matchedRecipe.craft_time_seconds}s</p>
-              {maxCrafts > 0 && <p>Temps total ({maxCrafts}x): {totalTime}s</p>}
+              <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
             </div>
           )}
-          <Button onClick={handleStartCraft} disabled={!matchedRecipe || loadingAction} className="w-full">
-            {loadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Hammer className="w-4 h-4 mr-2" /> Fabriquer</>}
-          </Button>
+          {isContinuousCrafting ? (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm text-gray-300">
+                <span>Fabrication en cours...</span>
+                <span>{currentCraftCount} / {maxCraftCount}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Progress value={progress} className="flex-grow" />
+                <Button variant="destructive" size="icon" onClick={handleStopCrafting} className="w-8 h-8 flex-shrink-0">
+                  <Square className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button onClick={handleStartContinuousCraft} disabled={!matchedRecipe || potentialOutputQuantity === 0} className="w-full">
+              <Hammer className="w-4 h-4 mr-2" /> Fabriquer
+            </Button>
+          )}
         </div>
       </div>
       <div>
@@ -365,45 +605,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     </div>
   );
 
-  const renderJobProgress = (job: CraftingJob) => {
-    const recipe = recipes.find(r => r.id === job.recipe_id);
-    const resultItem = items.find(i => i.id === recipe?.result_item_id);
-    return (
-      <div className="text-center space-y-4 p-8">
-        <h3 className="text-lg font-semibold">Fabrication en cours...</h3>
-        {resultItem && (
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-16 h-16 relative">
-              <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
-            </div>
-            <p className="font-bold">{resultItem.name} x{recipe?.result_quantity}</p>
-          </div>
-        )}
-        <div className="text-lg font-mono">
-          <CountdownTimer endTime={job.ends_at} onComplete={refreshPlayerData} />
-        </div>
-      </div>
-    );
-  };
-
-  const renderOutput = () => {
-    if (!outputItem) return null;
-    return (
-      <div className="text-center space-y-4 p-8">
-        <h3 className="text-lg font-semibold">Fabrication terminée !</h3>
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-16 h-16 relative">
-            <ItemIcon iconName={getIconUrl(outputItem.items?.icon) || outputItem.items?.icon} alt={outputItem.items?.name || ''} />
-          </div>
-          <p className="font-bold">{outputItem.items?.name} x{outputItem.quantity}</p>
-        </div>
-        <Button onClick={handleCollect} disabled={loadingAction}>
-          {loadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : "Récupérer"}
-        </Button>
-      </div>
-    );
-  };
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -415,7 +616,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             </div>
           </DialogHeader>
           <div className="py-4">
-            {currentJob ? renderJobProgress(currentJob) : outputItem ? renderOutput() : renderCraftingInterface()}
+            {renderCraftingInterface()}
           </div>
           <DialogFooter>
             <Button variant="destructive" onClick={() => construction && onDemolish(construction)}>
@@ -429,7 +630,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onClose={() => setDetailedItem(null)}
         item={detailedItem?.item || null}
         source={detailedItem?.source}
-        onUse={() => showError("Vous ne pouvez pas utiliser un objet depuis l'établi.")}
+        onUse={() => {
+          if (detailedItem?.source === 'output') {
+            handleFinalizeAndCollect();
+          } else {
+            showError("Vous ne pouvez pas utiliser un objet depuis l'établi.");
+          }
+        }}
         onDropOne={() => detailedItem?.source === 'inventory' && handleDropItem(detailedItem.item, 1)}
         onDropAll={() => detailedItem?.source === 'inventory' && handleDropItem(detailedItem.item, detailedItem.item.quantity)}
         onSplit={handleSplitItem}
