@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -18,7 +18,7 @@ const Game = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [iconUrlMap, setIconUrlMap] = useState<Map<string, string>>(new Map());
 
-  const loadGameData = async (user: User) => {
+  const loadGameData = useCallback(async (user: User) => {
     setLoading(true);
 
     const [playerDataRes, mapDataRes, itemsDataRes] = await Promise.all([
@@ -56,15 +56,15 @@ const Game = () => {
     
     setPlayerData(fullPlayerData);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (user) {
       loadGameData(user);
     }
-  }, [user]);
+  }, [user, loadGameData]);
 
-  const refreshPlayerData = async () => {
+  const refreshPlayerData = useCallback(async () => {
     if (!user) return;
     const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
 
@@ -74,7 +74,7 @@ const Game = () => {
     } else {
       setPlayerData(fullPlayerData);
     }
-  };
+  }, [user]);
 
   if (loading) {
     return <LoadingScreen />;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { FullPlayerData, MapCell, Item } from '@/types/game';
 
 interface GameContextType {
@@ -43,14 +43,14 @@ export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrl
     return iconUrlMap.get(iconName);
   }, [iconUrlMap]);
 
-  const value = {
+  const value = useMemo(() => ({
     playerData,
     mapLayout: initialData.mapLayout,
     items: initialData.items,
     refreshPlayerData,
     setPlayerData,
     getIconUrl,
-  };
+  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>

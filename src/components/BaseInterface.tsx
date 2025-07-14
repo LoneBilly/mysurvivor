@@ -128,12 +128,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       currentConstructions = [];
     }
 
-    let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
-    );
-
-    let campPos: { x: number; y: number } | null = null;
-
     if (currentConstructions.length === 0 && jobs.length === 0) {
       const newCampX = Math.floor(GRID_SIZE / 2);
       const newCampY = Math.floor(GRID_SIZE / 2);
@@ -148,30 +142,36 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         return;
       }
       
-      newGrid[newCampY][newCampX].type = 'campfire';
-      campPos = { x: newCampX, y: newCampY };
-    } else {
-      currentConstructions.forEach((c: BaseConstruction) => {
-        if (newGrid[c.y]?.[c.x]) {
-          newGrid[c.y][c.x].type = c.type;
-          if (c.type === 'campfire') {
-            campPos = { x: c.x, y: c.y };
-          }
-        }
-      });
-      jobs.forEach((job: ConstructionJob) => {
-        if (newGrid[job.y]?.[job.x]) {
-          newGrid[job.y][job.x].type = 'in_progress';
-          newGrid[job.y][job.x].ends_at = job.ends_at;
-        }
-      });
+      await refreshPlayerData();
+      return;
     }
+
+    let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
+      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
+    );
+
+    let campPos: { x: number; y: number } | null = null;
+
+    currentConstructions.forEach((c: BaseConstruction) => {
+      if (newGrid[c.y]?.[c.x]) {
+        newGrid[c.y][c.x].type = c.type;
+        if (c.type === 'campfire') {
+          campPos = { x: c.x, y: c.y };
+        }
+      }
+    });
+    jobs.forEach((job: ConstructionJob) => {
+      if (newGrid[job.y]?.[job.x]) {
+        newGrid[job.y][job.x].type = 'in_progress';
+        newGrid[job.y][job.x].ends_at = job.ends_at;
+      }
+    });
 
     const finalGrid = updateCanBuild(newGrid);
     setGridData(finalGrid);
     setCampfirePosition(campPos);
     setLoading(false);
-  }, [user]);
+  }, [user, refreshPlayerData]);
 
   useEffect(() => {
     if (initialConstructions) {
