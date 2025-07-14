@@ -458,6 +458,14 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellContent = (cell: BaseCell) => {
+    const constructionAtCell = playerData.baseConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    if (constructionAtCell?.type === 'workbench') {
+        const job = playerData.craftingJobs?.find(j => j.workbench_id === constructionAtCell.id);
+        if (job) {
+            return <Hammer className="w-6 h-6 text-yellow-400 animate-pulse" />;
+        }
+    }
+
     const Icon = buildingIcons[cell.type];
     if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
