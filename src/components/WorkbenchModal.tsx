@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, Check, BookOpen, Clock, Square } from "lucide-react";
+import { BaseConstruction, InventoryItem, CraftingRecipe, Item } from "@/types/game";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -23,7 +23,7 @@ interface WorkbenchModalProps {
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { user } = useAuth();
-  const { playerData, items, refreshPlayerData } = useGame();
+  const { playerData, items } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -45,18 +45,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const displayedInventory = useMemo(() => {
-    const itemsInCrafting = new Map<number, number>();
-    ingredientSlots.forEach(item => {
-      if (item) {
-        const currentQty = itemsInCrafting.get(item.item_id) || 0;
-        itemsInCrafting.set(item.item_id, currentQty + item.quantity);
-      }
-    });
-
-    return playerData.inventory.map(invItem => {
-      const usedQuantity = itemsInCrafting.get(invItem.item_id) || 0;
-      return { ...invItem, quantity: invItem.quantity - usedQuantity };
-    }).filter(item => item.quantity > 0);
+    const itemsInCraftingIds = new Set(ingredientSlots.filter(Boolean).map(item => item!.id));
+    return playerData.inventory.filter(item => !itemsInCraftingIds.has(item.id));
   }, [playerData.inventory, ingredientSlots]);
 
   const fetchRecipes = useCallback(async () => {
@@ -397,29 +387,39 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const newSlots = [...ingredientSlots];
 
     if (from === 'inventory' && target === 'crafting') {
-      const itemToMoveIn = playerData.inventory.find(i => i.slot_position === fromIndex);
-      if (!itemToMoveIn) return;
-      const itemToMoveOut = newSlots[toIndex];
-      
-      newSlots[toIndex] = itemToMoveIn;
-      
-      const oldSlotIndex = newSlots.findIndex((slot, i) => i !== toIndex && slot?.id === itemToMoveIn.id);
-      if (oldSlotIndex > -1) {
-        newSlots[oldSlotIndex] = itemToMoveOut;
-      }
-    } else if (from === 'crafting' && target === 'inventory') {
-      const itemToMoveOut = newSlots[fromIndex];
-      if (!itemToMoveOut) return;
-      const itemToMoveIn = displayedInventory.find(i => i.slot_position === toIndex);
+      const itemFromInventory = playerData.inventory.find(i => i.slot_position === fromIndex);
+      if (!itemFromInventory) return;
+      const itemFromWorkbench = newSlots[toIndex];
 
-      newSlots[fromIndex] = itemToMoveIn || null;
+      newSlots[toIndex] = itemFromInventory;
+      const oldSlotIndex = newSlots.findIndex((s, i) => i !== toIndex && s?.id === itemFromInventory.id);
+      if (oldSlotIndex > -1) {
+        newSlots[oldSlotIndex] = itemFromWorkbench;
+      }
+      setIngredientSlots(newSlots);
+    } else if (from === 'crafting' && target === 'inventory') {
+      const itemFromWorkbench = newSlots[fromIndex];
+      if (!itemFromWorkbench) return;
+
+      const itemInTargetInventorySlot = playerData.inventory.find(i => i.slot_position === toIndex);
+
+      const updatedSlots = [...newSlots];
+      updatedSlots[fromIndex] = itemInTargetInventorySlot || null;
+      setIngredientSlots(updatedSlots);
+
+      const { error } = await supabase.rpc('swap_inventory_items', { p_from_slot: itemFromWorkbench.slot_position, p_to_slot: toIndex });
+      if (error) {
+        showError(error.message);
+        setIngredientSlots(newSlots);
+      } else {
+        await onUpdate(true);
+      }
     } else if (from === 'crafting' && target === 'crafting') {
       const temp = newSlots[fromIndex];
       newSlots[fromIndex] = newSlots[toIndex];
       newSlots[toIndex] = temp;
+      setIngredientSlots(newSlots);
     }
-
-    setIngredientSlots(newSlots);
   };
 
   useEffect(() => {
@@ -455,7 +455,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           <div className="grid grid-cols-5 gap-2" data-slot-target="crafting">
             <div />
             {ingredientSlots.map((item, index) => (
-              <div key={index} data-slot-index={index}>
+              <div key={item?.id || index} data-slot-index={index}>
                 <InventorySlot
                   item={item}
                   index={index}
@@ -484,7 +484,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   isBeingDragged={draggedItem?.from === 'output'}
                   isDragOver={false}
                 />
-              ) : resultItem ? (
+              ) : !isContinuousCrafting && resultItem ? (
                 <>
                   <ItemIcon iconName={useGame().getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
                   {potentialOutputQuantity > 0 && (
@@ -528,7 +528,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
             const item = displayedInventory.find(i => i.slot_position === index);
             return (
-              <div key={index} data-slot-index={index}>
+              <div key={item?.id || index} data-slot-index={index}>
                 <InventorySlot 
                   item={item || null} 
                   index={index} 
