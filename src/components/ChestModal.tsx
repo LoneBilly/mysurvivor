@@ -64,50 +64,28 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     if (!construction) return;
     setDetailedItem(null);
 
-    // --- START OPTIMISTIC UPDATE ---
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     const originalChestItems = JSON.parse(JSON.stringify(chestItems));
-
-    if (source === 'inventory') {
-        const newInventory = playerData.inventory.map(invItem => {
-            if (invItem.id === item.id) {
-                return { ...invItem, quantity: invItem.quantity - quantity };
-            }
-            return invItem;
-        }).filter(invItem => invItem.quantity > 0);
-        setPlayerData(prev => ({ ...prev, inventory: newInventory }));
-    } else { // source === 'chest'
-        const newChestItems = chestItems.map(chestItem => {
-            if (chestItem.id === item.id) {
-                return { ...chestItem, quantity: chestItem.quantity - quantity };
-            }
-            return chestItem;
-        }).filter(chestItem => chestItem.quantity > 0);
-        setChestItems(newChestItems);
-    }
-    // --- END OPTIMISTIC UPDATE ---
 
     let rpcName: string;
     let rpcParams: any;
 
     if (source === 'inventory') {
       rpcName = 'move_item_to_chest';
-      rpcParams = { p_inventory_id: item.id, p_chest_id: construction.id, p_quantity_to_move: quantity };
+      rpcParams = { p_inventory_id: item.id, p_chest_id: construction.id, p_quantity_to_move: quantity, p_target_slot: -1 }; // -1 for auto-slot
     } else {
       rpcName = 'move_item_from_chest';
-      rpcParams = { p_chest_item_id: item.id, p_quantity_to_move: quantity };
+      rpcParams = { p_chest_item_id: item.id, p_quantity_to_move: quantity, p_target_slot: -1 }; // -1 for auto-slot
     }
 
     const { error } = await supabase.rpc(rpcName, rpcParams);
 
     if (error) {
       showError(error.message || "Erreur de transfert.");
-      // Revert on error
       setPlayerData(originalPlayerData);
       setChestItems(originalChestItems);
     } else {
       showSuccess("Transfert réussi.");
-      // Refresh state from server to get the destination updated correctly
       await onUpdate();
       await fetchChestContents();
     }

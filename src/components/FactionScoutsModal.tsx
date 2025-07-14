@@ -54,14 +54,12 @@ const Countdown = ({ endTime, onComplete }: { endTime: string; onComplete: () =>
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    if (state.isFinished) return;
+    if (state.isFinished) {
+      setTimeout(() => onCompleteRef.current(), 1000);
+      return;
+    }
     const interval = setInterval(() => {
-      const newState = calculateState();
-      setState(newState);
-      if (newState.isFinished) {
-        clearInterval(interval);
-        onCompleteRef.current();
-      }
+      setState(calculateState());
     }, 1000);
     return () => clearInterval(interval);
   }, [state.isFinished, calculateState]);
