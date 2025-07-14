@@ -398,20 +398,32 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       if (oldSlotIndex > -1) {
         newSlots[oldSlotIndex] = itemToMoveOut;
       }
+      setIngredientSlots(newSlots);
     } else if (from === 'crafting' && target === 'inventory') {
       const itemToMoveOut = newSlots[fromIndex];
       if (!itemToMoveOut) return;
 
-      const itemInTargetInventorySlot = displayedInventory.find(i => i.slot_position === toIndex);
-      
-      newSlots[fromIndex] = itemInTargetInventorySlot || null;
+      newSlots[fromIndex] = null;
+      setIngredientSlots(newSlots);
+
+      const { error } = await supabase.rpc('swap_inventory_items', {
+        p_from_slot: itemToMoveOut.slot_position,
+        p_to_slot: toIndex,
+      });
+
+      if (error) {
+        showError(`Failed to move item: ${error.message}`);
+        newSlots[fromIndex] = itemToMoveOut;
+        setIngredientSlots(newSlots);
+      }
+      await onUpdate(true);
+
     } else if (from === 'crafting' && target === 'crafting') {
       const temp = newSlots[fromIndex];
       newSlots[fromIndex] = newSlots[toIndex];
       newSlots[toIndex] = temp;
+      setIngredientSlots(newSlots);
     }
-
-    setIngredientSlots(newSlots);
   };
 
   useEffect(() => {
@@ -471,10 +483,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   item={outputSlot} 
                   index={0} 
                   isUnlocked={true} 
-                  onDragStart={(idx, node, e) => outputSlot && handleDragStart(outputSlot, 'output', idx, node, e)} 
+                  onDragStart={() => {}}
                   onItemClick={handleFinalizeAndCollect}
-                  isBeingDragged={draggedItem?.from === 'output'}
+                  isBeingDragged={false}
                   isDragOver={false}
+                  isOutputSlot={true}
                 />
               ) : !isContinuousCrafting && resultItem ? (
                 <>
