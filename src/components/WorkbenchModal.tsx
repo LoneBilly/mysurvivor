@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Info } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -13,7 +13,6 @@ import BlueprintModal from "./BlueprintModal";
 import CountdownTimer from "./CountdownTimer";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -248,36 +247,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsDraggingOutput(false);
   };
 
-  const handleTransferToWorkbench = async (item: InventoryItem, quantity: number) => {
-    if (!construction) return;
-    setDetailedItem(null);
-    const { error } = await supabase.rpc('move_item_to_workbench', {
-      p_inventory_id: item.id,
-      p_workbench_id: construction.id,
-      p_quantity_to_move: quantity,
-      p_target_slot: 0 // Default to first slot, can be improved
-    });
-    if (error) showError(error.message);
-    else {
-      showSuccess("Transfert réussi.");
-      onUpdate();
-    }
-  };
-
-  const handleTransferFromWorkbench = async (item: InventoryItem, quantity: number) => {
-    setDetailedItem(null);
-    const { error } = await supabase.rpc('move_item_from_workbench', {
-      p_workbench_item_id: item.id,
-      p_quantity_to_move: quantity,
-      p_target_slot: 0 // Default to first slot, can be improved
-    });
-    if (error) showError(error.message);
-    else {
-      showSuccess("Transfert réussi.");
-      onUpdate();
-    }
-  };
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -376,21 +345,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
                           </div>
                         )}
-                        {resultItem && !resultItem.stackable && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-xs text-yellow-400 flex items-center gap-1 mb-2">
-                                  <Info size={12} /> Non empilable
-                                </p>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Cet objet ne peut pas être fabriqué en boucle.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting || (resultItem && !resultItem.stackable)}>
+                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting}>
                           {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : isAutoCrafting ? "Fabrication en cours..." : "Fabriquer"}
                         </Button>
                       </>
@@ -445,8 +400,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onDropOne={() => {}}
         onDropAll={() => {}}
         onUpdate={onUpdate}
-        onTransferToWorkbench={handleTransferToWorkbench}
-        onTransferFromWorkbench={handleTransferFromWorkbench}
       />
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
