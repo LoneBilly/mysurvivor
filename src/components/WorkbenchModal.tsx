@@ -23,7 +23,7 @@ interface WorkbenchModalProps {
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { user } = useAuth();
-  const { playerData, items, getIconUrl } = useGame();
+  const { playerData, setPlayerData, items, getIconUrl } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
@@ -404,33 +404,64 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   
     if (from === target && fromIndex === toIndex) return;
   
-    let rpcPromise;
-  
     if (from === 'output' && target === 'inventory') {
       await handleFinalizeAndCollect(toIndex);
       return;
     }
   
+    // --- Optimistic Update ---
+    const originalInventory = playerData.inventory;
+    const originalWorkbenchItems = workbenchItems;
+  
+    let newInventory = [...originalInventory];
+    let newWorkbenchItems = [...originalWorkbenchItems];
+  
+    const fromItem = from === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newWorkbenchItems.find(i => i.slot_position === fromIndex);
+    if (!fromItem) return;
+  
+    const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newWorkbenchItems.find(i => i.slot_position === toIndex);
+  
+    // Remove from source
+    if (from === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
+    else newWorkbenchItems = newWorkbenchItems.filter(i => i.id !== fromItem.id);
+  
+    // Handle target item
+    if (toItem) {
+      if (target === 'inventory') newInventory = newInventory.filter(i => i.id !== toItem.id);
+      else newWorkbenchItems = newWorkbenchItems.filter(i => i.id !== toItem.id);
+      
+      // Move target item to source slot
+      if (from === 'inventory') newInventory.push({ ...toItem, slot_position: fromIndex });
+      else newWorkbenchItems.push({ ...toItem, slot_position: fromIndex });
+    }
+  
+    // Move dragged item to target slot
+    if (target === 'inventory') newInventory.push({ ...fromItem, slot_position: toIndex });
+    else newWorkbenchItems.push({ ...fromItem, slot_position: toIndex });
+  
+    // Apply optimistic update to UI
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+    setWorkbenchItems(newWorkbenchItems);
+    // --- End Optimistic Update ---
+  
+    let rpcPromise;
     if (from === 'inventory' && target === 'inventory') {
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (from === 'crafting' && target === 'crafting') {
       if (!construction) return;
       rpcPromise = supabase.rpc('swap_workbench_items', { p_workbench_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (from === 'inventory' && target === 'crafting') {
-      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
-      if (!itemToMove || !construction) return;
+      if (!construction) return;
       rpcPromise = supabase.rpc('move_item_to_workbench', {
-          p_inventory_id: itemToMove.id,
+          p_inventory_id: fromItem.id,
           p_workbench_id: construction.id,
-          p_quantity_to_move: itemToMove.quantity,
+          p_quantity_to_move: fromItem.quantity,
           p_target_slot: toIndex
       });
     } else if (from === 'crafting' && target === 'inventory') {
-      const itemToMove = workbenchItems.find(i => i.slot_position === fromIndex);
-      if (!itemToMove) return;
       rpcPromise = supabase.rpc('move_item_from_workbench', {
-          p_workbench_item_id: itemToMove.id,
-          p_quantity_to_move: itemToMove.quantity,
+          p_workbench_item_id: fromItem.id,
+          p_quantity_to_move: fromItem.quantity,
           p_target_slot: toIndex
       });
     }
@@ -439,9 +470,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         const { error } = await rpcPromise;
         if (error) {
             showError(error.message);
-            await onUpdate(true);
-            await fetchWorkbenchItems();
+            // Revert on error
+            setPlayerData(prev => ({ ...prev, inventory: originalInventory }));
+            setWorkbenchItems(originalWorkbenchItems);
         } else {
+            // On success, re-fetch to ensure sync, especially for merges
             await onUpdate(true);
             await fetchWorkbenchItems();
         }
