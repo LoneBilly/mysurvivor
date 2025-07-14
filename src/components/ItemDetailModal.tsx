@@ -23,14 +23,15 @@ interface ItemDetailModalProps {
   onUse: () => void;
   onDropOne: () => void;
   onDropAll: () => void;
-  source?: 'inventory' | 'chest';
+  source?: 'inventory' | 'chest' | 'crafting';
   onTransfer?: (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => void;
   onTransferToWorkbench?: (item: InventoryItem, quantity: number) => void;
+  onTransferFromWorkbench?: (item: InventoryItem, quantity: number) => void;
   onSplit?: (item: InventoryItem, quantity: number) => void;
   onUpdate?: () => void;
 }
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
   const { getIconUrl } = useGame();
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [workbenchTransferQuantity, setWorkbenchTransferQuantity] = useState(1);
@@ -47,7 +48,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   if (!item) return null;
 
   const handleTransferClick = () => {
-    if (onTransfer && source) {
+    if (onTransfer && (source === 'inventory' || source === 'chest')) {
       onTransfer(item, transferQuantity, source);
     }
   };
@@ -55,6 +56,12 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   const handleTransferToWorkbenchClick = () => {
     if (onTransferToWorkbench) {
       onTransferToWorkbench(item, workbenchTransferQuantity);
+    }
+  };
+  
+  const handleTransferFromWorkbenchClick = () => {
+    if (onTransferFromWorkbench) {
+      onTransferFromWorkbench(item, transferQuantity);
     }
   };
 
@@ -79,7 +86,9 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   const isBlueprint = useActionText === 'Lire';
   const iconUrl = getIconUrl(item.items?.icon || null);
   const canUse = source !== 'chest' && useActionText;
-  const canTransfer = !!onTransfer;
+  const canTransfer = !!onTransfer && (source === 'inventory' || source === 'chest');
+  const canTransferToWorkbench = !!onTransferToWorkbench && source === 'inventory';
+  const canTransferFromWorkbench = !!onTransferFromWorkbench && source === 'crafting';
   const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
 
   const handleUseClick = () => {
@@ -144,7 +153,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
           </div>
         )}
 
-        {onTransferToWorkbench && (
+        {canTransferToWorkbench && (
           <div className="w-full space-y-4 rounded-lg bg-slate-700/50 p-4 my-2">
             <div className="flex justify-between items-center">
               <Label htmlFor="workbench-quantity-slider">Quantité pour l'établi</Label>
@@ -161,6 +170,27 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
             />
             <Button onClick={handleTransferToWorkbenchClick} className="w-full">
               Transférer {workbenchTransferQuantity} vers l'établi
+            </Button>
+          </div>
+        )}
+
+        {canTransferFromWorkbench && (
+          <div className="w-full space-y-4 rounded-lg bg-slate-700/50 p-4 my-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="quantity-slider">Quantité à transférer</Label>
+              <span className="font-mono text-lg font-bold">{transferQuantity}</span>
+            </div>
+            <Slider
+              id="quantity-slider"
+              value={[transferQuantity]}
+              onValueChange={(value) => setTransferQuantity(value[0])}
+              min={1}
+              max={item.quantity}
+              step={1}
+              disabled={item.quantity <= 1}
+            />
+            <Button onClick={handleTransferFromWorkbenchClick} className="w-full">
+              Transférer {transferQuantity} vers l'inventaire
             </Button>
           </div>
         )}
