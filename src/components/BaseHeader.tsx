@@ -15,7 +15,7 @@ const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps)
   const iconUrl = itemIcon ? getIconUrl(itemIcon.icon) : null;
 
   return (
-    <div className="flex items-center space-x-1 bg-white/5 px-2 py-1 rounded-lg border border-white/10">
+    <div className="flex items-center space-x-2 bg-white/5 px-2 py-1 rounded-lg border border-white/10">
       <div className="w-6 h-6 relative">
         {itemIcon ? (
           <ItemIcon iconName={iconUrl || itemIcon.icon} alt={label} />
