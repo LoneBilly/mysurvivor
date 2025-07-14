@@ -69,7 +69,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   const useActionText = item.items?.use_action_text;
   const isBlueprint = useActionText === 'Lire';
   const iconUrl = getIconUrl(item.items?.icon || null);
-  const canUse = source !== 'chest' && useActionText; // Only show if useActionText is defined
+  const canUse = source !== 'chest' && useActionText;
   const canTransfer = !!onTransfer;
   const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
 

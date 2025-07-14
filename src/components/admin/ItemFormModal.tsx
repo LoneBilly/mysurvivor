@@ -33,7 +33,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [icon, setIcon] = useState('');
   const [stackable, setStackable] = useState(true);
   const [type, setType] = useState('Items divers');
-  const [useActionText, setUseActionText] = useState(''); // Changed default to empty string
+  const [useActionText, setUseActionText] = useState('Utiliser');
   const [loading, setLoading] = useState(false);
   
   const [nameExists, setNameExists] = useState(false);
@@ -60,7 +60,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setIcon(initialIcon);
       setStackable(item?.stackable ?? true);
       setType(item?.type || 'Items divers');
-      setUseActionText(item?.use_action_text || ''); // Use empty string if null
+      setUseActionText(item?.use_action_text || '');
       setNameExists(false);
       setPreviewUrl(null);
       setIconExists(null);
@@ -171,7 +171,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       icon: icon || null, 
       stackable, 
       type,
-      use_action_text: useActionText.trim() === '' ? null : useActionText // Set to null if empty
+      use_action_text: useActionText || null
     };
     const { error } = item
       ? await supabase.from('items').update(itemData).eq('id', item.id)
@@ -245,7 +245,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 <option value="Armes">Armes</option>
                 <option value="Nourriture">Nourriture</option>
                 <option value="Soins">Soins</option>
-                <option value="Outils">Outils</option> {/* Added 'Outils' type */}
+                <option value="Outils">Outils</option>
                 <option value="Items divers">Items divers</option>
                 <option value="Items craftés">Items craftés</option>
               </select>

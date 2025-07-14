@@ -8,13 +8,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
 
 interface InventorySlotProps {
   item: InventoryItem | null;
   index: number;
   isUnlocked: boolean;
-  onDragStart: (item: InventoryItem, index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => void;
+  onDragStart: (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => void;
   onItemClick: (item: InventoryItem) => void;
   isBeingDragged: boolean;
   isDragOver: boolean;
@@ -22,21 +23,39 @@ interface InventorySlotProps {
 
 const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver }: InventorySlotProps) => {
   const { getIconUrl } = useGame();
+  const interactionState = useRef<{
+    startPos: { x: number, y: number };
+    isDragging: boolean;
+  } | null>(null);
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (item && isUnlocked && !isBeingDragged) {
-      onDragStart(item, index, e.currentTarget, e);
-    } else if (item && isUnlocked) {
-      onItemClick(item); // Allow click even if already dragging (e.g., to open detail modal)
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      interactionState.current = {
+        startPos: { x: clientX, y: clientY },
+        isDragging: false,
+      };
     }
   };
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (item && isUnlocked && !isBeingDragged) {
-      onDragStart(item, index, e.currentTarget, e);
-    } else if (item && isUnlocked) {
+  const handleInteractionMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (interactionState.current && !interactionState.current.isDragging) {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      const dx = Math.abs(clientX - interactionState.current.startPos.x);
+      const dy = Math.abs(clientY - interactionState.current.startPos.y);
+
+      if (dx > 5 || dy > 5) { // Threshold for movement
+        interactionState.current.isDragging = true;
+        onDragStart(index, e.currentTarget, e);
+      }
+    }
+  };
+
+  const handleInteractionEnd = () => {
+    if (item && interactionState.current && !interactionState.current.isDragging) {
       onItemClick(item);
     }
+    interactionState.current = null;
   };
 
   if (!isUnlocked) {
@@ -52,13 +71,19 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
   return (
     <div
       data-slot-index={index}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
+      onMouseDown={handleInteractionStart}
+      onTouchStart={handleInteractionStart}
+      onMouseMove={handleInteractionMove}
+      onTouchMove={handleInteractionMove}
+      onMouseUp={handleInteractionEnd}
+      onTouchEnd={handleInteractionEnd}
+      onMouseLeave={() => { interactionState.current = null; }}
+      style={{ touchAction: 'none' }}
       className={cn(
         "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
         "bg-slate-700/50 border-slate-600",
         isDragOver && "bg-slate-600/70 ring-2 ring-slate-400 border-slate-400",
-        isBeingDragged && "opacity-0", // Hide the original item when dragging
+        isBeingDragged && "bg-transparent border-dashed border-slate-500",
         item && "cursor-grab active:cursor-grabbing hover:bg-slate-700/80 hover:border-slate-500"
       )}
     >
@@ -66,7 +91,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="absolute inset-0 item-visual">
+              <div className={cn("absolute inset-0 item-visual", isBeingDragged && "opacity-0")}>
                 <ItemIcon iconName={iconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
                 {item.quantity > 0 && (
                   <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
