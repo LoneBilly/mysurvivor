@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, Check, BookOpen, Clock, Square } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -38,8 +38,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const craftTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [outputSlot, setOutputSlot] = useState<InventoryItem | null>(null);
   const [isCollecting, setIsCollecting] = useState(false);
+  const [potentialOutputQuantity, setPotentialOutputQuantity] = useState(0);
 
-  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; from: 'inventory' | 'crafting'; fromIndex: number } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; from: 'inventory' | 'crafting' | 'output'; fromIndex: number } | null>(null);
   const [dragOver, setDragOver] = useState<{ target: 'inventory' | 'crafting'; index: number } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
@@ -69,9 +70,12 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [isOpen, fetchRecipes]);
 
   useEffect(() => {
+    if (isContinuousCrafting) return;
+
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
     if (ingredients.length === 0) {
       setMatchedRecipe(null);
+      setPotentialOutputQuantity(0);
       return;
     }
 
@@ -92,12 +96,20 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         });
         if (hasEnough) {
           setMatchedRecipe(recipe);
+          const craftableCounts = [
+            recipe.ingredient1_id ? Math.floor((ingredients.find(i => i.item_id === recipe.ingredient1_id)?.quantity || 0) / recipe.ingredient1_quantity) : Infinity,
+            recipe.ingredient2_id ? Math.floor((ingredients.find(i => i.item_id === recipe.ingredient2_id)?.quantity || 0) / recipe.ingredient2_quantity) : Infinity,
+            recipe.ingredient3_id ? Math.floor((ingredients.find(i => i.item_id === recipe.ingredient3_id)?.quantity || 0) / recipe.ingredient3_quantity) : Infinity,
+          ].filter(c => isFinite(c));
+          const maxPossible = craftableCounts.length > 0 ? Math.min(...craftableCounts) : 0;
+          setPotentialOutputQuantity(maxPossible * recipe.result_quantity);
           return;
         }
       }
     }
     setMatchedRecipe(null);
-  }, [ingredientSlots, recipes]);
+    setPotentialOutputQuantity(0);
+  }, [ingredientSlots, recipes, isContinuousCrafting]);
 
   useEffect(() => {
     if (matchedRecipe) {
@@ -109,22 +121,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [matchedRecipe, items]);
 
   const handleStartContinuousCraft = () => {
-    if (!matchedRecipe) return;
-
-    const craftableCounts = [
-      matchedRecipe.ingredient1_id ? Math.floor((ingredientSlots.find(i => i?.item_id === matchedRecipe.ingredient1_id)?.quantity || 0) / matchedRecipe.ingredient1_quantity) : Infinity,
-      matchedRecipe.ingredient2_id ? Math.floor((ingredientSlots.find(i => i?.item_id === matchedRecipe.ingredient2_id)?.quantity || 0) / matchedRecipe.ingredient2_quantity) : Infinity,
-      matchedRecipe.ingredient3_id ? Math.floor((ingredientSlots.find(i => i?.item_id === matchedRecipe.ingredient3_id)?.quantity || 0) / matchedRecipe.ingredient3_quantity) : Infinity,
-    ];
-    const maxPossible = Math.min(...craftableCounts);
-    
-    if (maxPossible > 0) {
-      setMaxCraftCount(maxPossible);
-      setCurrentCraftCount(0);
-      setIsContinuousCrafting(true);
-    } else {
-      showError("Ressources insuffisantes pour fabriquer cet objet.");
-    }
+    if (!matchedRecipe || potentialOutputQuantity === 0) return;
+    const maxPossible = potentialOutputQuantity / matchedRecipe.result_quantity;
+    setMaxCraftCount(maxPossible);
+    setCurrentCraftCount(0);
+    setIsContinuousCrafting(true);
   };
 
   const handleStopCrafting = () => {
@@ -158,11 +159,22 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         if (elapsed >= craftTime) {
           if (craftTimerRef.current) clearInterval(craftTimerRef.current);
           
-          const newSlots = [...ingredientSlots];
-          if (matchedRecipe.ingredient1_id) newSlots.find(i => i?.item_id === matchedRecipe.ingredient1_id)!.quantity -= matchedRecipe.ingredient1_quantity;
-          if (matchedRecipe.ingredient2_id) newSlots.find(i => i?.item_id === matchedRecipe.ingredient2_id)!.quantity -= matchedRecipe.ingredient2_quantity;
-          if (matchedRecipe.ingredient3_id) newSlots.find(i => i?.item_id === matchedRecipe.ingredient3_id)!.quantity -= matchedRecipe.ingredient3_quantity;
-          setIngredientSlots(newSlots.map(s => s && s.quantity > 0 ? s : null));
+          setIngredientSlots(prevSlots => {
+            const newSlots = JSON.parse(JSON.stringify(prevSlots));
+            if (matchedRecipe.ingredient1_id) {
+                const idx = newSlots.findIndex((i: InventoryItem | null) => i?.item_id === matchedRecipe.ingredient1_id);
+                if(idx > -1) newSlots[idx]!.quantity -= matchedRecipe.ingredient1_quantity;
+            }
+            if (matchedRecipe.ingredient2_id) {
+                const idx = newSlots.findIndex((i: InventoryItem | null) => i?.item_id === matchedRecipe.ingredient2_id);
+                if(idx > -1) newSlots[idx]!.quantity -= matchedRecipe.ingredient2_quantity;
+            }
+            if (matchedRecipe.ingredient3_id) {
+                const idx = newSlots.findIndex((i: InventoryItem | null) => i?.item_id === matchedRecipe.ingredient3_id);
+                if(idx > -1) newSlots[idx]!.quantity -= matchedRecipe.ingredient3_quantity;
+            }
+            return newSlots.map((s: InventoryItem | null) => s && s.quantity > 0 ? s : null);
+          });
 
           setOutputSlot(prevOutput => {
             const resultItemDef = items.find(i => i.id === matchedRecipe.result_item_id);
@@ -185,8 +197,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     };
   }, [isContinuousCrafting, currentCraftCount, maxCraftCount, matchedRecipe, items]);
 
-  const handleCollectFromOutput = async () => {
-    if (!outputSlot || !matchedRecipe || !user) return;
+  const handleFinalizeAndCollect = async () => {
+    if (!outputSlot || !matchedRecipe || !user || isCollecting) return;
     setIsCollecting(true);
 
     const quantityToCraft = outputSlot.quantity / matchedRecipe.result_quantity;
@@ -296,7 +308,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIngredientSlots(newSlots);
   };
 
-  const handleDragStart = (item: InventoryItem, from: 'inventory' | 'crafting', fromIndex: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+  const handleDragStart = (item: InventoryItem, from: 'inventory' | 'crafting' | 'output', fromIndex: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     setDraggedItem({ item, from, fromIndex });
     
@@ -354,6 +366,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setDragOver(null);
 
     if (from === target && fromIndex === toIndex) return;
+
+    if (from === 'output' && target === 'inventory') {
+      await handleFinalizeAndCollect();
+      return;
+    }
 
     if (from === 'inventory' && target === 'inventory') {
       const fromItem = playerData.inventory.find(i => i.slot_position === fromIndex);
@@ -448,9 +465,24 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             </div>
             <div className="relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
               {outputSlot ? (
-                <InventorySlot item={outputSlot} index={0} isUnlocked={true} onDragStart={()=>{}} onItemClick={() => setDetailedItem({ item: outputSlot, source: 'output' })} />
+                <InventorySlot 
+                  item={outputSlot} 
+                  index={0} 
+                  isUnlocked={true} 
+                  onDragStart={(idx, node, e) => outputSlot && handleDragStart(outputSlot, 'output', idx, node, e)} 
+                  onItemClick={handleFinalizeAndCollect}
+                  isBeingDragged={draggedItem?.from === 'output'}
+                  isDragOver={false}
+                />
               ) : resultItem ? (
-                <ItemIcon iconName={useGame().getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
+                <>
+                  <ItemIcon iconName={useGame().getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
+                  {potentialOutputQuantity > 0 && (
+                    <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                      x{potentialOutputQuantity}
+                    </span>
+                  )}
+                </>
               ) : null}
             </div>
             <div className="col-span-2" />
@@ -474,7 +506,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
               </div>
             </div>
           ) : (
-            <Button onClick={handleStartContinuousCraft} disabled={!matchedRecipe} className="w-full">
+            <Button onClick={handleStartContinuousCraft} disabled={!matchedRecipe || potentialOutputQuantity === 0} className="w-full">
               <Hammer className="w-4 h-4 mr-2" /> Fabriquer
             </Button>
           )}
@@ -531,7 +563,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         source={detailedItem?.source}
         onUse={() => {
           if (detailedItem?.source === 'output') {
-            handleCollectFromOutput();
+            handleFinalizeAndCollect();
           } else {
             showError("Vous ne pouvez pas utiliser un objet depuis l'établi.");
           }
