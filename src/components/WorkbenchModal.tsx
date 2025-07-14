@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -20,16 +20,11 @@ interface WorkbenchModalProps {
   onUpdate: () => void;
 }
 
-const CraftingSlot = ({ item, onDrop, onClear, isDragOver, onDragEnter, onDragLeave, onClick }: { item: InventoryItem | null, onDrop: (e: React.DragEvent<HTMLDivElement>) => void, onClear: () => void, isDragOver: boolean, onDragEnter: () => void, onDragLeave: () => void, onClick: () => void }) => {
+const CraftingSlot = ({ item, onClear, isDragOver, onClick }: { item: InventoryItem | null, onClear: () => void, isDragOver: boolean, onClick: () => void }) => {
   const { getIconUrl } = useGame();
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => e.preventDefault();
 
   return (
     <div
-      onDrop={onDrop}
-      onDragOver={handleDragOver}
-      onDragEnter={onDragEnter}
-      onDragLeave={onDragLeave}
       onClick={onClick}
       className={cn(
         "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
@@ -60,8 +55,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
   const [resultItem, setResultItem] = useState<Item | null>(null);
   const [craftingJob, setCraftingJob] = useState<CraftingJob | null>(null);
-  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
+
+  const [draggedItem, setDraggedItem] = useState<InventoryItem | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -123,22 +121,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, slotIndex: number) => {
-    e.preventDefault();
-    const itemData = e.dataTransfer.getData('application/json');
-    if (itemData) {
-      const droppedItem: InventoryItem = JSON.parse(itemData);
-      const newSlots = [...ingredientSlots];
-      newSlots[slotIndex] = droppedItem;
-      setIngredientSlots(newSlots);
-    }
-    setDragOverSlot(null);
-  };
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: InventoryItem) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(item));
-  };
-
   const handleClearSlot = (index: number) => {
     const newSlots = [...ingredientSlots];
     newSlots[index] = null;
@@ -190,6 +172,83 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
+  const handleDragStart = (item: InventoryItem, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItem(item);
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  };
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    let newDragOverIndex: number | null = null;
+    const craftingSlotElements = document.querySelectorAll('[data-crafting-slot-index]');
+    for (const slot of craftingSlotElements) {
+        const rect = slot.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          newDragOverIndex = parseInt((slot as HTMLElement).dataset.craftingSlotIndex || '-1', 10);
+          break;
+        }
+    }
+    setDragOverSlot(newDragOverIndex);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+
+    if (draggedItem && dragOverSlot !== null) {
+        const newSlots = [...ingredientSlots];
+        newSlots[dragOverSlot] = draggedItem;
+        setIngredientSlots(newSlots);
+    }
+
+    setDraggedItem(null);
+    setDragOverSlot(null);
+  }, [draggedItem, dragOverSlot, ingredientSlots]);
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd]);
+
   const renderCraftingProgress = () => {
     if (!craftingJob) return null;
     const recipe = recipes.find(r => r.id === craftingJob.recipe_id);
@@ -233,16 +292,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           <div className="grid grid-cols-5 gap-2">
             <div />
             {ingredientSlots.map((item, index) => (
-              <CraftingSlot 
-                key={index} 
-                item={item} 
-                onDrop={(e) => handleDrop(e, index)} 
-                onClear={() => handleClearSlot(index)} 
-                isDragOver={dragOverSlot === index}
-                onDragEnter={() => setDragOverSlot(index)}
-                onDragLeave={() => setDragOverSlot(null)}
-                onClick={() => item && setDetailedItem(item)}
-              />
+              <div key={index} data-crafting-slot-index={index}>
+                <CraftingSlot 
+                  item={item} 
+                  onClear={() => handleClearSlot(index)} 
+                  isDragOver={dragOverSlot === index}
+                  onClick={() => item && setDetailedItem(item)}
+                />
+              </div>
             ))}
             <div />
           </div>
@@ -271,9 +328,19 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
             const item = playerData.inventory.find(i => i.slot_position === index);
             return (
-              <div key={index} draggable={!!item} onDragStart={(e) => item && handleDragStart(e, item)}>
-                <InventorySlot item={item} index={index} isUnlocked={true} onDragStart={() => {}} onItemClick={(item) => setDetailedItem(item)} isBeingDragged={false} isDragOver={false} />
-              </div>
+              <InventorySlot 
+                key={index} 
+                item={item} 
+                index={index} 
+                isUnlocked={true} 
+                onDragStart={(idx, node, e) => {
+                  const inventoryItem = playerData.inventory.find(i => i.slot_position === idx);
+                  if (inventoryItem) handleDragStart(inventoryItem, node, e);
+                }} 
+                onItemClick={(item) => setDetailedItem(item)} 
+                isBeingDragged={draggedItem?.id === item?.id} 
+                isDragOver={false} 
+              />
             );
           })}
         </div>
