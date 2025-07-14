@@ -23,7 +23,7 @@ interface WorkbenchModalProps {
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { user } = useAuth();
-  const { playerData, items } = useGame();
+  const { playerData, items, getIconUrl } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -197,7 +197,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     };
   }, [isContinuousCrafting, currentCraftCount, maxCraftCount, matchedRecipe, items]);
 
-  const handleFinalizeAndCollect = async () => {
+  const handleFinalizeAndCollect = async (targetSlot: number | null = null) => {
     if (!outputSlot || !matchedRecipe || !user || isCollecting) return;
     setIsCollecting(true);
 
@@ -220,7 +220,12 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       return;
     }
 
-    const { error: addError } = await supabase.rpc('add_item_to_inventory', { p_player_id: user.id, p_item_id: outputSlot.item_id, p_quantity: outputSlot.quantity });
+    const { error: addError } = await supabase.rpc('add_item_to_inventory', { 
+      p_player_id: user.id, 
+      p_item_id: outputSlot.item_id, 
+      p_quantity: outputSlot.quantity,
+      p_target_slot: targetSlot
+    });
 
     if (addError) {
       showError(`Erreur lors de l'ajout de l'objet à l'inventaire: ${addError.message}`);
@@ -369,7 +374,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (from === target && fromIndex === toIndex) return;
 
     if (from === 'output' && target === 'inventory') {
-      await handleFinalizeAndCollect();
+      await handleFinalizeAndCollect(toIndex);
       return;
     }
 
@@ -472,13 +477,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   index={0} 
                   isUnlocked={true} 
                   onDragStart={(idx, node, e) => outputSlot && handleDragStart(outputSlot, 'output', idx, node, e)} 
-                  onItemClick={handleFinalizeAndCollect}
+                  onItemClick={() => handleFinalizeAndCollect()}
                   isBeingDragged={draggedItem?.from === 'output'}
                   isDragOver={false}
                 />
               ) : !isContinuousCrafting && resultItem ? (
                 <>
-                  <ItemIcon iconName={useGame().getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
+                  <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
                   {potentialOutputQuantity > 0 && (
                     <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
                       x{potentialOutputQuantity}
