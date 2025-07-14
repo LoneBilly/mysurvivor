@@ -30,19 +30,21 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   const [remaining, setRemaining] = useState(calculateRemaining());
 
   useEffect(() => {
-    let completed = false;
+    if (remaining.totalSeconds <= 0) {
+      onCompleteRef.current();
+      return;
+    }
+
     const timer = setInterval(() => {
       const newRemaining = calculateRemaining();
-      setRemaining(newRemaining);
-      if (newRemaining.totalSeconds <= 0 && !completed) {
-        completed = true;
+      if (newRemaining.totalSeconds <= 0) {
         clearInterval(timer);
-        setTimeout(() => onCompleteRef.current(), 500);
       }
+      setRemaining(newRemaining);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [calculateRemaining]);
+  }, [remaining.totalSeconds, calculateRemaining]);
 
   return <>{remaining.formatted}</>;
 };

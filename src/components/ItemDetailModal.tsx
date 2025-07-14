@@ -25,18 +25,21 @@ interface ItemDetailModalProps {
   onDropAll: () => void;
   source?: 'inventory' | 'chest';
   onTransfer?: (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => void;
+  onTransferToWorkbench?: (item: InventoryItem, quantity: number) => void;
   onSplit?: (item: InventoryItem, quantity: number) => void;
   onUpdate?: () => void;
 }
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onSplit, onUpdate }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
   const { getIconUrl } = useGame();
   const [transferQuantity, setTransferQuantity] = useState(1);
+  const [workbenchTransferQuantity, setWorkbenchTransferQuantity] = useState(1);
   const [splitQuantity, setSplitQuantity] = useState(1);
 
   useEffect(() => {
     if (item) {
       setTransferQuantity(1);
+      setWorkbenchTransferQuantity(1);
       setSplitQuantity(1);
     }
   }, [item]);
@@ -46,6 +49,12 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   const handleTransferClick = () => {
     if (onTransfer && source) {
       onTransfer(item, transferQuantity, source);
+    }
+  };
+
+  const handleTransferToWorkbenchClick = () => {
+    if (onTransferToWorkbench) {
+      onTransferToWorkbench(item, workbenchTransferQuantity);
     }
   };
 
@@ -131,6 +140,27 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
             />
             <Button onClick={handleTransferClick} className="w-full">
               Transférer {transferQuantity} {source === 'inventory' ? 'vers le coffre' : "vers l'inventaire"}
+            </Button>
+          </div>
+        )}
+
+        {onTransferToWorkbench && (
+          <div className="w-full space-y-4 rounded-lg bg-slate-700/50 p-4 my-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="workbench-quantity-slider">Quantité pour l'établi</Label>
+              <span className="font-mono text-lg font-bold">{workbenchTransferQuantity}</span>
+            </div>
+            <Slider
+              id="workbench-quantity-slider"
+              value={[workbenchTransferQuantity]}
+              onValueChange={(value) => setWorkbenchTransferQuantity(value[0])}
+              min={1}
+              max={item.quantity}
+              step={1}
+              disabled={item.quantity <= 1}
+            />
+            <Button onClick={handleTransferToWorkbenchClick} className="w-full">
+              Transférer {workbenchTransferQuantity} vers l'établi
             </Button>
           </div>
         )}
