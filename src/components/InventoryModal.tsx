@@ -321,6 +321,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           onDropAll={handleDropAllItems}
           onSplit={handleSplitItem}
           source="inventory"
+          onUpdate={onUpdate}
         />
       </DialogContent>
     </Dialog>

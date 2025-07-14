@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check, BookOpen } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -47,6 +47,43 @@ const CraftingSlot = ({ item, onClear, isDragOver, onClick }: { item: InventoryI
       )}
     </div>
   );
+};
+
+const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
+  const calculateRemaining = useCallback(() => {
+    const diff = new Date(endsAt).getTime() - Date.now();
+    if (diff <= 0) {
+      return { totalSeconds: 0, formatted: 'Terminé' };
+    }
+    
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return { totalSeconds, formatted: `${days}j` };
+    if (hours > 0) return { totalSeconds, formatted: `${hours}h ${minutes}m` };
+    if (minutes > 0) return { totalSeconds, formatted: `${minutes}m ${seconds}s` };
+    return { totalSeconds, formatted: `${seconds}s` };
+  }, [endsAt]);
+
+  const [remaining, setRemaining] = useState(calculateRemaining());
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    if (remaining.totalSeconds <= 0) {
+      setTimeout(() => onCompleteRef.current(), 1000);
+      return;
+    }
+    const timer = setInterval(() => {
+      setRemaining(calculateRemaining());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [remaining.totalSeconds, calculateRemaining]);
+
+  return <>{remaining.formatted}</>;
 };
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
@@ -331,24 +368,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
   );
-};
-
-const Countdown = ({ endsAt, onComplete }: { endsAt: string; onComplete: () => void }) => {
-  const calculateRemaining = useCallback(() => new Date(endsAt).getTime() - Date.now(), [endsAt]);
-  const [remaining, setRemaining] = useState(calculateRemaining());
-
-  useEffect(() => {
-    if (remaining <= 0) {
-      onComplete();
-      return;
-    }
-    const timer = setInterval(() => setRemaining(calculateRemaining()), 1000);
-    return () => clearInterval(timer);
-  }, [remaining, onComplete]);
-
-  const seconds = Math.floor((remaining / 1000) % 60);
-  const minutes = Math.floor((remaining / (1000 * 60)) % 60);
-  return <>{`${minutes}m ${seconds}s`}</>;
 };
 
 export default WorkbenchModal;
