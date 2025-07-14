@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, Cog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
-import WorkbenchModal from "./WorkbenchModal";
+import { WorkbenchModal } from "./WorkbenchModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useGame } from "@/contexts/GameContext";
 import CountdownTimer from "./CountdownTimer";
@@ -56,7 +56,7 @@ interface BaseInterfaceProps {
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
-  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
   
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
@@ -457,8 +457,25 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
   };
 
+  const activeJobWorkbenches = useMemo(() => 
+    new Set(craftingJobs?.map(job => job.workbench_id) || []),
+    [craftingJobs]
+  );
+
   const getCellContent = (cell: BaseCell) => {
     const Icon = buildingIcons[cell.type];
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const isCrafting = cell.type === 'workbench' && construction && activeJobWorkbenches.has(construction.id);
+
+    if (isCrafting) {
+      return (
+        <>
+          {Icon && <Icon className="w-6 h-6 text-gray-300" />}
+          <Cog className="absolute top-1 right-1 w-4 h-4 text-yellow-400 animate-spin" style={{ animationDuration: '3s' }} />
+        </>
+      );
+    }
+
     if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
     if (cell.type === 'in_progress' && cell.ends_at) {
@@ -497,6 +514,13 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const getCellStyle = (cell: BaseCell) => {
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const isCrafting = cell.type === 'workbench' && construction && activeJobWorkbenches.has(construction.id);
+
+    if (isCrafting) {
+      return "bg-yellow-900/50 border-yellow-500 animate-pulse";
+    }
+
     switch (cell.type) {
       case 'campfire': return "bg-orange-400/20 border-orange-400/30";
       case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
