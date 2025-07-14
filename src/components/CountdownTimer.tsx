@@ -40,9 +40,8 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
     if (remaining.totalSeconds <= 0) {
       if (!completedRef.current) {
         completedRef.current = true;
-        // Call onComplete after a small delay, but only if it's truly finished (totalSeconds is 0)
         if (remaining.totalSeconds === 0) {
-          setTimeout(() => onCompleteRef.current(), 250);
+          setTimeout(() => onCompleteRef.current(), 1000);
         }
       }
       return;
