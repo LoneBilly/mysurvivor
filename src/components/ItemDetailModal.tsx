@@ -23,15 +23,14 @@ interface ItemDetailModalProps {
   onUse: () => void;
   onDropOne: () => void;
   onDropAll: () => void;
-  source?: 'inventory' | 'chest' | 'crafting';
+  source?: 'inventory' | 'chest';
   onTransfer?: (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => void;
   onTransferToWorkbench?: (item: InventoryItem, quantity: number) => void;
-  onReturnToInventory?: (item: InventoryItem, quantity: number) => void;
   onSplit?: (item: InventoryItem, quantity: number) => void;
   onUpdate?: () => void;
 }
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onReturnToInventory, onSplit, onUpdate }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
   const { getIconUrl } = useGame();
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [workbenchTransferQuantity, setWorkbenchTransferQuantity] = useState(1);
@@ -49,14 +48,12 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
 
   const handleTransferClick = () => {
     if (onTransfer && source) {
-      onTransfer(item, transferQuantity, source as 'inventory' | 'chest');
+      onTransfer(item, transferQuantity, source);
     }
   };
 
-  const handleWorkbenchTransferClick = () => {
-    if (source === 'crafting' && onReturnToInventory) {
-      onReturnToInventory(item, workbenchTransferQuantity);
-    } else if (source === 'inventory' && onTransferToWorkbench) {
+  const handleTransferToWorkbenchClick = () => {
+    if (onTransferToWorkbench) {
       onTransferToWorkbench(item, workbenchTransferQuantity);
     }
   };
@@ -147,12 +144,10 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
           </div>
         )}
 
-        {(onTransferToWorkbench || onReturnToInventory) && (
+        {onTransferToWorkbench && (
           <div className="w-full space-y-4 rounded-lg bg-slate-700/50 p-4 my-2">
             <div className="flex justify-between items-center">
-              <Label htmlFor="workbench-quantity-slider">
-                {source === 'crafting' ? "Quantité à retourner" : "Quantité pour l'établi"}
-              </Label>
+              <Label htmlFor="workbench-quantity-slider">Quantité pour l'établi</Label>
               <span className="font-mono text-lg font-bold">{workbenchTransferQuantity}</span>
             </div>
             <Slider
@@ -164,11 +159,8 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
               step={1}
               disabled={item.quantity <= 1}
             />
-            <Button onClick={handleWorkbenchTransferClick} className="w-full">
-              {source === 'crafting' 
-                ? `Retourner ${workbenchTransferQuantity} vers l'inventaire`
-                : `Transférer ${workbenchTransferQuantity} vers l'établi`
-              }
+            <Button onClick={handleTransferToWorkbenchClick} className="w-full">
+              Transférer {workbenchTransferQuantity} vers l'établi
             </Button>
           </div>
         )}
