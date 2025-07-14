@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError, showInfo } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, ConstructionJob, CraftingJob } from "@/types/game";
+import { BaseConstruction, ConstructionJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
 import WorkbenchModal from "./WorkbenchModal";
@@ -20,7 +20,6 @@ interface BaseCell {
   canBuild?: boolean;
   ends_at?: string;
   showTrash?: boolean;
-  isCrafting?: boolean;
 }
 
 const GRID_SIZE = 31;
@@ -57,7 +56,7 @@ interface BaseInterfaceProps {
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
-  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs: initialCraftingJobs = [] } = playerData;
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
   
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
@@ -116,7 +115,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     return newGrid;
   };
 
-  const initializeGrid = useCallback(async (constructions: BaseConstruction[], constructionJobs: ConstructionJob[], craftingJobs: CraftingJob[]) => {
+  const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
     if (!user) return;
     setLoading(true);
     
@@ -130,12 +129,12 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false, isCrafting: false }))
+      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
     );
 
     let campPos: { x: number; y: number } | null = null;
 
-    if (currentConstructions.length === 0 && constructionJobs.length === 0) {
+    if (currentConstructions.length === 0 && jobs.length === 0) {
       const newCampX = Math.floor(GRID_SIZE / 2);
       const newCampY = Math.floor(GRID_SIZE / 2);
       
@@ -158,13 +157,9 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
           if (c.type === 'campfire') {
             campPos = { x: c.x, y: c.y };
           }
-          if (c.type === 'workbench') {
-            const isCrafting = craftingJobs.some(job => job.workbench_id === c.id);
-            newGrid[c.y][c.x].isCrafting = isCrafting;
-          }
         }
       });
-      constructionJobs.forEach((job: ConstructionJob) => {
+      jobs.forEach((job: ConstructionJob) => {
         if (newGrid[job.y]?.[job.x]) {
           newGrid[job.y][job.x].type = 'in_progress';
           newGrid[job.y][job.x].ends_at = job.ends_at;
@@ -180,9 +175,9 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
   useEffect(() => {
     if (initialConstructions) {
-      initializeGrid(initialConstructions, initialConstructionJobs, initialCraftingJobs);
+      initializeGrid(initialConstructions, initialConstructionJobs);
     }
-  }, [initialConstructions, initialConstructionJobs, initialCraftingJobs, initializeGrid]);
+  }, [initialConstructions, initialConstructionJobs, initializeGrid]);
 
   const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
     if (!viewportRef.current) return;
@@ -464,19 +459,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
 
   const getCellContent = (cell: BaseCell) => {
     const Icon = buildingIcons[cell.type];
-    if (Icon) {
-      return (
-        <>
-          <Icon className="w-6 h-6 text-gray-300" />
-          {cell.isCrafting && (
-            <div className="absolute top-1 right-1 w-2.5 h-2.5">
-              <div className="w-full h-full rounded-full bg-yellow-400 animate-ping absolute"></div>
-              <div className="w-full h-full rounded-full bg-yellow-400 relative border-2 border-gray-900"></div>
-            </div>
-          )}
-        </>
-      );
-    }
+    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
