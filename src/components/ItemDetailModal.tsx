@@ -13,6 +13,8 @@ import { useGame } from "@/contexts/GameContext";
 import { useState, useEffect } from "react";
 import { Label } from "./ui/label";
 import { Slider } from "./ui/slider";
+import { supabase } from "@/integrations/supabase/client";
+import { showError, showSuccess } from "@/utils/toast";
 
 interface ItemDetailModalProps {
   isOpen: boolean;
@@ -24,9 +26,10 @@ interface ItemDetailModalProps {
   source?: 'inventory' | 'chest';
   onTransfer?: (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => void;
   onSplit?: (item: InventoryItem, quantity: number) => void;
+  onUpdate?: () => void;
 }
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onSplit }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onSplit, onUpdate }: ItemDetailModalProps) => {
   const { getIconUrl } = useGame();
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [splitQuantity, setSplitQuantity] = useState(1);
@@ -52,11 +55,31 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
     }
   };
 
+  const handleReadBlueprint = async () => {
+    const { error } = await supabase.rpc('read_blueprint', { p_inventory_id: item.id });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Blueprint appris !");
+      if (onUpdate) onUpdate();
+      onClose();
+    }
+  };
+
   const useActionText = item.items?.use_action_text || 'Utiliser';
+  const isBlueprint = useActionText === 'Lire';
   const iconUrl = getIconUrl(item.items?.icon || null);
   const canUse = source !== 'chest';
   const canTransfer = !!onTransfer;
   const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
+
+  const handleUseClick = () => {
+    if (isBlueprint) {
+      handleReadBlueprint();
+    } else {
+      onUse();
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -134,7 +157,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
         )}
 
         <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 pt-4 border-t border-slate-700">
-          <Button onClick={onUse} disabled={!canUse} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+          <Button onClick={handleUseClick} disabled={!canUse} className="w-full rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
             {useActionText}
           </Button>
           <div className="flex w-full gap-2">

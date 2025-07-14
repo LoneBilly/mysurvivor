@@ -1,8 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, CraftingJob, Item } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Hammer, Trash2, ArrowRight, Loader2, Clock, Check, BookOpen } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -11,6 +11,7 @@ import ItemIcon from "./ItemIcon";
 import { Progress } from "./ui/progress";
 import { cn } from "@/lib/utils";
 import ItemDetailModal from "./ItemDetailModal";
+import BlueprintModal from "./BlueprintModal";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -49,17 +50,22 @@ const CraftingSlot = ({ item, onClear, isDragOver, onClick }: { item: InventoryI
 };
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
-  const { playerData, items, refreshPlayerData } = useGame();
+  const { playerData, setPlayerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [ingredientSlots, setIngredientSlots] = useState<(InventoryItem | null)[]>([null, null, null]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
   const [resultItem, setResultItem] = useState<Item | null>(null);
   const [craftingJob, setCraftingJob] = useState<CraftingJob | null>(null);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
+  const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
 
-  const [draggedItem, setDraggedItem] = useState<InventoryItem | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; fromInventory: boolean } | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
-  const draggedItemNode = useRef<HTMLDivElement | null>(null);
+
+  const displayedInventory = useMemo(() => {
+    const itemsInCrafting = ingredientSlots.map(item => item?.id).filter(Boolean);
+    return playerData.inventory.filter(item => !itemsInCrafting.includes(item.id));
+  }, [playerData.inventory, ingredientSlots]);
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
@@ -172,82 +178,19 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
-  const handleDragStart = (item: InventoryItem, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    setDraggedItem(item);
-    
-    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
-    if (!ghostNode) return;
-
-    ghostNode.style.position = 'fixed';
-    ghostNode.style.pointerEvents = 'none';
-    ghostNode.style.zIndex = '5000';
-    ghostNode.style.width = '56px';
-    ghostNode.style.height = '56px';
-    ghostNode.style.opacity = '0.85';
-    ghostNode.style.transform = 'scale(1.1)';
-    document.body.appendChild(ghostNode);
-    draggedItemNode.current = ghostNode;
-
-    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-    handleDragMove(clientX, clientY);
+  const handleDragStart = (item: InventoryItem, fromInventory: boolean) => {
+    setDraggedItem({ item, fromInventory });
   };
 
-  const handleDragMove = useCallback((clientX: number, clientY: number) => {
-    if (draggedItemNode.current) {
-      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
-      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+  const handleDrop = (slotIndex: number) => {
+    if (draggedItem) {
+      const newSlots = [...ingredientSlots];
+      newSlots[slotIndex] = draggedItem.item;
+      setIngredientSlots(newSlots);
     }
-
-    let newDragOverIndex: number | null = null;
-    const craftingSlotElements = document.querySelectorAll('[data-crafting-slot-index]');
-    for (const slot of craftingSlotElements) {
-        const rect = slot.getBoundingClientRect();
-        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-          newDragOverIndex = parseInt((slot as HTMLElement).dataset.craftingSlotIndex || '-1', 10);
-          break;
-        }
-    }
-    setDragOverSlot(newDragOverIndex);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    if (draggedItemNode.current) {
-      document.body.removeChild(draggedItemNode.current);
-      draggedItemNode.current = null;
-    }
-
-    if (draggedItem && dragOverSlot !== null) {
-        const newSlots = [...ingredientSlots];
-        newSlots[dragOverSlot] = draggedItem;
-        setIngredientSlots(newSlots);
-    }
-
     setDraggedItem(null);
     setDragOverSlot(null);
-  }, [draggedItem, dragOverSlot, ingredientSlots]);
-
-  useEffect(() => {
-    const moveHandler = (e: MouseEvent | TouchEvent) => {
-      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-      handleDragMove(clientX, clientY);
-    };
-    const endHandler = () => handleDragEnd();
-
-    if (draggedItem) {
-      window.addEventListener('mousemove', moveHandler);
-      window.addEventListener('mouseup', endHandler);
-      window.addEventListener('touchmove', moveHandler, { passive: false });
-      window.addEventListener('touchend', endHandler);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', moveHandler);
-      window.removeEventListener('mouseup', endHandler);
-      window.removeEventListener('touchmove', moveHandler);
-      window.removeEventListener('touchend', endHandler);
-    };
-  }, [draggedItem, handleDragMove, handleDragEnd]);
+  };
 
   const renderCraftingProgress = () => {
     if (!craftingJob) return null;
@@ -287,12 +230,23 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const renderCraftingInterface = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
-        <h3 className="font-bold text-center mb-2">Établi</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-bold text-center">Établi</h3>
+          <Button variant="outline" size="sm" onClick={() => setIsBlueprintModalOpen(true)}>
+            <BookOpen className="w-4 h-4 mr-2" /> Blueprints
+          </Button>
+        </div>
         <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
           <div className="grid grid-cols-5 gap-2">
             <div />
             {ingredientSlots.map((item, index) => (
-              <div key={index} data-crafting-slot-index={index}>
+              <div 
+                key={index} 
+                onDrop={() => handleDrop(index)} 
+                onDragOver={(e) => e.preventDefault()}
+                onDragEnter={() => setDragOverSlot(index)}
+                onDragLeave={() => setDragOverSlot(null)}
+              >
                 <CraftingSlot 
                   item={item} 
                   onClear={() => handleClearSlot(index)} 
@@ -326,21 +280,19 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         <h3 className="font-bold text-center mb-2">Inventaire</h3>
         <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
           {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
-            const item = playerData.inventory.find(i => i.slot_position === index);
+            const item = displayedInventory.find(i => i.slot_position === index);
             return (
-              <InventorySlot 
-                key={index} 
-                item={item} 
-                index={index} 
-                isUnlocked={true} 
-                onDragStart={(idx, node, e) => {
-                  const inventoryItem = playerData.inventory.find(i => i.slot_position === idx);
-                  if (inventoryItem) handleDragStart(inventoryItem, node, e);
-                }} 
-                onItemClick={(item) => setDetailedItem(item)} 
-                isBeingDragged={draggedItem?.id === item?.id} 
-                isDragOver={false} 
-              />
+              <div key={index} draggable={!!item} onDragStart={() => item && handleDragStart(item, true)}>
+                <InventorySlot 
+                  item={item} 
+                  index={index} 
+                  isUnlocked={true} 
+                  onDragStart={() => {}} 
+                  onItemClick={(item) => setDetailedItem(item)} 
+                  isBeingDragged={false} 
+                  isDragOver={false} 
+                />
+              </div>
             );
           })}
         </div>
@@ -376,6 +328,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onDropOne={() => detailedItem && handleDropItem(detailedItem, 1)}
         onDropAll={() => detailedItem && handleDropItem(detailedItem, detailedItem.quantity)}
       />
+      <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
     </>
   );
 };
