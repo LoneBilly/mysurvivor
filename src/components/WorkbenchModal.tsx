@@ -39,6 +39,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
+  const prevJobIdRef = useRef<number | null | undefined>();
 
   useEffect(() => {
     if (isOpen) {
@@ -177,27 +178,27 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleStartCrafting = useCallback(async (isLoop: boolean) => {
+  const handleStartCrafting = useCallback(async () => {
     if (!matchedRecipe || !construction) return;
-    if (isLoop) setIsAutoCrafting(true);
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
+    setIsLoadingAction(false);
     if (error) {
       showError(error.message);
-      if (isLoop) setIsAutoCrafting(false);
+      setIsAutoCrafting(false);
     } else {
       await refreshPlayerData();
     }
-    setIsLoadingAction(false);
   }, [construction, matchedRecipe, refreshPlayerData]);
 
-  const handleStopCraftingLoop = () => {
-    setIsAutoCrafting(false);
+  const handleStartCraftingLoop = () => {
+    setIsAutoCrafting(true);
+    handleStartCrafting();
   };
 
   const handleCancelCraft = async () => {
-    if (!construction) return;
-    handleStopCraftingLoop();
+    setIsAutoCrafting(false);
+    if (!construction || !currentJob) return;
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('cancel_crafting_job', { p_workbench_id: construction.id });
     if (error) {
@@ -213,25 +214,42 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     refreshPlayerData();
   }, [refreshPlayerData]);
 
-  const isResultStackable = resultItem?.stackable ?? false;
-  const canCraftLoop = isResultStackable || !itemToCollect;
-
   useEffect(() => {
-    if (!isOpen || !isAutoCrafting || currentJob || !matchedRecipe || !canCraftLoop) {
-      return;
-    }
+    const prevJobId = prevJobIdRef.current;
+    const currentJobId = currentJob?.id;
 
-    const hasEnough = (matchedRecipe.ingredient1_id ? (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient1_id)?.quantity ?? 0) >= matchedRecipe.ingredient1_quantity : true)
-                   && (matchedRecipe.ingredient2_id ? (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient2_id)?.quantity ?? 0) >= matchedRecipe.ingredient2_quantity : true)
-                   && (matchedRecipe.ingredient3_id ? (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient3_id)?.quantity ?? 0) >= matchedRecipe.ingredient3_quantity : true);
+    if (prevJobId && !currentJobId && isAutoCrafting) {
+      const checkConditions = () => {
+        if (!matchedRecipe) {
+          showInfo("Les ingrédients ne correspondent plus à une recette.");
+          return false;
+        }
+        const hasEnough = (
+          (!matchedRecipe.ingredient1_id || (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient1_id)?.quantity ?? 0) >= matchedRecipe.ingredient1_quantity) &&
+          (!matchedRecipe.ingredient2_id || (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient2_id)?.quantity ?? 0) >= matchedRecipe.ingredient2_quantity) &&
+          (!matchedRecipe.ingredient3_id || (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient3_id)?.quantity ?? 0) >= matchedRecipe.ingredient3_quantity)
+        );
+        if (!hasEnough) {
+          showInfo("Ressources insuffisantes.");
+          return false;
+        }
+        const isResultStackable = resultItem?.stackable ?? false;
+        const isOutputBlocked = itemToCollect && !isResultStackable;
+        if (isOutputBlocked) {
+          showInfo("Veuillez récupérer l'objet non-empilable avant de continuer.");
+          return false;
+        }
+        return true;
+      };
 
-    if (hasEnough) {
-      handleStartCrafting(true);
-    } else {
-      setIsAutoCrafting(false);
-      showInfo("Ressources insuffisantes pour continuer la fabrication en boucle.");
+      if (checkConditions()) {
+        handleStartCrafting();
+      } else {
+        setIsAutoCrafting(false);
+      }
     }
-  }, [playerData, isAutoCrafting, currentJob, matchedRecipe, canCraftLoop, isOpen, workbenchItems, handleStartCrafting]);
+    prevJobIdRef.current = currentJobId;
+  }, [currentJob, isAutoCrafting, handleStartCrafting, matchedRecipe, workbenchItems, resultItem, itemToCollect]);
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
@@ -535,10 +553,12 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                         {matchedRecipe && (
                           <div className="text-center text-sm text-gray-300 mb-2">
                             <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
-                            {!canCraftLoop && <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>}
+                            {resultItem && !resultItem.stackable && !itemToCollect && (
+                              <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>
+                            )}
                           </div>
                         )}
-                        <Button onClick={() => handleStartCrafting(true)} disabled={!matchedRecipe || isLoadingAction || !canCraftLoop}>
+                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction}>
                           {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fabriquer'}
                         </Button>
                       </>
