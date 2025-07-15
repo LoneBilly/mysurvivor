@@ -508,47 +508,31 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     <div className="col-span-2" />
                   </div>
                   
-                  <div className="h-[60px] flex flex-col justify-center items-center">
+                  <div className="h-[60px] flex flex-col justify-center items-center space-y-2">
                     {currentJob ? (
                       <div className="w-full space-y-2 px-4">
-                        <div className="flex items-center gap-2">
-                          <Progress value={progress} className="flex-grow" />
-                          <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
-                            <Square className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Progress value={progress} className="w-full" />
                         <div className="text-center text-sm text-gray-300 font-mono">
                           <CountdownTimer endTime={currentJob.ends_at} onComplete={handleCraftComplete} />
                         </div>
                       </div>
-                    ) : isAutoCrafting ? (
-                      <div className="flex flex-col items-center gap-2 text-sm text-gray-300">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Démarrage...</span>
-                      </div>
                     ) : (
-                      <>
-                        {matchedRecipe && (
-                          <div className="text-center text-sm text-gray-300 mb-2">
-                            <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
-                            {!canCraftLoop && <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>}
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <Button onClick={() => handleStartCrafting(false)} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting}>
-                            Fabriquer
-                          </Button>
-                          {isAutoCrafting ? (
-                            <Button onClick={handleStopCraftingLoop} variant="destructive" disabled={isLoadingAction}>
-                              Arrêter
-                            </Button>
-                          ) : (
-                            <Button onClick={() => handleStartCrafting(true)} disabled={!matchedRecipe || isLoadingAction || !canCraftLoop}>
-                              Fabriquer en série
-                            </Button>
-                          )}
+                      !isAutoCrafting && matchedRecipe && (
+                        <div className="text-center text-sm text-gray-300">
+                          <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
+                          {!canCraftLoop && <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>}
                         </div>
-                      </>
+                      )
+                    )}
+
+                    {isAutoCrafting || currentJob ? (
+                      <Button onClick={handleCancelCraft} variant="destructive" disabled={isLoadingAction}>
+                        {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Arrêter'}
+                      </Button>
+                    ) : (
+                      <Button onClick={() => handleStartCrafting(true)} disabled={!matchedRecipe || isLoadingAction || !canCraftLoop}>
+                        {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fabriquer'}
+                      </Button>
                     )}
                   </div>
                 </div>
