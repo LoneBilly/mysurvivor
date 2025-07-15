@@ -40,6 +40,12 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      onUpdate(true);
+    }
+  }, [isOpen, onUpdate]);
+
   const ingredientSlots = useMemo(() => {
     const newSlots = Array(3).fill(null);
     workbenchItems.forEach(item => {
