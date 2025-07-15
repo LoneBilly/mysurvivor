@@ -25,6 +25,7 @@ interface WorkbenchModalProps {
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
+  const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
   const [resultItem, setResultItem] = useState<Item | null>(null);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'crafting' | 'output' } | null>(null);
@@ -38,11 +39,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-
-  const workbenchItems = useMemo(() => {
-    if (!construction) return [];
-    return playerData.workbenchItems.filter(item => item.workbench_id === construction.id);
-  }, [playerData.workbenchItems, construction]);
 
   const ingredientSlots = useMemo(() => {
     const newSlots = Array(3).fill(null);
@@ -59,6 +55,21 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (error) showError("Impossible de charger les recettes.");
     else setRecipes(data || []);
   }, []);
+
+  const fetchWorkbenchContents = useCallback(async () => {
+    if (!construction) return;
+    const { data, error } = await supabase
+      .from('workbench_items')
+      .select('*, items(*)')
+      .eq('workbench_id', construction.id);
+    
+    if (error) {
+      showError("Impossible de charger le contenu de l'établi.");
+    } else {
+      const fetchedItems = data as InventoryItem[];
+      setWorkbenchItems(fetchedItems);
+    }
+  }, [construction]);
 
   useEffect(() => {
     if (isOpen && construction) {
@@ -82,7 +93,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       }
 
       fetchRecipes();
+      fetchWorkbenchContents();
     } else {
+      setWorkbenchItems([]);
       setMatchedRecipe(null);
       setResultItem(null);
       setDetailedItem(null);
@@ -91,7 +104,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setProgress(0);
       setIsAutoCrafting(false);
     }
-  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes]);
+  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
   useEffect(() => {
     if (currentJob) {
@@ -511,11 +524,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           <CountdownTimer endTime={currentJob.ends_at} onComplete={handleCraftComplete} />
                         </div>
                       </div>
-                    ) : isAutoCrafting ? (
-                      <div className="flex flex-col items-center gap-2 text-sm text-gray-300">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Démarrage...</span>
-                      </div>
                     ) : (
                       <>
                         {matchedRecipe && (
@@ -525,7 +533,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </div>
                         )}
                         <Button onClick={() => handleStartCrafting(true)} disabled={!matchedRecipe || isLoadingAction || !canCraftLoop}>
-                          Fabriquer
+                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fabriquer'}
                         </Button>
                       </>
                     )}
