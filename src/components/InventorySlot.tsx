@@ -19,9 +19,10 @@ interface InventorySlotProps {
   onItemClick: (item: InventoryItem) => void;
   isBeingDragged: boolean;
   isDragOver: boolean;
+  isLocked?: boolean;
 }
 
-const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver }: InventorySlotProps) => {
+const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver, isLocked = false }: InventorySlotProps) => {
   const { getIconUrl } = useGame();
   const interactionState = useRef<{
     startPos: { x: number, y: number };
@@ -29,7 +30,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
   } | null>(null);
 
   const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (item && isUnlocked && !isBeingDragged) {
+    if (item && isUnlocked && !isBeingDragged && !isLocked) {
       const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
       interactionState.current = {
         startPos: { x: clientX, y: clientY },
@@ -52,7 +53,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
   };
 
   const handleInteractionEnd = () => {
-    if (item && interactionState.current && !interactionState.current.isDragging) {
+    if (item && !isLocked && interactionState.current && !interactionState.current.isDragging) {
       onItemClick(item);
     }
     interactionState.current = null;
@@ -84,9 +85,11 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
         "bg-slate-700/50 border-slate-600",
         isDragOver && "bg-slate-600/70 ring-2 ring-slate-400 border-slate-400",
         isBeingDragged && "bg-transparent border-dashed border-slate-500",
-        item && "cursor-grab active:cursor-grabbing hover:bg-slate-700/80 hover:border-slate-500"
+        item && !isLocked && "cursor-grab active:cursor-grabbing hover:bg-slate-700/80 hover:border-slate-500",
+        isLocked && "cursor-not-allowed opacity-60"
       )}
     >
+      {isLocked && <Lock className="absolute w-4 h-4 text-white z-20" />}
       {item && (
         <TooltipProvider delayDuration={200}>
           <Tooltip>
