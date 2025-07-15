@@ -39,7 +39,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-  const simulatedWorkbenchItemsRef = useRef<InventoryItem[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -178,13 +177,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const startCraft = useCallback(async (isLoop: boolean) => {
+  const startCraft = useCallback(async () => {
     if (!matchedRecipe || !construction || !resultItem) {
-        if (isLoop) setIsAutoCrafting(false);
+        setIsAutoCrafting(false);
         return;
     }
 
-    if (!isLoop) setIsLoadingAction(true);
+    setIsLoadingAction(true);
 
     const startTime = Date.now();
     const optimisticJob: CraftingJob = {
@@ -202,7 +201,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
 
-    if (!isLoop) setIsLoadingAction(false);
+    setIsLoadingAction(false);
 
     if (error) {
         showError(error.message);
@@ -213,52 +212,36 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [construction, matchedRecipe, resultItem, refreshPlayerData]);
 
   const handleCraftComplete = useCallback(async () => {
+    await refreshPlayerData();
     if (isAutoCrafting) {
-        const currentIngredients = simulatedWorkbenchItemsRef.current;
-        if (!matchedRecipe) {
-            setIsAutoCrafting(false);
-            await refreshPlayerData();
-            return;
-        }
+      // After refresh, check conditions again with fresh data
+      const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
+      if (!matchedRecipe || ingredients.length === 0) {
+        setIsAutoCrafting(false);
+        showInfo("Fin de la fabrication en série.");
+        return;
+      }
 
-        const recipeIngredients = [
-            { id: matchedRecipe.ingredient1_id, quantity: matchedRecipe.ingredient1_quantity },
-            { id: matchedRecipe.ingredient2_id, quantity: matchedRecipe.ingredient2_quantity },
-            { id: matchedRecipe.ingredient3_id, quantity: matchedRecipe.ingredient3_quantity },
-        ].filter(ing => ing.id !== null);
-
-        const canContinue = recipeIngredients.every(req => {
-            const available = currentIngredients.find(i => i.item_id === req.id);
-            return available && available.quantity >= req.quantity!;
+      const hasEnough = (matchedRecipe.ingredient1_id ? [{id: matchedRecipe.ingredient1_id, q: matchedRecipe.ingredient1_quantity}] : [])
+        .concat(matchedRecipe.ingredient2_id ? [{id: matchedRecipe.ingredient2_id, q: matchedRecipe.ingredient2_quantity}] : [])
+        .concat(matchedRecipe.ingredient3_id ? [{id: matchedRecipe.ingredient3_id, q: matchedRecipe.ingredient3_quantity}] : [])
+        .every(req => {
+          const slotItem = ingredients.find(i => i.item_id === req.id);
+          return slotItem && slotItem.quantity >= req.q!;
         });
 
-        if (canContinue) {
-            const newSimulatedItems = [...currentIngredients];
-            recipeIngredients.forEach(req => {
-                const itemIndex = newSimulatedItems.findIndex(i => i.item_id === req.id);
-                if (itemIndex > -1) {
-                    newSimulatedItems[itemIndex].quantity -= req.quantity!;
-                    if (newSimulatedItems[itemIndex].quantity <= 0) {
-                        newSimulatedItems.splice(itemIndex, 1);
-                    }
-                }
-            });
-            simulatedWorkbenchItemsRef.current = newSimulatedItems;
-            await startCraft(true);
-        } else {
-            setIsAutoCrafting(false);
-            showInfo("Ressources insuffisantes pour continuer.");
-            await refreshPlayerData();
-        }
-    } else {
-        await refreshPlayerData();
+      if (hasEnough) {
+        startCraft();
+      } else {
+        setIsAutoCrafting(false);
+        showInfo("Ressources insuffisantes pour continuer.");
+      }
     }
-  }, [isAutoCrafting, startCraft, refreshPlayerData, matchedRecipe]);
+  }, [isAutoCrafting, refreshPlayerData, startCraft, ingredientSlots, matchedRecipe]);
 
   const handleStartCraftingLoop = () => {
-    simulatedWorkbenchItemsRef.current = JSON.parse(JSON.stringify(workbenchItems));
     setIsAutoCrafting(true);
-    startCraft(false);
+    startCraft();
   };
 
   const handleCancelCraft = async () => {
