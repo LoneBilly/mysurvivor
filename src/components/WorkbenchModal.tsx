@@ -178,7 +178,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [matchedRecipe, items]);
 
   const handleStartCrafting = useCallback(async (isLoop: boolean) => {
-    if (isLoadingAction) return;
     if (!matchedRecipe || !construction) return;
     if (isLoop) setIsAutoCrafting(true);
     setIsLoadingAction(true);
@@ -190,7 +189,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       await refreshPlayerData();
     }
     setIsLoadingAction(false);
-  }, [construction, matchedRecipe, refreshPlayerData, isLoadingAction]);
+  }, [construction, matchedRecipe, refreshPlayerData]);
 
   const handleStopCraftingLoop = () => {
     setIsAutoCrafting(false);
