@@ -39,7 +39,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-  const prevJobIdRef = useRef<number | null | undefined>();
 
   useEffect(() => {
     if (isOpen) {
@@ -179,15 +178,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [matchedRecipe, items]);
 
   const handleStartCrafting = useCallback(async () => {
-    if (!matchedRecipe || !construction) return;
+    if (!matchedRecipe || !construction) return false;
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
     setIsLoadingAction(false);
     if (error) {
       showError(error.message);
       setIsAutoCrafting(false);
+      return false;
     } else {
       await refreshPlayerData();
+      return true;
     }
   }, [construction, matchedRecipe, refreshPlayerData]);
 
@@ -210,46 +211,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsLoadingAction(false);
   };
 
-  const handleCraftComplete = useCallback(() => {
-    refreshPlayerData();
-  }, [refreshPlayerData]);
-
-  useEffect(() => {
-    const prevJobId = prevJobIdRef.current;
-    const currentJobId = currentJob?.id;
-
-    if (prevJobId && !currentJobId && isAutoCrafting) {
-      const checkConditions = () => {
-        if (!matchedRecipe) {
-          showInfo("Les ingrédients ne correspondent plus à une recette.");
-          return false;
-        }
-        const hasEnough = (
-          (!matchedRecipe.ingredient1_id || (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient1_id)?.quantity ?? 0) >= matchedRecipe.ingredient1_quantity) &&
-          (!matchedRecipe.ingredient2_id || (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient2_id)?.quantity ?? 0) >= matchedRecipe.ingredient2_quantity) &&
-          (!matchedRecipe.ingredient3_id || (workbenchItems.find(i => i.item_id === matchedRecipe.ingredient3_id)?.quantity ?? 0) >= matchedRecipe.ingredient3_quantity)
-        );
-        if (!hasEnough) {
-          showInfo("Ressources insuffisantes.");
-          return false;
-        }
-        const isResultStackable = resultItem?.stackable ?? false;
-        const isOutputBlocked = itemToCollect && !isResultStackable;
-        if (isOutputBlocked) {
-          showInfo("Veuillez récupérer l'objet non-empilable avant de continuer.");
-          return false;
-        }
-        return true;
-      };
-
-      if (checkConditions()) {
-        handleStartCrafting();
-      } else {
+  const handleCraftComplete = useCallback(async () => {
+    if (isAutoCrafting) {
+      const canRecraft = await handleStartCrafting();
+      if (!canRecraft) {
         setIsAutoCrafting(false);
+        await refreshPlayerData();
       }
+    } else {
+      await refreshPlayerData();
     }
-    prevJobIdRef.current = currentJobId;
-  }, [currentJob, isAutoCrafting, handleStartCrafting, matchedRecipe, workbenchItems, resultItem, itemToCollect]);
+  }, [isAutoCrafting, handleStartCrafting, refreshPlayerData]);
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
