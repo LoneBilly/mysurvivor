@@ -36,12 +36,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [itemToCollect, setItemToCollect] = useState<InventoryItem | null>(null);
   const [isDraggingOutput, setIsDraggingOutput] = useState(false);
   const [progress, setProgress] = useState(0);
-  
-  const isAutoCraftingRef = useRef(false);
-  const [isAutoCraftingUI, setIsAutoCraftingUI] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isAutoCrafting, setIsAutoCrafting] = useState(false);
   const wasCrafting = useRef(false);
-
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
@@ -98,8 +94,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       fetchRecipes();
       fetchWorkbenchContents();
     } else {
-      isAutoCraftingRef.current = false;
-      setIsAutoCraftingUI(false);
       setIngredientSlots([null, null, null]);
       setWorkbenchItems([]);
       setMatchedRecipe(null);
@@ -108,6 +102,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setCurrentJob(null);
       setItemToCollect(null);
       setProgress(0);
+      setIsAutoCrafting(false);
     }
   }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
@@ -182,8 +177,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
     if (error) {
       showError(error.message);
-      isAutoCraftingRef.current = false;
-      setIsAutoCraftingUI(false);
+      setIsAutoCrafting(false);
     } else {
       await refreshPlayerData();
     }
@@ -192,14 +186,12 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
   const handleStartCraftingLoop = () => {
     if (!matchedRecipe) return;
-    isAutoCraftingRef.current = true;
-    setIsAutoCraftingUI(true);
+    setIsAutoCrafting(true);
     startNextCraftInLoop();
   };
 
   const handleStopCraftingLoop = () => {
-    isAutoCraftingRef.current = false;
-    setIsAutoCraftingUI(false);
+    setIsAutoCrafting(false);
   };
 
   const handleCancelCraft = async () => {
@@ -217,18 +209,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   };
 
   useEffect(() => {
-    if (wasCrafting.current && !currentJob && isAutoCraftingRef.current) {
+    if (wasCrafting.current && !currentJob && isAutoCrafting) {
       if (matchedRecipe) {
-        setIsTransitioning(true);
-        startNextCraftInLoop().finally(() => setIsTransitioning(false));
+        startNextCraftInLoop();
       } else {
-        isAutoCraftingRef.current = false;
-        setIsAutoCraftingUI(false);
+        setIsAutoCrafting(false);
         showSuccess("Fabrication en série terminée (ressources épuisées).");
       }
     }
     wasCrafting.current = !!currentJob;
-  }, [currentJob, matchedRecipe, startNextCraftInLoop]);
+  }, [currentJob, isAutoCrafting, matchedRecipe, startNextCraftInLoop]);
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
@@ -400,7 +390,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
   const isResultStackable = resultItem?.stackable ?? false;
   const canCraftLoop = isResultStackable || !itemToCollect;
-  const showProgressBar = currentJob || isTransitioning;
 
   return (
     <>
@@ -481,20 +470,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </div>
                   
                   <div className="h-[60px] flex flex-col justify-center items-center">
-                    {showProgressBar ? (
+                    {currentJob ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
-                          <Progress value={currentJob ? progress : 100} className="flex-grow" />
+                          <Progress value={progress} className="flex-grow" />
                           <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
                             <Square className="w-4 h-4" />
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
-                          {currentJob ? (
-                            <CountdownTimer endTime={currentJob.ends_at} onComplete={onUpdate} />
-                          ) : (
-                            <span>Démarrage...</span>
-                          )}
+                          <CountdownTimer endTime={currentJob.ends_at} onComplete={onUpdate} />
                         </div>
                       </div>
                     ) : (
@@ -505,8 +490,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             {!canCraftLoop && <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>}
                           </div>
                         )}
-                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCraftingUI || !canCraftLoop}>
-                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : isAutoCraftingUI ? "Fabrication en cours..." : "Fabriquer"}
+                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting || !canCraftLoop}>
+                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : isAutoCrafting ? "Fabrication en cours..." : "Fabriquer"}
                         </Button>
                       </>
                     )}
