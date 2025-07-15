@@ -37,7 +37,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [isDraggingOutput, setIsDraggingOutput] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isAutoCrafting, setIsAutoCrafting] = useState(false);
-  const [isLoopTransitioning, setIsLoopTransitioning] = useState(false);
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
@@ -203,14 +202,21 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsLoadingAction(false);
   };
 
-  const handleCraftComplete = async () => {
-    if (isAutoCrafting && matchedRecipe && canCraftLoop) {
-      setIsLoopTransitioning(true);
-      await handleStartCrafting(true);
-      setIsLoopTransitioning(false);
+  const handleCraftComplete = () => {
+    if (isAutoCrafting && matchedRecipe && canCraftLoop && currentJob) {
+      const newEndsAt = new Date(Date.now() + matchedRecipe.craft_time_seconds * 1000).toISOString();
+      const optimisticJob = {
+        ...currentJob,
+        started_at: new Date().toISOString(),
+        ends_at: newEndsAt,
+      };
+      setCurrentJob(optimisticJob);
+      setProgress(0);
+      
+      handleStartCrafting(true);
     } else {
       if (isAutoCrafting) setIsAutoCrafting(false);
-      await refreshPlayerData();
+      refreshPlayerData();
     }
   };
 
@@ -514,7 +520,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           <CountdownTimer endTime={currentJob.ends_at} onComplete={handleCraftComplete} />
                         </div>
                       </div>
-                    ) : isLoopTransitioning ? (
+                    ) : isAutoCrafting ? (
                       <div className="flex flex-col items-center gap-2 text-sm text-gray-300">
                         <Loader2 className="w-5 h-5 animate-spin" />
                         <span>Démarrage...</span>
