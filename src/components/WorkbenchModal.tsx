@@ -37,7 +37,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [isDraggingOutput, setIsDraggingOutput] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isAutoCrafting, setIsAutoCrafting] = useState(false);
-  const wasCrafting = useRef(false);
+  const [isLoopTransitioning, setIsLoopTransitioning] = useState(false);
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
@@ -171,23 +171,18 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const startNextCraftInLoop = useCallback(async () => {
+  const handleStartCrafting = async (isLoop: boolean) => {
     if (!matchedRecipe || !construction) return;
+    if (isLoop) setIsAutoCrafting(true);
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
     if (error) {
       showError(error.message);
-      setIsAutoCrafting(false);
+      if (isLoop) setIsAutoCrafting(false);
     } else {
       await refreshPlayerData();
     }
     setIsLoadingAction(false);
-  }, [matchedRecipe, construction, refreshPlayerData]);
-
-  const handleStartCraftingLoop = () => {
-    if (!matchedRecipe) return;
-    setIsAutoCrafting(true);
-    startNextCraftInLoop();
   };
 
   const handleStopCraftingLoop = () => {
@@ -208,17 +203,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsLoadingAction(false);
   };
 
-  useEffect(() => {
-    if (wasCrafting.current && !currentJob && isAutoCrafting) {
-      if (matchedRecipe) {
-        startNextCraftInLoop();
-      } else {
-        setIsAutoCrafting(false);
-        showSuccess("Fabrication en série terminée (ressources épuisées).");
-      }
+  const handleCraftComplete = async () => {
+    if (isAutoCrafting && matchedRecipe && canCraftLoop) {
+      setIsLoopTransitioning(true);
+      await handleStartCrafting(true);
+      setIsLoopTransitioning(false);
+    } else {
+      if (isAutoCrafting) setIsAutoCrafting(false);
+      await refreshPlayerData();
     }
-    wasCrafting.current = !!currentJob;
-  }, [currentJob, isAutoCrafting, matchedRecipe, startNextCraftInLoop]);
+  };
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
@@ -313,7 +307,43 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   
     if (source === target && fromIndex === toIndex) return;
   
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    const originalWorkbenchItems = JSON.parse(JSON.stringify(workbenchItems));
+  
+    let newInventory = [...playerData.inventory];
+    let newWorkbenchItems = [...workbenchItems];
     let rpcPromise;
+  
+    const fromItem = source === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newWorkbenchItems.find(i => i.slot_position === fromIndex);
+    const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newWorkbenchItems.find(i => i.slot_position === toIndex);
+  
+    if (!fromItem) return;
+  
+    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+      if (source === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
+      else newWorkbenchItems = newWorkbenchItems.filter(i => i.id !== fromItem.id);
+  
+      if (target === 'inventory') newInventory = newInventory.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
+      else newWorkbenchItems = newWorkbenchItems.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
+    } else {
+      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newWorkbenchItems.findIndex(i => i.id === fromItem.id);
+      const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newWorkbenchItems.splice(fromItemInSourceIdx, 1);
+      movedItem.slot_position = toIndex;
+  
+      if (toItem) {
+        const toItemInTargetIdx = target === 'inventory' ? newInventory.findIndex(i => i.id === toItem.id) : newWorkbenchItems.findIndex(i => i.id === toItem.id);
+        const [itemToSwap] = target === 'inventory' ? newInventory.splice(toItemInTargetIdx, 1) : newWorkbenchItems.splice(toItemInTargetIdx, 1);
+        itemToSwap.slot_position = fromIndex;
+        if (source === 'inventory') newInventory.push(itemToSwap);
+        else newWorkbenchItems.push(itemToSwap);
+      }
+  
+      if (target === 'inventory') newInventory.push(movedItem);
+      else newWorkbenchItems.push(movedItem);
+    }
+  
+    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
+    setWorkbenchItems(newWorkbenchItems);
   
     if (source === 'inventory' && target === 'inventory') {
       rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
@@ -321,11 +351,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       if (!construction) return;
       rpcPromise = supabase.rpc('swap_workbench_items', { p_workbench_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
     } else if (source === 'inventory' && target === 'crafting') {
-      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
+      const itemToMove = originalPlayerData.inventory.find(i => i.slot_position === fromIndex);
       if (!itemToMove || !construction) return;
       rpcPromise = supabase.rpc('move_item_to_workbench', { p_inventory_id: itemToMove.id, p_workbench_id: construction.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     } else if (source === 'crafting' && target === 'inventory') {
-      const itemToMove = workbenchItems.find(i => i.slot_position === fromIndex);
+      const itemToMove = originalWorkbenchItems.find(i => i.slot_position === fromIndex);
       if (!itemToMove) return;
       rpcPromise = supabase.rpc('move_item_from_workbench', { p_workbench_item_id: itemToMove.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
     }
@@ -334,8 +364,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       const { error } = await rpcPromise;
       if (error) {
         showError(error.message || "Erreur de transfert.");
+        setPlayerData(originalPlayerData);
+        setWorkbenchItems(originalWorkbenchItems);
       } else {
-        await onUpdate();
+        await onUpdate(true);
         await fetchWorkbenchContents();
       }
     }
@@ -479,8 +511,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
-                          <CountdownTimer endTime={currentJob.ends_at} onComplete={onUpdate} />
+                          <CountdownTimer endTime={currentJob.ends_at} onComplete={handleCraftComplete} />
                         </div>
+                      </div>
+                    ) : isLoopTransitioning ? (
+                      <div className="flex flex-col items-center gap-2 text-sm text-gray-300">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Démarrage...</span>
                       </div>
                     ) : (
                       <>
@@ -490,9 +527,20 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             {!canCraftLoop && <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>}
                           </div>
                         )}
-                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting || !canCraftLoop}>
-                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : isAutoCrafting ? "Fabrication en cours..." : "Fabriquer"}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button onClick={() => handleStartCrafting(false)} disabled={!matchedRecipe || isLoadingAction || isAutoCrafting}>
+                            Fabriquer
+                          </Button>
+                          {isAutoCrafting ? (
+                            <Button onClick={handleStopCraftingLoop} variant="destructive" disabled={isLoadingAction}>
+                              Arrêter
+                            </Button>
+                          ) : (
+                            <Button onClick={() => handleStartCrafting(true)} disabled={!matchedRecipe || isLoadingAction || !canCraftLoop}>
+                              Fabriquer en série
+                            </Button>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
