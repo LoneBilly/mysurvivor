@@ -12,10 +12,10 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
 
   const calculateRemaining = useCallback(() => {
     const diff = new Date(endTime).getTime() - Date.now();
-    const totalSeconds = Math.max(0, Math.floor(diff / 1000)); // Ensure it doesn't go negative
+    const totalSeconds = Math.max(0, Math.floor(diff / 1000));
 
     if (totalSeconds === 0) {
-      return { totalSeconds: 0, formatted: '0s' }; // Explicitly show '0s'
+      return { totalSeconds: 0, formatted: '0s' };
     }
     
     const days = Math.floor(totalSeconds / 86400);
@@ -40,9 +40,7 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
     if (remaining.totalSeconds <= 0) {
       if (!completedRef.current) {
         completedRef.current = true;
-        if (remaining.totalSeconds === 0) {
-          setTimeout(() => onCompleteRef.current(), 1000);
-        }
+        onCompleteRef.current();
       }
       return;
     }

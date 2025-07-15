@@ -69,6 +69,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [workbenchModalState, setWorkbenchModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     setOptimisticHasActiveJob(initialConstructionJobs.length > 0);
@@ -116,7 +117,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   };
 
   const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
-    if (!user) return;
+    if (!user || isInitialized) return;
     setLoading(true);
     
     let currentConstructions = [...constructions];
@@ -143,6 +144,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       }
       
       await refreshPlayerData();
+      setIsInitialized(true);
       return;
     }
 
@@ -171,7 +173,8 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     setGridData(finalGrid);
     setCampfirePosition(campPos);
     setLoading(false);
-  }, [user, refreshPlayerData]);
+    setIsInitialized(true);
+  }, [user, isInitialized, refreshPlayerData]);
 
   useEffect(() => {
     if (initialConstructions) {
