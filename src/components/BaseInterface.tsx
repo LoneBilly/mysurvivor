@@ -69,7 +69,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
-  const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
 
   const isJobRunning = useMemo(() => {
@@ -105,51 +104,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     return () => clearInterval(interval);
   }, [playerData.craftingJobs]);
-
-  useEffect(() => {
-    const prevJobs = prevCraftingJobsRef.current;
-    const currentJobs = craftingJobs || [];
-
-    const completedJobs = prevJobs.filter(pJob => 
-      !currentJobs.some(cJob => cJob.id === pJob.id)
-    );
-
-    completedJobs.forEach(async (job) => {
-      const queueKey = `craftingQueue_${job.workbench_id}`;
-      const batchKey = `craftingBatch_${job.workbench_id}`;
-      const savedQueue = localStorage.getItem(queueKey);
-
-      if (savedQueue) {
-        const craftsRemaining = parseInt(savedQueue, 10) - 1;
-
-        if (craftsRemaining > 0) {
-          localStorage.setItem(queueKey, String(craftsRemaining));
-          
-          const { error } = await supabase.rpc('start_craft', {
-            p_workbench_id: job.workbench_id,
-            p_recipe_id: job.recipe_id
-          });
-
-          if (error) {
-            showError(`La fabrication en série s'est arrêtée: ${error.message}`);
-            localStorage.removeItem(queueKey);
-            localStorage.removeItem(batchKey);
-            refreshPlayerData();
-          } else {
-            refreshPlayerData(true);
-          }
-        } else {
-          localStorage.removeItem(queueKey);
-          localStorage.removeItem(batchKey);
-          refreshPlayerData();
-        }
-      } else {
-        localStorage.removeItem(batchKey);
-      }
-    });
-
-    prevCraftingJobsRef.current = craftingJobs || [];
-  }, [craftingJobs, refreshPlayerData]);
 
   const isDraggingRef = useRef(false);
   const panState = useRef<{
@@ -525,8 +479,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
-        if (hasOutput) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
         if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
+        if (hasOutput) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
         return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
       }
       case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";

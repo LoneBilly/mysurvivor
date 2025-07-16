@@ -444,11 +444,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                       optimisticOutputItem && !currentJob && "cursor-pointer hover:bg-slate-900/80 hover:border-slate-500 transition-colors"
                     )}
                   >
-                    {currentJob ? (
+                    {(currentJob || isLoadingAction) ? (
                       <>
-                        <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                          <Loader2 className="w-6 h-6 animate-spin text-white" />
+                        <ItemIcon iconName={getIconUrl(currentJob?.result_item_icon || resultItem?.icon)} alt={currentJob?.result_item_name || resultItem?.name || ''} className="grayscale opacity-50" />
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center rounded-lg text-white">
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                          {currentJob && currentJob.initial_quantity > 1 && (
+                            <span className="text-xs font-mono mt-1">
+                              {currentJob.initial_quantity - currentJob.quantity + 1}/{currentJob.initial_quantity}
+                            </span>
+                          )}
                         </div>
                       </>
                     ) : optimisticOutputItem ? (
