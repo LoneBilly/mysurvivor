@@ -44,6 +44,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [optimisticWorkbenchItems, setOptimisticWorkbenchItems] = useState<InventoryItem[]>([]);
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
   const autoCraftingRef = useRef(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -120,6 +121,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setOptimisticOutputItem(null);
       setProgress(0);
       setIsAutoCrafting(false);
+      setTimeRemaining(0);
       autoCraftingRef.current = false;
     }
   }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
@@ -137,6 +139,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         
         if (now >= endTime) {
           setProgress(100);
+          setTimeRemaining(0);
           clearInterval(interval);
           return;
         }
@@ -144,12 +147,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         const totalDuration = endTime - startTime;
         const elapsedTime = now - startTime;
         const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
+        const remaining = Math.ceil((endTime - now) / 1000);
+        
         setProgress(newProgress);
+        setTimeRemaining(Math.max(0, remaining));
       }, 100);
 
       return () => clearInterval(interval);
     } else {
       setProgress(0);
+      setTimeRemaining(0);
     }
   }, [currentJob]);
 
@@ -268,20 +275,22 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const newWorkbenchItems = simulateIngredientConsumption(recipe, optimisticWorkbenchItems);
     setOptimisticWorkbenchItems(newWorkbenchItems);
 
-    // Create optimistic job
-    const startTime = Date.now();
-    const optimisticJob: CraftingJob = {
-      id: -1,
-      workbench_id: construction.id,
-      recipe_id: recipe.id,
-      started_at: new Date(startTime).toISOString(),
-      ends_at: new Date(startTime + recipe.craft_time_seconds * 1000).toISOString(),
-      result_item_id: recipe.result_item_id,
-      result_quantity: recipe.result_quantity,
-      result_item_name: items.find(i => i.id === recipe.result_item_id)?.name || '',
-      result_item_icon: items.find(i => i.id === recipe.result_item_id)?.icon || '',
-    };
-    setCurrentJob(optimisticJob);
+    // Create optimistic job - ne pas créer un nouveau job si on est déjà en train de crafter
+    if (!currentJob || !isLoopIteration) {
+      const startTime = Date.now();
+      const optimisticJob: CraftingJob = {
+        id: -1,
+        workbench_id: construction.id,
+        recipe_id: recipe.id,
+        started_at: new Date(startTime).toISOString(),
+        ends_at: new Date(startTime + recipe.craft_time_seconds * 1000).toISOString(),
+        result_item_id: recipe.result_item_id,
+        result_quantity: recipe.result_quantity,
+        result_item_name: items.find(i => i.id === recipe.result_item_id)?.name || '',
+        result_item_icon: items.find(i => i.id === recipe.result_item_id)?.icon || '',
+      };
+      setCurrentJob(optimisticJob);
+    }
 
     const { error } = await supabase.rpc('start_craft', { 
       p_workbench_id: construction.id, 
@@ -303,7 +312,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
 
     return true;
-  }, [construction, items, optimisticWorkbenchItems, workbenchItems, simulateIngredientConsumption, refreshPlayerData]);
+  }, [construction, items, optimisticWorkbenchItems, workbenchItems, simulateIngredientConsumption, refreshPlayerData, currentJob]);
 
   const handleCraftComplete = useCallback(async () => {
     if (!matchedRecipe || !construction) return;
@@ -312,25 +321,26 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const newOutputItem = simulateOutputCollection(matchedRecipe, optimisticOutputItem);
     setOptimisticOutputItem(newOutputItem);
     setItemToCollect(newOutputItem);
-    setCurrentJob(null);
 
     // If auto-crafting, check if we can continue
     if (autoCraftingRef.current) {
       const canContinue = canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, newOutputItem);
       
       if (canContinue) {
-        // Small delay to let the server process the completion
+        // Small delay to let the server process the completion, but keep the job active for UI
         setTimeout(async () => {
           if (autoCraftingRef.current) {
             const success = await startCraft(matchedRecipe, true);
             if (!success) {
               setIsAutoCrafting(false);
+              setCurrentJob(null);
               await refreshPlayerData();
             }
           }
         }, 100);
       } else {
         setIsAutoCrafting(false);
+        setCurrentJob(null);
         if (!canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, null)) {
           showInfo("Ressources insuffisantes pour continuer.");
         } else {
@@ -339,6 +349,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         await refreshPlayerData();
       }
     } else {
+      setCurrentJob(null);
       await refreshPlayerData();
     }
   }, [matchedRecipe, construction, optimisticWorkbenchItems, optimisticOutputItem, simulateOutputCollection, canContinueCrafting, startCraft, refreshPlayerData]);
@@ -641,7 +652,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                         <>
                           <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                            <Loader2 className="w-6 h-6 animate-spin text-white" />
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="w-6 h-6 animate-spin text-white" />
+                              {displayedOutputItem && (
+                                <span className="text-sm font-bold text-white">
+                                  x{displayedOutputItem.quantity}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </>
                       ) : displayedOutputItem ? (
@@ -666,7 +684,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </div>
                   
                   <div className="h-[60px] flex flex-col justify-center items-center space-y-2">
-                    {currentJob ? (
+                    {currentJob || isAutoCrafting ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
                           <Progress value={progress} className="flex-grow" />
@@ -675,7 +693,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
-                          <CountdownTimer endTime={currentJob.ends_at} onComplete={handleCraftComplete} />
+                          {timeRemaining > 0 ? `${timeRemaining}s` : 'Terminé...'}
+                          {isAutoCrafting && (
+                            <span className="ml-2 text-yellow-400">(Boucle active)</span>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -683,7 +704,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                         {matchedRecipe && (
                           <div className="text-center text-sm text-gray-300 mb-2">
                             <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
-                            {resultItem && !resultItem.stackable && !displayedOutputItem && (
+                            {resultItem && !resultItem.stackable && displayedOutputItem && (
                               <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>
                             )}
                           </div>
