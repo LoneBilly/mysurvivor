@@ -366,9 +366,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                         isUnlocked={true}
                         onDragStart={() => {}}
                         onItemClick={(clickedItem) => {
-                          if (clickedItem) {
-                            setDetailedItem({ item: clickedItem, source: 'crafting' });
-                          } else {
+                          if (!clickedItem) {
                             handleOpenInventorySelector(index);
                           }
                         }}
