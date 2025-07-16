@@ -181,7 +181,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
       const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
       setProgress(newProgress);
 
-      const remainingSeconds = Math.floor(diff / 1000);
+      const remainingSeconds = Math.ceil(diff / 1000);
       const minutes = Math.floor(remainingSeconds / 60);
       const seconds = remainingSeconds % 60;
       setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
