@@ -308,9 +308,9 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
           </div>
         </div>
         <div className="py-4 px-4 flex-grow overflow-y-auto no-scrollbar flex items-center justify-center">
-          <div className="w-full max-w-sm">
-            <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
-              <div className="grid grid-cols-3 gap-2">
+          <div className="w-full max-w-xs">
+            <div className="bg-black/20 rounded-lg p-2 border border-slate-700 space-y-2">
+              <div className="grid grid-cols-3 gap-1">
                 {ingredientSlots.map((item, index) => (
                   <div key={item?.id || index}>
                     <InventorySlot
@@ -326,15 +326,15 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                   </div>
                 ))}
               </div>
-              <div className="flex flex-col items-center gap-4">
-                <ArrowRight className="w-8 h-8 text-gray-500 -rotate-90 sm:rotate-0" />
-                <div className="flex flex-col items-center gap-2">
-                  <div className="relative w-24 h-24 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2">
+                <ArrowRight className="w-6 h-6 text-gray-500 -rotate-90 sm:rotate-0" />
+                <div className="flex flex-col items-center gap-1">
+                  <div className="relative w-20 h-20 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
                     {currentJob ? (
                       <>
                         <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                          <Loader2 className="w-8 h-8 animate-spin text-white" />
+                          <Loader2 className="w-6 h-6 animate-spin text-white" />
                         </div>
                       </>
                     ) : optimisticOutputItem ? (
@@ -356,14 +356,14 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                     ) : null}
                   </div>
                   {optimisticOutputItem && (
-                    <Button onClick={handleCollectOutput} disabled={isLoadingAction} size="sm" className="flex items-center gap-2">
+                    <Button onClick={handleCollectOutput} disabled={isLoadingAction} size="sm" className="flex items-center gap-2 mt-1">
                       {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                       Récupérer
                     </Button>
                   )}
                 </div>
               </div>
-              <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
+              <div className="h-auto flex flex-col justify-center items-center space-y-2">
                 {currentJob || craftsRemaining > 0 ? (
                   <div className="w-full space-y-2 px-4">
                     <div className="flex items-center gap-2">
@@ -379,7 +379,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                 ) : (
                   <>
                     {matchedRecipe && maxCraftQuantity > 0 ? (
-                      <div className="w-full px-4 space-y-3">
+                      <div className="w-full px-4 space-y-2">
                         <div className="flex justify-between items-center text-sm">
                           <span>Quantité: <span className="font-bold text-white">{craftQuantity}</span></span>
                         </div>
