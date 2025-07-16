@@ -14,11 +14,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
-import { Item } from '@/types/admin';
+import { Item, CraftingRecipe } from '@/types/game';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Loader2, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Trash2, Wrench } from 'lucide-react';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ActionModal from '../ActionModal';
+import RecipeEditorModal from './RecipeEditorModal';
 
 interface ItemFormModalProps {
   isOpen: boolean;
@@ -46,6 +47,9 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const debouncedIcon = useDebounce(icon, 500);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [isCraftable, setIsCraftable] = useState(false);
+  const [recipeId, setRecipeId] = useState<number | null>(null);
 
   const [availableIcons, setAvailableIcons] = useState<string[]>([]);
   const [fetchingIcons, setFetchingIcons] = useState(false);
@@ -65,6 +69,19 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setPreviewUrl(null);
       setIconExists(null);
       setIsDeleteModalOpen(false);
+      setIsCraftable(false);
+      setRecipeId(null);
+
+      if (item) {
+        const fetchRecipe = async () => {
+          const { data } = await supabase.from('crafting_recipes').select('id').eq('result_item_id', item.id).single();
+          if (data) {
+            setRecipeId(data.id);
+            setIsCraftable(true);
+          }
+        };
+        fetchRecipe();
+      }
 
       if (initialIcon) {
         setIsValidatingIcon(true);
@@ -161,6 +178,10 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     }
     if (icon && !iconExists) {
       showError("L'icône spécifiée n'existe pas dans le stockage.");
+      return;
+    }
+    if (isCraftable && !recipeId) {
+      showError("Veuillez définir une recette pour cet objet craftable.");
       return;
     }
 
@@ -284,10 +305,22 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="stackable" checked={stackable} onCheckedChange={(checked) => setStackable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
-              <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Checkbox id="stackable" checked={stackable} onCheckedChange={(checked) => setStackable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
+                <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="craftable" checked={isCraftable} onCheckedChange={(checked) => setIsCraftable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading || !item} />
+                <Label htmlFor="craftable" className="text-gray-300 font-mono">Craftable</Label>
+              </div>
             </div>
+            {isCraftable && (
+              <Button type="button" variant="outline" onClick={() => setIsRecipeModalOpen(true)} disabled={!item} className="w-full flex items-center gap-2">
+                <Wrench className="w-4 h-4" />
+                {recipeId ? 'Modifier le Blueprint' : 'Créer le Blueprint'}
+              </Button>
+            )}
             <DialogFooter className="pt-4">
               <div className="flex w-full items-center justify-between gap-2">
                 <div>
@@ -298,7 +331,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                     </Button>
                   )}
                 </div>
-                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !recipeId)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {item ? 'Sauvegarder' : 'Créer l\'objet'}
                 </Button>
@@ -317,6 +350,15 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           { label: "Annuler", onClick: () => setIsDeleteModalOpen(false), variant: "secondary" },
         ]}
       />
+      {item && (
+        <RecipeEditorModal
+          isOpen={isRecipeModalOpen}
+          onClose={() => setIsRecipeModalOpen(false)}
+          resultItem={item}
+          recipeId={recipeId}
+          onSave={(newRecipeId) => setRecipeId(newRecipeId)}
+        />
+      )}
     </>
   );
 };
