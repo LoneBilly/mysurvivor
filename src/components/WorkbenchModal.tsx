@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import WorkbenchInventorySelectorModal from "./WorkbenchInventorySelectorModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import ActionModal from "./ActionModal";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -21,11 +22,12 @@ interface WorkbenchModalProps {
   construction: BaseConstruction | null;
   onDemolish: (construction: BaseConstruction) => void;
   onUpdate: (silent?: boolean) => void;
+  onOpenInventory: () => void;
 }
 
 const getQueueKey = (id: number | undefined) => id ? `craftingQueue_${id}` : null;
 
-const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
+const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, onOpenInventory }: WorkbenchModalProps) => {
   const { playerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -41,6 +43,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const timerCompletedRef = useRef(false);
   const [isInventorySelectorOpen, setIsInventorySelectorOpen] = useState(false);
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
+  const [inventoryFullModal, setInventoryFullModal] = useState(false);
 
   const optimisticWorkbenchItems = useMemo(() => 
     playerData.workbenchItems.filter(item => item.workbench_id === construction?.id),
@@ -316,9 +319,27 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
     setIsLoadingAction(false);
     if (error) {
-      showError(error.message);
+      if (error.message.includes("Votre inventaire est plein")) {
+        setInventoryFullModal(true);
+      } else {
+        showError(error.message);
+      }
     } else {
       showSuccess("Objet récupéré !");
+      onUpdate();
+    }
+  };
+
+  const handleDiscardOutput = async () => {
+    if (!construction) return;
+    setInventoryFullModal(false);
+    setIsLoadingAction(true);
+    const { error } = await supabase.rpc('discard_workbench_output', { p_workbench_id: construction.id });
+    setIsLoadingAction(false);
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Objet jeté.");
       onUpdate();
     }
   };
@@ -524,6 +545,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         onClose={() => setIsInventorySelectorOpen(false)}
         inventory={playerData.inventory}
         onSelectItem={handleItemSelectForWorkbench}
+      />
+      <ActionModal
+        isOpen={inventoryFullModal}
+        onClose={() => setInventoryFullModal(false)}
+        title="Inventaire plein"
+        description="Votre inventaire est plein. Vous pouvez faire de la place ou jeter l'objet fabriqué pour continuer."
+        actions={[
+          { label: "Faire de la place", onClick: () => { setInventoryFullModal(false); onClose(); onOpenInventory(); }, variant: "default" },
+          { label: "Jeter l'objet", onClick: handleDiscardOutput, variant: "destructive" },
+        ]}
       />
     </>
   );

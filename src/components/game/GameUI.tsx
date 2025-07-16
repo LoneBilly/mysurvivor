@@ -303,6 +303,7 @@ const GameUI = () => {
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
         onUpdate={refreshPlayerData}
+        onOpenInventory={() => setIsInventoryOpen(true)}
       />
     </div>
   );
