@@ -45,6 +45,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [optimisticWorkbenchItems, setOptimisticWorkbenchItems] = useState<InventoryItem[]>([]);
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
 
   const isCraftingTransition = useMemo(() => {
     return !currentJob && craftsRemaining > 0;
@@ -154,6 +155,48 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
     return true;
   }, [construction, refreshPlayerData]);
+
+  useEffect(() => {
+    const prevJobs = prevCraftingJobsRef.current;
+    const currentJobs = playerData.craftingJobs || [];
+
+    const completedJobs = prevJobs.filter(pJob => 
+      !currentJobs.some(cJob => cJob.id === pJob.id)
+    );
+
+    completedJobs.forEach(async (job) => {
+      const queueKey = `craftingQueue_${job.workbench_id}`;
+      const savedQueue = localStorage.getItem(queueKey);
+
+      if (savedQueue) {
+        const newCraftsRemaining = parseInt(savedQueue, 10) - 1;
+        setCraftsRemaining(newCraftsRemaining);
+
+        if (newCraftsRemaining > 0) {
+          localStorage.setItem(queueKey, String(newCraftsRemaining));
+          
+          const { error } = await supabase.rpc('start_craft', {
+            p_workbench_id: job.workbench_id,
+            p_recipe_id: job.recipe_id
+          });
+
+          if (error) {
+            showError(`La fabrication en série s'est arrêtée: ${error.message}`);
+            localStorage.removeItem(queueKey);
+            setCraftsRemaining(0);
+            refreshPlayerData();
+          } else {
+            refreshPlayerData(true);
+          }
+        } else {
+          localStorage.removeItem(queueKey);
+          refreshPlayerData();
+        }
+      }
+    });
+
+    prevCraftingJobsRef.current = playerData.craftingJobs || [];
+  }, [playerData.craftingJobs, refreshPlayerData]);
 
   useEffect(() => {
     if (currentJob) {
