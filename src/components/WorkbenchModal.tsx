@@ -39,7 +39,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [progress, setProgress] = useState(0);
   const [craftQuantity, setCraftQuantity] = useState(1);
   const [craftsRemaining, setCraftsRemaining] = useState(0);
-  const [isBatchInProgress, setIsBatchInProgress] = useState(false);
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
@@ -94,9 +93,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       const queueKey = getQueueKey(construction.id);
       if (queueKey) {
         const savedQueue = localStorage.getItem(queueKey);
-        const remaining = savedQueue ? parseInt(savedQueue, 10) : 0;
-        setCraftsRemaining(remaining);
-        setIsBatchInProgress(!!job || remaining > 0);
+        setCraftsRemaining(savedQueue ? parseInt(savedQueue, 10) : 0);
       }
 
       const currentConstructionState = playerData.baseConstructions.find(c => c.id === construction.id);
@@ -132,7 +129,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setProgress(0);
       setCraftsRemaining(0);
       setTimeRemaining(0);
-      setIsBatchInProgress(false);
     }
   }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
@@ -280,12 +276,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       localStorage.setItem(queueKey, String(craftQuantity));
     }
     setCraftsRemaining(craftQuantity);
-    setIsBatchInProgress(true);
     
     const success = await startCraft(matchedRecipe);
     if (!success) {
       setCraftsRemaining(0);
-      setIsBatchInProgress(false);
       if (queueKey) localStorage.removeItem(queueKey);
     } else {
       onUpdate();
@@ -293,7 +287,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [matchedRecipe, construction, craftQuantity, startCraft, onUpdate]);
 
   const handleCancelCraft = async () => {
-    setIsBatchInProgress(false);
     setCraftsRemaining(0);
     const queueKey = getQueueKey(construction?.id);
     if (queueKey) {
@@ -315,7 +308,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   };
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!optimisticOutputItem || currentJob) return;
+    if (!optimisticOutputItem) return;
     setIsDraggingOutput(true);
     e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'workbench_output', constructionId: construction?.id }));
   };
@@ -571,17 +564,24 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     <div 
                       className={cn(
                         "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
-                        (displayedOutputItem && !currentJob) && "cursor-grab active:cursor-grabbing"
+                        displayedOutputItem && "cursor-grab active:cursor-grabbing"
                       )}
-                      draggable={!!(displayedOutputItem && !currentJob)}
+                      draggable={!!displayedOutputItem}
                       onDragStart={handleDragStartOutput}
                       onDragEnd={() => setIsDraggingOutput(false)}
                     >
                       {currentJob ? (
                         <>
-                          <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} />
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
-                            <Loader2 className="w-8 h-8 animate-spin text-white" />
+                          <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="w-6 h-6 animate-spin text-white" />
+                              {displayedOutputItem && (
+                                <span className="text-sm font-bold text-white">
+                                  x{displayedOutputItem.quantity}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </>
                       ) : displayedOutputItem ? (
@@ -606,17 +606,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </div>
                   
                   <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
-                    {isBatchInProgress ? (
+                    {currentJob ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
-                          <Progress value={currentJob ? progress : 0} className="flex-grow" />
+                          <Progress value={progress} className="flex-grow" />
                           <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
                             <Square className="w-4 h-4" />
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
-                          {currentJob ? (timeRemaining > 0 ? `${timeRemaining}s` : 'Terminé...') : 'Démarrage du prochain...'}
-                          {currentJob && craftsRemaining > 1 && (
+                          {timeRemaining > 0 ? `${timeRemaining}s` : 'Terminé...'}
+                          {craftsRemaining > 1 && (
                             <span className="ml-2 text-yellow-400">({craftsRemaining - 1} en file)</span>
                           )}
                         </div>
