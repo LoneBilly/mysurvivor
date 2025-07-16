@@ -69,9 +69,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
-  const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
   const [isInitialized, setIsInitialized] = useState(false);
   const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
+
+  const isJobRunning = useMemo(() => {
+    if (!gridData) return initialConstructionJobs.length > 0;
+    return gridData.some(row => row.some(cell => cell.type === 'in_progress'));
+  }, [gridData, initialConstructionJobs]);
 
   useEffect(() => {
     if (craftingJobs) {
@@ -135,10 +139,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     prevCraftingJobsRef.current = craftingJobs || [];
   }, [craftingJobs, refreshPlayerData]);
-
-  useEffect(() => {
-    setOptimisticHasActiveJob(initialConstructionJobs.length > 0);
-  }, [initialConstructionJobs]);
 
   const isDraggingRef = useRef(false);
   const panState = useRef<{
@@ -286,14 +286,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     newGrid[y][x].ends_at = undefined;
     newGrid[y][x].showTrash = false;
     setGridData(updateCanBuild(newGrid));
-    setOptimisticHasActiveJob(false);
 
     const { error } = await supabase.rpc('cancel_construction_job', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de l'annulation.");
       setGridData(originalGridData);
-      setOptimisticHasActiveJob(true);
     } else {
       refreshPlayerData();
     }
@@ -350,7 +348,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const cell = gridData[y][x];
     const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
 
-    if (optimisticHasActiveJob) {
+    if (isJobRunning) {
       if (cell.type === 'in_progress') {
         // Allow cancelling
         if (isMobile) {
@@ -439,7 +437,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     newGrid[y][x].type = 'in_progress';
     newGrid[y][x].ends_at = new Date(Date.now() + buildTime * 1000).toISOString();
     setGridData(updateCanBuild(newGrid));
-    setOptimisticHasActiveJob(true);
 
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= energyCost;
@@ -451,7 +448,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       showError(error.message || "Erreur lors de la construction.");
       setGridData(originalGridData);
       setPlayerData(originalPlayerData);
-      setOptimisticHasActiveJob(false);
     } else {
       refreshPlayerData();
     }
@@ -486,7 +482,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     newGrid[y][x].type = 'in_progress';
     newGrid[y][x].ends_at = new Date(Date.now() + building.build_time_seconds * 1000).toISOString();
     setGridData(updateCanBuild(newGrid));
-    setOptimisticHasActiveJob(true);
 
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= building.cost_energy;
@@ -498,7 +493,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       showError(error.message);
       setGridData(originalGridData);
       setPlayerData(originalPlayerData);
-      setOptimisticHasActiveJob(false);
     } else {
       refreshPlayerData();
     }
@@ -526,7 +520,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'empty':
         if (cell.canBuild) {
           const baseStyle = "bg-white/5 border-white/10 border-dashed";
-          if (optimisticHasActiveJob) {
+          if (isJobRunning) {
             return `${baseStyle} cursor-not-allowed`;
           }
           return `${baseStyle} hover:bg-white/10 cursor-pointer`;
@@ -572,7 +566,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       );
     }
     if (cell.canBuild) {
-      if (optimisticHasActiveJob) {
+      if (isJobRunning) {
         return (
           <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
             <Clock className="w-6 h-6 text-gray-400" />
