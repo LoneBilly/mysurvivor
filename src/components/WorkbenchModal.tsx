@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -39,12 +39,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      onUpdate(true);
-    }
-  }, [isOpen, onUpdate]);
 
   const ingredientSlots = useMemo(() => {
     const newSlots = Array(3).fill(null);
@@ -177,49 +171,64 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const startCraft = useCallback(async (isLoop: boolean) => {
-    if (!matchedRecipe || !construction || !resultItem) {
-        if (isLoop) setIsAutoCrafting(false);
-        return;
+  const startCraft = useCallback(async () => {
+    if (!matchedRecipe || !construction) {
+      setIsAutoCrafting(false);
+      return;
     }
-
-    if (!isLoop) {
-        setIsLoadingAction(true);
-    }
-
-    const startTime = Date.now();
-    const optimisticJob: CraftingJob = {
-        id: -1,
-        workbench_id: construction.id,
-        recipe_id: matchedRecipe.id,
-        started_at: new Date(startTime).toISOString(),
-        ends_at: new Date(startTime + matchedRecipe.craft_time_seconds * 1000).toISOString(),
-        result_item_id: matchedRecipe.result_item_id,
-        result_quantity: matchedRecipe.result_quantity,
-        result_item_name: resultItem.name,
-        result_item_icon: resultItem.icon,
-    };
-    setCurrentJob(optimisticJob);
-
+    setIsLoadingAction(true);
     const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: matchedRecipe.id });
-
-    if (!isLoop) {
-        setIsLoadingAction(false);
-    }
+    setIsLoadingAction(false);
 
     if (error) {
-        showError(error.message);
-        setIsAutoCrafting(false);
-        setCurrentJob(null);
-        await refreshPlayerData();
-    } else {
-        await refreshPlayerData(true);
+      showError(error.message);
+      setIsAutoCrafting(false);
     }
-  }, [construction, matchedRecipe, resultItem, refreshPlayerData]);
+    await refreshPlayerData();
+  }, [construction, matchedRecipe, refreshPlayerData]);
+
+  const handleCraftComplete = useCallback(async () => {
+    await refreshPlayerData();
+  }, [refreshPlayerData]);
+
+  useEffect(() => {
+    if (!isAutoCrafting || currentJob) return;
+
+    if (!matchedRecipe || !resultItem) {
+      setIsAutoCrafting(false);
+      return;
+    }
+
+    const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
+    const hasEnoughIngredients = (matchedRecipe.ingredient1_id ? [{id: matchedRecipe.ingredient1_id, q: matchedRecipe.ingredient1_quantity}] : [])
+      .concat(matchedRecipe.ingredient2_id ? [{id: matchedRecipe.ingredient2_id, q: matchedRecipe.ingredient2_quantity}] : [])
+      .concat(matchedRecipe.ingredient3_id ? [{id: matchedRecipe.ingredient3_id, q: matchedRecipe.ingredient3_quantity}] : [])
+      .every(req => {
+          const slotItem = ingredients.find(i => i.item_id === req.id);
+          return slotItem && slotItem.quantity >= req.q!;
+      });
+
+    if (!hasEnoughIngredients) {
+      showInfo("Ressources insuffisantes pour continuer.");
+      setIsAutoCrafting(false);
+      return;
+    }
+
+    const currentWorkbenchState = playerData.baseConstructions.find(c => c.id === construction?.id);
+    const canContinue = 
+      !currentWorkbenchState?.output_item_id ||
+      (currentWorkbenchState.output_item_id === matchedRecipe.result_item_id && resultItem.stackable);
+
+    if (canContinue) {
+      startCraft();
+    } else {
+      showInfo("Le slot de sortie est plein, fabrication en série arrêtée.");
+      setIsAutoCrafting(false);
+    }
+  }, [isAutoCrafting, currentJob, matchedRecipe, resultItem, ingredientSlots, playerData.baseConstructions, construction, startCraft]);
 
   const handleStartCraftingLoop = () => {
     setIsAutoCrafting(true);
-    startCraft(false);
   };
 
   const handleCancelCraft = async () => {
@@ -235,14 +244,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
     setIsLoadingAction(false);
   };
-
-  const handleCraftComplete = useCallback(() => {
-    if (isAutoCrafting) {
-        startCraft(true);
-    } else {
-        refreshPlayerData();
-    }
-  }, [isAutoCrafting, startCraft, refreshPlayerData]);
 
   const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!itemToCollect) return;
@@ -482,6 +483,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
                           isBeingDragged={draggedItem?.source === 'crafting' && draggedItem?.index === index}
                           isDragOver={dragOver?.target === 'crafting' && dragOver?.index === index}
+                          isLocked={!!currentJob}
                         />
                       </div>
                     ))}
@@ -551,7 +553,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             )}
                           </div>
                         )}
-                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction}>
+                        <Button onClick={handleStartCraftingLoop} disabled={!matchedRecipe || isLoadingAction || (resultItem && !resultItem.stackable && !!itemToCollect)}>
                           {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fabriquer'}
                         </Button>
                       </>
