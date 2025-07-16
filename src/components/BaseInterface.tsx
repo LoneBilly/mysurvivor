@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError, showInfo } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, ConstructionJob } from "@/types/game";
+import { BaseConstruction, ConstructionJob, CraftingJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
 import WorkbenchModal from "./WorkbenchModal";
@@ -70,6 +70,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
   const [isInitialized, setIsInitialized] = useState(false);
+  const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
 
   useEffect(() => {
     if (craftingJobs) {
@@ -92,6 +93,46 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         });
       };
     }
+  }, [craftingJobs, refreshPlayerData]);
+
+  useEffect(() => {
+    const prevJobs = prevCraftingJobsRef.current;
+    const currentJobs = craftingJobs || [];
+
+    const completedJobs = prevJobs.filter(pJob => 
+      !currentJobs.some(cJob => cJob.id === pJob.id)
+    );
+
+    completedJobs.forEach(async (job) => {
+      const queueKey = `craftingQueue_${job.workbench_id}`;
+      const savedQueue = localStorage.getItem(queueKey);
+
+      if (savedQueue) {
+        const craftsRemaining = parseInt(savedQueue, 10) - 1;
+
+        if (craftsRemaining > 0) {
+          localStorage.setItem(queueKey, String(craftsRemaining));
+          
+          const { error } = await supabase.rpc('start_craft', {
+            p_workbench_id: job.workbench_id,
+            p_recipe_id: job.recipe_id
+          });
+
+          if (error) {
+            showError(`La fabrication en série s'est arrêtée: ${error.message}`);
+            localStorage.removeItem(queueKey);
+            refreshPlayerData();
+          } else {
+            refreshPlayerData(true);
+          }
+        } else {
+          localStorage.removeItem(queueKey);
+          refreshPlayerData();
+        }
+      }
+    });
+
+    prevCraftingJobsRef.current = craftingJobs || [];
   }, [craftingJobs, refreshPlayerData]);
 
   useEffect(() => {
