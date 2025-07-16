@@ -35,13 +35,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [currentJob, setCurrentJob] = useState<CraftingJob | null>(null);
   const [itemToCollect, setItemToCollect] = useState<InventoryItem | null>(null);
+  const [isDraggingOutput, setIsDraggingOutput] = useState(false);
   const [progress, setProgress] = useState(0);
   const [craftQuantity, setCraftQuantity] = useState(1);
   const [craftsRemaining, setCraftsRemaining] = useState(0);
-  const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' | 'output' } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-  const outputSlotRef = useRef<HTMLDivElement | null>(null);
   
   const [optimisticWorkbenchItems, setOptimisticWorkbenchItems] = useState<InventoryItem[]>([]);
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
@@ -311,26 +311,38 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setIsLoadingAction(false);
   };
 
-  const handleDragStartOutput = (node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+  const handleDragStartOutput = (e: React.DragEvent<HTMLDivElement>) => {
     if (!optimisticOutputItem) return;
+    setIsDraggingOutput(true);
+    e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'workbench_output', constructionId: construction?.id }));
+  };
+
+  const handleDropOnInventory = async (e: React.DragEvent<HTMLDivElement>, targetSlot: number) => {
     e.preventDefault();
-    setDraggedItem({ index: -1, source: 'output' });
+    const data = e.dataTransfer.getData("text/plain");
+    if (!data) return;
 
-    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
-    if (!ghostNode) return;
+    const parsedData = JSON.parse(data);
+    if (parsedData.type !== 'workbench_output' || parsedData.constructionId !== construction?.id) return;
+    
+    setOptimisticOutputItem(null);
+    setItemToCollect(null);
+    
+    setIsLoadingAction(true);
+    const { error } = await supabase.rpc('collect_workbench_output', { 
+      p_workbench_id: construction.id,
+      p_target_slot: targetSlot
+    });
+    setIsLoadingAction(false);
 
-    ghostNode.style.position = 'fixed';
-    ghostNode.style.pointerEvents = 'none';
-    ghostNode.style.zIndex = '5000';
-    ghostNode.style.width = '56px';
-    ghostNode.style.height = '56px';
-    ghostNode.style.opacity = '0.85';
-    ghostNode.style.transform = 'scale(1.1)';
-    document.body.appendChild(ghostNode);
-    draggedItemNode.current = ghostNode;
-
-    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-    handleDragMove(clientX, clientY);
+    if (error) {
+      showError(error.message);
+      await refreshPlayerData();
+    } else {
+      showSuccess("Objet récupéré !");
+      await onUpdate();
+    }
+    setIsDraggingOutput(false);
   };
 
   const handleDragStart = (index: number, source: 'inventory' | 'crafting', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
@@ -393,29 +405,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   
     setDraggedItem(null);
     setDragOver(null);
-
-    if (source === 'output' && target === 'inventory') {
-      if (!construction) return;
-      
-      setOptimisticOutputItem(null);
-      setItemToCollect(null);
-      
-      setIsLoadingAction(true);
-      const { error } = await supabase.rpc('collect_workbench_output', { 
-        p_workbench_id: construction.id,
-        p_target_slot: toIndex
-      });
-      setIsLoadingAction(false);
-  
-      if (error) {
-        showError(error.message);
-        await refreshPlayerData();
-      } else {
-        showSuccess("Objet récupéré !");
-        await onUpdate();
-      }
-      return;
-    }
   
     if (source === target && fromIndex === toIndex) return;
   
@@ -577,27 +566,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                         <ArrowRight className="w-8 h-8 text-gray-500" />
                     </div>
                     <div 
-                      ref={outputSlotRef}
                       className={cn(
                         "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
                         displayedOutputItem && "cursor-grab active:cursor-grabbing"
                       )}
-                      onMouseDown={(e) => {
-                        if (displayedOutputItem && outputSlotRef.current) {
-                          handleDragStartOutput(outputSlotRef.current, e);
-                        }
-                      }}
-                      onTouchStart={(e) => {
-                        if (displayedOutputItem && outputSlotRef.current) {
-                          handleDragStartOutput(outputSlotRef.current, e);
-                        }
-                      }}
+                      draggable={!!displayedOutputItem}
+                      onDragStart={handleDragStartOutput}
+                      onDragEnd={() => setIsDraggingOutput(false)}
                     >
                       {currentJob ? (
                         <>
-                          <div className="item-visual relative">
-                            <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
-                          </div>
+                          <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
                             <div className="flex items-center gap-2">
                               <Loader2 className="w-6 h-6 animate-spin text-white" />
@@ -610,21 +589,21 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </div>
                         </>
                       ) : displayedOutputItem ? (
-                        <div className="item-visual relative">
+                        <>
                           <ItemIcon iconName={getIconUrl(displayedOutputItem.items?.icon) || displayedOutputItem.items?.icon} alt={displayedOutputItem.items?.name || ''} />
                           <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
                             x{displayedOutputItem.quantity}
                           </span>
-                        </div>
+                        </>
                       ) : resultItem && (
-                        <div className="item-visual relative">
+                        <>
                           <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
                           {matchedRecipe && resultItem.stackable && (
                             <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
                               x{craftQuantity * matchedRecipe.result_quantity}
                             </span>
                           )}
-                        </div>
+                        </>
                       )}
                     </div>
                     <div className="col-span-2" />
@@ -687,7 +666,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
                     const item = playerData.inventory.find(i => i.slot_position === index);
                     return (
-                      <div key={item?.id || index}>
+                      <div 
+                        key={item?.id || index}
+                        onDrop={(e) => handleDropOnInventory(e, index)}
+                        onDragOver={(e) => {
+                          if (isDraggingOutput) e.preventDefault();
+                        }}
+                      >
                         <InventorySlot 
                           item={item || null} 
                           index={index} 
@@ -695,7 +680,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           onDragStart={(idx, node, e) => handleDragStart(idx, 'inventory', node, e)}
                           onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
                           isBeingDragged={draggedItem?.source === 'inventory' && draggedItem?.index === index}
-                          isDragOver={dragOver?.target === 'inventory' && dragOver?.index === index}
+                          isDragOver={isDraggingOutput || (dragOver?.target === 'inventory' && dragOver?.index === index)}
                         />
                       </div>
                     );
