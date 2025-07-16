@@ -695,20 +695,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                       </div>
                       {matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && (
                         <>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={handlePrevRecipe} 
-                            className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
-                          >
+                          <Button variant="ghost" size="icon" onClick={handlePrevRecipe} className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full">
                               <ChevronLeft className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={handleNextRecipe} 
-                            className="absolute top-1/2 -translate-y-1/2 -right-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
-                          >
+                          <Button variant="ghost" size="icon" onClick={handleNextRecipe} className="absolute top-1/2 -translate-y-1/2 -right-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full">
                               <ChevronRight className="w-4 h-4" />
                           </Button>
                         </>
