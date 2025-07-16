@@ -22,7 +22,7 @@ import ExplorationModal from "../ExplorationModal";
 import MetroModal from "../MetroModal";
 import BankModal from "../BankModal";
 import BountyModal from "../BountyModal";
-import WorkbenchView from "../WorkbenchView";
+import WorkbenchModal from "../WorkbenchModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -91,11 +91,7 @@ const GameUI = () => {
   };
 
   const handleHeaderBack = () => {
-    if (inspectedConstruction) {
-      setInspectedConstruction(null);
-    } else {
-      setCurrentView('map');
-    }
+    setCurrentView('map');
   };
 
   const handleInspectWorkbench = (construction: BaseConstruction) => {
@@ -272,29 +268,6 @@ const GameUI = () => {
 
   const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
 
-  const renderBaseContent = () => {
-    if (inspectedConstruction?.type === 'workbench') {
-      return (
-        <WorkbenchView
-          construction={inspectedConstruction}
-          onDemolish={handleDemolishBuilding}
-          onUpdate={refreshPlayerData}
-        />
-      );
-    }
-    
-    return (
-      <>
-        <BaseHeader resources={totalResources} resourceItems={resourceItems} />
-        <BaseInterface
-          isActive={currentView === 'base'}
-          onInspectWorkbench={handleInspectWorkbench}
-          onDemolishBuilding={handleDemolishBuilding}
-        />
-      </>
-    );
-  };
-
   return (
     <div className="h-full flex flex-col text-white">
       <GameHeader spawnDate={playerData.playerState.spawn_date} onLeaderboard={() => setIsLeaderboardOpen(true)} onOptions={() => setIsOptionsOpen(true)} currentView={currentView} onBackToMap={handleHeaderBack} />
@@ -304,7 +277,12 @@ const GameUI = () => {
           <GameGrid mapLayout={mapLayout} onCellSelect={handleCellSelect} discoveredZones={playerData.playerState.zones_decouvertes} playerPosition={{ x: playerData.playerState.position_x, y: playerData.playerState.position_y }} basePosition={playerData.playerState.base_position_x !== null ? { x: playerData.playerState.base_position_x, y: playerData.playerState.base_position_y! } : null} />
         </div>
         <div className={cn("relative w-full h-full", currentView !== 'base' && "hidden")}>
-          {renderBaseContent()}
+          <BaseHeader resources={totalResources} resourceItems={resourceItems} />
+          <BaseInterface
+            isActive={currentView === 'base'}
+            onInspectWorkbench={handleInspectWorkbench}
+            onDemolishBuilding={handleDemolishBuilding}
+          />
         </div>
       </main>
       <GameFooter stats={playerData.playerState} credits={playerData.playerState.credits} onInventaire={() => setIsInventoryOpen(true)} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
@@ -319,6 +297,13 @@ const GameUI = () => {
       <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshPlayerData} />
       <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} />
+      <WorkbenchModal
+        isOpen={!!inspectedConstruction}
+        onClose={() => setInspectedConstruction(null)}
+        construction={inspectedConstruction}
+        onDemolish={handleDemolishBuilding}
+        onUpdate={refreshPlayerData}
+      />
     </div>
   );
 };

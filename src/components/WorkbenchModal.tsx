@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Download } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { showError, showSuccess, showInfo } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemIcon from "./ItemIcon";
@@ -13,16 +13,19 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import WorkbenchInventorySelectorModal from "./WorkbenchInventorySelectorModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-interface WorkbenchViewProps {
-  construction: BaseConstruction;
+interface WorkbenchModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  construction: BaseConstruction | null;
   onDemolish: (construction: BaseConstruction) => void;
   onUpdate: (silent?: boolean) => void;
 }
 
 const getQueueKey = (id: number | undefined) => id ? `craftingQueue_${id}` : null;
 
-const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProps) => {
+const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { playerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
@@ -40,11 +43,12 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
 
   const optimisticWorkbenchItems = useMemo(() => 
-    playerData.workbenchItems.filter(item => item.workbench_id === construction.id),
-    [playerData.workbenchItems, construction.id]
+    playerData.workbenchItems.filter(item => item.workbench_id === construction?.id),
+    [playerData.workbenchItems, construction]
   );
 
   const optimisticOutputItem = useMemo(() => {
+    if (!construction) return null;
     const currentConstructionState = playerData.baseConstructions.find(c => c.id === construction.id);
     if (currentConstructionState?.output_item_id) {
       const outputItemDef = items.find(i => i.id === currentConstructionState.output_item_id);
@@ -60,7 +64,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
       }
     }
     return null;
-  }, [playerData.baseConstructions, construction.id, items]);
+  }, [playerData.baseConstructions, construction, items]);
 
   const ingredientSlots = useMemo(() => {
     const newSlots = Array(3).fill(null);
@@ -79,7 +83,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
   }, []);
 
   useEffect(() => {
-    if (construction) {
+    if (isOpen && construction) {
       const job = playerData.craftingJobs?.find(j => j.workbench_id === construction.id);
       setCurrentJob(job || null);
 
@@ -91,8 +95,11 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
         setCraftsRemaining(0);
       }
       fetchRecipes();
+    } else {
+      setCurrentJob(null);
+      setCraftsRemaining(0);
     }
-  }, [construction, playerData.craftingJobs, fetchRecipes]);
+  }, [isOpen, construction, playerData.craftingJobs, fetchRecipes]);
 
   const startCraft = useCallback(async (recipe: CraftingRecipe) => {
     if (!construction || !recipe) return false;
@@ -169,7 +176,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
           timerCompletedRef.current = true;
           setIsLoadingAction(true);
 
-          const queueKey = getQueueKey(construction.id);
+          const queueKey = getQueueKey(construction?.id);
           const savedQueue = queueKey ? localStorage.getItem(queueKey) : null;
 
           if (savedQueue) {
@@ -179,7 +186,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
               setCraftsRemaining(newQueueCount);
               localStorage.setItem(queueKey, String(newQueueCount));
               
-              const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction.id, p_recipe_id: currentJob.recipe_id });
+              const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction!.id, p_recipe_id: currentJob.recipe_id });
               
               if (error) {
                 showError(`La fabrication en série s'est arrêtée: ${error.message}`);
@@ -368,21 +375,21 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     }
   };
 
+  if (!isOpen || !construction) {
+    return null;
+  }
+
   return (
     <>
-      <div className="h-full flex flex-col bg-slate-900/50">
-        <div className="p-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-sm bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <Hammer className="w-7 h-7 text-white" />
-              <h2 className="text-white font-mono tracking-wider uppercase text-xl">Établi</h2>
+              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Établi</DialogTitle>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setIsBlueprintModalOpen(true)}>
-              <BookOpen className="w-4 h-4 mr-2" /> Blueprints
-            </Button>
-          </div>
-        </div>
-        <div className="py-4 px-4 flex-grow overflow-y-auto no-scrollbar">
+          </DialogHeader>
+          
           <div className="w-full max-w-sm mx-auto">
             <div className="bg-black/20 rounded-lg p-3 border border-slate-700 space-y-3">
               <div className="flex flex-row items-center justify-center gap-2">
@@ -452,16 +459,16 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                           <Square className="w-4 h-4" />
                         </Button>
                       </div>
-                      <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center gap-2">
-                        {currentJob && timeRemaining ? (
-                          <span>{timeRemaining}</span>
-                        ) : null}
-                        {craftsRemaining > 0 ? (
-                          <span className="text-xs">File d'attente : {craftsRemaining}</span>
-                        ) : null}
+                      <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center gap-x-3">
                         {isLoadingAction && !currentJob && !craftsRemaining ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : null}
+                        ) : (
+                          <>
+                            {currentJob && timeRemaining && <span>{timeRemaining}</span>}
+                            {currentJob && timeRemaining && craftsRemaining > 0 && <div className="w-px h-3 bg-gray-500" />}
+                            {craftsRemaining > 0 && <span className="text-xs">File d'attente: {craftsRemaining}</span>}
+                          </>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -489,13 +496,17 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
               </div>
             </div>
           </div>
-        </div>
-        <div className="p-4 flex-shrink-0 mt-auto">
-          <Button variant="destructive" onClick={() => onDemolish(construction)}>
-            <Trash2 className="w-4 h-4 mr-2" /> Détruire l'établi
-          </Button>
-        </div>
-      </div>
+          <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 mt-4">
+            <Button variant="outline" onClick={() => setIsBlueprintModalOpen(true)}>
+              <BookOpen className="w-4 h-4 mr-2" /> Blueprints
+            </Button>
+            <Button variant="destructive" onClick={() => onDemolish(construction)}>
+              <Trash2 className="w-4 h-4 mr-2" /> Détruire l'établi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ItemDetailModal
         isOpen={!!detailedItem}
         onClose={() => setDetailedItem(null)}
@@ -518,4 +529,4 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
   );
 };
 
-export default WorkbenchView;
+export default WorkbenchModal;
