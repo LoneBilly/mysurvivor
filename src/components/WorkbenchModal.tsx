@@ -91,14 +91,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setCurrentJob(job || null);
 
       const queueKey = getQueueKey(construction.id);
-      if (job && queueKey) {
+      if (queueKey) {
         const savedQueue = localStorage.getItem(queueKey);
-        if (savedQueue) {
-          setCraftsRemaining(parseInt(savedQueue, 10));
-        }
-      } else if (queueKey) {
-        localStorage.removeItem(queueKey);
-        setCraftsRemaining(0);
+        setCraftsRemaining(savedQueue ? parseInt(savedQueue, 10) : 0);
       }
 
       const currentConstructionState = playerData.baseConstructions.find(c => c.id === construction.id);
@@ -164,7 +159,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       if (Date.now() >= endTime) {
         setProgress(100);
         setTimeRemaining(0);
-        setTimeout(() => onUpdate(true), 500);
         return;
       }
 
@@ -174,18 +168,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           setProgress(100);
           setTimeRemaining(0);
           clearInterval(interval);
-          setTimeout(() => onUpdate(true), 1000);
-          return;
+        } else {
+          const startTime = new Date(currentJob.started_at).getTime();
+          const totalDuration = endTime - startTime;
+          const elapsedTime = now - startTime;
+          const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
+          const remaining = Math.ceil((endTime - now) / 1000);
+          
+          setProgress(newProgress);
+          setTimeRemaining(Math.max(0, remaining));
         }
-
-        const startTime = new Date(currentJob.started_at).getTime();
-        const totalDuration = endTime - startTime;
-        const elapsedTime = now - startTime;
-        const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
-        const remaining = Math.ceil((endTime - now) / 1000);
-        
-        setProgress(newProgress);
-        setTimeRemaining(Math.max(0, remaining));
       }, 100);
 
       return () => clearInterval(interval);
@@ -193,7 +185,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setProgress(0);
       setTimeRemaining(0);
     }
-  }, [currentJob, onUpdate]);
+  }, [currentJob]);
 
   useEffect(() => {
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
