@@ -138,50 +138,62 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
   }, [playerData.craftingJobs, refreshPlayerData]);
 
   useEffect(() => {
-    if (currentJob) {
-      timerCompletedRef.current = false;
-      const endTime = new Date(currentJob.ends_at).getTime();
-      const interval = setInterval(async () => {
-        const now = Date.now();
-        const diff = endTime - now;
-        if (diff <= 0) {
-          clearInterval(interval);
-          setProgress(100);
-          setTimeRemaining('');
-          if (!timerCompletedRef.current) {
-            timerCompletedRef.current = true;
-            setIsLoadingAction(true);
-            await refreshPlayerData();
-            setIsLoadingAction(false);
-          }
-          return;
-        }
-        const startTime = new Date(currentJob.started_at).getTime();
-        const totalDuration = endTime - startTime;
-        const elapsedTime = now - startTime;
-        const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
-        const remainingSeconds = Math.floor(diff / 1000);
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = remainingSeconds % 60;
-        setProgress(newProgress);
-        setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
-      }, 1000);
-      const now = Date.now();
-      const diff = endTime - now;
-      if (diff > 0) {
-        const remainingSeconds = Math.floor(diff / 1000);
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = remainingSeconds % 60;
-        setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
-      } else {
-        setTimeRemaining('');
-        setProgress(100);
-      }
-      return () => clearInterval(interval);
-    } else {
+    if (!currentJob) {
       setProgress(0);
       setTimeRemaining('');
+      return;
     }
+
+    timerCompletedRef.current = false;
+    const startTime = new Date(currentJob.started_at).getTime();
+    const endTime = new Date(currentJob.ends_at).getTime();
+    const totalDuration = endTime - startTime;
+
+    if (totalDuration <= 0) {
+        setProgress(100);
+        setTimeRemaining('');
+        if (!timerCompletedRef.current) {
+            timerCompletedRef.current = true;
+            setIsLoadingAction(true);
+            refreshPlayerData().finally(() => setIsLoadingAction(false));
+        }
+        return;
+    }
+
+    let animationFrameId: number;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const elapsedTime = now - startTime;
+      const diff = endTime - now;
+
+      if (diff <= 0) {
+        setProgress(100);
+        setTimeRemaining('');
+        if (!timerCompletedRef.current) {
+          timerCompletedRef.current = true;
+          setIsLoadingAction(true);
+          refreshPlayerData().finally(() => setIsLoadingAction(false));
+        }
+        return;
+      }
+
+      const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
+      setProgress(newProgress);
+
+      const remainingSeconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(remainingSeconds / 60);
+      const seconds = remainingSeconds % 60;
+      setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
+
+      animationFrameId = requestAnimationFrame(updateTimer);
+    };
+
+    animationFrameId = requestAnimationFrame(updateTimer);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
   }, [currentJob, refreshPlayerData]);
 
   useEffect(() => {
@@ -380,7 +392,14 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
 
                 {/* Result */}
                 <div className="flex flex-col items-center gap-2">
-                  <div className="relative w-14 h-14 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
+                  <button
+                    onClick={optimisticOutputItem && !currentJob ? handleCollectOutput : undefined}
+                    disabled={isLoadingAction || !!currentJob || !optimisticOutputItem}
+                    className={cn(
+                      "relative w-14 h-14 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
+                      optimisticOutputItem && !currentJob && "cursor-pointer hover:bg-slate-900/80 hover:border-slate-500 transition-colors"
+                    )}
+                  >
                     {currentJob ? (
                       <>
                         <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
@@ -405,13 +424,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                         )}
                       </>
                     ) : null}
-                  </div>
-                  {optimisticOutputItem && (
-                    <Button onClick={handleCollectOutput} disabled={isLoadingAction} size="sm" className="flex items-center gap-2">
-                      {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                      Récupérer
-                    </Button>
-                  )}
+                  </button>
                 </div>
               </div>
               
