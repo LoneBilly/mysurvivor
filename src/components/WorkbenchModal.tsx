@@ -38,7 +38,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   const [currentJob, setCurrentJob] = useState<CraftingJob | null>(null);
   const [progress, setProgress] = useState(0);
   const [craftQuantity, setCraftQuantity] = useState(1);
-  const [craftsInQueue, setCraftsInQueue] = useState<{ remaining: number; total: number } | null>(null);
+  const [craftsRemaining, setCraftsRemaining] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
   const timerCompletedRef = useRef(false);
   const [isInventorySelectorOpen, setIsInventorySelectorOpen] = useState(false);
@@ -93,27 +93,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
       const queueKey = getQueueKey(construction.id);
       if (queueKey) {
         const savedQueue = localStorage.getItem(queueKey);
-        try {
-          if (savedQueue) {
-            const parsed = JSON.parse(savedQueue);
-            if (parsed && typeof parsed.remaining === 'number' && typeof parsed.total === 'number') {
-              setCraftsInQueue(parsed);
-            } else {
-              setCraftsInQueue(null);
-            }
-          } else {
-            setCraftsInQueue(null);
-          }
-        } catch (e) {
-          setCraftsInQueue(null);
-        }
+        setCraftsRemaining(savedQueue ? parseInt(savedQueue, 10) : 0);
       } else {
-        setCraftsInQueue(null);
+        setCraftsRemaining(0);
       }
       fetchRecipes();
     } else {
       setCurrentJob(null);
-      setCraftsInQueue(null);
+      setCraftsRemaining(0);
     }
   }, [isOpen, construction, playerData.craftingJobs, fetchRecipes]);
 
@@ -134,14 +121,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     if (!matchedRecipe || !construction || craftQuantity <= 0) return;
 
     if (craftQuantity > 1) {
-        const queueData = { remaining: craftQuantity - 1, total: craftQuantity };
         const queueKey = getQueueKey(construction.id);
         if (queueKey) {
-            localStorage.setItem(queueKey, JSON.stringify(queueData));
+            localStorage.setItem(queueKey, String(craftQuantity - 1));
         }
-        setCraftsInQueue(queueData);
+        setCraftsRemaining(craftQuantity - 1);
     } else {
-        setCraftsInQueue(null);
+        setCraftsRemaining(0);
     }
     
     const success = await startCraft(matchedRecipe);
@@ -149,7 +135,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     if (success) {
       onUpdate();
     } else if (craftQuantity > 1) {
-      setCraftsInQueue(null);
+      setCraftsRemaining(0);
       const queueKey = getQueueKey(construction.id);
       if (queueKey) localStorage.removeItem(queueKey);
     }
@@ -194,24 +180,32 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
           setIsLoadingAction(true);
 
           const queueKey = getQueueKey(construction?.id);
-          if (queueKey && craftsInQueue && craftsInQueue.remaining > 0) {
-            const newQueue = { ...craftsInQueue, remaining: craftsInQueue.remaining - 1 };
-            setCraftsInQueue(newQueue);
-            localStorage.setItem(queueKey, JSON.stringify(newQueue));
-            
-            const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction!.id, p_recipe_id: currentJob.recipe_id });
-            
-            if (error) {
-              showError(`La fabrication en série s'est arrêtée: ${error.message}`);
-              localStorage.removeItem(queueKey);
-              setCraftsInQueue(null);
-              await refreshPlayerData();
+          const savedQueue = queueKey ? localStorage.getItem(queueKey) : null;
+
+          if (savedQueue) {
+            const queueCount = parseInt(savedQueue, 10);
+            if (queueCount > 0) {
+              const newQueueCount = queueCount - 1;
+              setCraftsRemaining(newQueueCount);
+              localStorage.setItem(queueKey, String(newQueueCount));
+              
+              const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction!.id, p_recipe_id: currentJob.recipe_id });
+              
+              if (error) {
+                showError(`La fabrication en série s'est arrêtée: ${error.message}`);
+                localStorage.removeItem(queueKey);
+                setCraftsRemaining(0);
+                await refreshPlayerData();
+              } else {
+                await refreshPlayerData(true);
+              }
             } else {
-              await refreshPlayerData(true);
+              localStorage.removeItem(queueKey);
+              setCraftsRemaining(0);
+              await refreshPlayerData();
             }
           } else {
-            if (queueKey) localStorage.removeItem(queueKey);
-            setCraftsInQueue(null);
+            setCraftsRemaining(0);
             await refreshPlayerData();
           }
           
@@ -220,14 +214,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         return;
       }
 
-      const itemsCompleted = craftsInQueue ? craftsInQueue.total - (craftsInQueue.remaining + 1) : 0;
-      const totalBatchDuration = craftsInQueue ? craftsInQueue.total * totalDuration : totalDuration;
-      const totalElapsedTime = (itemsCompleted * totalDuration) + elapsedTime;
-      const newProgress = Math.min(100, (totalElapsedTime / totalBatchDuration) * 100);
+      const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
       setProgress(newProgress);
 
-      const totalRemainingTimeMs = (craftsInQueue ? craftsInQueue.remaining : 0) * totalDuration + diff;
-      const remainingSeconds = Math.ceil(totalRemainingTimeMs / 1000);
+      const remainingSeconds = Math.ceil(diff / 1000);
       let formattedTime;
       if (remainingSeconds >= 60) {
         const minutes = Math.floor(remainingSeconds / 60);
@@ -246,7 +236,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [currentJob, construction, refreshPlayerData, craftsInQueue]);
+  }, [currentJob, construction, refreshPlayerData]);
 
   useEffect(() => {
     for (const recipe of recipes) {
@@ -329,7 +319,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   }, [maxCraftQuantity, craftQuantity]);
 
   const handleCancelCraft = async () => {
-    setCraftsInQueue(null);
+    setCraftsRemaining(0);
     const queueKey = getQueueKey(construction?.id);
     if (queueKey) localStorage.removeItem(queueKey);
     if (!construction) return;
@@ -455,7 +445,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                         onItemClick={() => handleOpenInventorySelector(index)}
                         isBeingDragged={false}
                         isDragOver={false}
-                        isLocked={!!currentJob || !!craftsInQueue}
+                        isLocked={!!currentJob || craftsRemaining > 0}
                         onRemove={handleRemoveItemFromWorkbench}
                       />
                     </div>
@@ -501,22 +491,22 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
               
               <div className="pt-3 border-t border-slate-700">
                 <div className="h-auto flex flex-col justify-center items-center space-y-2">
-                  {currentJob || craftsInQueue ? (
+                  {currentJob || craftsRemaining > 0 ? (
                     <div className="w-full space-y-2 px-4">
                       <div className="flex items-center gap-2">
-                        <Progress value={progress} className="flex-grow" indicatorClassName="transition-none" />
+                        <Progress value={currentJob ? progress : 0} className="flex-grow" indicatorClassName="transition-none" />
                         <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
                           <Square className="w-4 h-4" />
                         </Button>
                       </div>
                       <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center gap-x-3">
-                        {isLoadingAction && !currentJob && !craftsInQueue ? (
+                        {isLoadingAction && !currentJob && !craftsRemaining ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <>
-                            {timeRemaining && <span>{timeRemaining}</span>}
-                            {timeRemaining && craftsInQueue && craftsInQueue.remaining > 0 && <div className="w-px h-3 bg-gray-500" />}
-                            {craftsInQueue && craftsInQueue.remaining > 0 && <span className="text-xs">File d'attente: {craftsInQueue.remaining}</span>}
+                            {currentJob && timeRemaining && <span>{timeRemaining}</span>}
+                            {currentJob && timeRemaining && craftsRemaining > 0 && <div className="w-px h-3 bg-gray-500" />}
+                            {craftsRemaining > 0 && <span className="text-xs">File d'attente: {craftsRemaining}</span>}
                           </>
                         )}
                       </div>
