@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -12,6 +12,7 @@ import ItemDetailModal from "./ItemDetailModal";
 import BlueprintModal from "./BlueprintModal";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -34,14 +35,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [itemToCollect, setItemToCollect] = useState<InventoryItem | null>(null);
   const [isDraggingOutput, setIsDraggingOutput] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [isAutoCrafting, setIsAutoCrafting] = useState(false);
+  const [craftQuantity, setCraftQuantity] = useState(1);
+  const [craftsRemaining, setCraftsRemaining] = useState(0);
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
   
   const [optimisticWorkbenchItems, setOptimisticWorkbenchItems] = useState<InventoryItem[]>([]);
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
-  const autoCraftingRef = useRef(false);
+  const craftsRemainingRef = useRef(0);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const handleCraftCompleteRef = useRef<() => void>();
 
@@ -119,15 +121,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setItemToCollect(null);
       setOptimisticOutputItem(null);
       setProgress(0);
-      setIsAutoCrafting(false);
+      setCraftsRemaining(0);
       setTimeRemaining(0);
-      autoCraftingRef.current = false;
+      craftsRemainingRef.current = 0;
     }
   }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
   useEffect(() => {
-    autoCraftingRef.current = isAutoCrafting;
-  }, [isAutoCrafting]);
+    craftsRemainingRef.current = craftsRemaining;
+  }, [craftsRemaining]);
 
   const simulateIngredientConsumption = useCallback((recipe: CraftingRecipe, currentItems: InventoryItem[]) => {
     let itemsCopy = JSON.parse(JSON.stringify(currentItems));
@@ -184,7 +186,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
     if (error) {
       showError(error.message);
-      setIsAutoCrafting(false);
+      setCraftsRemaining(0);
       setCurrentJob(null);
       setOptimisticWorkbenchItems(workbenchItems);
       await refreshPlayerData();
@@ -243,22 +245,25 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     setOptimisticOutputItem(newOutputItem);
     setItemToCollect(newOutputItem);
 
-    if (autoCraftingRef.current) {
+    const remaining = craftsRemainingRef.current - 1;
+    setCraftsRemaining(remaining);
+
+    if (remaining > 0) {
       const canContinue = canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, newOutputItem);
       
       if (canContinue) {
         setTimeout(async () => {
-          if (autoCraftingRef.current) {
+          if (craftsRemainingRef.current > 0) {
             const success = await startCraft(matchedRecipe, true);
             if (!success) {
-              setIsAutoCrafting(false);
+              setCraftsRemaining(0);
               setCurrentJob(null);
               await refreshPlayerData();
             }
           }
         }, 100);
       } else {
-        setIsAutoCrafting(false);
+        setCraftsRemaining(0);
         setCurrentJob(null);
         if (!canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, null)) {
           showInfo("Ressources insuffisantes pour continuer.");
@@ -355,18 +360,59 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   }, [matchedRecipe, items]);
 
-  const handleStartCraftingLoop = useCallback(async () => {
-    if (!matchedRecipe) return;
+  const maxCraftQuantity = useMemo(() => {
+    if (!matchedRecipe) return 0;
+
+    const resultItemDef = items.find(i => i.id === matchedRecipe.result_item_id);
+    if (resultItemDef && !resultItemDef.stackable && optimisticOutputItem) {
+        return 0;
+    }
+
+    const recipeIngredients = [
+      { id: matchedRecipe.ingredient1_id, quantity: matchedRecipe.ingredient1_quantity },
+      { id: matchedRecipe.ingredient2_id, quantity: matchedRecipe.ingredient2_quantity },
+      { id: matchedRecipe.ingredient3_id, quantity: matchedRecipe.ingredient3_quantity },
+    ].filter(ing => ing.id !== null && ing.quantity! > 0) as { id: number, quantity: number }[];
+
+    if (recipeIngredients.length === 0) return 99;
+
+    const craftCounts = recipeIngredients.map(req => {
+        const totalAvailable = optimisticWorkbenchItems
+            .filter(i => i.item_id === req.id)
+            .reduce((sum, item) => sum + item.quantity, 0);
+        return Math.floor(totalAvailable / req.quantity);
+    });
+
+    const max = Math.min(...craftCounts);
+
+    if (resultItemDef && !resultItemDef.stackable) {
+        return Math.min(max, 1);
+    }
+
+    return max;
+  }, [matchedRecipe, optimisticWorkbenchItems, optimisticOutputItem, items]);
+
+  useEffect(() => {
+    if (craftQuantity > maxCraftQuantity) {
+        setCraftQuantity(maxCraftQuantity > 0 ? maxCraftQuantity : 1);
+    }
+    if (maxCraftQuantity === 0 && craftQuantity !== 1) {
+        setCraftQuantity(1);
+    }
+  }, [maxCraftQuantity, craftQuantity]);
+
+  const handleStartBatchCraft = useCallback(async () => {
+    if (!matchedRecipe || craftQuantity <= 0) return;
     
-    setIsAutoCrafting(true);
+    setCraftsRemaining(craftQuantity);
     const success = await startCraft(matchedRecipe, false);
     if (!success) {
-      setIsAutoCrafting(false);
+      setCraftsRemaining(0);
     }
-  }, [matchedRecipe, startCraft]);
+  }, [matchedRecipe, craftQuantity, startCraft]);
 
   const handleCancelCraft = async () => {
-    setIsAutoCrafting(false);
+    setCraftsRemaining(0);
     if (!construction || !currentJob) return;
     setIsLoadingAction(true);
     
@@ -680,8 +726,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     <div className="col-span-2" />
                   </div>
                   
-                  <div className="h-[60px] flex flex-col justify-center items-center space-y-2">
-                    {currentJob || (isAutoCrafting && matchedRecipe) ? (
+                  <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
+                    {currentJob ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
                           <Progress value={progress} className="flex-grow" />
@@ -691,27 +737,41 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
                           {timeRemaining > 0 ? `${timeRemaining}s` : 'Terminé...'}
-                          {isAutoCrafting && (
-                            <span className="ml-2 text-yellow-400">(Boucle active)</span>
+                          {craftsRemaining > 0 && (
+                            <span className="ml-2 text-yellow-400">({craftsRemaining} en file)</span>
                           )}
                         </div>
                       </div>
                     ) : (
                       <>
-                        {matchedRecipe && (
-                          <div className="text-center text-sm text-gray-300 mb-2">
-                            <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
-                            {resultItem && !resultItem.stackable && displayedOutputItem && (
-                              <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>
-                            )}
+                        {matchedRecipe && maxCraftQuantity > 0 ? (
+                          <div className="w-full px-4 space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                                <span>Quantité: <span className="font-bold text-white">{craftQuantity}</span></span>
+                            </div>
+                            <Slider
+                                value={[craftQuantity]}
+                                onValueChange={(value) => setCraftQuantity(value[0])}
+                                min={1}
+                                max={maxCraftQuantity}
+                                step={1}
+                                disabled={isLoadingAction}
+                            />
+                            <Button 
+                              onClick={handleStartBatchCraft} 
+                              disabled={!matchedRecipe || isLoadingAction || craftQuantity === 0}
+                              className="w-full"
+                            >
+                              {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : `Fabriquer ${craftQuantity}x`}
+                            </Button>
                           </div>
+                        ) : matchedRecipe ? (
+                          <p className="text-center text-xs text-yellow-400 px-4">
+                            {resultItem && !resultItem.stackable && displayedOutputItem ? "Collectez l'objet pour fabriquer." : "Ressources insuffisantes."}
+                          </p>
+                        ) : (
+                            <p className="text-sm text-gray-400">Placez des ingrédients pour voir les recettes.</p>
                         )}
-                        <Button 
-                          onClick={handleStartCraftingLoop} 
-                          disabled={!matchedRecipe || isLoadingAction || (resultItem && !resultItem.stackable && !!displayedOutputItem)}
-                        >
-                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fabriquer'}
-                        </Button>
                       </>
                     )}
                   </div>
