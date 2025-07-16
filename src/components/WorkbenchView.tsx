@@ -12,6 +12,7 @@ import BlueprintModal from "./BlueprintModal";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
+import WorkbenchInventorySelectorModal from "./WorkbenchInventorySelectorModal";
 
 interface WorkbenchViewProps {
   construction: BaseConstruction;
@@ -36,6 +37,8 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
   const [timeRemaining, setTimeRemaining] = useState('');
   const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
   const timerCompletedRef = useRef(false);
+  const [isInventorySelectorOpen, setIsInventorySelectorOpen] = useState(false);
+  const [targetSlot, setTargetSlot] = useState<number | null>(null);
 
   const optimisticWorkbenchItems = useMemo(() => 
     playerData.workbenchItems.filter(item => item.workbench_id === construction.id),
@@ -293,6 +296,31 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     }
   };
 
+  const handleOpenInventorySelector = (slotIndex: number) => {
+    setTargetSlot(slotIndex);
+    setIsInventorySelectorOpen(true);
+  };
+
+  const handleItemSelectForWorkbench = async (item: InventoryItem) => {
+    if (targetSlot === null || !construction) return;
+    setIsInventorySelectorOpen(false);
+    
+    const { error } = await supabase.rpc('move_item_to_workbench', {
+      p_inventory_id: item.id,
+      p_workbench_id: construction.id,
+      p_quantity_to_move: item.quantity,
+      p_target_slot: targetSlot
+    });
+
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Objet transféré.");
+      onUpdate();
+    }
+    setTargetSlot(null);
+  };
+
   return (
     <>
       <div className="h-full flex flex-col bg-slate-900/50">
@@ -320,7 +348,13 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                         index={index}
                         isUnlocked={true}
                         onDragStart={() => {}}
-                        onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
+                        onItemClick={(clickedItem) => {
+                          if (clickedItem) {
+                            setDetailedItem({ item: clickedItem, source: 'crafting' });
+                          } else {
+                            handleOpenInventorySelector(index);
+                          }
+                        }}
                         isBeingDragged={false}
                         isDragOver={false}
                         isLocked={!!currentJob || craftsRemaining > 0}
@@ -427,6 +461,12 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
         onTransferFromWorkbench={handleTransferFromWorkbench}
       />
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
+      <WorkbenchInventorySelectorModal
+        isOpen={isInventorySelectorOpen}
+        onClose={() => setIsInventorySelectorOpen(false)}
+        inventory={playerData.inventory}
+        onSelectItem={handleItemSelectForWorkbench}
+      />
     </>
   );
 };
