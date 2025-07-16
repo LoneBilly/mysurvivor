@@ -576,14 +576,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+        <DialogContent className="max-w-4xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 max-h-[calc(100vh-8rem)] flex flex-col">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Hammer className="w-7 h-7 text-white" />
               <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Établi</DialogTitle>
             </div>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 flex-grow overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <div className="flex justify-between items-center mb-2">
