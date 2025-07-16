@@ -648,11 +648,12 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             <Square className="w-4 h-4" />
                           </Button>
                         </div>
-                        <div className="text-center text-sm text-gray-300 font-mono">
-                          {currentJob && timeRemaining > 0 ? `${timeRemaining}s` : (isCraftingTransition ? 'Démarrage de la prochaine fabrication...' : 'Terminé...')}
-                          {craftsRemaining > 1 && (
-                            <span className="ml-2 text-yellow-400">({craftsRemaining - 1} en file)</span>
-                          )}
+                        <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
+                          {currentJob && timeRemaining > 0 ? (
+                            <span>{timeRemaining}s</span>
+                          ) : isCraftingTransition ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : null}
                         </div>
                       </div>
                     ) : (
