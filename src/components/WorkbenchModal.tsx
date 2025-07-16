@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -604,14 +604,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
-  const handlePrevRecipe = () => {
-    setSelectedRecipeIndex(prev => (prev - 1 + matchedRecipes.length) % matchedRecipes.length);
-  };
-
-  const handleNextRecipe = () => {
-    setSelectedRecipeIndex(prev => (prev + 1) % matchedRecipes.length);
-  };
-
   const displayedOutputItem = optimisticOutputItem || itemToCollect;
 
   return (
@@ -698,15 +690,30 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </>
                         )}
                       </div>
+                      
                       {matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={handlePrevRecipe} className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 h-8 w-8 rounded-full">
-                              <ChevronLeft className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={handleNextRecipe} className="absolute top-1/2 -translate-y-1/2 -right-3 z-10 h-8 w-8 rounded-full">
-                              <ChevronRight className="w-4 h-4" />
-                          </Button>
-                        </>
+                        <div className="absolute top-full mt-2 w-full max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg z-20 p-1 space-y-1">
+                          {matchedRecipes.map((recipe, index) => {
+                            const item = items.find(i => i.id === recipe.result_item_id);
+                            if (!item) return null;
+                            return (
+                              <button
+                                key={recipe.id}
+                                onClick={() => setSelectedRecipeIndex(index)}
+                                className={cn(
+                                  "w-full flex items-center gap-2 p-2 rounded-md text-left transition-colors hover:bg-slate-800",
+                                  index === selectedRecipeIndex && "bg-slate-700"
+                                )}
+                              >
+                                <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} className="w-8 h-8 flex-shrink-0" />
+                                <div className="flex-grow min-w-0">
+                                  <p className="font-semibold truncate">{item.name}</p>
+                                  <p className="text-xs text-gray-400">x{recipe.result_quantity}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
                     <div className="col-span-2" />
