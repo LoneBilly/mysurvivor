@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -17,6 +17,7 @@ const Game = () => {
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [iconUrlMap, setIconUrlMap] = useState<Map<string, string>>(new Map());
+  const dataLoaded = useRef(false);
 
   const loadGameData = useCallback(async (user: User) => {
     setLoading(true);
@@ -59,7 +60,8 @@ const Game = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && !dataLoaded.current) {
+      dataLoaded.current = true;
       loadGameData(user);
     }
   }, [user, loadGameData]);
