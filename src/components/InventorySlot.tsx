@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Lock } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import ItemIcon from "./ItemIcon";
 import { InventoryItem } from "@/types/game";
 import {
@@ -20,9 +20,10 @@ interface InventorySlotProps {
   isBeingDragged: boolean;
   isDragOver: boolean;
   isLocked?: boolean;
+  onRemove?: (item: InventoryItem) => void;
 }
 
-const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver, isLocked = false }: InventorySlotProps) => {
+const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver, isLocked = false, onRemove }: InventorySlotProps) => {
   const { getIconUrl } = useGame();
   const interactionState = useRef<{
     startPos: { x: number, y: number };
@@ -90,6 +91,18 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
       )}
     >
       {isLocked && <Lock className="absolute w-4 h-4 text-white z-20" />}
+      {item && onRemove && !isLocked && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (item) onRemove(item);
+          }}
+          className="absolute top-0 right-0 p-0.5 bg-red-500/80 text-white rounded-bl-md rounded-tr-md hover:bg-red-600 z-20"
+          aria-label="Retirer l'objet"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
       {item ? (
         <TooltipProvider delayDuration={200}>
           <Tooltip>

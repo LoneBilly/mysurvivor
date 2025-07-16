@@ -321,6 +321,23 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     setTargetSlot(null);
   };
 
+  const handleRemoveItemFromWorkbench = async (item: InventoryItem) => {
+    if (isLoadingAction) return;
+    setIsLoadingAction(true);
+    const { error } = await supabase.rpc('move_item_from_workbench_to_inventory', {
+      p_workbench_item_id: item.id,
+      p_quantity_to_move: item.quantity,
+    });
+    setIsLoadingAction(false);
+
+    if (error) {
+      showError(error.message || "Erreur lors du retrait de l'objet.");
+    } else {
+      showSuccess("Objet retourné à l'inventaire.");
+      onUpdate();
+    }
+  };
+
   return (
     <>
       <div className="h-full flex flex-col bg-slate-900/50">
@@ -358,6 +375,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                         isBeingDragged={false}
                         isDragOver={false}
                         isLocked={!!currentJob || craftsRemaining > 0}
+                        onRemove={handleRemoveItemFromWorkbench}
                       />
                     </div>
                   ))}
