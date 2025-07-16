@@ -42,7 +42,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'crafting' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'crafting' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
-  const lastJobRef = useRef<CraftingJob | null>(null);
   
   const [optimisticWorkbenchItems, setOptimisticWorkbenchItems] = useState<InventoryItem[]>([]);
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
@@ -53,12 +52,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       onUpdate(true);
     }
   }, [isOpen, onUpdate]);
-
-  useEffect(() => {
-    if (currentJob) {
-      lastJobRef.current = currentJob;
-    }
-  }, [currentJob]);
 
   const ingredientSlots = useMemo(() => {
     const newSlots = Array(3).fill(null);
@@ -525,9 +518,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   };
 
   const displayedOutputItem = optimisticOutputItem || itemToCollect;
-  const isBatchTransition = !currentJob && craftsRemaining > 0 && !itemToCollect;
-  const itemInTransition = isBatchTransition ? lastJobRef.current : null;
-  const showAsCrafting = currentJob || isBatchTransition;
 
   return (
     <>
@@ -580,16 +570,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                       onDragStart={handleDragStartOutput}
                       onDragEnd={() => setIsDraggingOutput(false)}
                     >
-                      {showAsCrafting ? (
+                      {currentJob ? (
                         <>
-                          <ItemIcon
-                            iconName={getIconUrl(currentJob?.result_item_icon || itemInTransition?.result_item_icon) || currentJob?.result_item_icon || itemInTransition?.result_item_icon}
-                            alt={currentJob?.result_item_name || itemInTransition?.result_item_name || ''}
-                            className="grayscale opacity-50"
-                          />
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
+                          <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
                             <div className="flex items-center gap-2">
                               <Loader2 className="w-6 h-6 animate-spin text-white" />
+                              {displayedOutputItem && (
+                                <span className="text-sm font-bold text-white">
+                                  x{displayedOutputItem.quantity}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </>
@@ -615,18 +606,18 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </div>
                   
                   <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
-                    {showAsCrafting ? (
+                    {currentJob ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
-                          <Progress value={currentJob ? progress : 100} className="flex-grow" />
+                          <Progress value={progress} className="flex-grow" />
                           <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
                             <Square className="w-4 h-4" />
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
-                          {currentJob ? (timeRemaining > 0 ? `${timeRemaining}s` : 'Terminé...') : 'Démarrage...'}
+                          {timeRemaining > 0 ? `${timeRemaining}s` : 'Terminé...'}
                           {craftsRemaining > 1 && (
-                            <span className="ml-2 text-yellow-400">({craftsRemaining - (currentJob ? 1 : 0)} en file)</span>
+                            <span className="ml-2 text-yellow-400">({craftsRemaining - 1} en file)</span>
                           )}
                         </div>
                       </div>
