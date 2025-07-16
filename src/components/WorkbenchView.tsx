@@ -301,14 +301,14 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     setIsInventorySelectorOpen(true);
   };
 
-  const handleItemSelectForWorkbench = async (item: InventoryItem) => {
+  const handleItemSelectForWorkbench = async (item: InventoryItem, quantity: number) => {
     if (targetSlot === null || !construction) return;
     setIsInventorySelectorOpen(false);
     
     const { error } = await supabase.rpc('move_item_to_workbench', {
       p_inventory_id: item.id,
       p_workbench_id: construction.id,
-      p_quantity_to_move: item.quantity,
+      p_quantity_to_move: quantity,
       p_target_slot: targetSlot
     });
 
@@ -365,11 +365,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                         index={index}
                         isUnlocked={true}
                         onDragStart={() => {}}
-                        onItemClick={(clickedItem) => {
-                          if (!clickedItem) {
-                            handleOpenInventorySelector(index);
-                          }
-                        }}
+                        onItemClick={() => handleOpenInventorySelector(index)}
                         isBeingDragged={false}
                         isDragOver={false}
                         isLocked={!!currentJob || craftsRemaining > 0}
