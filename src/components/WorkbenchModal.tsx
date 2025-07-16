@@ -552,7 +552,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         title="Inventaire plein"
         description="Votre inventaire est plein. Vous pouvez faire de la place ou jeter l'objet fabriqué pour continuer."
         actions={[
-          { label: "Faire de la place", onClick: () => { setInventoryFullModal(false); onClose(); onOpenInventory(); }, variant: "default" },
+          { label: "Faire de la place", onClick: () => { setInventoryFullModal(false); onOpenInventory(); }, variant: "default" },
           { label: "Jeter l'objet", onClick: handleDiscardOutput, variant: "destructive" },
         ]}
       />
