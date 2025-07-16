@@ -315,6 +315,31 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (!optimisticOutputItem) return;
     setIsDraggingOutput(true);
     e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'workbench_output', constructionId: construction?.id }));
+  
+    const iconElement = e.currentTarget.querySelector('img');
+    if (iconElement) {
+      const dragImage = document.createElement('img');
+      dragImage.src = iconElement.src;
+      dragImage.style.width = '56px';
+      dragImage.style.height = '56px';
+      dragImage.style.position = 'absolute';
+      dragImage.style.top = '-100px';
+      dragImage.style.left = '-100px';
+      
+      document.body.appendChild(dragImage);
+      e.dataTransfer.setDragImage(dragImage, 28, 28); // Half of 56px
+
+      // Cleanup after the drag operation starts
+      setTimeout(() => {
+        if (dragImage.parentNode) {
+          document.body.removeChild(dragImage);
+        }
+      }, 0);
+    } else {
+      // Fallback to prevent showing the whole slot
+      const empty = document.createElement('div');
+      e.dataTransfer.setDragImage(empty, 0, 0);
+    }
   };
 
   const handleDropOnInventory = async (e: React.DragEvent<HTMLDivElement>, targetSlot: number) => {
