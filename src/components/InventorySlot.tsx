@@ -97,7 +97,11 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
             e.stopPropagation();
             if (item) onRemove(item);
           }}
-          className="absolute top-0 right-0 p-0.5 bg-red-500/80 text-white rounded-bl-md rounded-tr-md hover:bg-red-600 z-20"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="absolute top-[-5px] right-[-5px] p-1 bg-red-600 text-white rounded-full hover:bg-red-700 z-20 shadow-lg transition-transform hover:scale-110"
           aria-label="Retirer l'objet"
         >
           <X className="w-3 h-3" />
