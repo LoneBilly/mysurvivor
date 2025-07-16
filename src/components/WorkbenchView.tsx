@@ -307,14 +307,14 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
             </Button>
           </div>
         </div>
-        <div className="py-4 px-4 flex-grow overflow-y-auto no-scrollbar flex items-center justify-center">
-          <div className="w-full max-w-md">
-            <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="py-4 px-4 flex-grow overflow-y-auto no-scrollbar">
+          <div className="w-full max-w-sm mx-auto">
+            <div className="bg-black/20 rounded-lg p-3 border border-slate-700 space-y-3">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 {/* Ingredients */}
                 <div className="grid grid-cols-3 gap-2">
                   {ingredientSlots.map((item, index) => (
-                    <div key={item?.id || index} className="w-16 h-16">
+                    <div key={item?.id || index} className="w-14 h-14">
                       <InventorySlot
                         item={item}
                         index={index}
@@ -330,11 +330,11 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                 </div>
 
                 {/* Arrow */}
-                <ArrowRight className="w-6 h-6 text-gray-500 shrink-0 sm:rotate-0 -rotate-90" />
+                <ArrowRight className="w-5 h-5 text-gray-500 shrink-0 sm:rotate-0 -rotate-90" />
 
                 {/* Result */}
                 <div className="flex flex-col items-center gap-2">
-                  <div className="relative w-20 h-20 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
+                  <div className="relative w-16 h-16 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
                     {currentJob ? (
                       <>
                         <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
@@ -369,7 +369,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                 </div>
               </div>
               
-              <div className="pt-4 border-t border-slate-700">
+              <div className="pt-3 border-t border-slate-700">
                 <div className="h-auto flex flex-col justify-center items-center space-y-2">
                   {currentJob || craftsRemaining > 0 ? (
                     <div className="w-full space-y-2 px-4">
