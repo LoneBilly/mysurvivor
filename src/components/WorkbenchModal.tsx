@@ -129,6 +129,113 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     autoCraftingRef.current = isAutoCrafting;
   }, [isAutoCrafting]);
 
+  const simulateIngredientConsumption = useCallback((recipe: CraftingRecipe, currentItems: InventoryItem[]) => {
+    let itemsCopy = JSON.parse(JSON.stringify(currentItems));
+    const recipeIngredients = [
+      { id: recipe.ingredient1_id, quantity: recipe.ingredient1_quantity },
+      { id: recipe.ingredient2_id, quantity: recipe.ingredient2_quantity },
+      { id: recipe.ingredient3_id, quantity: recipe.ingredient3_quantity },
+    ].filter(ing => ing.id !== null);
+
+    recipeIngredients.forEach(req => {
+      const itemIndex = itemsCopy.findIndex((i: InventoryItem) => i.item_id === req.id);
+      if (itemIndex > -1) {
+        itemsCopy[itemIndex].quantity -= req.quantity!;
+        if (itemsCopy[itemIndex].quantity <= 0) {
+          itemsCopy.splice(itemIndex, 1);
+        }
+      }
+    });
+
+    return itemsCopy;
+  }, []);
+
+  const startCraft = useCallback(async (recipe: CraftingRecipe, isLoopIteration: boolean = false) => {
+    if (!construction || !recipe) return false;
+
+    if (!isLoopIteration) {
+      setIsLoadingAction(true);
+    }
+
+    setOptimisticWorkbenchItems(prev => simulateIngredientConsumption(recipe, prev));
+
+    const startTime = Date.now();
+    const optimisticJob: CraftingJob = {
+      id: -1,
+      workbench_id: construction.id,
+      recipe_id: recipe.id,
+      started_at: new Date(startTime).toISOString(),
+      ends_at: new Date(startTime + recipe.craft_time_seconds * 1000).toISOString(),
+      result_item_id: recipe.result_item_id,
+      result_quantity: recipe.result_quantity,
+      result_item_name: items.find(i => i.id === recipe.result_item_id)?.name || '',
+      result_item_icon: items.find(i => i.id === recipe.result_item_id)?.icon || '',
+    };
+    setCurrentJob(optimisticJob);
+
+    const { error } = await supabase.rpc('start_craft', { 
+      p_workbench_id: construction.id, 
+      p_recipe_id: recipe.id 
+    });
+
+    if (!isLoopIteration) {
+      setIsLoadingAction(false);
+    }
+
+    if (error) {
+      showError(error.message);
+      setIsAutoCrafting(false);
+      setCurrentJob(null);
+      setOptimisticWorkbenchItems(workbenchItems);
+      await refreshPlayerData();
+      return false;
+    }
+
+    return true;
+  }, [construction, items, workbenchItems, simulateIngredientConsumption, refreshPlayerData]);
+
+  const canContinueCrafting = useCallback((recipe: CraftingRecipe, currentItems: InventoryItem[], currentOutput: InventoryItem | null) => {
+    const recipeIngredients = [
+      { id: recipe.ingredient1_id, quantity: recipe.ingredient1_quantity },
+      { id: recipe.ingredient2_id, quantity: recipe.ingredient2_quantity },
+      { id: recipe.ingredient3_id, quantity: recipe.ingredient3_quantity },
+    ].filter(ing => ing.id !== null);
+
+    const hasIngredients = recipeIngredients.every(req => {
+      const available = currentItems.find(i => i.item_id === req.id);
+      return available && available.quantity >= req.quantity!;
+    });
+
+    if (!hasIngredients) return false;
+
+    const resultItemDef = items.find(i => i.id === recipe.result_item_id);
+    if (!resultItemDef) return false;
+
+    if (!resultItemDef.stackable && currentOutput) return false;
+
+    return true;
+  }, [items]);
+
+  const simulateOutputCollection = useCallback((recipe: CraftingRecipe, currentOutput: InventoryItem | null) => {
+    const resultItemDef = items.find(i => i.id === recipe.result_item_id);
+    if (!resultItemDef) return null;
+
+    if (currentOutput && currentOutput.item_id === recipe.result_item_id && resultItemDef.stackable) {
+      return {
+        ...currentOutput,
+        quantity: currentOutput.quantity + recipe.result_quantity
+      };
+    } else {
+      return {
+        id: -1,
+        item_id: recipe.result_item_id,
+        quantity: recipe.result_quantity,
+        slot_position: -1,
+        items: resultItemDef
+      };
+    }
+  }, [items]);
+
   const handleCraftComplete = useCallback(async () => {
     if (!matchedRecipe || !construction) return;
 
@@ -247,113 +354,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setResultItem(null);
     }
   }, [matchedRecipe, items]);
-
-  const simulateIngredientConsumption = useCallback((recipe: CraftingRecipe, currentItems: InventoryItem[]) => {
-    let itemsCopy = JSON.parse(JSON.stringify(currentItems));
-    const recipeIngredients = [
-      { id: recipe.ingredient1_id, quantity: recipe.ingredient1_quantity },
-      { id: recipe.ingredient2_id, quantity: recipe.ingredient2_quantity },
-      { id: recipe.ingredient3_id, quantity: recipe.ingredient3_quantity },
-    ].filter(ing => ing.id !== null);
-
-    recipeIngredients.forEach(req => {
-      const itemIndex = itemsCopy.findIndex((i: InventoryItem) => i.item_id === req.id);
-      if (itemIndex > -1) {
-        itemsCopy[itemIndex].quantity -= req.quantity!;
-        if (itemsCopy[itemIndex].quantity <= 0) {
-          itemsCopy.splice(itemIndex, 1);
-        }
-      }
-    });
-
-    return itemsCopy;
-  }, []);
-
-  const simulateOutputCollection = useCallback((recipe: CraftingRecipe, currentOutput: InventoryItem | null) => {
-    const resultItemDef = items.find(i => i.id === recipe.result_item_id);
-    if (!resultItemDef) return null;
-
-    if (currentOutput && currentOutput.item_id === recipe.result_item_id && resultItemDef.stackable) {
-      return {
-        ...currentOutput,
-        quantity: currentOutput.quantity + recipe.result_quantity
-      };
-    } else {
-      return {
-        id: -1,
-        item_id: recipe.result_item_id,
-        quantity: recipe.result_quantity,
-        slot_position: -1,
-        items: resultItemDef
-      };
-    }
-  }, [items]);
-
-  const canContinueCrafting = useCallback((recipe: CraftingRecipe, currentItems: InventoryItem[], currentOutput: InventoryItem | null) => {
-    const recipeIngredients = [
-      { id: recipe.ingredient1_id, quantity: recipe.ingredient1_quantity },
-      { id: recipe.ingredient2_id, quantity: recipe.ingredient2_quantity },
-      { id: recipe.ingredient3_id, quantity: recipe.ingredient3_quantity },
-    ].filter(ing => ing.id !== null);
-
-    const hasIngredients = recipeIngredients.every(req => {
-      const available = currentItems.find(i => i.item_id === req.id);
-      return available && available.quantity >= req.quantity!;
-    });
-
-    if (!hasIngredients) return false;
-
-    const resultItemDef = items.find(i => i.id === recipe.result_item_id);
-    if (!resultItemDef) return false;
-
-    if (!resultItemDef.stackable && currentOutput) return false;
-
-    return true;
-  }, [items]);
-
-  const startCraft = useCallback(async (recipe: CraftingRecipe, isLoopIteration: boolean = false) => {
-    if (!construction || !recipe) return false;
-
-    if (!isLoopIteration) {
-      setIsLoadingAction(true);
-    }
-
-    setOptimisticWorkbenchItems(prev => simulateIngredientConsumption(recipe, prev));
-
-    const startTime = Date.now();
-    const optimisticJob: CraftingJob = {
-      id: -1,
-      workbench_id: construction.id,
-      recipe_id: recipe.id,
-      started_at: new Date(startTime).toISOString(),
-      ends_at: new Date(startTime + recipe.craft_time_seconds * 1000).toISOString(),
-      result_item_id: recipe.result_item_id,
-      result_quantity: recipe.result_quantity,
-      result_item_name: items.find(i => i.id === recipe.result_item_id)?.name || '',
-      result_item_icon: items.find(i => i.id === recipe.result_item_id)?.icon || '',
-    };
-    setCurrentJob(optimisticJob);
-
-    const { error } = await supabase.rpc('start_craft', { 
-      p_workbench_id: construction.id, 
-      p_recipe_id: recipe.id 
-    });
-
-    if (!isLoopIteration) {
-      setIsLoadingAction(false);
-    }
-
-    if (error) {
-      showError(error.message);
-      setIsAutoCrafting(false);
-      setCurrentJob(null);
-      setOptimisticWorkbenchItems(workbenchItems);
-      await refreshPlayerData();
-      return false;
-    }
-
-    return true;
-  }, [construction, items, workbenchItems, simulateIngredientConsumption, refreshPlayerData]);
 
   const handleStartCraftingLoop = useCallback(async () => {
     if (!matchedRecipe) return;
