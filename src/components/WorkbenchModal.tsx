@@ -292,9 +292,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (queueKey) {
       localStorage.removeItem(queueKey);
     }
-    if (!construction || !currentJob) return;
-    setIsLoadingAction(true);
+    if (!construction) return;
     
+    setIsLoadingAction(true);
     setCurrentJob(null);
     
     const { error } = await supabase.rpc('cancel_crafting_job', { p_workbench_id: construction.id });
@@ -551,7 +551,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
                           isBeingDragged={draggedItem?.source === 'crafting' && draggedItem?.index === index}
                           isDragOver={dragOver?.target === 'crafting' && dragOver?.index === index}
-                          isLocked={!!currentJob}
+                          isLocked={!!currentJob || craftsRemaining > 0}
                         />
                       </div>
                     ))}
@@ -606,16 +606,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </div>
                   
                   <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
-                    {currentJob ? (
+                    {currentJob || craftsRemaining > 0 ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
-                          <Progress value={progress} className="flex-grow" />
+                          <Progress value={currentJob ? progress : 0} className="flex-grow" />
                           <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
                             <Square className="w-4 h-4" />
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
-                          {timeRemaining > 0 ? `${timeRemaining}s` : 'Terminé...'}
+                          {currentJob && timeRemaining > 0 ? `${timeRemaining}s` : (currentJob ? 'Terminé...' : 'Démarrage...')}
                           {craftsRemaining > 1 && (
                             <span className="ml-2 text-yellow-400">({craftsRemaining - 1} en file)</span>
                           )}
