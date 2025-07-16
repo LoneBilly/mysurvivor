@@ -22,6 +22,8 @@ interface WorkbenchModalProps {
   onUpdate: (silent?: boolean) => void;
 }
 
+const getQueueKey = (id: number | undefined) => id ? `craftingQueue_${id}` : null;
+
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
@@ -89,6 +91,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (isOpen && construction) {
       const job = playerData.craftingJobs?.find(j => j.workbench_id === construction.id);
       setCurrentJob(job || null);
+
+      const queueKey = getQueueKey(construction.id);
+      if (job && queueKey) {
+        const savedQueue = localStorage.getItem(queueKey);
+        if (savedQueue) {
+          setCraftsRemaining(parseInt(savedQueue, 10));
+        }
+      } else if (queueKey) {
+        localStorage.removeItem(queueKey);
+      }
 
       const currentConstructionState = playerData.baseConstructions.find(c => c.id === construction.id);
       if (currentConstructionState?.output_item_id) {
@@ -247,6 +259,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
     const remaining = craftsRemainingRef.current - 1;
     setCraftsRemaining(remaining);
+    
+    const queueKey = getQueueKey(construction.id);
+    if (queueKey) {
+      if (remaining > 0) {
+        localStorage.setItem(queueKey, String(remaining));
+      } else {
+        localStorage.removeItem(queueKey);
+      }
+    }
 
     if (remaining > 0) {
       const canContinue = canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, newOutputItem);
@@ -258,12 +279,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
             if (!success) {
               setCraftsRemaining(0);
               setCurrentJob(null);
+              if (queueKey) localStorage.removeItem(queueKey);
               await refreshPlayerData();
             }
           }
         }, 100);
       } else {
         setCraftsRemaining(0);
+        if (queueKey) localStorage.removeItem(queueKey);
         setCurrentJob(null);
         if (!canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, null)) {
           showInfo("Ressources insuffisantes pour continuer.");
@@ -402,19 +425,28 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [maxCraftQuantity, craftQuantity]);
 
   const handleStartBatchCraft = useCallback(async () => {
-    if (!matchedRecipe || craftQuantity <= 0) return;
+    if (!matchedRecipe || !construction || craftQuantity <= 0) return;
     
+    const queueKey = getQueueKey(construction.id);
+    if (queueKey) {
+      localStorage.setItem(queueKey, String(craftQuantity));
+    }
     setCraftsRemaining(craftQuantity);
     const success = await startCraft(matchedRecipe, false);
     if (!success) {
       setCraftsRemaining(0);
+      if (queueKey) localStorage.removeItem(queueKey);
     } else {
       onUpdate();
     }
-  }, [matchedRecipe, craftQuantity, startCraft, onUpdate]);
+  }, [matchedRecipe, construction, craftQuantity, startCraft, onUpdate]);
 
   const handleCancelCraft = async () => {
     setCraftsRemaining(0);
+    const queueKey = getQueueKey(construction?.id);
+    if (queueKey) {
+      localStorage.removeItem(queueKey);
+    }
     if (!construction || !currentJob) return;
     setIsLoadingAction(true);
     

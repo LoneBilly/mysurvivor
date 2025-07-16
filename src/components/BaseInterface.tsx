@@ -72,7 +72,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (isActive && craftingJobs) {
+    if (craftingJobs) {
       const timeouts = craftingJobs.map(job => {
         const endTime = new Date(job.ends_at).getTime();
         const now = Date.now();
@@ -92,7 +92,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         });
       };
     }
-  }, [isActive, craftingJobs, refreshPlayerData]);
+  }, [craftingJobs, refreshPlayerData]);
 
   useEffect(() => {
     setOptimisticHasActiveJob(initialConstructionJobs.length > 0);
