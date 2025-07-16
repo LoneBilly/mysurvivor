@@ -419,7 +419,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     } else {
       showSuccess("Objet récupéré !");
       await onUpdate();
-      await fetchWorkbenchContents();
     }
     setIsDraggingOutput(false);
   };
@@ -497,20 +496,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const fromItem = source === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newWorkbenchItems.find(i => i.slot_position === fromIndex);
     const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newWorkbenchItems.find(i => i.slot_position === toIndex);
   
-    if (!toItem && fromItem?.items?.stackable) { // If target is empty and source is stackable, move it
-      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newWorkbenchItems.findIndex(i => i.id === fromItem.id);
-      const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newWorkbenchItems.splice(fromItemInSourceIdx, 1);
-      movedItem.slot_position = toIndex;
-      if (target === 'inventory') newInventory.push(movedItem);
-      else newWorkbenchItems.push(movedItem);
-    } else if (toItem && fromItem?.item_id === toItem.item_id && fromItem.items?.stackable) {
+    if (!fromItem) return;
+  
+    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
       if (source === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
       else newWorkbenchItems = newWorkbenchItems.filter(i => i.id !== fromItem.id);
   
       if (target === 'inventory') newInventory = newInventory.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
       else newWorkbenchItems = newWorkbenchItems.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
-    } else { // Swap or move to empty slot (non-stackable)
-      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem?.id) : newWorkbenchItems.findIndex(i => i.id === fromItem?.id);
+    } else {
+      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newWorkbenchItems.findIndex(i => i.id === fromItem.id);
       const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newWorkbenchItems.splice(fromItemInSourceIdx, 1);
       movedItem.slot_position = toIndex;
   
@@ -700,10 +695,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                       </div>
                       {matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && (
                         <>
-                          <Button variant="ghost" size="icon" onClick={handlePrevRecipe} className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 h-8 w-8 rounded-full">
+                          <Button variant="ghost" size="icon" onClick={handlePrevRecipe} className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full">
                               <ChevronLeft className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={handleNextRecipe} className="absolute top-1/2 -translate-y-1/2 -right-3 z-10 h-8 w-8 rounded-full">
+                          <Button variant="ghost" size="icon" onClick={handleNextRecipe} className="absolute top-1/2 -translate-y-1/2 -right-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full">
                               <ChevronRight className="w-4 h-4" />
                           </Button>
                         </>
