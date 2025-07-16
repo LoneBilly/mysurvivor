@@ -308,27 +308,32 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
           </div>
         </div>
         <div className="py-4 px-4 flex-grow overflow-y-auto no-scrollbar flex items-center justify-center">
-          <div className="w-full max-w-xs">
-            <div className="bg-black/20 rounded-lg p-2 border border-slate-700 space-y-2">
-              <div className="grid grid-cols-3 gap-1">
-                {ingredientSlots.map((item, index) => (
-                  <div key={item?.id || index}>
-                    <InventorySlot
-                      item={item}
-                      index={index}
-                      isUnlocked={true}
-                      onDragStart={() => {}}
-                      onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
-                      isBeingDragged={false}
-                      isDragOver={false}
-                      isLocked={!!currentJob || craftsRemaining > 0}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <ArrowRight className="w-6 h-6 text-gray-500 -rotate-90 sm:rotate-0" />
-                <div className="flex flex-col items-center gap-1">
+          <div className="w-full max-w-md">
+            <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                {/* Ingredients */}
+                <div className="grid grid-cols-3 gap-2">
+                  {ingredientSlots.map((item, index) => (
+                    <div key={item?.id || index} className="w-16 h-16">
+                      <InventorySlot
+                        item={item}
+                        index={index}
+                        isUnlocked={true}
+                        onDragStart={() => {}}
+                        onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
+                        isBeingDragged={false}
+                        isDragOver={false}
+                        isLocked={!!currentJob || craftsRemaining > 0}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Arrow */}
+                <ArrowRight className="w-6 h-6 text-gray-500 shrink-0 sm:rotate-0 -rotate-90" />
+
+                {/* Result */}
+                <div className="flex flex-col items-center gap-2">
                   <div className="relative w-20 h-20 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
                     {currentJob ? (
                       <>
@@ -356,47 +361,50 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                     ) : null}
                   </div>
                   {optimisticOutputItem && (
-                    <Button onClick={handleCollectOutput} disabled={isLoadingAction} size="sm" className="flex items-center gap-2 mt-1">
+                    <Button onClick={handleCollectOutput} disabled={isLoadingAction} size="sm" className="flex items-center gap-2">
                       {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                       Récupérer
                     </Button>
                   )}
                 </div>
               </div>
-              <div className="h-auto flex flex-col justify-center items-center space-y-2">
-                {currentJob || craftsRemaining > 0 ? (
-                  <div className="w-full space-y-2 px-4">
-                    <div className="flex items-center gap-2">
-                      <Progress value={currentJob ? progress : 0} className="flex-grow" />
-                      <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
-                        <Square className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
-                      {isLoadingAction && !currentJob ? <Loader2 className="w-4 h-4 animate-spin" /> : currentJob && timeRemaining ? <span>{timeRemaining}</span> : craftsRemaining > 0 ? <span className="text-xs">En attente ({craftsRemaining})</span> : null}
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {matchedRecipe && maxCraftQuantity > 0 ? (
-                      <div className="w-full px-4 space-y-2">
-                        <div className="flex justify-between items-center text-sm">
-                          <span>Quantité: <span className="font-bold text-white">{craftQuantity}</span></span>
-                        </div>
-                        <Slider value={[craftQuantity]} onValueChange={(value) => setCraftQuantity(value[0])} min={1} max={maxCraftQuantity} step={1} disabled={isLoadingAction} />
-                        <Button onClick={handleStartBatchCraft} disabled={!matchedRecipe || isLoadingAction || craftQuantity === 0} className="w-full">
-                          {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : `Fabriquer ${craftQuantity}x`}
+              
+              <div className="pt-4 border-t border-slate-700">
+                <div className="h-auto flex flex-col justify-center items-center space-y-2">
+                  {currentJob || craftsRemaining > 0 ? (
+                    <div className="w-full space-y-2 px-4">
+                      <div className="flex items-center gap-2">
+                        <Progress value={currentJob ? progress : 0} className="flex-grow" />
+                        <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
+                          <Square className="w-4 h-4" />
                         </Button>
                       </div>
-                    ) : matchedRecipe ? (
-                      <p className="text-center text-xs text-yellow-400 px-4">
-                        {resultItem && !resultItem.stackable && optimisticOutputItem ? "Collectez l'objet pour fabriquer." : "Ressources insuffisantes."}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-400">Placez des ingrédients pour voir les recettes.</p>
-                    )}
-                  </>
-                )}
+                      <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
+                        {isLoadingAction && !currentJob ? <Loader2 className="w-4 h-4 animate-spin" /> : currentJob && timeRemaining ? <span>{timeRemaining}</span> : craftsRemaining > 0 ? <span className="text-xs">En attente ({craftsRemaining})</span> : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {matchedRecipe && maxCraftQuantity > 0 ? (
+                        <div className="w-full px-4 space-y-2">
+                          <div className="flex justify-between items-center text-sm">
+                            <span>Quantité: <span className="font-bold text-white">{craftQuantity}</span></span>
+                          </div>
+                          <Slider value={[craftQuantity]} onValueChange={(value) => setCraftQuantity(value[0])} min={1} max={maxCraftQuantity} step={1} disabled={isLoadingAction} />
+                          <Button onClick={handleStartBatchCraft} disabled={!matchedRecipe || isLoadingAction || craftQuantity === 0} className="w-full">
+                            {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : `Fabriquer ${craftQuantity}x`}
+                          </Button>
+                        </div>
+                      ) : matchedRecipe ? (
+                        <p className="text-center text-xs text-yellow-400 px-4">
+                          {resultItem && !resultItem.stackable && optimisticOutputItem ? "Collectez l'objet pour fabriquer." : "Ressources insuffisantes."}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-400">Placez des ingrédients pour voir les recettes.</p>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
