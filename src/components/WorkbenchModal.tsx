@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -25,7 +25,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
-  const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
+  const [matchedRecipes, setMatchedRecipes] = useState<CraftingRecipe[]>([]);
+  const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0);
   const [resultItem, setResultItem] = useState<Item | null>(null);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'crafting' | 'output' } | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
@@ -44,6 +45,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const autoCraftingRef = useRef(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const handleCraftCompleteRef = useRef<() => void>();
+
+  const selectedRecipe = useMemo(() => matchedRecipes[selectedRecipeIndex] || null, [matchedRecipes, selectedRecipeIndex]);
 
   useEffect(() => {
     if (isOpen) {
@@ -112,7 +115,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     } else {
       setWorkbenchItems([]);
       setOptimisticWorkbenchItems([]);
-      setMatchedRecipe(null);
+      setMatchedRecipes([]);
+      setSelectedRecipeIndex(0);
       setResultItem(null);
       setDetailedItem(null);
       setCurrentJob(null);
@@ -237,19 +241,21 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [items]);
 
   const handleCraftComplete = useCallback(async () => {
-    if (!matchedRecipe || !construction) return;
+    const justCompletedRecipe = currentJob ? recipes.find(r => r.id === currentJob.recipe_id) : null;
+    if (!justCompletedRecipe || !construction) return;
 
-    const newOutputItem = simulateOutputCollection(matchedRecipe, optimisticOutputItem);
+    const newOutputItem = simulateOutputCollection(justCompletedRecipe, optimisticOutputItem);
     setOptimisticOutputItem(newOutputItem);
     setItemToCollect(newOutputItem);
 
     if (autoCraftingRef.current) {
-      const canContinue = canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, newOutputItem);
+      const nextRecipeToCraft = selectedRecipe;
+      const canContinue = nextRecipeToCraft && canContinueCrafting(nextRecipeToCraft, optimisticWorkbenchItems, newOutputItem);
       
       if (canContinue) {
         setTimeout(async () => {
           if (autoCraftingRef.current) {
-            const success = await startCraft(matchedRecipe, true);
+            const success = await startCraft(nextRecipeToCraft, true);
             if (!success) {
               setIsAutoCrafting(false);
               setCurrentJob(null);
@@ -260,7 +266,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       } else {
         setIsAutoCrafting(false);
         setCurrentJob(null);
-        if (!canContinueCrafting(matchedRecipe, optimisticWorkbenchItems, null)) {
+        if (nextRecipeToCraft && !canContinueCrafting(nextRecipeToCraft, optimisticWorkbenchItems, null)) {
           showInfo("Ressources insuffisantes pour continuer.");
         } else {
           showInfo("Collectez l'objet pour continuer la fabrication en série.");
@@ -271,7 +277,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setCurrentJob(null);
       await refreshPlayerData();
     }
-  }, [construction, matchedRecipe, optimisticOutputItem, optimisticWorkbenchItems, refreshPlayerData, startCraft, canContinueCrafting, simulateOutputCollection]);
+  }, [construction, currentJob, recipes, optimisticOutputItem, optimisticWorkbenchItems, refreshPlayerData, startCraft, canContinueCrafting, simulateOutputCollection, selectedRecipe]);
 
   useEffect(() => {
     handleCraftCompleteRef.current = handleCraftComplete;
@@ -318,13 +324,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   useEffect(() => {
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
     if (ingredients.length === 0) {
-      setMatchedRecipe(null);
+      setMatchedRecipes([]);
       return;
     }
 
     const getSignature = (items: { item_id: number }[]) => items.map(i => i.item_id).sort().join(',');
     const slotSignature = getSignature(ingredients);
 
+    const possibleRecipes: CraftingRecipe[] = [];
     for (const recipe of recipes) {
       const recipeIngredients = [
         recipe.ingredient1_id && { item_id: recipe.ingredient1_id, quantity: recipe.ingredient1_quantity },
@@ -338,32 +345,32 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           return slotItem && slotItem.quantity >= req.quantity;
         });
         if (hasEnough) {
-          setMatchedRecipe(recipe);
-          return;
+          possibleRecipes.push(recipe);
         }
       }
     }
-    setMatchedRecipe(null);
+    setMatchedRecipes(possibleRecipes);
+    setSelectedRecipeIndex(0);
   }, [ingredientSlots, recipes]);
 
   useEffect(() => {
-    if (matchedRecipe) {
-      const item = items.find(i => i.id === matchedRecipe.result_item_id);
+    if (selectedRecipe) {
+      const item = items.find(i => i.id === selectedRecipe.result_item_id);
       setResultItem(item || null);
     } else {
       setResultItem(null);
     }
-  }, [matchedRecipe, items]);
+  }, [selectedRecipe, items]);
 
   const handleStartCraftingLoop = useCallback(async () => {
-    if (!matchedRecipe) return;
+    if (!selectedRecipe) return;
     
     setIsAutoCrafting(true);
-    const success = await startCraft(matchedRecipe, false);
+    const success = await startCraft(selectedRecipe, false);
     if (!success) {
       setIsAutoCrafting(false);
     }
-  }, [matchedRecipe, startCraft]);
+  }, [selectedRecipe, startCraft]);
 
   const handleCancelCraft = async () => {
     setIsAutoCrafting(false);
@@ -592,6 +599,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
+  const handlePrevRecipe = () => {
+    setSelectedRecipeIndex(prev => (prev - 1 + matchedRecipes.length) % matchedRecipes.length);
+  };
+
+  const handleNextRecipe = () => {
+    setSelectedRecipeIndex(prev => (prev + 1) % matchedRecipes.length);
+  };
+
   const displayedOutputItem = optimisticOutputItem || itemToCollect;
 
   return (
@@ -636,44 +651,56 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     <div className="col-span-2 flex justify-end">
                         <ArrowRight className="w-8 h-8 text-gray-500" />
                     </div>
-                    <div 
-                      className={cn(
-                        "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
-                        displayedOutputItem && "cursor-grab active:cursor-grabbing"
-                      )}
-                      draggable={!!displayedOutputItem}
-                      onDragStart={handleDragStartOutput}
-                      onDragEnd={() => setIsDraggingOutput(false)}
-                    >
-                      {currentJob ? (
-                        <>
-                          <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="w-6 h-6 animate-spin text-white" />
-                              {displayedOutputItem && (
-                                <span className="text-sm font-bold text-white">
-                                  x{displayedOutputItem.quantity}
-                                </span>
-                              )}
+                    <div className="relative">
+                      <div 
+                        className={cn(
+                          "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
+                          displayedOutputItem && "cursor-grab active:cursor-grabbing"
+                        )}
+                        draggable={!!displayedOutputItem}
+                        onDragStart={handleDragStartOutput}
+                        onDragEnd={() => setIsDraggingOutput(false)}
+                      >
+                        {currentJob ? (
+                          <>
+                            <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-6 h-6 animate-spin text-white" />
+                                {displayedOutputItem && (
+                                  <span className="text-sm font-bold text-white">
+                                    x{displayedOutputItem.quantity}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </>
-                      ) : displayedOutputItem ? (
-                        <>
-                          <ItemIcon iconName={getIconUrl(displayedOutputItem.items?.icon) || displayedOutputItem.items?.icon} alt={displayedOutputItem.items?.name || ''} />
-                          <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                            x{displayedOutputItem.quantity}
-                          </span>
-                        </>
-                      ) : resultItem && (
-                        <>
-                          <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
-                          {matchedRecipe && (
+                          </>
+                        ) : displayedOutputItem ? (
+                          <>
+                            <ItemIcon iconName={getIconUrl(displayedOutputItem.items?.icon) || displayedOutputItem.items?.icon} alt={displayedOutputItem.items?.name || ''} />
                             <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                              x{matchedRecipe.result_quantity}
+                              x{displayedOutputItem.quantity}
                             </span>
-                          )}
+                          </>
+                        ) : resultItem && (
+                          <>
+                            <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
+                            {selectedRecipe && (
+                              <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                                x{selectedRecipe.result_quantity}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={handlePrevRecipe} className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full">
+                              <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={handleNextRecipe} className="absolute top-1/2 -translate-y-1/2 -right-3 z-10 bg-slate-800/50 hover:bg-slate-700/80 h-8 w-8 rounded-full">
+                              <ChevronRight className="w-4 h-4" />
+                          </Button>
                         </>
                       )}
                     </div>
@@ -681,7 +708,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </div>
                   
                   <div className="h-[60px] flex flex-col justify-center items-center space-y-2">
-                    {currentJob || (isAutoCrafting && matchedRecipe) ? (
+                    {currentJob || (isAutoCrafting && selectedRecipe) ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
                           <Progress value={progress} className="flex-grow" />
@@ -698,9 +725,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                       </div>
                     ) : (
                       <>
-                        {matchedRecipe && (
+                        {selectedRecipe && (
                           <div className="text-center text-sm text-gray-300 mb-2">
-                            <p>Temps: {matchedRecipe.craft_time_seconds}s</p>
+                            <p>Temps: {selectedRecipe.craft_time_seconds}s</p>
                             {resultItem && !resultItem.stackable && displayedOutputItem && (
                               <p className="text-xs text-yellow-400">Non empilable, fabrication en série impossible.</p>
                             )}
@@ -708,7 +735,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                         )}
                         <Button 
                           onClick={handleStartCraftingLoop} 
-                          disabled={!matchedRecipe || isLoadingAction || (resultItem && !resultItem.stackable && !!displayedOutputItem)}
+                          disabled={!selectedRecipe || isLoadingAction || (resultItem && !resultItem.stackable && !!displayedOutputItem)}
                         >
                           {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fabriquer'}
                         </Button>
