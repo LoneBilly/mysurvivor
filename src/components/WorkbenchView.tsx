@@ -417,11 +417,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                     ) : resultItem ? (
                       <>
                         <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
-                        {matchedRecipe && resultItem.stackable && (
-                          <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                            x{craftQuantity * matchedRecipe.result_quantity}
-                          </span>
-                        )}
+                        <div className="absolute inset-0 bg-black/30 rounded-lg"></div>
                       </>
                     ) : null}
                   </button>
