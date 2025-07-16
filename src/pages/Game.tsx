@@ -66,17 +66,27 @@ const Game = () => {
     }
   }, [user, loadGameData]);
 
-  const refreshPlayerData = useCallback(async () => {
+  const refreshPlayerData = useCallback(async (silent = false) => {
     if (!user) return;
     const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
 
     if (playerDataError) {
-      showError("Erreur lors de la mise à jour des données.");
+      if (!silent) showError("Erreur lors de la mise à jour des données.");
       console.error(playerDataError);
     } else {
       setPlayerData(fullPlayerData);
     }
   }, [user]);
+
+  useEffect(() => {
+    const hasActiveJobs = playerData?.constructionJobs?.length || playerData?.craftingJobs?.length;
+    if (hasActiveJobs) {
+      const interval = setInterval(() => {
+        refreshPlayerData(true);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [playerData, refreshPlayerData]);
 
   if (loading) {
     return <LoadingScreen />;

@@ -155,30 +155,29 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
       setTimeRemaining('');
       return;
     }
-
+  
     timerCompletedRef.current = false;
     const startTime = new Date(currentJob.started_at).getTime();
     const endTime = new Date(currentJob.ends_at).getTime();
     const totalDuration = endTime - startTime;
-
+  
     if (totalDuration <= 0) {
-        setProgress(100);
-        setTimeRemaining('');
-        if (!timerCompletedRef.current) {
-            timerCompletedRef.current = true;
-            setIsLoadingAction(true);
-            refreshPlayerData().finally(() => setIsLoadingAction(false));
-        }
-        return;
+      setProgress(100);
+      setTimeRemaining('');
+      if (!timerCompletedRef.current) {
+        timerCompletedRef.current = true;
+        setIsLoadingAction(true);
+        refreshPlayerData().finally(() => setIsLoadingAction(false));
+      }
+      return;
     }
-
+  
     let animationFrameId: number;
-
+  
     const updateTimer = async () => {
       const now = Date.now();
-      const elapsedTime = now - startTime;
       const diff = endTime - now;
-
+  
       if (diff <= 0) {
         cancelAnimationFrame(animationFrameId);
         setProgress(100);
@@ -186,45 +185,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         if (!timerCompletedRef.current) {
           timerCompletedRef.current = true;
           setIsLoadingAction(true);
-
-          const queueKey = getQueueKey(construction?.id);
-          const savedQueue = queueKey ? localStorage.getItem(queueKey) : null;
-
-          if (savedQueue) {
-            const queueCount = parseInt(savedQueue, 10);
-            if (queueCount > 0) {
-              const newQueueCount = queueCount - 1;
-              setCraftsRemaining(newQueueCount);
-              localStorage.setItem(queueKey, String(newQueueCount));
-              
-              const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction!.id, p_recipe_id: currentJob.recipe_id });
-              
-              if (error) {
-                showError(`La fabrication en série s'est arrêtée: ${error.message}`);
-                localStorage.removeItem(queueKey);
-                setCraftsRemaining(0);
-                await refreshPlayerData();
-              } else {
-                await refreshPlayerData(true);
-              }
-            } else {
-              localStorage.removeItem(queueKey);
-              setCraftsRemaining(0);
-              await refreshPlayerData();
-            }
-          } else {
-            setCraftsRemaining(0);
-            await refreshPlayerData();
-          }
-          
+          await refreshPlayerData();
           setIsLoadingAction(false);
         }
         return;
       }
-
+  
+      const elapsedTime = now - startTime;
       const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
       setProgress(newProgress);
-
+  
       const remainingSeconds = Math.ceil(diff / 1000);
       let formattedTime;
       if (remainingSeconds >= 60) {
@@ -235,16 +205,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         formattedTime = `${remainingSeconds}s`;
       }
       setTimeRemaining(formattedTime);
-
+  
       animationFrameId = requestAnimationFrame(updateTimer);
     };
-
+  
     animationFrameId = requestAnimationFrame(updateTimer);
-
+  
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [currentJob, construction, refreshPlayerData]);
+  }, [currentJob, refreshPlayerData]);
 
   useEffect(() => {
     for (const recipe of recipes) {
