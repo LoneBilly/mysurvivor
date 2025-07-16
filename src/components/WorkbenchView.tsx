@@ -161,8 +161,11 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     }
 
     let animationFrameId: number;
+    let lastTextUpdate = 0;
 
-    const updateTimer = () => {
+    const updateTimer = (timestamp: number) => {
+      if (!lastTextUpdate) lastTextUpdate = timestamp;
+
       const now = Date.now();
       const elapsedTime = now - startTime;
       const diff = endTime - now;
@@ -181,10 +184,14 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
       const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
       setProgress(newProgress);
 
-      const remainingSeconds = Math.floor(diff / 1000);
-      const minutes = Math.floor(remainingSeconds / 60);
-      const seconds = remainingSeconds % 60;
-      setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
+      // Update text only once per second
+      if (timestamp - lastTextUpdate >= 1000) {
+        const remainingSeconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
+        lastTextUpdate = timestamp;
+      }
 
       animationFrameId = requestAnimationFrame(updateTimer);
     };
