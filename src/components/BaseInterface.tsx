@@ -525,8 +525,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
-        if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
         if (hasOutput) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
+        if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
         return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
       }
       case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
