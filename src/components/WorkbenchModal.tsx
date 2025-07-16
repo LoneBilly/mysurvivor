@@ -594,9 +594,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                       ) : resultItem && (
                         <>
                           <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
-                          {matchedRecipe && (
+                          {matchedRecipe && resultItem.stackable && (
                             <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                              x{matchedRecipe.result_quantity}
+                              x{craftQuantity * matchedRecipe.result_quantity}
                             </span>
                           )}
                         </>
