@@ -408,8 +408,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const success = await startCraft(matchedRecipe, false);
     if (!success) {
       setCraftsRemaining(0);
+    } else {
+      onUpdate();
     }
-  }, [matchedRecipe, craftQuantity, startCraft]);
+  }, [matchedRecipe, craftQuantity, startCraft, onUpdate]);
 
   const handleCancelCraft = async () => {
     setCraftsRemaining(0);

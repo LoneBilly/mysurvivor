@@ -56,7 +56,7 @@ interface BaseInterfaceProps {
 const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
-  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [] } = playerData;
+  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
   
   const isMobile = useIsMobile();
   const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
@@ -70,6 +70,29 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (isActive && craftingJobs) {
+      const timeouts = craftingJobs.map(job => {
+        const endTime = new Date(job.ends_at).getTime();
+        const now = Date.now();
+        const delay = endTime - now;
+
+        if (delay > 0) {
+          return setTimeout(() => {
+            refreshPlayerData(true);
+          }, delay + 1000);
+        }
+        return null;
+      });
+
+      return () => {
+        timeouts.forEach(timeoutId => {
+          if (timeoutId) clearTimeout(timeoutId);
+        });
+      };
+    }
+  }, [isActive, craftingJobs, refreshPlayerData]);
 
   useEffect(() => {
     setOptimisticHasActiveJob(initialConstructionJobs.length > 0);
@@ -513,7 +536,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     const hasOutput = construction && construction.output_item_id;
 
     if (cell.type === 'workbench' && (isCrafting || hasOutput)) {
-      return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
+      return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer animate-pulse";
     }
 
     switch (cell.type) {
