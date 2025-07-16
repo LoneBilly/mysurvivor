@@ -204,14 +204,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       timerCompletedRef.current = false;
       const endTime = new Date(currentJob.ends_at).getTime();
   
-      const updateTimer = () => {
+      const updateTimer = async () => {
         const now = Date.now();
         if (now >= endTime) {
-          setProgress(100);
-          setTimeRemaining('Terminé');
           if (!timerCompletedRef.current) {
             timerCompletedRef.current = true;
-            refreshPlayerData();
+            setIsLoadingAction(true);
+            await refreshPlayerData();
+            setIsLoadingAction(false);
           }
           return true;
         }
@@ -661,7 +661,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
-                          {currentJob && timeRemaining ? (
+                          {isLoadingAction && !currentJob ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : currentJob && timeRemaining ? (
                             <span>{timeRemaining}</span>
                           ) : isCraftingTransition ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
