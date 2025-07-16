@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, CraftingRecipe, Item, CraftingJob } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock, ChevronDown } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
@@ -45,8 +45,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const autoCraftingRef = useRef(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const handleCraftCompleteRef = useRef<() => void>();
-  const [isRecipeListOpen, setIsRecipeListOpen] = useState(false);
-  const recipeListRef = useRef<HTMLDivElement>(null);
 
   const selectedRecipe = useMemo(() => matchedRecipes[selectedRecipeIndex] || null, [matchedRecipes, selectedRecipeIndex]);
 
@@ -55,24 +53,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       onUpdate(true);
     }
   }, [isOpen, onUpdate]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (recipeListRef.current && !recipeListRef.current.contains(event.target as Node)) {
-        setIsRecipeListOpen(false);
-      }
-    };
-
-    if (isRecipeListOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isRecipeListOpen]);
 
   const ingredientSlots = useMemo(() => {
     const newSlots = Array(3).fill(null);
@@ -517,16 +497,20 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     const fromItem = source === 'inventory' ? newInventory.find(i => i.slot_position === fromIndex) : newWorkbenchItems.find(i => i.slot_position === fromIndex);
     const toItem = target === 'inventory' ? newInventory.find(i => i.slot_position === toIndex) : newWorkbenchItems.find(i => i.slot_position === toIndex);
   
-    if (!fromItem) return;
-  
-    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+    if (!toItem && fromItem?.items?.stackable) { // If target is empty and source is stackable, move it
+      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newWorkbenchItems.findIndex(i => i.id === fromItem.id);
+      const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newWorkbenchItems.splice(fromItemInSourceIdx, 1);
+      movedItem.slot_position = toIndex;
+      if (target === 'inventory') newInventory.push(movedItem);
+      else newWorkbenchItems.push(movedItem);
+    } else if (toItem && fromItem?.item_id === toItem.item_id && fromItem.items?.stackable) {
       if (source === 'inventory') newInventory = newInventory.filter(i => i.id !== fromItem.id);
       else newWorkbenchItems = newWorkbenchItems.filter(i => i.id !== fromItem.id);
   
       if (target === 'inventory') newInventory = newInventory.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
       else newWorkbenchItems = newWorkbenchItems.map(i => i.id === toItem.id ? { ...i, quantity: i.quantity + fromItem.quantity } : i);
-    } else {
-      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem.id) : newWorkbenchItems.findIndex(i => i.id === fromItem.id);
+    } else { // Swap or move to empty slot (non-stackable)
+      const fromItemInSourceIdx = source === 'inventory' ? newInventory.findIndex(i => i.id === fromItem?.id) : newWorkbenchItems.findIndex(i => i.id === fromItem?.id);
       const [movedItem] = source === 'inventory' ? newInventory.splice(fromItemInSourceIdx, 1) : newWorkbenchItems.splice(fromItemInSourceIdx, 1);
       movedItem.slot_position = toIndex;
   
@@ -620,6 +604,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     }
   };
 
+  const handlePrevRecipe = () => {
+    setSelectedRecipeIndex(prev => (prev - 1 + matchedRecipes.length) % matchedRecipes.length);
+  };
+
+  const handleNextRecipe = () => {
+    setSelectedRecipeIndex(prev => (prev + 1) % matchedRecipes.length);
+  };
+
   const displayedOutputItem = optimisticOutputItem || itemToCollect;
 
   return (
@@ -664,21 +656,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     <div className="col-span-2 flex justify-end">
                         <ArrowRight className="w-8 h-8 text-gray-500" />
                     </div>
-                    <div className="relative" ref={recipeListRef}>
+                    <div className="relative">
                       <div 
                         className={cn(
                           "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
-                          displayedOutputItem && "cursor-grab active:cursor-grabbing",
-                          matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && "cursor-pointer hover:border-slate-500 transition-colors"
+                          displayedOutputItem && "cursor-grab active:cursor-grabbing"
                         )}
                         draggable={!!displayedOutputItem}
                         onDragStart={handleDragStartOutput}
                         onDragEnd={() => setIsDraggingOutput(false)}
-                        onClick={() => {
-                          if (matchedRecipes.length > 1 && !currentJob && !displayedOutputItem) {
-                            setIsRecipeListOpen(prev => !prev);
-                          }
-                        }}
                       >
                         {currentJob ? (
                           <>
@@ -711,31 +697,16 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                             )}
                           </>
                         )}
-                        {matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && (
-                          <ChevronDown className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-5 text-gray-400" />
-                        )}
                       </div>
-                      {isRecipeListOpen && matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && (
-                        <div className="absolute top-full mt-1 w-full bg-slate-900 border border-slate-700 rounded-md p-1 z-20 max-h-48 overflow-y-auto">
-                          {matchedRecipes.map((recipe, index) => {
-                            const item = items.find(i => i.id === recipe.result_item_id);
-                            if (!item) return null;
-                            return (
-                              <div
-                                key={recipe.id}
-                                className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-800 cursor-pointer"
-                                onClick={() => {
-                                  setSelectedRecipeIndex(index);
-                                  setIsRecipeListOpen(false);
-                                }}
-                              >
-                                <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} className="w-8 h-8" />
-                                <span className="flex-grow text-sm">{item.name}</span>
-                                <span className="font-bold text-sm">x{recipe.result_quantity}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                      {matchedRecipes.length > 1 && !currentJob && !displayedOutputItem && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={handlePrevRecipe} className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 h-8 w-8 rounded-full">
+                              <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={handleNextRecipe} className="absolute top-1/2 -translate-y-1/2 -right-3 z-10 h-8 w-8 rounded-full">
+                              <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </>
                       )}
                     </div>
                     <div className="col-span-2" />
