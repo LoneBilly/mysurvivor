@@ -208,9 +208,15 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
       setProgress(newProgress);
 
       const remainingSeconds = Math.ceil(diff / 1000);
-      const minutes = Math.floor(remainingSeconds / 60);
-      const seconds = remainingSeconds % 60;
-      setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
+      let formattedTime;
+      if (remainingSeconds >= 60) {
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        formattedTime = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+      } else {
+        formattedTime = `${remainingSeconds}s`;
+      }
+      setTimeRemaining(formattedTime);
 
       animationFrameId = requestAnimationFrame(updateTimer);
     };
@@ -446,8 +452,16 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                           <Square className="w-4 h-4" />
                         </Button>
                       </div>
-                      <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
-                        {isLoadingAction && !currentJob ? <Loader2 className="w-4 h-4 animate-spin" /> : currentJob && timeRemaining ? <span>{timeRemaining}</span> : craftsRemaining > 0 ? <span className="text-xs">File d'attente : {craftsRemaining}</span> : null}
+                      <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center gap-2">
+                        {currentJob && timeRemaining ? (
+                          <span>{timeRemaining}</span>
+                        ) : null}
+                        {craftsRemaining > 0 ? (
+                          <span className="text-xs">File d'attente : {craftsRemaining}</span>
+                        ) : null}
+                        {isLoadingAction && !currentJob && !craftsRemaining ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : null}
                       </div>
                     </div>
                   ) : (
