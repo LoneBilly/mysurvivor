@@ -44,6 +44,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   const [isInventorySelectorOpen, setIsInventorySelectorOpen] = useState(false);
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
   const [inventoryFullModal, setInventoryFullModal] = useState(false);
+  const [batchInfo, setBatchInfo] = useState<{ totalItems: number } | null>(null);
+  const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
 
   const optimisticWorkbenchItems = useMemo(() => 
     playerData.workbenchItems.filter(item => item.workbench_id === construction?.id),
@@ -97,12 +99,68 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
       } else {
         setCraftsRemaining(0);
       }
+      
+      const batchInfoRaw = localStorage.getItem(`craftingBatch_${construction.id}`);
+      setBatchInfo(batchInfoRaw ? JSON.parse(batchInfoRaw) : null);
+
       fetchRecipes();
     } else {
       setCurrentJob(null);
       setCraftsRemaining(0);
+      setBatchInfo(null);
     }
   }, [isOpen, construction, playerData.craftingJobs, fetchRecipes]);
+
+  useEffect(() => {
+    const prevJobs = prevCraftingJobsRef.current;
+    const currentJobs = playerData.craftingJobs || [];
+
+    const completedJobs = prevJobs.filter(pJob => 
+      !currentJobs.some(cJob => cJob.id === pJob.id)
+    );
+
+    completedJobs.forEach(async (job) => {
+      if (job.workbench_id !== construction?.id) return;
+
+      const queueKey = `craftingQueue_${job.workbench_id}`;
+      const batchKey = `craftingBatch_${job.workbench_id}`;
+      const savedQueue = localStorage.getItem(queueKey);
+
+      if (savedQueue) {
+        const craftsRemainingInQueue = parseInt(savedQueue, 10) - 1;
+
+        if (craftsRemainingInQueue >= 0) {
+          if (craftsRemainingInQueue > 0) {
+            localStorage.setItem(queueKey, String(craftsRemainingInQueue));
+          } else {
+            localStorage.removeItem(queueKey);
+            localStorage.removeItem(batchKey);
+          }
+          
+          const { error } = await supabase.rpc('start_craft', {
+            p_workbench_id: job.workbench_id,
+            p_recipe_id: job.recipe_id
+          });
+
+          if (error) {
+            showError(`La fabrication en série s'est arrêtée: ${error.message}`);
+            localStorage.removeItem(queueKey);
+            localStorage.removeItem(batchKey);
+            refreshPlayerData();
+          } else {
+            refreshPlayerData(true);
+          }
+        } else {
+            localStorage.removeItem(queueKey);
+            localStorage.removeItem(batchKey);
+        }
+      } else {
+        localStorage.removeItem(batchKey);
+      }
+    });
+
+    prevCraftingJobsRef.current = playerData.craftingJobs || [];
+  }, [playerData.craftingJobs, construction, refreshPlayerData]);
 
   const startCraft = useCallback(async (recipe: CraftingRecipe) => {
     if (!construction || !recipe) return false;
@@ -166,8 +224,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
             timerCompletedRef.current = true;
-            setIsLoadingAction(true);
-            refreshPlayerData().finally(() => setIsLoadingAction(false));
+            setTimeout(() => refreshPlayerData(), 1200);
         }
         return;
     }
@@ -185,8 +242,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
           timerCompletedRef.current = true;
-          setIsLoadingAction(true);
-          refreshPlayerData().finally(() => setIsLoadingAction(false));
+          setTimeout(() => refreshPlayerData(), 1200);
         }
         return;
       }
@@ -450,6 +506,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
                           <Loader2 className="w-6 h-6 animate-spin text-white" />
                         </div>
+                        {batchInfo && batchInfo.totalItems > 1 && (
+                          <div className="absolute bottom-1 text-xs font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                            {batchInfo.totalItems - craftsRemaining}/{batchInfo.totalItems}
+                          </div>
+                        )}
                       </>
                     ) : optimisticOutputItem ? (
                       <>
