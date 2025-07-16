@@ -44,7 +44,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   
   const [optimisticWorkbenchItems, setOptimisticWorkbenchItems] = useState<InventoryItem[]>([]);
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState('');
   const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
 
   const isCraftingTransition = useMemo(() => {
@@ -132,7 +132,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setOptimisticOutputItem(null);
       setProgress(0);
       setCraftsRemaining(0);
-      setTimeRemaining(0);
+      setTimeRemaining('');
     }
   }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
@@ -201,35 +201,41 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   useEffect(() => {
     if (currentJob) {
       const endTime = new Date(currentJob.ends_at).getTime();
-
-      if (Date.now() >= endTime) {
-        setProgress(100);
-        setTimeRemaining(0);
-        return;
-      }
-
-      const interval = setInterval(() => {
+  
+      const updateTimer = () => {
         const now = Date.now();
         if (now >= endTime) {
           setProgress(100);
-          setTimeRemaining(0);
-          clearInterval(interval);
-        } else {
-          const startTime = new Date(currentJob.started_at).getTime();
-          const totalDuration = endTime - startTime;
-          const elapsedTime = now - startTime;
-          const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
-          const remaining = Math.floor((endTime - now) / 1000);
-          
-          setProgress(newProgress);
-          setTimeRemaining(Math.max(0, remaining));
+          setTimeRemaining('Terminé');
+          return true; // finished
         }
-      }, 100);
-
+  
+        const startTime = new Date(currentJob.started_at).getTime();
+        const totalDuration = endTime - startTime;
+        const elapsedTime = now - startTime;
+        const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
+  
+        const remainingSeconds = Math.floor((endTime - now) / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+  
+        setProgress(newProgress);
+        setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
+        return false; // not finished
+      };
+  
+      if (updateTimer()) return;
+  
+      const interval = setInterval(() => {
+        if (updateTimer()) {
+          clearInterval(interval);
+        }
+      }, 1000);
+  
       return () => clearInterval(interval);
     } else {
       setProgress(0);
-      setTimeRemaining(0);
+      setTimeRemaining('');
     }
   }, [currentJob]);
 
@@ -649,8 +655,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
-                          {currentJob && timeRemaining > 0 ? (
-                            <span>{timeRemaining}s</span>
+                          {currentJob && timeRemaining ? (
+                            <span>{timeRemaining}</span>
                           ) : isCraftingTransition ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : null}
