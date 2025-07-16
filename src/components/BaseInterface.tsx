@@ -69,8 +69,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
   const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
+  const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
 
   const isJobRunning = useMemo(() => {
     if (!gridData) return initialConstructionJobs.length > 0;
@@ -78,27 +78,33 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   }, [gridData, initialConstructionJobs]);
 
   useEffect(() => {
-    if (craftingJobs) {
-      const timeouts = craftingJobs.map(job => {
-        const endTime = new Date(job.ends_at).getTime();
-        const now = Date.now();
-        const delay = endTime - now;
+    const interval = setInterval(() => {
+        const newProgress: Record<number, number> = {};
+        playerData.craftingJobs?.forEach(job => {
+            const batchInfoRaw = localStorage.getItem(`craftingBatch_${job.workbench_id}`);
+            const batchInfo = batchInfoRaw ? JSON.parse(batchInfoRaw) : null;
 
-        if (delay > 0) {
-          return setTimeout(() => {
-            refreshPlayerData(true);
-          }, delay + 1000);
-        }
-        return null;
-      });
-
-      return () => {
-        timeouts.forEach(timeoutId => {
-          if (timeoutId) clearTimeout(timeoutId);
+            if (batchInfo && batchInfo.totalItems > 1) {
+                const totalDuration = batchInfo.totalItems * batchInfo.durationPerItem;
+                const elapsedTime = Date.now() - batchInfo.startTime;
+                newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
+            } else {
+                const startTime = new Date(job.started_at).getTime();
+                const endTime = new Date(job.ends_at).getTime();
+                const totalDuration = endTime - startTime;
+                if (totalDuration > 0) {
+                    const elapsedTime = Date.now() - startTime;
+                    newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
+                } else {
+                    newProgress[job.workbench_id] = 100;
+                }
+            }
         });
-      };
-    }
-  }, [craftingJobs, refreshPlayerData]);
+        setCraftingProgress(newProgress);
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [playerData.craftingJobs]);
 
   useEffect(() => {
     const prevJobs = prevCraftingJobsRef.current;
@@ -110,6 +116,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     completedJobs.forEach(async (job) => {
       const queueKey = `craftingQueue_${job.workbench_id}`;
+      const batchKey = `craftingBatch_${job.workbench_id}`;
       const savedQueue = localStorage.getItem(queueKey);
 
       if (savedQueue) {
@@ -126,14 +133,18 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
           if (error) {
             showError(`La fabrication en série s'est arrêtée: ${error.message}`);
             localStorage.removeItem(queueKey);
+            localStorage.removeItem(batchKey);
             refreshPlayerData();
           } else {
             refreshPlayerData(true);
           }
         } else {
           localStorage.removeItem(queueKey);
+          localStorage.removeItem(batchKey);
           refreshPlayerData();
         }
+      } else {
+        localStorage.removeItem(batchKey);
       }
     });
 
@@ -182,7 +193,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   };
 
   const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
-    if (!user || isInitialized) return;
+    if (!user) return;
     setLoading(true);
     
     let currentConstructions = [...constructions];
@@ -209,7 +220,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       }
       
       await refreshPlayerData();
-      setIsInitialized(true);
       return;
     }
 
@@ -238,8 +248,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     setGridData(finalGrid);
     setCampfirePosition(campPos);
     setLoading(false);
-    setIsInitialized(true);
-  }, [user, isInitialized, refreshPlayerData]);
+  }, [user, refreshPlayerData]);
 
   useEffect(() => {
     if (initialConstructions) {
@@ -549,7 +558,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         return (
           <>
             <Icon className="w-8 h-8 text-yellow-400" />
-            <CraftingProgressBar job={job} />
+            <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
           </>
         );
       }

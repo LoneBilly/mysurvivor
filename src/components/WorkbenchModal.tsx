@@ -120,13 +120,20 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   const handleStartBatchCraft = useCallback(async () => {
     if (!matchedRecipe || !construction || craftQuantity <= 0) return;
 
+    const batchKey = `craftingBatch_${construction.id}`;
     if (craftQuantity > 1) {
         const queueKey = getQueueKey(construction.id);
         if (queueKey) {
             localStorage.setItem(queueKey, String(craftQuantity - 1));
         }
+        localStorage.setItem(batchKey, JSON.stringify({
+            startTime: Date.now(),
+            totalItems: craftQuantity,
+            durationPerItem: matchedRecipe.craft_time_seconds * 1000
+        }));
         setCraftsRemaining(craftQuantity - 1);
     } else {
+        localStorage.removeItem(batchKey);
         setCraftsRemaining(0);
     }
     
@@ -138,6 +145,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
       setCraftsRemaining(0);
       const queueKey = getQueueKey(construction.id);
       if (queueKey) localStorage.removeItem(queueKey);
+      localStorage.removeItem(batchKey);
     }
   }, [matchedRecipe, construction, craftQuantity, startCraft, onUpdate]);
 
@@ -322,6 +330,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     setCraftsRemaining(0);
     const queueKey = getQueueKey(construction?.id);
     if (queueKey) localStorage.removeItem(queueKey);
+    const batchKey = `craftingBatch_${construction?.id}`;
+    if (batchKey) localStorage.removeItem(batchKey);
     if (!construction) return;
     setIsLoadingAction(true);
     setCurrentJob(null);

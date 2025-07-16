@@ -1,41 +1,10 @@
-import { useState, useEffect } from 'react';
-import { CraftingJob } from '@/types/game';
+import { Progress } from "@/components/ui/progress";
 
 interface CraftingProgressBarProps {
-  job: CraftingJob;
+  progress: number;
 }
 
-const CraftingProgressBar = ({ job }: CraftingProgressBarProps) => {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const startTime = new Date(job.started_at).getTime();
-    const endTime = new Date(job.ends_at).getTime();
-    const totalDuration = endTime - startTime;
-
-    if (totalDuration <= 0) {
-      setProgress(100);
-      return;
-    }
-
-    let animationFrameId: number;
-
-    const updateProgress = () => {
-      const now = Date.now();
-      const elapsedTime = now - startTime;
-      const currentProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
-      setProgress(currentProgress);
-
-      if (currentProgress < 100) {
-        animationFrameId = requestAnimationFrame(updateProgress);
-      }
-    };
-
-    animationFrameId = requestAnimationFrame(updateProgress);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [job]);
-
+const CraftingProgressBar = ({ progress }: CraftingProgressBarProps) => {
   return (
     <div className="absolute bottom-1 left-1 right-1 h-1.5 bg-gray-900/50 rounded-full overflow-hidden border border-black/20">
       <div
