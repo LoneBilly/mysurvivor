@@ -46,6 +46,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
   const [timeRemaining, setTimeRemaining] = useState('');
   const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
+  const timerCompletedRef = useRef(false);
 
   const isCraftingTransition = useMemo(() => {
     return !currentJob && craftsRemaining > 0;
@@ -200,6 +201,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
   useEffect(() => {
     if (currentJob) {
+      timerCompletedRef.current = false;
       const endTime = new Date(currentJob.ends_at).getTime();
   
       const updateTimer = () => {
@@ -207,7 +209,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         if (now >= endTime) {
           setProgress(100);
           setTimeRemaining('Terminé');
-          return true; // finished
+          if (!timerCompletedRef.current) {
+            timerCompletedRef.current = true;
+            refreshPlayerData();
+          }
+          return true;
         }
   
         const startTime = new Date(currentJob.started_at).getTime();
@@ -221,7 +227,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   
         setProgress(newProgress);
         setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
-        return false; // not finished
+        return false;
       };
   
       if (updateTimer()) return;
@@ -237,7 +243,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setProgress(0);
       setTimeRemaining('');
     }
-  }, [currentJob]);
+  }, [currentJob, refreshPlayerData]);
 
   useEffect(() => {
     const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
