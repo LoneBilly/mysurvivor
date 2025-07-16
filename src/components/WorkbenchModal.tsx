@@ -47,6 +47,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   const [optimisticOutputItem, setOptimisticOutputItem] = useState<InventoryItem | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
+  const isCraftingTransition = useMemo(() => {
+    return !currentJob && craftsRemaining > 0;
+  }, [currentJob, craftsRemaining]);
+
   useEffect(() => {
     if (isOpen) {
       onUpdate(true);
@@ -606,7 +610,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                   </div>
                   
                   <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
-                    {currentJob || craftsRemaining > 0 ? (
+                    {currentJob || isCraftingTransition ? (
                       <div className="w-full space-y-2 px-4">
                         <div className="flex items-center gap-2">
                           <Progress value={currentJob ? progress : 0} className="flex-grow" />
@@ -615,7 +619,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </Button>
                         </div>
                         <div className="text-center text-sm text-gray-300 font-mono">
-                          {currentJob && timeRemaining > 0 ? `${timeRemaining}s` : (currentJob ? 'Terminé...' : 'Démarrage...')}
+                          {currentJob && timeRemaining > 0 ? `${timeRemaining}s` : (isCraftingTransition ? 'Démarrage de la prochaine fabrication...' : 'Terminé...')}
                           {craftsRemaining > 1 && (
                             <span className="ml-2 text-yellow-400">({craftsRemaining - 1} en file)</span>
                           )}
