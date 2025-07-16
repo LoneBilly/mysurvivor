@@ -20,6 +20,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 const ItemManager = () => {
   const [items, setItems] = useState<Item[]>([]);
+  const [craftableItemIds, setCraftableItemIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -27,22 +28,32 @@ const ItemManager = () => {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const isMobile = useIsMobile();
 
-  const fetchItems = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('items').select('*').order('name', { ascending: true });
-    if (error) {
-      showError("Impossible de charger les objets.");
-      console.error(error);
+    try {
+      const [itemsRes, recipesRes] = await Promise.all([
+        supabase.from('items').select('*').order('name', { ascending: true }),
+        supabase.from('crafting_recipes').select('result_item_id')
+      ]);
+
+      if (itemsRes.error) throw itemsRes.error;
+      if (recipesRes.error) throw recipesRes.error;
+
+      setItems(itemsRes.data as Item[]);
+      const craftableIds = new Set(recipesRes.data.map(r => r.result_item_id));
+      setCraftableItemIds(craftableIds);
+
+    } catch (error: any) {
+      showError("Impossible de charger les données: " + error.message);
       setItems([]);
-    } else {
-      setItems(data as Item[]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    fetchData();
+  }, [fetchData]);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -55,7 +66,7 @@ const ItemManager = () => {
   };
 
   const handleSave = () => {
-    fetchItems();
+    fetchData();
   };
 
   const filteredItems = items.filter(item =>
@@ -113,9 +124,15 @@ const ItemManager = () => {
                     <p className="font-bold text-white truncate">{item.name}</p>
                     <p className="text-sm text-gray-400 truncate mt-1">{item.description || 'Aucune description'}</p>
                     <div className="flex items-center justify-between text-xs text-gray-300 mt-2">
-                      <div className="flex items-center gap-2">
-                        {item.stackable ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
-                        <span>{item.stackable ? 'Empilable' : 'Non empilable'}</span>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          {item.stackable ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
+                          <span>Empilable</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {craftableItemIds.has(item.id) ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
+                          <span>Craftable</span>
+                        </div>
                       </div>
                       <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">{item.type}</span>
                     </div>
@@ -132,6 +149,7 @@ const ItemManager = () => {
                   <TableHead>Description</TableHead>
                   <TableHead className="w-[150px]">Type</TableHead>
                   <TableHead className="w-[120px] text-center">Empilable</TableHead>
+                  <TableHead className="w-[120px] text-center">Craftable</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -151,7 +169,12 @@ const ItemManager = () => {
                     <TableCell>
                       <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span>
                     </TableCell>
-                    <TableCell className="text-center">{item.stackable ? 'Oui' : 'Non'}</TableCell>
+                    <TableCell className="text-center">
+                      {item.stackable ? <Check className="w-5 h-5 text-green-400 mx-auto" /> : <X className="w-5 h-5 text-red-400 mx-auto" />}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {craftableItemIds.has(item.id) ? <Check className="w-5 h-5 text-green-400 mx-auto" /> : <X className="w-5 h-5 text-red-400 mx-auto" />}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
