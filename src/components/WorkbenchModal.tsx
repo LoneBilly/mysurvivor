@@ -132,7 +132,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                 </div>
               </div>
               <div>
-                // ... rest of the code ...
+                {/* This is where the rest of the code for the second column goes */}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -142,7 +143,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      // ... rest of the code ...
+      {/* ... rest of the code ... */}
     </>
   );
 };
