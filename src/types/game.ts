@@ -20,6 +20,7 @@ export interface InventoryItem {
   quantity: number;
   slot_position: number;
   items: ItemDetails | null;
+  workbench_id?: number;
 }
 
 export interface BaseConstruction {
