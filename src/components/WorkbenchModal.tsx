@@ -567,12 +567,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                     </div>
                     <div 
                       className={cn(
-                        "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
-                        displayedOutputItem && "cursor-grab active:cursor-grabbing"
+                        "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center"
                       )}
-                      draggable={!!displayedOutputItem}
-                      onDragStart={handleDragStartOutput}
-                      onDragEnd={() => setIsDraggingOutput(false)}
                     >
                       {currentJob ? (
                         <>
@@ -589,12 +585,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
                           </div>
                         </>
                       ) : displayedOutputItem ? (
-                        <>
+                        <div
+                          className="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing"
+                          draggable={true}
+                          onDragStart={handleDragStartOutput}
+                          onDragEnd={() => setIsDraggingOutput(false)}
+                        >
                           <ItemIcon iconName={getIconUrl(displayedOutputItem.items?.icon) || displayedOutputItem.items?.icon} alt={displayedOutputItem.items?.name || ''} />
                           <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
                             x{displayedOutputItem.quantity}
                           </span>
-                        </>
+                        </div>
                       ) : resultItem && (
                         <>
                           <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
