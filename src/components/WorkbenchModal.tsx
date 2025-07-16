@@ -315,22 +315,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (!optimisticOutputItem) return;
     setIsDraggingOutput(true);
     e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'workbench_output', constructionId: construction?.id }));
-  
-    const iconElement = e.currentTarget.querySelector('img, svg');
-    if (iconElement) {
-      const dragImage = iconElement.cloneNode(true) as HTMLElement;
-      dragImage.style.position = "absolute";
-      dragImage.style.top = "-9999px";
-      document.body.appendChild(dragImage);
-      
-      e.dataTransfer.setDragImage(dragImage, dragImage.clientWidth / 2, dragImage.clientHeight / 2);
-  
-      setTimeout(() => {
-        if (dragImage.parentNode) {
-          document.body.removeChild(dragImage);
-        }
-      }, 0);
-    }
   };
 
   const handleDropOnInventory = async (e: React.DragEvent<HTMLDivElement>, targetSlot: number) => {
