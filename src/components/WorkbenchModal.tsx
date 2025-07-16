@@ -315,11 +315,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (!optimisticOutputItem) return;
     setIsDraggingOutput(true);
     e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'workbench_output', constructionId: construction?.id }));
-    
-    // Set custom drag image to be just the item icon
-    const img = new Image();
-    img.src = getIconUrl(optimisticOutputItem.items?.icon) || ''; // Assuming getIconUrl returns a valid path
-    e.dataTransfer.setDragImage(img, 0, 0); // Set the drag image to the icon, with offset 0,0
   };
 
   const handleDropOnInventory = async (e: React.DragEvent<HTMLDivElement>, targetSlot: number) => {
