@@ -27,7 +27,6 @@ const getQueueKey = (id: number | undefined) => id ? `craftingQueue_${id}` : nul
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
   const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
-  const [recipesFetched, setRecipesFetched] = useState(false);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
   const [matchedRecipe, setMatchedRecipe] = useState<CraftingRecipe | null>(null);
   const [resultItem, setResultItem] = useState<Item | null>(null);
@@ -66,12 +65,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
   const fetchRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('crafting_recipes').select('*');
-    if (error) {
-      showError("Impossible de charger les recettes.");
-    } else {
-      setRecipes(data || []);
-      setRecipesFetched(true);
-    }
+    if (error) showError("Impossible de charger les recettes.");
+    else setRecipes(data || []);
   }, []);
 
   const fetchWorkbenchContents = useCallback(async () => {
@@ -120,9 +115,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         setOptimisticOutputItem(null);
       }
 
-      if (!recipesFetched) {
-        fetchRecipes();
-      }
+      fetchRecipes();
       fetchWorkbenchContents();
     } else {
       setWorkbenchItems([]);
@@ -136,26 +129,28 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setProgress(0);
       setCraftsRemaining(0);
       setTimeRemaining(0);
-      if (!isOpen) {
-        setRecipesFetched(false);
-      }
     }
-  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents, recipesFetched]);
+  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
   const startCraft = useCallback(async (recipe: CraftingRecipe) => {
     if (!construction || !recipe) return false;
+
     setIsLoadingAction(true);
+    
     const { error } = await supabase.rpc('start_craft', { 
       p_workbench_id: construction.id, 
       p_recipe_id: recipe.id 
     });
+
     setIsLoadingAction(false);
+
     if (error) {
       showError(error.message);
+      await refreshPlayerData();
       return false;
     }
     return true;
-  }, [construction]);
+  }, [construction, refreshPlayerData]);
 
   useEffect(() => {
     if (currentJob) {
@@ -286,25 +281,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
     if (!success) {
       setCraftsRemaining(0);
       if (queueKey) localStorage.removeItem(queueKey);
-      await refreshPlayerData();
     } else {
-      await fetchWorkbenchContents();
-      const { data: jobs, error: jobsError } = await supabase
-        .from('crafting_jobs')
-        .select('*')
-        .eq('player_id', playerData.playerState.id);
-      
-      if (jobsError) {
-        showError("Erreur de mise à jour des tâches.");
-        refreshPlayerData();
-      } else {
-        setPlayerData(prev => ({
-          ...prev,
-          craftingJobs: jobs as CraftingJob[]
-        }));
-      }
+      onUpdate();
     }
-  }, [matchedRecipe, construction, craftQuantity, startCraft, refreshPlayerData, fetchWorkbenchContents, playerData.playerState.id, setPlayerData]);
+  }, [matchedRecipe, construction, craftQuantity, startCraft, onUpdate]);
 
   const handleCancelCraft = async () => {
     setCraftsRemaining(0);
