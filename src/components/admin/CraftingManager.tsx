@@ -23,6 +23,7 @@ import { Loader2, Edit, PlusCircle, Trash2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, CraftingRecipe } from '@/types/game';
 import ActionModal from '../ActionModal';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const CraftingManager = () => {
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
@@ -31,6 +32,7 @@ const CraftingManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Partial<CraftingRecipe> | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; recipe: CraftingRecipe | null }>({ isOpen: false, recipe: null });
+  const isMobile = useIsMobile();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -77,6 +79,10 @@ const CraftingManager = () => {
     const { id, ...recipeData } = editingRecipe;
 
     // Clean up optional fields
+    if (!recipeData.slot1_item_id) {
+      recipeData.slot1_item_id = null;
+      recipeData.slot1_quantity = null;
+    }
     if (!recipeData.slot2_item_id) {
       recipeData.slot2_item_id = null;
       recipeData.slot2_quantity = null;
@@ -132,9 +138,8 @@ const CraftingManager = () => {
             return newRecipe;
           })}
           className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg"
-          required={slot === 1}
         >
-          <option value="">{slot === 1 ? 'Choisir...' : 'Aucun'}</option>
+          <option value="">Aucun</option>
           {items.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </div>
@@ -160,7 +165,34 @@ const CraftingManager = () => {
           <Button onClick={handleCreate}><PlusCircle className="w-4 h-4 mr-2" />Créer une recette</Button>
         </div>
         <div className="flex-grow overflow-y-auto">
-          {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> : (
+          {loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div> : isMobile ? (
+            <div className="p-4 space-y-3">
+              {recipes.map(recipe => (
+                <div key={recipe.id} onClick={() => handleEdit(recipe)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-white">{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</p>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(recipe); }}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, recipe }); }}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-gray-700 text-sm text-gray-300">
+                    <p className="font-semibold mb-1">Ingrédients:</p>
+                    <ul className="list-disc list-inside pl-2 space-y-1">
+                      {recipe.slot1_item_id && <li>Slot 1: {getItemName(recipe.slot1_item_id)} x{recipe.slot1_quantity}</li>}
+                      {recipe.slot2_item_id && <li>Slot 2: {getItemName(recipe.slot2_item_id)} x{recipe.slot2_quantity}</li>}
+                      {recipe.slot3_item_id && <li>Slot 3: {getItemName(recipe.slot3_item_id)} x{recipe.slot3_quantity}</li>}
+                    </ul>
+                    <p className="mt-2">Temps: {recipe.craft_time_seconds}s</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95">
@@ -176,7 +208,7 @@ const CraftingManager = () => {
                     <TableCell>{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</TableCell>
                     <TableCell>
                       <ul className="list-disc list-inside">
-                        <li>Slot 1: {getItemName(recipe.slot1_item_id)} x{recipe.slot1_quantity}</li>
+                        {recipe.slot1_item_id && <li>Slot 1: {getItemName(recipe.slot1_item_id)} x{recipe.slot1_quantity}</li>}
                         {recipe.slot2_item_id && <li>Slot 2: {getItemName(recipe.slot2_item_id)} x{recipe.slot2_quantity}</li>}
                         {recipe.slot3_item_id && <li>Slot 3: {getItemName(recipe.slot3_item_id)} x{recipe.slot3_quantity}</li>}
                       </ul>
