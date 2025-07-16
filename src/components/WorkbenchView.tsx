@@ -88,6 +88,8 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
       if (queueKey) {
         const savedQueue = localStorage.getItem(queueKey);
         setCraftsRemaining(savedQueue ? parseInt(savedQueue, 10) : 0);
+      } else {
+        setCraftsRemaining(0);
       }
       fetchRecipes();
     }
@@ -106,34 +108,70 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     return true;
   }, [construction, refreshPlayerData]);
 
+  const handleStartBatchCraft = useCallback(async () => {
+    if (!matchedRecipe || !construction || craftQuantity <= 0) return;
+
+    if (craftQuantity > 1) {
+        const queueKey = getQueueKey(construction.id);
+        if (queueKey) {
+            localStorage.setItem(queueKey, String(craftQuantity - 1));
+        }
+        setCraftsRemaining(craftQuantity - 1);
+    } else {
+        setCraftsRemaining(0);
+    }
+    
+    const success = await startCraft(matchedRecipe);
+    
+    if (success) {
+      onUpdate();
+    } else if (craftQuantity > 1) {
+      setCraftsRemaining(0);
+      const queueKey = getQueueKey(construction.id);
+      if (queueKey) localStorage.removeItem(queueKey);
+    }
+  }, [matchedRecipe, construction, craftQuantity, startCraft, onUpdate]);
+
   useEffect(() => {
     const prevJobs = prevCraftingJobsRef.current;
     const currentJobs = playerData.craftingJobs || [];
     const completedJobs = prevJobs.filter(pJob => !currentJobs.some(cJob => cJob.id === pJob.id));
 
+    if (completedJobs.length === 0) {
+        prevCraftingJobsRef.current = playerData.craftingJobs || [];
+        return;
+    }
+
     completedJobs.forEach(async (job) => {
       const queueKey = `craftingQueue_${job.workbench_id}`;
       const savedQueue = localStorage.getItem(queueKey);
+
       if (savedQueue) {
-        const newCraftsRemaining = parseInt(savedQueue, 10) - 1;
-        setCraftsRemaining(newCraftsRemaining);
-        if (newCraftsRemaining > 0) {
-          localStorage.setItem(queueKey, String(newCraftsRemaining));
+        const queueCount = parseInt(savedQueue, 10);
+        if (queueCount > 0) {
+          const newQueueCount = queueCount - 1;
+          setCraftsRemaining(newQueueCount);
+          localStorage.setItem(queueKey, String(newQueueCount));
           const { error } = await supabase.rpc('start_craft', { p_workbench_id: job.workbench_id, p_recipe_id: job.recipe_id });
           if (error) {
             showError(`La fabrication en série s'est arrêtée: ${error.message}`);
             localStorage.removeItem(queueKey);
             setCraftsRemaining(0);
-            refreshPlayerData();
+            await refreshPlayerData();
           } else {
-            refreshPlayerData(true);
+            await refreshPlayerData(true);
           }
         } else {
           localStorage.removeItem(queueKey);
-          refreshPlayerData();
+          setCraftsRemaining(0);
+          await refreshPlayerData();
         }
+      } else {
+        setCraftsRemaining(0);
+        await refreshPlayerData();
       }
     });
+
     prevCraftingJobsRef.current = playerData.craftingJobs || [];
   }, [playerData.craftingJobs, refreshPlayerData]);
 
@@ -256,20 +294,6 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     if (craftQuantity > maxCraftQuantity) setCraftQuantity(maxCraftQuantity > 0 ? maxCraftQuantity : 1);
     if (maxCraftQuantity === 0 && craftQuantity !== 1) setCraftQuantity(1);
   }, [maxCraftQuantity, craftQuantity]);
-
-  const handleStartBatchCraft = useCallback(async () => {
-    if (!matchedRecipe || !construction || craftQuantity <= 0) return;
-    const queueKey = getQueueKey(construction.id);
-    if (queueKey) localStorage.setItem(queueKey, String(craftQuantity));
-    setCraftsRemaining(craftQuantity);
-    const success = await startCraft(matchedRecipe);
-    if (!success) {
-      setCraftsRemaining(0);
-      if (queueKey) localStorage.removeItem(queueKey);
-    } else {
-      onUpdate();
-    }
-  }, [matchedRecipe, construction, craftQuantity, startCraft, onUpdate]);
 
   const handleCancelCraft = async () => {
     setCraftsRemaining(0);
