@@ -11,6 +11,7 @@ import ChestModal from "./ChestModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useGame } from "@/contexts/GameContext";
 import CountdownTimer from "./CountdownTimer";
+import CraftingProgressBar from "./CraftingProgressBar";
 
 interface BaseCell {
   x: number;
@@ -503,17 +504,58 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
   };
 
+  const getCellStyle = (cell: BaseCell) => {
+    switch (cell.type) {
+      case 'campfire': return "bg-orange-400/20 border-orange-400/30";
+      case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
+      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
+      case 'chest': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
+      case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
+      case 'trap': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'workbench': {
+        const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+        const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
+        const hasOutput = construction && construction.output_item_id;
+        if (hasOutput) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
+        if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
+        return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
+      }
+      case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
+      case 'empty':
+        if (cell.canBuild) {
+          const baseStyle = "bg-white/5 border-white/10 border-dashed";
+          if (optimisticHasActiveJob) {
+            return `${baseStyle} cursor-not-allowed`;
+          }
+          return `${baseStyle} hover:bg-white/10 cursor-pointer`;
+        }
+        return "bg-black/20 border-white/10";
+      default: return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
+    }
+  };
+
   const getCellContent = (cell: BaseCell) => {
     const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
-    const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
-    const hasOutput = construction && construction.output_item_id;
+    
+    if (cell.type === 'workbench') {
+      const job = construction ? playerData.craftingJobs?.find(j => j.workbench_id === construction.id) : undefined;
+      const hasOutput = construction && construction.output_item_id;
+      const Icon = buildingIcons.workbench;
 
-    if (cell.type === 'workbench' && (isCrafting || hasOutput)) {
-      return <Hammer className="w-8 h-8 text-yellow-400 animate-pulse" />;
+      if (hasOutput) {
+        return <Icon className="w-8 h-8 text-green-400" />;
+      }
+      if (job) {
+        return (
+          <>
+            <Icon className="w-8 h-8 text-yellow-400" />
+            <CraftingProgressBar job={job} />
+          </>
+        );
+      }
     }
-
-    const Icon = buildingIcons[cell.type];
-    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
 
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
@@ -547,40 +589,11 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         </div>
       );
     }
+
+    const Icon = buildingIcons[cell.type];
+    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
+
     return "";
-  };
-
-  const getCellStyle = (cell: BaseCell) => {
-    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
-    const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
-    const hasOutput = construction && construction.output_item_id;
-
-    if (cell.type === 'workbench' && (isCrafting || hasOutput)) {
-      return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer animate-pulse";
-    }
-
-    switch (cell.type) {
-      case 'campfire': return "bg-orange-400/20 border-orange-400/30";
-      case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
-      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
-      case 'chest': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
-      case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
-      case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
-      case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'trap': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
-      case 'workbench': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
-      case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
-      case 'empty':
-        if (cell.canBuild) {
-          const baseStyle = "bg-white/5 border-white/10 border-dashed";
-          if (optimisticHasActiveJob) {
-            return `${baseStyle} cursor-not-allowed`;
-          }
-          return `${baseStyle} hover:bg-white/10 cursor-pointer`;
-        }
-        return "bg-black/20 border-white/10";
-      default: return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
-    }
   };
 
   if (loading) {
