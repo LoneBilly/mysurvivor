@@ -69,7 +69,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
-  const prevCraftingJobsRef = useRef<CraftingJob[]>([]);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
 
   const isJobRunning = useMemo(() => {
@@ -81,75 +80,29 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const interval = setInterval(() => {
         const newProgress: Record<number, number> = {};
         playerData.craftingJobs?.forEach(job => {
-            const batchInfoRaw = localStorage.getItem(`craftingBatch_${job.workbench_id}`);
-            const batchInfo = batchInfoRaw ? JSON.parse(batchInfoRaw) : null;
+            const { started_at, ends_at, quantity, initial_quantity } = job;
+            
+            const startTime = new Date(started_at).getTime();
+            const endTime = new Date(ends_at).getTime();
+            const durationPerItem = endTime - startTime;
 
-            if (batchInfo && batchInfo.totalItems > 1) {
-                const totalDuration = batchInfo.totalItems * batchInfo.durationPerItem;
-                const elapsedTime = Date.now() - batchInfo.startTime;
-                newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
-            } else {
-                const startTime = new Date(job.started_at).getTime();
-                const endTime = new Date(job.ends_at).getTime();
-                const totalDuration = endTime - startTime;
-                if (totalDuration > 0) {
-                    const elapsedTime = Date.now() - startTime;
-                    newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
-                } else {
-                    newProgress[job.workbench_id] = 100;
-                }
+            if (durationPerItem <= 0 || initial_quantity <= 0) {
+                newProgress[job.workbench_id] = 100;
+                return;
             }
+
+            const itemsDone = initial_quantity - quantity;
+            const elapsedTimeCurrentItem = Math.max(0, Date.now() - startTime);
+            const progressCurrentItem = Math.min(1, elapsedTimeCurrentItem / durationPerItem);
+
+            const totalProgress = ((itemsDone + progressCurrentItem) / initial_quantity) * 100;
+            newProgress[job.workbench_id] = Math.min(100, totalProgress);
         });
         setCraftingProgress(newProgress);
     }, 200);
 
     return () => clearInterval(interval);
   }, [playerData.craftingJobs]);
-
-  useEffect(() => {
-    const prevJobs = prevCraftingJobsRef.current;
-    const currentJobs = craftingJobs || [];
-
-    const completedJobs = prevJobs.filter(pJob => 
-      !currentJobs.some(cJob => cJob.id === pJob.id)
-    );
-
-    completedJobs.forEach(async (job) => {
-      const queueKey = `craftingQueue_${job.workbench_id}`;
-      const batchKey = `craftingBatch_${job.workbench_id}`;
-      const savedQueue = localStorage.getItem(queueKey);
-
-      if (savedQueue) {
-        const craftsRemaining = parseInt(savedQueue, 10) - 1;
-
-        if (craftsRemaining > 0) {
-          localStorage.setItem(queueKey, String(craftsRemaining));
-          
-          const { error } = await supabase.rpc('start_craft', {
-            p_workbench_id: job.workbench_id,
-            p_recipe_id: job.recipe_id
-          });
-
-          if (error) {
-            showError(`La fabrication en série s'est arrêtée: ${error.message}`);
-            localStorage.removeItem(queueKey);
-            localStorage.removeItem(batchKey);
-            refreshPlayerData();
-          } else {
-            refreshPlayerData(true);
-          }
-        } else {
-          localStorage.removeItem(queueKey);
-          localStorage.removeItem(batchKey);
-          refreshPlayerData();
-        }
-      } else {
-        localStorage.removeItem(batchKey);
-      }
-    });
-
-    prevCraftingJobsRef.current = craftingJobs || [];
-  }, [craftingJobs, refreshPlayerData]);
 
   const isDraggingRef = useRef(false);
   const panState = useRef<{

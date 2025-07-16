@@ -107,6 +107,8 @@ export interface CraftingJob {
   result_quantity: number;
   result_item_name: string;
   result_item_icon: string;
+  quantity: number;
+  initial_quantity: number;
 }
 
 export interface ChestItem {
