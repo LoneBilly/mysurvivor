@@ -310,11 +310,11 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
         <div className="py-4 px-4 flex-grow overflow-y-auto no-scrollbar">
           <div className="w-full max-w-sm mx-auto">
             <div className="bg-black/20 rounded-lg p-3 border border-slate-700 space-y-3">
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <div className="flex flex-row items-center justify-center gap-2">
                 {/* Ingredients */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1">
                   {ingredientSlots.map((item, index) => (
-                    <div key={item?.id || index} className="w-14 h-14">
+                    <div key={item?.id || index} className="w-12 h-12">
                       <InventorySlot
                         item={item}
                         index={index}
@@ -330,11 +330,11 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                 </div>
 
                 {/* Arrow */}
-                <ArrowRight className="w-5 h-5 text-gray-500 shrink-0 sm:rotate-0 -rotate-90" />
+                <ArrowRight className="w-5 h-5 text-gray-500 shrink-0" />
 
                 {/* Result */}
                 <div className="flex flex-col items-center gap-2">
-                  <div className="relative w-16 h-16 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
+                  <div className="relative w-14 h-14 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center">
                     {currentJob ? (
                       <>
                         <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
