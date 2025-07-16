@@ -10,7 +10,7 @@ import OptionsModal from "../OptionsModal";
 import InventoryModal from "../InventoryModal";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
-import { FullPlayerData, MapCell } from "@/types/game";
+import { FullPlayerData, MapCell, BaseConstruction } from "@/types/game";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import MarketModal from "../MarketModal";
@@ -22,6 +22,7 @@ import ExplorationModal from "../ExplorationModal";
 import MetroModal from "../MetroModal";
 import BankModal from "../BankModal";
 import BountyModal from "../BountyModal";
+import WorkbenchView from "../WorkbenchView";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -32,6 +33,7 @@ const GameUI = () => {
   const { playerData, setPlayerData, mapLayout, items, refreshPlayerData } = useGame();
   
   const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
+  const [inspectedConstruction, setInspectedConstruction] = useState<BaseConstruction | null>(null);
   const [isViewReady, setIsViewReady] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
@@ -88,8 +90,27 @@ const GameUI = () => {
     refreshPlayerData();
   };
 
-  const handleBackToMap = () => {
-    setCurrentView('map');
+  const handleHeaderBack = () => {
+    if (inspectedConstruction) {
+      setInspectedConstruction(null);
+    } else {
+      setCurrentView('map');
+    }
+  };
+
+  const handleInspectWorkbench = (construction: BaseConstruction) => {
+    setInspectedConstruction(construction);
+  };
+
+  const handleDemolishBuilding = async (construction: BaseConstruction) => {
+    const { x, y } = construction;
+    setInspectedConstruction(null);
+    const { error } = await supabase.rpc('demolish_building_to_foundation', { p_x: x, p_y: y });
+    if (error) {
+      showError(error.message || "Erreur de démolition.");
+    } else {
+      refreshPlayerData();
+    }
   };
 
   const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
@@ -251,19 +272,39 @@ const GameUI = () => {
 
   const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
 
+  const renderBaseContent = () => {
+    if (inspectedConstruction?.type === 'workbench') {
+      return (
+        <WorkbenchView
+          construction={inspectedConstruction}
+          onDemolish={handleDemolishBuilding}
+          onUpdate={refreshPlayerData}
+        />
+      );
+    }
+    
+    return (
+      <>
+        <BaseHeader resources={totalResources} resourceItems={resourceItems} />
+        <BaseInterface
+          isActive={currentView === 'base'}
+          onInspectWorkbench={handleInspectWorkbench}
+          onDemolishBuilding={handleDemolishBuilding}
+        />
+      </>
+    );
+  };
+
   return (
     <div className="h-full flex flex-col text-white">
-      <GameHeader spawnDate={playerData.playerState.spawn_date} onLeaderboard={() => setIsLeaderboardOpen(true)} onOptions={() => setIsOptionsOpen(true)} currentView={currentView} onBackToMap={handleBackToMap} />
+      <GameHeader spawnDate={playerData.playerState.spawn_date} onLeaderboard={() => setIsLeaderboardOpen(true)} onOptions={() => setIsOptionsOpen(true)} currentView={currentView} onBackToMap={handleHeaderBack} />
       <main className="flex-1 min-h-0 overflow-hidden relative">
         <CreditsDisplay credits={playerData.playerState.credits} onPurchaseClick={() => setIsPurchaseModalOpen(true)} />
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid mapLayout={mapLayout} onCellSelect={handleCellSelect} discoveredZones={playerData.playerState.zones_decouvertes} playerPosition={{ x: playerData.playerState.position_x, y: playerData.playerState.position_y }} basePosition={playerData.playerState.base_position_x !== null ? { x: playerData.playerState.base_position_x, y: playerData.playerState.base_position_y! } : null} />
         </div>
         <div className={cn("relative w-full h-full", currentView !== 'base' && "hidden")}>
-          <BaseHeader resources={totalResources} resourceItems={resourceItems} />
-          <BaseInterface
-            isActive={currentView === 'base'}
-          />
+          {renderBaseContent()}
         </div>
       </main>
       <GameFooter stats={playerData.playerState} credits={playerData.playerState.credits} onInventaire={() => setIsInventoryOpen(true)} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />

@@ -14,17 +14,15 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 
-interface WorkbenchModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  construction: BaseConstruction | null;
+interface WorkbenchViewProps {
+  construction: BaseConstruction;
   onDemolish: (construction: BaseConstruction) => void;
   onUpdate: (silent?: boolean) => void;
 }
 
 const getQueueKey = (id: number | undefined) => id ? `craftingQueue_${id}` : null;
 
-const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WorkbenchModalProps) => {
+const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProps) => {
   const { playerData, setPlayerData, items, getIconUrl, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [workbenchItems, setWorkbenchItems] = useState<InventoryItem[]>([]);
@@ -53,10 +51,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [currentJob, craftsRemaining]);
 
   useEffect(() => {
-    if (isOpen) {
-      onUpdate(true);
-    }
-  }, [isOpen, onUpdate]);
+    onUpdate(true);
+  }, [onUpdate]);
 
   const ingredientSlots = useMemo(() => {
     const newSlots = Array(3).fill(null);
@@ -91,7 +87,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   }, [construction]);
 
   useEffect(() => {
-    if (isOpen && construction) {
+    if (construction) {
       const job = playerData.craftingJobs?.find(j => j.workbench_id === construction.id);
       setCurrentJob(job || null);
 
@@ -135,7 +131,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       setCraftsRemaining(0);
       setTimeRemaining('');
     }
-  }, [isOpen, construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
+  }, [construction, playerData.craftingJobs, playerData.baseConstructions, items, fetchRecipes, fetchWorkbenchContents]);
 
   const startCraft = useCallback(async (recipe: CraftingRecipe) => {
     if (!construction || !recipe) return false;
@@ -575,175 +571,173 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 max-h-[calc(100vh-8rem)] flex flex-col">
-          <DialogHeader>
+      <div className="h-full flex flex-col bg-slate-900/50">
+        <div className="p-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Hammer className="w-7 h-7 text-white" />
-              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Établi</DialogTitle>
+              <h2 className="text-white font-mono tracking-wider uppercase text-xl">Établi</h2>
             </div>
-          </DialogHeader>
-          <div className="py-4 flex-grow overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-center">Établi</h3>
-                  <Button variant="outline" size="sm" onClick={() => setIsBlueprintModalOpen(true)}>
-                    <BookOpen className="w-4 h-4 mr-2" /> Blueprints
-                  </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsBlueprintModalOpen(true)}>
+              <BookOpen className="w-4 h-4 mr-2" /> Blueprints
+            </Button>
+          </div>
+        </div>
+        <div className="py-4 px-4 flex-grow overflow-y-auto no-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-bold text-center mb-2">Établi</h3>
+              <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
+                <div className="grid grid-cols-5 gap-2" data-slot-target="crafting">
+                  <div />
+                  {ingredientSlots.map((item, index) => (
+                    <div key={item?.id || index}>
+                      <InventorySlot
+                        item={item}
+                        index={index}
+                        isUnlocked={true}
+                        onDragStart={(idx, node, e) => handleDragStart(idx, 'crafting', node, e)}
+                        onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
+                        isBeingDragged={draggedItem?.source === 'crafting' && draggedItem?.index === index}
+                        isDragOver={dragOver?.target === 'crafting' && dragOver?.index === index}
+                        isLocked={!!currentJob || craftsRemaining > 0}
+                      />
+                    </div>
+                  ))}
+                  <div />
                 </div>
-                <div className="bg-black/20 rounded-lg p-4 border border-slate-700 space-y-4">
-                  <div className="grid grid-cols-5 gap-2" data-slot-target="crafting">
-                    <div />
-                    {ingredientSlots.map((item, index) => (
-                      <div key={item?.id || index}>
-                        <InventorySlot
-                          item={item}
-                          index={index}
-                          isUnlocked={true}
-                          onDragStart={(idx, node, e) => handleDragStart(idx, 'crafting', node, e)}
-                          onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'crafting' })}
-                          isBeingDragged={draggedItem?.source === 'crafting' && draggedItem?.index === index}
-                          isDragOver={dragOver?.target === 'crafting' && dragOver?.index === index}
-                          isLocked={!!currentJob || craftsRemaining > 0}
-                        />
-                      </div>
-                    ))}
-                    <div />
+                <div className="grid grid-cols-5 items-center gap-2">
+                  <div className="col-span-2 flex justify-end">
+                      <ArrowRight className="w-8 h-8 text-gray-500" />
                   </div>
-                  <div className="grid grid-cols-5 items-center gap-2">
-                    <div className="col-span-2 flex justify-end">
-                        <ArrowRight className="w-8 h-8 text-gray-500" />
-                    </div>
-                    <div 
-                      onMouseDown={(e) => displayedOutputItem && handleDragStart(-1, 'output', e.currentTarget, e)}
-                      onTouchStart={(e) => displayedOutputItem && handleDragStart(-1, 'output', e.currentTarget, e)}
-                      className={cn(
-                        "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
-                        displayedOutputItem && "cursor-grab active:cursor-grabbing"
-                      )}
-                    >
-                      {currentJob ? (
-                        <>
-                          <div className="item-visual">
-                            <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
-                          </div>
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="w-6 h-6 animate-spin text-white" />
-                              {displayedOutputItem && (
-                                <span className="text-sm font-bold text-white">
-                                  x{displayedOutputItem.quantity}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      ) : displayedOutputItem ? (
-                        <div className="item-visual">
-                          <ItemIcon iconName={getIconUrl(displayedOutputItem.items?.icon) || displayedOutputItem.items?.icon} alt={displayedOutputItem.items?.name || ''} />
-                          <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                            x{displayedOutputItem.quantity}
-                          </span>
-                        </div>
-                      ) : resultItem && (
-                        <div className="item-visual">
-                          <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
-                          {matchedRecipe && resultItem.stackable && (
-                            <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                              x{craftQuantity * matchedRecipe.result_quantity}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-span-2" />
-                  </div>
-                  
-                  <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
-                    {currentJob || isCraftingTransition ? (
-                      <div className="w-full space-y-2 px-4">
-                        <div className="flex items-center gap-2">
-                          <Progress value={currentJob ? progress : 0} className="flex-grow" />
-                          <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
-                            <Square className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
-                          {isLoadingAction && !currentJob ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : currentJob && timeRemaining ? (
-                            <span>{timeRemaining}</span>
-                          ) : isCraftingTransition ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : (
+                  <div 
+                    onMouseDown={(e) => displayedOutputItem && handleDragStart(-1, 'output', e.currentTarget, e)}
+                    onTouchStart={(e) => displayedOutputItem && handleDragStart(-1, 'output', e.currentTarget, e)}
+                    className={cn(
+                      "relative w-full aspect-square bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-center",
+                      displayedOutputItem && "cursor-grab active:cursor-grabbing"
+                    )}
+                  >
+                    {currentJob ? (
                       <>
-                        {matchedRecipe && maxCraftQuantity > 0 ? (
-                          <div className="w-full px-4 space-y-3">
-                            <div className="flex justify-between items-center text-sm">
-                                <span>Quantité: <span className="font-bold text-white">{craftQuantity}</span></span>
-                            </div>
-                            <Slider
-                                value={[craftQuantity]}
-                                onValueChange={(value) => setCraftQuantity(value[0])}
-                                min={1}
-                                max={maxCraftQuantity}
-                                step={1}
-                                disabled={isLoadingAction}
-                            />
-                            <Button 
-                              onClick={handleStartBatchCraft} 
-                              disabled={!matchedRecipe || isLoadingAction || craftQuantity === 0}
-                              className="w-full"
-                            >
-                              {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : `Fabriquer ${craftQuantity}x`}
-                            </Button>
+                        <div className="item-visual">
+                          <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
+                        </div>
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="w-6 h-6 animate-spin text-white" />
+                            {displayedOutputItem && (
+                              <span className="text-sm font-bold text-white">
+                                x{displayedOutputItem.quantity}
+                              </span>
+                            )}
                           </div>
-                        ) : matchedRecipe ? (
-                          <p className="text-center text-xs text-yellow-400 px-4">
-                            {resultItem && !resultItem.stackable && displayedOutputItem ? "Collectez l'objet pour fabriquer." : "Ressources insuffisantes."}
-                          </p>
-                        ) : (
-                            <p className="text-sm text-gray-400">Placez des ingrédients pour voir les recettes.</p>
-                        )}
+                        </div>
                       </>
+                    ) : displayedOutputItem ? (
+                      <div className="item-visual">
+                        <ItemIcon iconName={getIconUrl(displayedOutputItem.items?.icon) || displayedOutputItem.items?.icon} alt={displayedOutputItem.items?.name || ''} />
+                        <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                          x{displayedOutputItem.quantity}
+                        </span>
+                      </div>
+                    ) : resultItem && (
+                      <div className="item-visual">
+                        <ItemIcon iconName={getIconUrl(resultItem.icon) || resultItem.icon} alt={resultItem.name} />
+                        {matchedRecipe && resultItem.stackable && (
+                          <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
+                            x{craftQuantity * matchedRecipe.result_quantity}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
+                  <div className="col-span-2" />
+                </div>
+                
+                <div className="h-[120px] flex flex-col justify-center items-center space-y-2">
+                  {currentJob || isCraftingTransition ? (
+                    <div className="w-full space-y-2 px-4">
+                      <div className="flex items-center gap-2">
+                        <Progress value={currentJob ? progress : 0} className="flex-grow" />
+                        <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
+                          <Square className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="text-center text-sm text-gray-300 font-mono h-5 flex items-center justify-center">
+                        {isLoadingAction && !currentJob ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : currentJob && timeRemaining ? (
+                          <span>{timeRemaining}</span>
+                        ) : isCraftingTransition ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {matchedRecipe && maxCraftQuantity > 0 ? (
+                        <div className="w-full px-4 space-y-3">
+                          <div className="flex justify-between items-center text-sm">
+                              <span>Quantité: <span className="font-bold text-white">{craftQuantity}</span></span>
+                          </div>
+                          <Slider
+                              value={[craftQuantity]}
+                              onValueChange={(value) => setCraftQuantity(value[0])}
+                              min={1}
+                              max={maxCraftQuantity}
+                              step={1}
+                              disabled={isLoadingAction}
+                          />
+                          <Button 
+                            onClick={handleStartBatchCraft} 
+                            disabled={!matchedRecipe || isLoadingAction || craftQuantity === 0}
+                            className="w-full"
+                          >
+                            {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : `Fabriquer ${craftQuantity}x`}
+                          </Button>
+                        </div>
+                      ) : matchedRecipe ? (
+                        <p className="text-center text-xs text-yellow-400 px-4">
+                          {resultItem && !resultItem.stackable && displayedOutputItem ? "Collectez l'objet pour fabriquer." : "Ressources insuffisantes."}
+                        </p>
+                      ) : (
+                          <p className="text-sm text-gray-400">Placez des ingrédients pour voir les recettes.</p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
-              <div>
-                <h3 className="font-bold text-center mb-2">Inventaire</h3>
-                <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto" data-slot-target="inventory">
-                  {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
-                    const item = playerData.inventory.find(i => i.slot_position === index);
-                    return (
-                      <div key={item?.id || index}>
-                        <InventorySlot 
-                          item={item || null} 
-                          index={index} 
-                          isUnlocked={true} 
-                          onDragStart={(idx, node, e) => handleDragStart(idx, 'inventory', node, e)}
-                          onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
-                          isBeingDragged={draggedItem?.source === 'inventory' && draggedItem?.index === index}
-                          isDragOver={dragOver?.target === 'inventory' && dragOver?.index === index}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+            </div>
+            <div>
+              <h3 className="font-bold text-center mb-2">Inventaire</h3>
+              <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 max-h-96 overflow-y-auto" data-slot-target="inventory">
+                {Array.from({ length: playerData.playerState.unlocked_slots }).map((_, index) => {
+                  const item = playerData.inventory.find(i => i.slot_position === index);
+                  return (
+                    <div key={item?.id || index}>
+                      <InventorySlot 
+                        item={item || null} 
+                        index={index} 
+                        isUnlocked={true} 
+                        onDragStart={(idx, node, e) => handleDragStart(idx, 'inventory', node, e)}
+                        onItemClick={(clickedItem) => setDetailedItem({ item: clickedItem, source: 'inventory' })} 
+                        isBeingDragged={draggedItem?.source === 'inventory' && draggedItem?.index === index}
+                        isDragOver={dragOver?.target === 'inventory' && dragOver?.index === index}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="destructive" onClick={() => construction && onDemolish(construction)}>
-              <Trash2 className="w-4 h-4 mr-2" /> Détruire l'établi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <div className="p-4 flex-shrink-0 mt-auto">
+          <Button variant="destructive" onClick={() => onDemolish(construction)}>
+            <Trash2 className="w-4 h-4 mr-2" /> Détruire l'établi
+          </Button>
+        </div>
+      </div>
       <ItemDetailModal
         isOpen={!!detailedItem}
         onClose={() => setDetailedItem(null)}
@@ -763,4 +757,4 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
   );
 };
 
-export default WorkbenchModal;
+export default WorkbenchView;

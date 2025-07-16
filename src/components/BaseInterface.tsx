@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob, CraftingJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
-import WorkbenchModal from "./WorkbenchModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useGame } from "@/contexts/GameContext";
 import CountdownTimer from "./CountdownTimer";
@@ -51,9 +50,11 @@ interface BuildingDefinition {
 
 interface BaseInterfaceProps {
   isActive: boolean;
+  onInspectWorkbench: (construction: BaseConstruction) => void;
+  onDemolishBuilding: (construction: BaseConstruction) => void;
 }
 
-const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
+const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
   const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
@@ -66,7 +67,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [workbenchModalState, setWorkbenchModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [optimisticHasActiveJob, setOptimisticHasActiveJob] = useState(initialConstructionJobs.length > 0);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -385,7 +385,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         } else if (cell.type === 'workbench') {
           const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
           if (constructionData) {
-            setWorkbenchModalState({ isOpen: true, construction: constructionData });
+            onInspectWorkbench(constructionData);
           }
         } else {
           showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
@@ -412,7 +412,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
     if (cell.type === 'workbench') {
       const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
       if (constructionData) {
-        setWorkbenchModalState({ isOpen: true, construction: constructionData });
+        onInspectWorkbench(constructionData);
       }
       return;
     }
@@ -498,27 +498,6 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
       setGridData(originalGridData);
       setPlayerData(originalPlayerData);
       setOptimisticHasActiveJob(false);
-    } else {
-      refreshPlayerData();
-    }
-  };
-
-  const handleDemolishBuilding = async (construction: BaseConstruction) => {
-    const { x, y, type } = construction;
-    if (!gridData) return;
-
-    const originalGridData = gridData;
-    const newGrid = JSON.parse(JSON.stringify(gridData));
-    newGrid[y][x].type = 'foundation';
-    setGridData(updateCanBuild(newGrid));
-    setChestModalState({ isOpen: false, construction: null });
-    setWorkbenchModalState({ isOpen: false, construction: null });
-
-    const { error } = await supabase.rpc('demolish_building_to_foundation', { p_x: x, p_y: y });
-
-    if (error) {
-      showError(error.message || "Erreur de démolition.");
-      setGridData(originalGridData);
     } else {
       refreshPlayerData();
     }
@@ -683,14 +662,7 @@ const BaseInterface = ({ isActive }: BaseInterfaceProps) => {
         isOpen={chestModalState.isOpen}
         onClose={() => setChestModalState({ isOpen: false, construction: null })}
         construction={chestModalState.construction}
-        onDemolish={handleDemolishBuilding}
-        onUpdate={refreshPlayerData}
-      />
-      <WorkbenchModal
-        isOpen={workbenchModalState.isOpen}
-        onClose={() => setWorkbenchModalState({ isOpen: false, construction: null })}
-        construction={workbenchModalState.construction}
-        onDemolish={handleDemolishBuilding}
+        onDemolish={onDemolishBuilding}
         onUpdate={refreshPlayerData}
       />
     </div>
