@@ -19,7 +19,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Edit, PlusCircle, Trash2, ArrowRight } from 'lucide-react';
+import { Loader2, Edit, PlusCircle, Trash2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, CraftingRecipe } from '@/types/game';
 import ActionModal from '../ActionModal';
@@ -63,8 +63,8 @@ const CraftingManager = () => {
     setEditingRecipe({
       result_item_id: undefined,
       result_quantity: 1,
-      ingredient1_id: undefined,
-      ingredient1_quantity: 1,
+      slot1_item_id: undefined,
+      slot1_quantity: 1,
       craft_time_seconds: 10,
     });
     setIsModalOpen(true);
@@ -77,13 +77,13 @@ const CraftingManager = () => {
     const { id, ...recipeData } = editingRecipe;
 
     // Clean up optional fields
-    if (!recipeData.ingredient2_id) {
-      recipeData.ingredient2_id = null;
-      recipeData.ingredient2_quantity = null;
+    if (!recipeData.slot2_item_id) {
+      recipeData.slot2_item_id = null;
+      recipeData.slot2_quantity = null;
     }
-    if (!recipeData.ingredient3_id) {
-      recipeData.ingredient3_id = null;
-      recipeData.ingredient3_quantity = null;
+    if (!recipeData.slot3_item_id) {
+      recipeData.slot3_item_id = null;
+      recipeData.slot3_quantity = null;
     }
 
     const promise = id
@@ -114,16 +114,27 @@ const CraftingManager = () => {
 
   const getItemName = (id: number | null | undefined) => items.find(i => i.id === id)?.name || 'N/A';
 
-  const renderIngredient = (prefix: 'ingredient1' | 'ingredient2' | 'ingredient3') => (
+  const renderSlotInput = (slot: 1 | 2 | 3) => (
     <div className="grid grid-cols-2 gap-2">
       <div>
-        <Label>{`Ingrédient ${prefix.slice(-1)}`}</Label>
+        <Label>{`Slot ${slot}`}</Label>
         <select
-          value={editingRecipe?.[`${prefix}_id`] || ''}
-          onChange={(e) => setEditingRecipe(prev => ({ ...prev, [`${prefix}_id`]: e.target.value ? parseInt(e.target.value) : undefined }))}
+          value={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] || ''}
+          onChange={(e) => setEditingRecipe(prev => {
+            const newRecipe = { ...prev } as Partial<CraftingRecipe>;
+            const itemId = e.target.value ? parseInt(e.target.value) : undefined;
+            (newRecipe as any)[`slot${slot}_item_id`] = itemId;
+            if (itemId) {
+              (newRecipe as any)[`slot${slot}_quantity`] = (newRecipe as any)[`slot${slot}_quantity`] || 1;
+            } else {
+              (newRecipe as any)[`slot${slot}_quantity`] = undefined;
+            }
+            return newRecipe;
+          })}
           className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg"
+          required={slot === 1}
         >
-          <option value="">Aucun</option>
+          <option value="">{slot === 1 ? 'Choisir...' : 'Aucun'}</option>
           {items.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </div>
@@ -132,10 +143,11 @@ const CraftingManager = () => {
         <Input
           type="number"
           min="1"
-          value={editingRecipe?.[`${prefix}_quantity`] || ''}
-          onChange={(e) => setEditingRecipe(prev => ({ ...prev, [`${prefix}_quantity`]: e.target.value ? parseInt(e.target.value) : 1 }))}
+          value={editingRecipe?.[`slot${slot}_quantity` as keyof CraftingRecipe] || ''}
+          onChange={(e) => setEditingRecipe(prev => ({ ...prev, [`slot${slot}_quantity`]: e.target.value ? parseInt(e.target.value) : 1 }))}
           className="bg-white/5 border-white/20"
-          disabled={!editingRecipe?.[`${prefix}_id`]}
+          disabled={!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
+          required={!!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
         />
       </div>
     </div>
@@ -164,9 +176,9 @@ const CraftingManager = () => {
                     <TableCell>{getItemName(recipe.result_item_id)} x{recipe.result_quantity}</TableCell>
                     <TableCell>
                       <ul className="list-disc list-inside">
-                        <li>{getItemName(recipe.ingredient1_id)} x{recipe.ingredient1_quantity}</li>
-                        {recipe.ingredient2_id && <li>{getItemName(recipe.ingredient2_id)} x{recipe.ingredient2_quantity}</li>}
-                        {recipe.ingredient3_id && <li>{getItemName(recipe.ingredient3_id)} x{recipe.ingredient3_quantity}</li>}
+                        <li>Slot 1: {getItemName(recipe.slot1_item_id)} x{recipe.slot1_quantity}</li>
+                        {recipe.slot2_item_id && <li>Slot 2: {getItemName(recipe.slot2_item_id)} x{recipe.slot2_quantity}</li>}
+                        {recipe.slot3_item_id && <li>Slot 3: {getItemName(recipe.slot3_item_id)} x{recipe.slot3_quantity}</li>}
                       </ul>
                     </TableCell>
                     <TableCell>{recipe.craft_time_seconds}s</TableCell>
@@ -204,9 +216,9 @@ const CraftingManager = () => {
                   <Input required type="number" min="1" value={editingRecipe?.result_quantity || 1} onChange={(e) => setEditingRecipe(prev => ({ ...prev, result_quantity: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />
                 </div>
               </div>
-              {renderIngredient('ingredient1')}
-              {renderIngredient('ingredient2')}
-              {renderIngredient('ingredient3')}
+              {renderSlotInput(1)}
+              {renderSlotInput(2)}
+              {renderSlotInput(3)}
               <div>
                 <Label>Temps de fabrication (secondes)</Label>
                 <Input required type="number" min="1" value={editingRecipe?.craft_time_seconds || 10} onChange={(e) => setEditingRecipe(prev => ({ ...prev, craft_time_seconds: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />

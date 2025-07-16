@@ -87,9 +87,9 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
             learnedRecipes.map(recipe => {
               const resultItem = allItems.find(item => item.id === recipe.result_item_id);
               const ingredients = [
-                { id: recipe.ingredient1_id, quantity: recipe.ingredient1_quantity },
-                { id: recipe.ingredient2_id, quantity: recipe.ingredient2_quantity },
-                { id: recipe.ingredient3_id, quantity: recipe.ingredient3_quantity },
+                { id: recipe.slot1_item_id, quantity: recipe.slot1_quantity },
+                { id: recipe.slot2_item_id, quantity: recipe.slot2_quantity },
+                { id: recipe.slot3_item_id, quantity: recipe.slot3_quantity },
               ].filter(ing => ing.id !== null);
 
               return (

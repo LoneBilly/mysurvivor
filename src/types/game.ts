@@ -86,12 +86,12 @@ export interface CraftingRecipe {
   id: number;
   result_item_id: number;
   result_quantity: number;
-  ingredient1_id: number;
-  ingredient1_quantity: number;
-  ingredient2_id: number | null;
-  ingredient2_quantity: number | null;
-  ingredient3_id: number | null;
-  ingredient3_quantity: number | null;
+  slot1_item_id: number;
+  slot1_quantity: number;
+  slot2_item_id: number | null;
+  slot2_quantity: number | null;
+  slot3_item_id: number | null;
+  slot3_quantity: number | null;
   craft_time_seconds: number;
 }
 

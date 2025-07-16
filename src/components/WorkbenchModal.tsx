@@ -239,30 +239,37 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   }, [currentJob, construction, refreshPlayerData]);
 
   useEffect(() => {
-    const ingredients = ingredientSlots.filter(Boolean) as InventoryItem[];
-    if (ingredients.length === 0) {
-      setMatchedRecipe(null);
-      return;
-    }
-    const getSignature = (items: { item_id: number }[]) => items.map(i => i.item_id).sort().join(',');
-    const slotSignature = getSignature(ingredients);
     for (const recipe of recipes) {
-      const recipeIngredients = [
-        recipe.ingredient1_id && { item_id: recipe.ingredient1_id, quantity: recipe.ingredient1_quantity },
-        recipe.ingredient2_id && { item_id: recipe.ingredient2_id, quantity: recipe.ingredient2_quantity },
-        recipe.ingredient3_id && { item_id: recipe.ingredient3_id, quantity: recipe.ingredient3_quantity },
-      ].filter(Boolean) as { item_id: number, quantity: number }[];
-      if (getSignature(recipeIngredients) === slotSignature) {
-        const hasEnough = recipeIngredients.every(req => {
-          const slotItem = ingredients.find(i => i.item_id === req.item_id);
-          return slotItem && slotItem.quantity >= req.quantity;
-        });
-        if (hasEnough) {
-          setMatchedRecipe(recipe);
-          return;
+      const recipeSlots = [
+        { id: recipe.slot1_item_id, quantity: recipe.slot1_quantity },
+        { id: recipe.slot2_item_id, quantity: recipe.slot2_quantity },
+        { id: recipe.slot3_item_id, quantity: recipe.slot3_quantity },
+      ];
+
+      let isMatch = true;
+      for (let i = 0; i < 3; i++) {
+        const workbenchItem = ingredientSlots[i];
+        const recipeItem = recipeSlots[i];
+
+        if ((recipeItem.id && !workbenchItem) || (!recipeItem.id && workbenchItem)) {
+          isMatch = false;
+          break;
+        }
+
+        if (recipeItem.id && workbenchItem) {
+          if (workbenchItem.item_id !== recipeItem.id || workbenchItem.quantity < (recipeItem.quantity || 1)) {
+            isMatch = false;
+            break;
+          }
         }
       }
+
+      if (isMatch) {
+        setMatchedRecipe(recipe);
+        return;
+      }
     }
+
     setMatchedRecipe(null);
   }, [ingredientSlots, recipes]);
 
@@ -279,20 +286,32 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     if (!matchedRecipe) return 0;
     const resultItemDef = items.find(i => i.id === matchedRecipe.result_item_id);
     if (resultItemDef && !resultItemDef.stackable && optimisticOutputItem) return 0;
-    const recipeIngredients = [
-      { id: matchedRecipe.ingredient1_id, quantity: matchedRecipe.ingredient1_quantity },
-      { id: matchedRecipe.ingredient2_id, quantity: matchedRecipe.ingredient2_quantity },
-      { id: matchedRecipe.ingredient3_id, quantity: matchedRecipe.ingredient3_quantity },
-    ].filter(ing => ing.id !== null && ing.quantity! > 0) as { id: number, quantity: number }[];
-    if (recipeIngredients.length === 0) return 99;
-    const craftCounts = recipeIngredients.map(req => {
-        const totalAvailable = optimisticWorkbenchItems.filter(i => i.item_id === req.id).reduce((sum, item) => sum + item.quantity, 0);
-        return Math.floor(totalAvailable / req.quantity);
-    });
+
+    const recipeSlots = [
+        { id: matchedRecipe.slot1_item_id, quantity: matchedRecipe.slot1_quantity },
+        { id: matchedRecipe.slot2_item_id, quantity: matchedRecipe.slot2_quantity },
+        { id: matchedRecipe.slot3_item_id, quantity: matchedRecipe.slot3_quantity },
+    ];
+
+    const craftCounts: number[] = [];
+    for (let i = 0; i < 3; i++) {
+        const recipeSlot = recipeSlots[i];
+        const workbenchSlot = ingredientSlots[i];
+
+        if (recipeSlot.id && recipeSlot.quantity) {
+            if (!workbenchSlot || workbenchSlot.item_id !== recipeSlot.id || workbenchSlot.quantity < recipeSlot.quantity) {
+                return 0;
+            }
+            craftCounts.push(Math.floor(workbenchSlot.quantity / recipeSlot.quantity));
+        }
+    }
+
+    if (craftCounts.length === 0) return 99;
+
     const max = Math.min(...craftCounts);
     if (resultItemDef && !resultItemDef.stackable) return Math.min(max, 1);
     return max;
-  }, [matchedRecipe, optimisticWorkbenchItems, optimisticOutputItem, items]);
+  }, [matchedRecipe, ingredientSlots, optimisticOutputItem, items]);
 
   useEffect(() => {
     if (craftQuantity > maxCraftQuantity) setCraftQuantity(maxCraftQuantity > 0 ? maxCraftQuantity : 1);
