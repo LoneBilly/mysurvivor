@@ -161,11 +161,8 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
     }
 
     let animationFrameId: number;
-    let lastTextUpdate = 0;
 
-    const updateTimer = (timestamp: number) => {
-      if (!lastTextUpdate) lastTextUpdate = timestamp;
-
+    const updateTimer = () => {
       const now = Date.now();
       const elapsedTime = now - startTime;
       const diff = endTime - now;
@@ -184,14 +181,10 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
       const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
       setProgress(newProgress);
 
-      // Update text only once per second
-      if (timestamp - lastTextUpdate >= 1000) {
-        const remainingSeconds = Math.floor(diff / 1000);
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = remainingSeconds % 60;
-        setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
-        lastTextUpdate = timestamp;
-      }
+      const remainingSeconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(remainingSeconds / 60);
+      const seconds = remainingSeconds % 60;
+      setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
 
       animationFrameId = requestAnimationFrame(updateTimer);
     };
@@ -436,7 +429,7 @@ const WorkbenchView = ({ construction, onDemolish, onUpdate }: WorkbenchViewProp
                   {currentJob || craftsRemaining > 0 ? (
                     <div className="w-full space-y-2 px-4">
                       <div className="flex items-center gap-2">
-                        <Progress value={currentJob ? progress : 0} className="flex-grow" />
+                        <Progress value={currentJob ? progress : 0} className="flex-grow" indicatorClassName="transition-none" />
                         <Button size="icon" variant="destructive" onClick={handleCancelCraft} disabled={isLoadingAction}>
                           <Square className="w-4 h-4" />
                         </Button>
