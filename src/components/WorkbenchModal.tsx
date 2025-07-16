@@ -174,7 +174,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
 
     let animationFrameId: number;
 
-    const updateTimer = async () => {
+    const updateTimer = () => {
       const now = Date.now();
       const elapsedTime = now - startTime;
       const diff = endTime - now;
@@ -186,38 +186,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         if (!timerCompletedRef.current) {
           timerCompletedRef.current = true;
           setIsLoadingAction(true);
-
-          const queueKey = getQueueKey(construction?.id);
-          const savedQueue = queueKey ? localStorage.getItem(queueKey) : null;
-
-          if (savedQueue) {
-            const queueCount = parseInt(savedQueue, 10);
-            if (queueCount > 0) {
-              const newQueueCount = queueCount - 1;
-              setCraftsRemaining(newQueueCount);
-              localStorage.setItem(queueKey, String(newQueueCount));
-              
-              const { error } = await supabase.rpc('start_craft', { p_workbench_id: construction!.id, p_recipe_id: currentJob.recipe_id });
-              
-              if (error) {
-                showError(`La fabrication en série s'est arrêtée: ${error.message}`);
-                localStorage.removeItem(queueKey);
-                setCraftsRemaining(0);
-                await refreshPlayerData();
-              } else {
-                await refreshPlayerData(true);
-              }
-            } else {
-              localStorage.removeItem(queueKey);
-              setCraftsRemaining(0);
-              await refreshPlayerData();
-            }
-          } else {
-            setCraftsRemaining(0);
-            await refreshPlayerData();
-          }
-          
-          setIsLoadingAction(false);
+          refreshPlayerData().finally(() => setIsLoadingAction(false));
         }
         return;
       }
@@ -244,7 +213,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [currentJob, construction, refreshPlayerData]);
+  }, [currentJob, refreshPlayerData]);
 
   useEffect(() => {
     for (const recipe of recipes) {
