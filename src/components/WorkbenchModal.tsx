@@ -204,16 +204,21 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
       timerCompletedRef.current = false;
       const endTime = new Date(currentJob.ends_at).getTime();
   
-      const updateTimer = async () => {
+      const interval = setInterval(async () => {
         const now = Date.now();
-        if (now >= endTime) {
+        const diff = endTime - now;
+  
+        if (diff <= 0) {
+          clearInterval(interval);
+          setProgress(100);
+          setTimeRemaining('');
           if (!timerCompletedRef.current) {
             timerCompletedRef.current = true;
             setIsLoadingAction(true);
             await refreshPlayerData();
             setIsLoadingAction(false);
           }
-          return true;
+          return;
         }
   
         const startTime = new Date(currentJob.started_at).getTime();
@@ -221,23 +226,27 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
         const elapsedTime = now - startTime;
         const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
   
-        const remainingSeconds = Math.floor((endTime - now) / 1000);
+        const remainingSeconds = Math.floor(diff / 1000);
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
   
         setProgress(newProgress);
         setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
-        return false;
-      };
-  
-      if (updateTimer()) return;
-  
-      const interval = setInterval(() => {
-        if (updateTimer()) {
-          clearInterval(interval);
-        }
       }, 1000);
   
+      // Initial call to set the timer immediately
+      const now = Date.now();
+      const diff = endTime - now;
+      if (diff > 0) {
+        const remainingSeconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        setTimeRemaining(`${minutes}m ${String(seconds).padStart(2, '0')}s`);
+      } else {
+        setTimeRemaining('');
+        setProgress(100);
+      }
+
       return () => clearInterval(interval);
     } else {
       setProgress(0);
