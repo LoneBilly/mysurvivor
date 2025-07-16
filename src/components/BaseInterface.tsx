@@ -501,7 +501,11 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const getCellStyle = (cell: BaseCell) => {
     switch (cell.type) {
       case 'campfire': return "bg-orange-400/20 border-orange-400/30";
-      case 'foundation': return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
+      case 'foundation':
+        if (isJobRunning) {
+          return "bg-white/20 border-white/30 cursor-not-allowed opacity-60";
+        }
+        return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
       case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
       case 'chest': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
       case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
@@ -585,7 +589,16 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     const Icon = buildingIcons[cell.type];
-    if (Icon) return <Icon className="w-6 h-6 text-gray-300" />;
+    if (Icon) {
+      if (cell.type === 'foundation' && isJobRunning) {
+        return (
+          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+            <Clock className="w-6 h-6 text-gray-400" />
+          </div>
+        );
+      }
+      return <Icon className="w-6 h-6 text-gray-300" />;
+    }
 
     return "";
   };
