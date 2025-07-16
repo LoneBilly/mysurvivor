@@ -219,7 +219,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }:
           const totalDuration = endTime - startTime;
           const elapsedTime = now - startTime;
           const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
-          const remaining = Math.ceil((endTime - now) / 1000);
+          const remaining = Math.floor((endTime - now) / 1000);
           
           setProgress(newProgress);
           setTimeRemaining(Math.max(0, remaining));
