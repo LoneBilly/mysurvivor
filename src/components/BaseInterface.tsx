@@ -505,9 +505,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       const hasOutput = construction && construction.output_item_id;
       const Icon = buildingIcons.workbench;
 
-      if (hasOutput) {
-        return <Icon className="w-8 h-8 text-green-400" />;
-      }
       if (job) {
         return (
           <>
@@ -515,6 +512,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
           </>
         );
+      }
+      if (hasOutput) {
+        return <Icon className="w-8 h-8 text-green-400" />;
       }
     }
 
