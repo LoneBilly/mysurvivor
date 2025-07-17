@@ -22,7 +22,7 @@ interface ChestModalProps {
 }
 
 const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
-  const { playerData, setPlayerData } = useGame();
+  const { playerData, setPlayerData, refreshInventoryAndChests } = useGame();
   const [chestItems, setChestItems] = useState<ChestItem[]>([]);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
 
@@ -108,7 +108,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     } else {
       showSuccess("Transfert réussi.");
       // Refresh state from server to get the destination updated correctly
-      await onUpdate();
+      await refreshInventoryAndChests();
       await fetchChestContents();
     }
   };
@@ -132,7 +132,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       showError(error.message);
     } else {
       showSuccess("Objet jeté.");
-      await onUpdate();
+      await refreshInventoryAndChests();
       await fetchChestContents();
     }
   };
@@ -265,7 +265,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         setPlayerData(originalPlayerData);
         setChestItems(originalChestItems);
       } else {
-        await onUpdate(true);
+        await refreshInventoryAndChests();
         await fetchChestContents();
       }
     }
@@ -356,9 +356,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
         onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
+        onUpdate={refreshInventoryAndChests}
       />
     </>
   );
-};
-
-export default ChestModal;

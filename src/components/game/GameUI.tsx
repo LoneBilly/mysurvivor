@@ -30,7 +30,7 @@ const formatZoneName = (name: string): string => {
 };
 
 const GameUI = () => {
-  const { playerData, setPlayerData, mapLayout, items, refreshPlayerData } = useGame();
+  const { playerData, setPlayerData, mapLayout, items, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState } = useGame();
   
   const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
   const [inspectedConstruction, setInspectedConstruction] = useState<BaseConstruction | null>(null);
@@ -87,7 +87,7 @@ const GameUI = () => {
   const handleEnterBase = () => {
     closeModal();
     setCurrentView('base');
-    refreshPlayerData();
+    refreshBaseState();
   };
 
   const handleHeaderBack = () => {
@@ -105,7 +105,7 @@ const GameUI = () => {
     if (error) {
       showError(error.message || "Erreur de démolition.");
     } else {
-      refreshPlayerData();
+      refreshBaseState();
     }
   };
 
@@ -289,20 +289,20 @@ const GameUI = () => {
       <ActionModal isOpen={modalState.isOpen} onClose={closeModal} title={modalState.title} description={modalState.description} actions={modalState.actions} />
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
       <OptionsModal isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} />
-      <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} inventory={playerData.inventory} unlockedSlots={playerData.playerState.unlocked_slots} onUpdate={() => refreshPlayerData()} />
-      <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
+      <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} inventory={playerData.inventory} unlockedSlots={playerData.playerState.unlocked_slots} onUpdate={refreshInventoryAndChests} />
+      <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <PurchaseCreditsModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
-      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={() => refreshPlayerData()} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
+      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <ExplorationModal isOpen={isExplorationModalOpen} onClose={() => setIsExplorationModalOpen(false)} zone={selectedZoneForExploration} onUpdate={refreshPlayerData} onOpenInventory={() => setIsInventoryOpen(true)} />
       <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
-      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshPlayerData} />
-      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} />
+      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshResources} />
+      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshResources} />
       <WorkbenchModal
         isOpen={!!inspectedConstruction}
         onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
-        onUpdate={refreshPlayerData}
+        onUpdate={refreshBaseState}
         onOpenInventory={() => setIsInventoryOpen(true)}
       />
     </div>

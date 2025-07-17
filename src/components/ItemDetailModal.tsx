@@ -28,7 +28,7 @@ interface ItemDetailModalProps {
   onTransferToWorkbench?: (item: InventoryItem, quantity: number) => void;
   onTransferFromWorkbench?: (item: InventoryItem, quantity: number) => void;
   onSplit?: (item: InventoryItem, quantity: number) => void;
-  onUpdate?: () => void;
+  onUpdate?: () => Promise<void>;
 }
 
 const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
