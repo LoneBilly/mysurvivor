@@ -360,3 +360,6 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       />
     </>
   );
+};
+
+export default ChestModal;
