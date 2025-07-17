@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
   const navigate = useNavigate();
   const location = useLocation();
+  const effectRan = useRef(false); // Le garde pour le Strict Mode
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -76,6 +77,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [navigate, location.pathname]);
 
   useEffect(() => {
+    // En Strict Mode, ce useEffect s'exécute deux fois.
+    // Le garde `effectRan` empêche la logique de s'exécuter la deuxième fois.
+    if (effectRan.current === true) {
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -94,7 +101,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    // On marque le garde comme "exécuté"
+    effectRan.current = true;
+
+    return () => {
+      subscription.unsubscribe();
+      // Au démontage, on réinitialise le garde.
+      // Cela n'affecte pas le comportement en production.
+      effectRan.current = false;
+    };
   }, [checkUserAndProfile, navigate, loading]);
 
   const value = useMemo(() => ({
