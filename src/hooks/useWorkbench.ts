@@ -206,7 +206,17 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   };
 
   const collectOutput = async () => {
-    if (!construction) return { inventoryFull: false };
+    if (!construction || !outputItem || !outputItem.items) return { inventoryFull: false };
+
+    const isStackable = outputItem.items.stackable;
+    const hasExistingStack = playerData.inventory.some(invItem => invItem.item_id === outputItem.item_id);
+    const hasEmptySlot = playerData.inventory.length < playerData.playerState.unlocked_slots;
+
+    if (!hasEmptySlot && !(isStackable && hasExistingStack)) {
+        showError("Votre inventaire est plein. Libérez de l'espace pour récupérer votre butin.");
+        return { inventoryFull: true };
+    }
+
     setIsLoadingAction(true);
     const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
     setIsLoadingAction(false);
