@@ -332,13 +332,50 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   const moveItemFromInventory = async (inventoryItemId: number, quantity: number, targetSlot: number) => {
     if (!construction) return;
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-    const itemToMove = playerData.inventory.find(item => item.id === inventoryItemId);
-    if (!itemToMove) return;
-
+    
     setPlayerData(prev => {
-      const newInventory = prev.inventory.filter(item => item.id !== inventoryItemId);
-      const newWorkbenchItems = [...prev.workbenchItems, { ...itemToMove, slot_position: targetSlot, workbench_id: construction.id }];
-      return { ...prev, inventory: newInventory, workbenchItems: newWorkbenchItems };
+      const itemToMove = prev.inventory.find(item => item.id === inventoryItemId);
+      if (!itemToMove) return prev;
+
+      // Update inventory
+      const newInventory = prev.inventory.map(item => {
+        if (item.id === inventoryItemId) {
+          return { ...item, quantity: item.quantity - quantity };
+        }
+        return item;
+      }).filter(item => item.quantity > 0);
+
+      // Update workbench
+      const newWorkbenchItems = [...prev.workbenchItems];
+      const existingItemInSlot = newWorkbenchItems.find(item => item.slot_position === targetSlot && item.workbench_id === construction.id);
+
+      if (existingItemInSlot) {
+        if (existingItemInSlot.item_id === itemToMove.item_id && itemToMove.items?.stackable) {
+          // Merge with existing stack
+          const updatedWorkbenchItems = newWorkbenchItems.map(item => {
+            if (item.id === existingItemInSlot.id) {
+              return { ...item, quantity: item.quantity + quantity };
+            }
+            return item;
+          });
+          return { ...prev, inventory: newInventory, workbenchItems: updatedWorkbenchItems };
+        } else {
+          // Swap case - too complex for optimistic update, let server handle it.
+          // We just update the inventory optimistically.
+          return { ...prev, inventory: newInventory };
+        }
+      } else {
+        // Add as new item to an empty slot
+        const newWorkbenchItem: InventoryItem = {
+          ...itemToMove,
+          id: Date.now(), // Temporary unique ID for React key
+          quantity: quantity,
+          slot_position: targetSlot,
+          workbench_id: construction.id,
+        };
+        newWorkbenchItems.push(newWorkbenchItem);
+        return { ...prev, inventory: newInventory, workbenchItems: newWorkbenchItems };
+      }
     });
 
     const { error } = await supabase.rpc('move_item_to_workbench', {
