@@ -91,7 +91,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
       )}
     >
       {isLocked && <Lock className="absolute w-4 h-4 text-white z-20" />}
-      {item && onRemove && !isLocked && (
+      {item && onRemove && !isLocked && !isBeingDragged && (
         <button
           onClick={(e) => {
             e.stopPropagation();
