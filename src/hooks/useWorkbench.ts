@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
-import { BaseConstruction, CraftingRecipe, InventoryItem } from "@/types/game";
+import { BaseConstruction, CraftingRecipe, InventoryItem, CraftingJob } from "@/types/game";
 
 export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (silent?: boolean) => void) => {
-  const { playerData, items, refreshPlayerData } = useGame();
+  const { playerData, setPlayerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -181,19 +181,65 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   }, [currentJob]);
 
   const startCraft = useCallback(async (quantity: number) => {
-    if (!matchedRecipe || !construction || quantity <= 0) return;
+    if (!matchedRecipe || !construction || quantity <= 0 || !resultItem) return;
     
-    setIsLoadingAction(true);
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    
+    // Optimistic UI Update
+    const tempJobId = Date.now();
+    const newJob: CraftingJob = {
+      id: tempJobId,
+      workbench_id: construction.id,
+      player_id: playerData.playerState.id,
+      recipe_id: matchedRecipe.id,
+      started_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + matchedRecipe.craft_time_seconds * 1000).toISOString(),
+      status: 'in_progress',
+      result_item_id: resultItem.id,
+      result_quantity: matchedRecipe.result_quantity,
+      result_item_name: resultItem.name,
+      result_item_icon: resultItem.icon || '',
+      quantity: quantity,
+      initial_quantity: quantity,
+      craft_time_seconds: matchedRecipe.craft_time_seconds,
+    };
+
+    const newWorkbenchItems = [...playerData.workbenchItems];
+    const recipeSlots = [
+      { id: matchedRecipe.slot1_item_id, quantity: matchedRecipe.slot1_quantity },
+      { id: matchedRecipe.slot2_item_id, quantity: matchedRecipe.slot2_quantity },
+      { id: matchedRecipe.slot3_item_id, quantity: matchedRecipe.slot3_quantity },
+    ];
+
+    for (let i = 0; i < 3; i++) {
+      const recipeSlot = recipeSlots[i];
+      if (recipeSlot.id && recipeSlot.quantity) {
+        const itemIndex = newWorkbenchItems.findIndex(item => item.slot_position === i);
+        if (itemIndex !== -1) {
+          newWorkbenchItems[itemIndex].quantity -= recipeSlot.quantity * quantity;
+        }
+      }
+    }
+
+    setPlayerData(prev => ({
+      ...prev,
+      craftingJobs: [...(prev.craftingJobs || []), newJob],
+      workbenchItems: newWorkbenchItems.filter(item => item.quantity > 0),
+    }));
+
     const { error } = await supabase.rpc('start_craft', { 
       p_workbench_id: construction.id, 
       p_recipe_id: matchedRecipe.id,
       p_quantity: quantity
     });
-    setIsLoadingAction(false);
     
-    if (error) showError(error.message);
-    else onUpdate();
-  }, [matchedRecipe, construction, onUpdate]);
+    if (error) {
+      showError(error.message);
+      setPlayerData(originalPlayerData); // Revert on error
+    } else {
+      onUpdate(true); // Refresh with real data
+    }
+  }, [matchedRecipe, construction, onUpdate, playerData, setPlayerData, resultItem]);
 
   const cancelCraft = async () => {
     if (!construction) return;
@@ -209,26 +255,48 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     if (!construction || !outputItem || !outputItem.items) return { inventoryFull: false };
 
     const isStackable = outputItem.items.stackable;
-    const hasExistingStack = playerData.inventory.some(invItem => invItem.item_id === outputItem.item_id);
+    const existingStackIndex = playerData.inventory.findIndex(invItem => invItem.item_id === outputItem.item_id);
     const hasEmptySlot = playerData.inventory.length < playerData.playerState.unlocked_slots;
 
-    if (!hasEmptySlot && !(isStackable && hasExistingStack)) {
+    if (!hasEmptySlot && !(isStackable && existingStackIndex !== -1)) {
         showError("Votre inventaire est plein. Libérez de l'espace pour récupérer votre butin.");
         return { inventoryFull: true };
     }
 
-    setIsLoadingAction(true);
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+
+    // Optimistic UI Update
+    const newPlayerData = JSON.parse(JSON.stringify(playerData));
+    // Remove from workbench output
+    const constructionIndex = newPlayerData.baseConstructions.findIndex((c: BaseConstruction) => c.id === construction.id);
+    if (constructionIndex !== -1) {
+      newPlayerData.baseConstructions[constructionIndex].output_item_id = null;
+      newPlayerData.baseConstructions[constructionIndex].output_quantity = null;
+    }
+    // Add to inventory
+    if (isStackable && existingStackIndex !== -1) {
+      newPlayerData.inventory[existingStackIndex].quantity += outputItem.quantity;
+    } else {
+      const firstEmptySlot = Array.from({ length: newPlayerData.playerState.unlocked_slots }, (_, i) => i)
+                                  .find(slot => !newPlayerData.inventory.some((item: InventoryItem) => item.slot_position === slot));
+      if (firstEmptySlot !== undefined) {
+        newPlayerData.inventory.push({ ...outputItem, slot_position: firstEmptySlot });
+      }
+    }
+    setPlayerData(newPlayerData);
+
     const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
-    setIsLoadingAction(false);
+    
     if (error) {
+      showError(error.message);
+      setPlayerData(originalPlayerData); // Revert on error
       if (error.message.includes("Votre inventaire est plein")) {
         return { inventoryFull: true };
       }
-      showError(error.message);
-      return { inventoryFull: false };
+    } else {
+      showSuccess("Objet récupéré !");
+      onUpdate(true); // Refresh with real data
     }
-    showSuccess("Objet récupéré !");
-    onUpdate();
     return { inventoryFull: false };
   };
 
