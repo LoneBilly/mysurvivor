@@ -514,24 +514,24 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
       if (job) {
         return (
-          <>
+          <div className="pointer-events-none">
             <Icon className="w-8 h-8 text-yellow-400" />
             <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
-          </>
+          </div>
         );
       }
       if (hasOutput) {
-        return <Icon className="w-8 h-8 text-green-400" />;
+        return <Icon className="w-8 h-8 text-green-400 pointer-events-none" />;
       }
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
       if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
-        return <Trash2 className="w-8 h-8 text-red-500" />;
+        return <Trash2 className="w-8 h-8 text-red-500 pointer-events-none" />;
       }
       return (
-        <div className="flex flex-col items-center justify-center text-white gap-1">
+        <div className="flex flex-col items-center justify-center text-white gap-1 pointer-events-none">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-xs font-mono">
             <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
@@ -542,13 +542,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (cell.canBuild) {
       if (isJobRunning) {
         return (
-          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center pointer-events-none">
             <Clock className="w-6 h-6 text-gray-400" />
           </div>
         );
       }
       return (
-        <div className="relative w-full h-full flex items-center justify-center group">
+        <div className="relative w-full h-full flex items-center justify-center group pointer-events-none">
           <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
           <div className="absolute bottom-1 right-1 flex items-center gap-1 text-xs font-mono">
             <Zap size={12} className="text-yellow-400" />
@@ -562,12 +562,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (Icon) {
       if (cell.type === 'foundation' && isJobRunning) {
         return (
-          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center pointer-events-none">
             <Clock className="w-6 h-6 text-gray-400" />
           </div>
         );
       }
-      return <Icon className="w-6 h-6 text-gray-300" />;
+      return <Icon className="w-6 h-6 text-gray-300 pointer-events-none" />;
     }
 
     return "";
