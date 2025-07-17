@@ -42,6 +42,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   const [isInventorySelectorOpen, setIsInventorySelectorOpen] = useState(false);
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
   const [inventoryFullModal, setInventoryFullModal] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const optimisticWorkbenchItems = useMemo(() => 
     playerData.workbenchItems.filter(item => item.workbench_id === construction?.id),
@@ -134,8 +135,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
             timerCompletedRef.current = true;
-            setIsLoadingAction(true);
-            refreshPlayerData().finally(() => setIsLoadingAction(false));
+            setIsTransitioning(true);
+            refreshPlayerData().finally(() => setIsTransitioning(false));
         }
         return;
     }
@@ -153,8 +154,8 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
           timerCompletedRef.current = true;
-          setIsLoadingAction(true);
-          refreshPlayerData().finally(() => setIsLoadingAction(false));
+          setIsTransitioning(true);
+          refreshPlayerData().finally(() => setIsTransitioning(false));
         }
         return;
       }
@@ -357,7 +358,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     }
   };
 
-  const displayJob = currentJob || (isLoadingAction ? lastJobRef.current : null);
+  const displayJob = currentJob || (isTransitioning ? lastJobRef.current : null);
 
   if (!isOpen || !construction) {
     return null;
