@@ -3,9 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
-import { Loader2, HelpCircle, Check, X } from 'lucide-react';
+import { Loader2, Check, X } from 'lucide-react';
 import { MapCell } from '@/types/game';
-import * as LucideIcons from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGame } from '@/contexts/GameContext';
 import ItemIcon from './ItemIcon';
