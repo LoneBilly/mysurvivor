@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -111,7 +111,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       setCraftingProgress(newProgress);
     }, 200);
 
-    return () => clearInterval(intervalId);
+    return () => clearInterval(interval);
   }, [playerData?.craftingJobs]);
 
   const isDraggingRef = useRef(false);
@@ -525,7 +525,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
       if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
-        return <X className="w-8 h-8 text-red-500" />;
+        return <Trash2 className="w-8 h-8 text-red-500" />;
       }
       return (
         <div className="flex flex-col items-center justify-center text-white gap-1">
