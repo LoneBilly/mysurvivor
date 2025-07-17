@@ -80,16 +80,15 @@ const Game = () => {
 
   useEffect(() => {
     const jobCheckInterval = setInterval(() => {
+      const now = Date.now();
       if (playerData?.craftingJobs && playerData.craftingJobs.length > 0) {
-        const now = Date.now();
-        const hasCompletedJob = playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
+        const hasCompletedJob = playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < (now - 1500));
         if (hasCompletedJob) {
           refreshPlayerData(true);
         }
       }
       if (playerData?.constructionJobs && playerData.constructionJobs.length > 0) {
-        const now = Date.now();
-        const hasCompletedJob = playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
+        const hasCompletedJob = playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < (now - 1500));
         if (hasCompletedJob) {
           refreshPlayerData(true);
         }
