@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { FullPlayerData, MapCell, Item } from '@/types/game';
+import { FullPlayerData, MapCell, Item, BaseConstruction, CraftingJob } from '@/types/game';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
 
 interface GameContextType {
   playerData: FullPlayerData;
@@ -32,6 +34,7 @@ interface GameProviderProps {
 }
 
 export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrlMap }: GameProviderProps) => {
+  const { user } = useAuth();
   const [playerData, setPlayerData] = useState<FullPlayerData>(initialData.playerData);
 
   useEffect(() => {
@@ -39,18 +42,64 @@ export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrl
   }, [initialData.playerData]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      const now = new Date().getTime();
-      const hasCompletedCraftingJob = playerData.craftingJobs && playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
-      const hasCompletedConstructionJob = playerData.constructionJobs && playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
+    const intervalId = setInterval(async () => {
+      if (!user) return;
 
-      if (hasCompletedCraftingJob || hasCompletedConstructionJob) {
-        refreshPlayerData(true);
+      const now = new Date().getTime();
+      const hasPendingConstruction = playerData.constructionJobs && playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
+      const hasPendingCrafting = playerData.craftingJobs && playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
+
+      if (hasPendingConstruction) {
+        await refreshPlayerData(true);
+      }
+      
+      if (hasPendingCrafting) {
+        const { data: updates, error } = await supabase.rpc('check_and_update_crafting_jobs', { p_user_id: user.id });
+        if (error) {
+          console.error("Error checking crafting jobs:", error);
+          return;
+        }
+
+        if (updates && updates.length > 0) {
+          setPlayerData(prev => {
+            const newBaseConstructions = [...prev.baseConstructions];
+            let newCraftingJobs = [...(prev.craftingJobs || [])];
+
+            updates.forEach((update: any) => {
+              const constructionIndex = newBaseConstructions.findIndex(c => c.id === update.updated_workbench_id);
+              if (constructionIndex !== -1) {
+                newBaseConstructions[constructionIndex] = {
+                  ...newBaseConstructions[constructionIndex],
+                  output_item_id: update.result_item_id,
+                  output_quantity: (newBaseConstructions[constructionIndex].output_quantity || 0) + update.result_quantity,
+                };
+              }
+              
+              const jobIndex = newCraftingJobs.findIndex(j => j.id === update.completed_job_id);
+              if (jobIndex !== -1) {
+                const job = newCraftingJobs[jobIndex];
+                if (job.quantity > 1) {
+                  // This part is tricky without full job state from backend, so we'll just refresh for batches for now
+                  // A full refresh is better than incorrect state.
+                  refreshPlayerData(true);
+                } else {
+                  newCraftingJobs = newCraftingJobs.filter(j => j.id !== update.completed_job_id);
+                }
+              }
+            });
+
+            return {
+              ...prev,
+              baseConstructions: newBaseConstructions,
+              craftingJobs: newCraftingJobs,
+            };
+          });
+        }
       }
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [playerData.craftingJobs, playerData.constructionJobs, refreshPlayerData]);
+  }, [user, playerData.constructionJobs, playerData.craftingJobs, refreshPlayerData]);
 
 
   const getIconUrl = useCallback((iconName: string | null): string | undefined => {
