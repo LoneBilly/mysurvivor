@@ -9,7 +9,7 @@ interface GameContextType {
   mapLayout: MapCell[];
   items: Item[];
   refreshPlayerData: (silent?: boolean) => Promise<void>;
-  refreshAfterConstructionStart: () => Promise<void>;
+  refreshConstructionJobs: () => Promise<void>;
   setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
   getIconUrl: (iconName: string | null) => string | undefined;
 }
@@ -50,21 +50,17 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     }
   }, [user]);
 
-  const refreshAfterConstructionStart = useCallback(async () => {
+  const refreshConstructionJobs = useCallback(async () => {
     if (!user) return;
-    const [jobsRes, stateRes] = await Promise.all([
-        supabase.from('construction_jobs').select('*').eq('player_id', user.id),
-        supabase.from('player_states').select('*').eq('id', user.id).single()
-    ]);
+    const { data, error } = await supabase.from('construction_jobs').select('*').eq('player_id', user.id);
 
-    if (jobsRes.error || stateRes.error) {
-        showError("Erreur de synchronisation après construction.");
+    if (error) {
+        showError("Erreur de synchronisation des constructions.");
         await refreshPlayerData(true);
     } else {
         setPlayerData(prev => ({
             ...prev,
-            constructionJobs: jobsRes.data || [],
-            playerState: { ...prev.playerState, ...stateRes.data }
+            constructionJobs: data || [],
         }));
     }
   }, [user, refreshPlayerData]);
@@ -122,10 +118,10 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     mapLayout: initialData.mapLayout,
     items: initialData.items,
     refreshPlayerData,
-    refreshAfterConstructionStart,
+    refreshConstructionJobs,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshAfterConstructionStart, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshConstructionJobs, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>
