@@ -323,6 +323,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
+    const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
 
     if (isJobRunning) {
         if (cell.type === 'in_progress') {
@@ -345,7 +346,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                     }, 2000);
                 }
             } else {
-                handleCancelConstruction(x, y);
+                if (isHovered) {
+                    handleCancelConstruction(x, y);
+                }
             }
             return;
         } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
