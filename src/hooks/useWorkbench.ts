@@ -244,10 +244,8 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     if (error) {
       showError(error.message);
       setPlayerData(originalPlayerData); // Revert on error
-    } else {
-      onUpdate(true); // Refresh with real data
     }
-  }, [matchedRecipe, construction, onUpdate, playerData, setPlayerData, resultItem]);
+  }, [matchedRecipe, construction, playerData, setPlayerData, resultItem]);
 
   const cancelCraft = async () => {
     if (!construction || !currentJob) return;
