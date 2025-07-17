@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -145,15 +145,19 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
         return;
     }
 
-    const updateProgressAndTimer = () => {
+    let animationFrameId: number;
+    let timeoutId: NodeJS.Timeout;
+
+    const loop = () => {
       const now = Date.now();
       const elapsedTime = now - currentItemStartTime;
       const diff = currentItemEndTime - now;
 
       if (diff <= 0) {
         setProgress(100);
-        setTimeRemaining('');
-        return true; // finished
+        setTimeRemaining('Terminé');
+        timeoutId = setTimeout(() => onUpdate(true), 1500);
+        return;
       }
 
       const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
@@ -169,31 +173,23 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
         formattedTime = `${remainingSeconds}s`;
       }
       setTimeRemaining(formattedTime);
-      return false; // not finished
+      
+      animationFrameId = requestAnimationFrame(loop);
     };
 
-    // Initial update to avoid stutter
-    if (updateProgressAndTimer()) {
-      return;
-    }
+    loop();
 
-    let animationFrameId: number;
-    const loop = () => {
-      if (!updateProgressAndTimer()) {
-        animationFrameId = requestAnimationFrame(loop);
-      }
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      clearTimeout(timeoutId);
     };
-    animationFrameId = requestAnimationFrame(loop);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [currentJob]);
+  }, [currentJob, onUpdate]);
 
   const startCraft = useCallback(async (quantity: number) => {
     if (!matchedRecipe || !construction || quantity <= 0 || !resultItem) return;
     
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     
-    // Optimistic UI Update
     const tempJobId = Date.now();
     const newJob: CraftingJob = {
       id: tempJobId,
@@ -238,12 +234,12 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     const { error } = await supabase.rpc('start_craft', { 
       p_workbench_id: construction.id, 
       p_recipe_id: matchedRecipe.id,
-      p_quantity: quantity
+      p_quantity: quantity 
     });
     
     if (error) {
       showError(error.message);
-      setPlayerData(originalPlayerData); // Revert on error
+      setPlayerData(originalPlayerData);
     }
   }, [matchedRecipe, construction, playerData, setPlayerData, resultItem]);
 
@@ -280,7 +276,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
 
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
 
-    // Optimistic UI Update
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     const constructionIndex = newPlayerData.baseConstructions.findIndex((c: BaseConstruction) => c.id === construction.id);
     if (constructionIndex !== -1) {
@@ -337,7 +332,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
 
     setPlayerData(prev => {
       const newWorkbenchItems = prev.workbenchItems.filter(item => item.id !== workbenchItemId);
-      const newInventory = [...prev.inventory, { ...itemToMove, slot_position: -1 }]; // Placeholder slot
+      const newInventory = [...prev.inventory, { ...itemToMove, slot_position: -1 }];
       return { ...prev, workbenchItems: newWorkbenchItems, inventory: newInventory };
     });
 

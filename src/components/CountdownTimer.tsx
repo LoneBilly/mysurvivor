@@ -40,7 +40,7 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
     if (remaining.totalSeconds <= 0) {
       if (!completedRef.current) {
         completedRef.current = true;
-        onCompleteRef.current();
+        setTimeout(() => onCompleteRef.current(), 1500);
       }
       return;
     }
