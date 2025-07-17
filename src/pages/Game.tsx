@@ -18,6 +18,7 @@ const Game = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [iconUrlMap, setIconUrlMap] = useState<Map<string, string>>(new Map());
   const dataLoaded = useRef(false);
+  const jobTimers = useRef<NodeJS.Timeout[]>([]);
 
   const refreshPlayerData = useCallback(async (silent = false) => {
     if (!user) return;
@@ -79,25 +80,33 @@ const Game = () => {
   }, [user, loadGameData]);
 
   useEffect(() => {
-    const jobCheckInterval = setInterval(() => {
-      if (playerData?.craftingJobs && playerData.craftingJobs.length > 0) {
-        const now = Date.now();
-        const hasCompletedJob = playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
-        if (hasCompletedJob) {
-          refreshPlayerData(true);
-        }
-      }
-      if (playerData?.constructionJobs && playerData.constructionJobs.length > 0) {
-        const now = Date.now();
-        const hasCompletedJob = playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
-        if (hasCompletedJob) {
-          refreshPlayerData(true);
-        }
-      }
-    }, 1000);
+    // Clear previous timers
+    jobTimers.current.forEach(clearTimeout);
+    jobTimers.current = [];
 
-    return () => clearInterval(jobCheckInterval);
-  }, [playerData, refreshPlayerData]);
+    const now = Date.now();
+
+    const allJobs = [
+      ...(playerData?.craftingJobs || []),
+      ...(playerData?.constructionJobs || [])
+    ];
+
+    allJobs.forEach(job => {
+      const endTime = new Date(job.ends_at).getTime();
+      const timeRemaining = endTime - now;
+
+      if (timeRemaining > 0) {
+        const timer = setTimeout(() => {
+          refreshPlayerData(true);
+        }, timeRemaining + 500); // Add a small buffer
+        jobTimers.current.push(timer);
+      }
+    });
+
+    return () => {
+      jobTimers.current.forEach(clearTimeout);
+    };
+  }, [playerData?.craftingJobs, playerData?.constructionJobs, refreshPlayerData]);
 
   if (loading) {
     return <LoadingScreen />;
