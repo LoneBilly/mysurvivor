@@ -50,7 +50,7 @@ interface EventResult {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, playerData, setPlayerData } = useGame();
+  const { getIconUrl, playerData, setPlayerData, refreshInventoryAndChests, refreshResources } = useGame();
   const [explorationState, setExplorationState] = useState<'idle' | 'exploring' | 'results'>('idle');
   const [loot, setLoot] = useState<FoundItem[]>([]);
   const [eventResult, setEventResult] = useState<EventResult | null>(null);
@@ -119,12 +119,12 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       setLoot(data.loot || []);
       setEventResult(data.event_result || null);
       setExplorationState('results');
-      onUpdate();
+      refreshResources();
 
     } catch (error: any) {
       showError(error.message || "Une erreur est survenue durant l'exploration.");
       setExplorationState('idle');
-      onUpdate();
+      refreshResources();
     } finally {
       setLoading(false);
     }
@@ -132,9 +132,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   const handleCollectOne = async (itemToCollect: FoundItem) => {
     setInventoryFullError(false);
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-    const originalLoot = [...loot];
-
+    
     setLoot(currentItems => (currentItems?.filter(item => item.item_id !== itemToCollect.item_id) || null));
     
     const payload = [{ item_id: itemToCollect.item_id, quantity: itemToCollect.quantity }];
@@ -147,11 +145,10 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       } else {
         showError(error.message);
       }
-      setPlayerData(originalPlayerData);
-      setLoot(originalLoot);
+      setLoot(prev => [...prev, itemToCollect]); // Re-add item to loot on error
     } else {
       showSuccess(`${itemToCollect.name} x${itemToCollect.quantity} ajouté à l'inventaire !`);
-      onUpdate(true);
+      refreshInventoryAndChests();
     }
   };
 
