@@ -159,7 +159,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
       setProgress(newProgress);
 
-      const remainingSeconds = Math.floor(diff / 1000);
+      const remainingSeconds = Math.ceil(diff / 1000);
       let formattedTime;
       if (remainingSeconds >= 60) {
         const minutes = Math.floor(remainingSeconds / 60);
@@ -244,8 +244,10 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     if (error) {
       showError(error.message);
       setPlayerData(originalPlayerData); // Revert on error
+    } else {
+      onUpdate(true); // Refresh with real data
     }
-  }, [matchedRecipe, construction, playerData, setPlayerData, resultItem]);
+  }, [matchedRecipe, construction, onUpdate, playerData, setPlayerData, resultItem]);
 
   const cancelCraft = async () => {
     if (!construction || !currentJob) return;
