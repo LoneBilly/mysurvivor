@@ -5,7 +5,7 @@ interface GameContextType {
   playerData: FullPlayerData;
   mapLayout: MapCell[];
   items: Item[];
-  refreshPlayerData: () => Promise<void>;
+  refreshPlayerData: (silent?: boolean) => Promise<void>;
   setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
   getIconUrl: (iconName: string | null) => string | undefined;
 }
@@ -27,7 +27,7 @@ interface GameProviderProps {
     mapLayout: MapCell[];
     items: Item[];
   };
-  refreshPlayerData: () => Promise<void>;
+  refreshPlayerData: (silent?: boolean) => Promise<void>;
   iconUrlMap: Map<string, string>;
 }
 
@@ -37,29 +37,6 @@ export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrl
   useEffect(() => {
     setPlayerData(initialData.playerData);
   }, [initialData.playerData]);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (playerData.craftingJobs && playerData.craftingJobs.length > 0) {
-        const now = new Date().getTime();
-        const hasCompletedCraftingJob = playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
-        if (hasCompletedCraftingJob) {
-          refreshPlayerData();
-          return;
-        }
-      }
-      if (playerData.constructionJobs && playerData.constructionJobs.length > 0) {
-        const now = new Date().getTime();
-        const hasCompletedConstructionJob = playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
-        if (hasCompletedConstructionJob) {
-          refreshPlayerData();
-        }
-      }
-    }, 2000);
-
-    return () => clearInterval(intervalId);
-  }, [playerData.craftingJobs, playerData.constructionJobs, refreshPlayerData]);
-
 
   const getIconUrl = useCallback((iconName: string | null): string | undefined => {
     if (!iconName) return undefined;
