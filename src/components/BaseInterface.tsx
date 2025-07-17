@@ -323,7 +323,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
-    const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
 
     if (isJobRunning) {
         if (cell.type === 'in_progress') {
@@ -346,9 +345,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                     }, 2000);
                 }
             } else {
-                if (isHovered) {
-                    handleCancelConstruction(x, y);
-                }
+                handleCancelConstruction(x, y);
             }
             return;
         } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
@@ -514,56 +511,41 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
       if (job) {
         return (
-          <div className="pointer-events-none">
+          <>
             <Icon className="w-8 h-8 text-yellow-400" />
             <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
-          </div>
+          </>
         );
       }
       if (hasOutput) {
-        return <Icon className="w-8 h-8 text-green-400 pointer-events-none" />;
+        return <Icon className="w-8 h-8 text-green-400" />;
       }
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
-      if (isMobile) {
-        if (cell.showTrash) {
-          return <Trash2 className="w-8 h-8 text-red-500 pointer-events-none" />;
-        }
-        return (
-          <div className="flex flex-col items-center justify-center text-white gap-1 pointer-events-none">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-xs font-mono">
-              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-            </span>
-          </div>
-        );
+      const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
+      if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
+        return <Trash2 className="w-8 h-8 text-red-500" />;
       }
-      
       return (
-        <>
-          <div className="group-hover:hidden flex flex-col items-center justify-center text-white gap-1 pointer-events-none">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-xs font-mono">
-              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-            </span>
-          </div>
-          <div className="hidden group-hover:flex items-center justify-center pointer-events-none">
-            <Trash2 className="w-8 h-8 text-red-500" />
-          </div>
-        </>
+        <div className="flex flex-col items-center justify-center text-white gap-1">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-xs font-mono">
+            <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+          </span>
+        </div>
       );
     }
     if (cell.canBuild) {
       if (isJobRunning) {
         return (
-          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
             <Clock className="w-6 h-6 text-gray-400" />
           </div>
         );
       }
       return (
-        <div className="relative w-full h-full flex items-center justify-center group pointer-events-none">
+        <div className="relative w-full h-full flex items-center justify-center group">
           <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
           <div className="absolute bottom-1 right-1 flex items-center gap-1 text-xs font-mono">
             <Zap size={12} className="text-yellow-400" />
@@ -577,12 +559,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (Icon) {
       if (cell.type === 'foundation' && isJobRunning) {
         return (
-          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
             <Clock className="w-6 h-6 text-gray-400" />
           </div>
         );
       }
-      return <Icon className="w-6 h-6 text-gray-300 pointer-events-none" />;
+      return <Icon className="w-6 h-6 text-gray-300" />;
     }
 
     return "";
@@ -623,7 +605,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 onMouseEnter={() => !isMobile && cell.type === 'in_progress' && setHoveredConstruction({x, y})}
                 onMouseLeave={() => !isMobile && setHoveredConstruction(null)}
                 className={cn(
-                  "group absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
+                  "absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
                   getCellStyle(cell)
                 )}
                 style={{
