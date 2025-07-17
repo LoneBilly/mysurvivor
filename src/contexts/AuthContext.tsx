@@ -43,8 +43,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     locationRef.current = location;
   });
 
-  const lastCheckedUserId = useRef<string | null>(null);
-  const profileCheckInProgress = useRef(false);
+  // Use a single ref to track the user ID being fetched.
+  // This prevents race conditions and duplicate fetches for the same user.
+  const fetchingProfileForId = useRef<string | null>(null);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -52,8 +53,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setSession(null);
     setRole(null);
     setBannedInfo({ isBanned: false, reason: null });
-    lastCheckedUserId.current = null;
-    profileCheckInProgress.current = false;
+    fetchingProfileForId.current = null; // Reset on sign out
     navigateRef.current('/');
   }, []);
 
@@ -67,18 +67,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLoading(false);
         setRole(null);
         setBannedInfo({ isBanned: false, reason: null });
-        lastCheckedUserId.current = null;
-        profileCheckInProgress.current = false;
+        fetchingProfileForId.current = null;
         return;
       }
 
       const userId = currentUser.id;
 
-      if (lastCheckedUserId.current === userId || profileCheckInProgress.current) {
+      // If we are already fetching a profile for this user, do nothing.
+      if (fetchingProfileForId.current === userId) {
         return;
       }
 
-      profileCheckInProgress.current = true;
+      // Lock to prevent other calls from fetching for this user.
+      fetchingProfileForId.current = userId;
       setLoading(true);
 
       try {
@@ -91,8 +92,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (error && error.code !== 'PGRST116') {
           throw error;
         }
-
-        lastCheckedUserId.current = userId;
 
         if (profile) {
           if (profile.is_banned) {
@@ -109,9 +108,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       } catch (err) {
         console.error("Error checking user profile:", err);
-        lastCheckedUserId.current = null;
+        // On error, unlock to allow a re-fetch for this user on the next event.
+        if (fetchingProfileForId.current === userId) {
+          fetchingProfileForId.current = null;
+        }
       } finally {
-        profileCheckInProgress.current = false;
         setLoading(false);
       }
     };
