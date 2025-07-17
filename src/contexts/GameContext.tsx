@@ -113,7 +113,7 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     addConstructionJob,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, addConstructionJob, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>

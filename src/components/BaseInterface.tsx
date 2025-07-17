@@ -413,7 +413,11 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       showError(error.message || "Erreur lors de la construction.");
       setPlayerData(originalPlayerData);
     } else {
-      addConstructionJob(data[0]);
+      if (data && data.length > 0) {
+        addConstructionJob(data[0]);
+      } else {
+        refreshPlayerData(true);
+      }
     }
   };
 
@@ -451,8 +455,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       showError(error.message);
       setPlayerData(originalPlayerData);
     } else {
-      addConstructionJob(data[0]);
-      refreshPlayerData(true); // Refresh resources
+      if (data && data.length > 0) {
+        addConstructionJob(data[0]);
+        refreshPlayerData(true); // Refresh resources
+      } else {
+        refreshPlayerData(true);
+      }
     }
   };
 
