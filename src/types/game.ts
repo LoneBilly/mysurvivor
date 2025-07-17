@@ -95,10 +95,6 @@ export interface CraftingRecipe {
   craft_time_seconds: number;
 }
 
-export interface LearnedBlueprint {
-  recipe_id: number;
-}
-
 export interface CraftingJob {
   id: number;
   workbench_id: number;
@@ -130,8 +126,6 @@ export interface FullPlayerData {
   craftingJobs?: CraftingJob[];
   chestItems?: ChestItem[];
   workbenchItems: InventoryItem[];
-  craftingRecipes: CraftingRecipe[];
-  learnedBlueprints: LearnedBlueprint[];
 }
 
 export interface MapCell {
