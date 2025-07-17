@@ -21,14 +21,18 @@ interface ItemDetailModalProps {
   onClose: () => void;
   item: InventoryItem | null;
   onUse: () => void;
+  onDropOne: () => void;
+  onDropAll: () => void;
   source?: 'inventory' | 'chest' | 'crafting' | 'output';
   onTransfer?: (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => void;
   onTransferToWorkbench?: (item: InventoryItem, quantity: number) => void;
   onTransferFromWorkbench?: (item: InventoryItem, quantity: number) => void;
+  onSplit?: (item: InventoryItem, quantity: number) => void;
+  onUpdate?: () => void;
 }
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench }: ItemDetailModalProps) => {
-  const { getIconUrl, playerData, setPlayerData, refreshPlayerData } = useGame();
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
+  const { getIconUrl } = useGame();
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [workbenchTransferQuantity, setWorkbenchTransferQuantity] = useState(1);
   const [splitQuantity, setSplitQuantity] = useState(1);
@@ -61,86 +65,20 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, source, onTransfer, onT
     }
   };
 
-  const handleSplitClick = async () => {
-    if (!item) return;
-    const originalState = JSON.parse(JSON.stringify(playerData));
-    setDetailedItem(null);
-
-    // Optimistic update
-    const newInventory = playerData.inventory.map(invItem => 
-      invItem.id === item.id ? { ...invItem, quantity: invItem.quantity - splitQuantity } : invItem
-    );
-    // We can't know the new item's ID or slot, so we'll just let the refresh handle it.
-    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
-    onClose();
-
-    const { error } = await supabase.rpc('split_inventory_item', {
-      p_inventory_id: item.id,
-      p_split_quantity: splitQuantity,
-    });
-  
-    if (error) {
-      showError(error.message || "Erreur lors de la division de l'objet.");
-      setPlayerData(originalState);
-    } else {
-      showSuccess("La pile d'objets a été divisée.");
-      refreshPlayerData(true);
+  const handleSplitClick = () => {
+    if (onSplit) {
+      onSplit(item, splitQuantity);
     }
   };
 
   const handleReadBlueprint = async () => {
-    const originalState = JSON.parse(JSON.stringify(playerData));
-    setDetailedItem(null);
-
-    // Optimistic update
-    setPlayerData(prev => ({
-      ...prev,
-      inventory: prev.inventory.filter(invItem => invItem.id !== item.id)
-    }));
-    onClose();
-
     const { error } = await supabase.rpc('read_blueprint', { p_inventory_id: item.id });
     if (error) {
       showError(error.message);
-      setPlayerData(originalState);
     } else {
       showSuccess("Blueprint appris !");
-      refreshPlayerData(true);
-    }
-  };
-
-  const handleDrop = async (quantityToDrop: number) => {
-    if (!item) return;
-    const originalState = JSON.parse(JSON.stringify(playerData));
-    setDetailedItem(null);
-
-    // Optimistic update
-    const newInventory = playerData.inventory
-      .map(invItem => {
-        if (invItem.id === item.id) {
-          return { ...invItem, quantity: invItem.quantity - quantityToDrop };
-        }
-        return invItem;
-      })
-      .filter(invItem => invItem.quantity > 0);
-    setPlayerData(prev => ({ ...prev, inventory: newInventory }));
-    onClose();
-
-    const action = item.quantity > quantityToDrop ? 'update' : 'delete';
-    let rpcPromise;
-    if (action === 'delete') {
-      rpcPromise = supabase.from('inventories').delete().eq('id', item.id);
-    } else {
-      rpcPromise = supabase.from('inventories').update({ quantity: item.quantity - quantityToDrop }).eq('id', item.id);
-    }
-
-    const { error } = await rpcPromise;
-    if (error) {
-      showError("Erreur lors de la suppression de l'objet.");
-      setPlayerData(originalState);
-    } else {
-      showSuccess("Objet jeté.");
-      refreshPlayerData(true);
+      if (onUpdate) onUpdate();
+      onClose();
     }
   };
 
@@ -151,7 +89,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, source, onTransfer, onT
   const canTransfer = !!onTransfer && (source === 'inventory' || source === 'chest');
   const canTransferToWorkbench = !!onTransferToWorkbench && source === 'inventory';
   const canTransferFromWorkbench = !!onTransferFromWorkbench && source === 'crafting';
-  const canSplit = source === 'inventory' && item.quantity > 1;
+  const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
 
   const handleUseClick = () => {
     if (source === 'output') {
@@ -290,10 +228,10 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, source, onTransfer, onT
           )}
           {source !== 'output' && (
             <div className="flex w-full gap-2">
-              <Button onClick={() => handleDrop(1)} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
+              <Button onClick={onDropOne} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
                 Jeter x1
               </Button>
-              <Button onClick={() => handleDrop(item.quantity)} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
+              <Button onClick={onDropAll} variant="destructive" className="flex-1 rounded-lg bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 font-bold transition-all">
                 Jeter tout
               </Button>
             </div>
