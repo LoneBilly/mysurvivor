@@ -7,7 +7,9 @@ export default defineConfig(() => ({
   server: {
     host: "::", // Permet l'accès externe
     port: 8080, // Port de développement
-
+    hmr: {
+      protocol: 'wss'
+    },
     // Autorisation d'accès aux fichiers du projet
     fs: {
       allow: ['.']
