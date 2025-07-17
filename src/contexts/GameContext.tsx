@@ -38,6 +38,29 @@ export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrl
     setPlayerData(initialData.playerData);
   }, [initialData.playerData]);
 
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (playerData.craftingJobs && playerData.craftingJobs.length > 0) {
+        const now = new Date().getTime();
+        const hasCompletedCraftingJob = playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
+        if (hasCompletedCraftingJob) {
+          refreshPlayerData();
+          return;
+        }
+      }
+      if (playerData.constructionJobs && playerData.constructionJobs.length > 0) {
+        const now = new Date().getTime();
+        const hasCompletedConstructionJob = playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
+        if (hasCompletedConstructionJob) {
+          refreshPlayerData();
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [playerData.craftingJobs, playerData.constructionJobs, refreshPlayerData]);
+
+
   const getIconUrl = useCallback((iconName: string | null): string | undefined => {
     if (!iconName) return undefined;
     return iconUrlMap.get(iconName);
