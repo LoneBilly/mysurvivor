@@ -38,11 +38,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   const [craftQuantity, setCraftQuantity] = useState(1);
   const [timeRemaining, setTimeRemaining] = useState('');
   const timerCompletedRef = useRef(false);
-  const lastJobRef = useRef<CraftingJob | null>(null);
   const [isInventorySelectorOpen, setIsInventorySelectorOpen] = useState(false);
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
   const [inventoryFullModal, setInventoryFullModal] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const optimisticWorkbenchItems = useMemo(() => 
     playerData.workbenchItems.filter(item => item.workbench_id === construction?.id),
@@ -94,12 +92,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     }
   }, [isOpen, construction, playerData.craftingJobs, fetchRecipes]);
 
-  useEffect(() => {
-    if (currentJob) {
-      lastJobRef.current = currentJob;
-    }
-  }, [currentJob]);
-
   const handleStartBatchCraft = useCallback(async () => {
     if (!matchedRecipe || !construction || craftQuantity <= 0) return;
     
@@ -135,8 +127,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
             timerCompletedRef.current = true;
-            setIsTransitioning(true);
-            refreshPlayerData().finally(() => setIsTransitioning(false));
+            refreshPlayerData();
         }
         return;
     }
@@ -154,8 +145,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
           timerCompletedRef.current = true;
-          setIsTransitioning(true);
-          refreshPlayerData().finally(() => setIsTransitioning(false));
+          refreshPlayerData();
         }
         return;
       }
@@ -358,8 +348,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     }
   };
 
-  const displayJob = currentJob || (isTransitioning ? lastJobRef.current : null);
-
   if (!isOpen || !construction) {
     return null;
   }
@@ -410,14 +398,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                       optimisticOutputItem && !currentJob && "cursor-pointer hover:bg-slate-900/80 hover:border-slate-500 transition-colors"
                     )}
                   >
-                    {displayJob ? (
+                    {currentJob ? (
                       <>
-                        <ItemIcon iconName={getIconUrl(displayJob.result_item_icon) || displayJob.result_item_icon} alt={displayJob.result_item_name} className="grayscale opacity-50" />
+                        <ItemIcon iconName={getIconUrl(currentJob.result_item_icon) || currentJob.result_item_icon} alt={currentJob.result_item_name} className="grayscale opacity-50" />
                         <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center rounded-lg text-white">
                           <Loader2 className="w-6 h-6 animate-spin" />
-                          {displayJob.initial_quantity > 1 && (
+                          {currentJob.initial_quantity > 1 && (
                             <span className="text-xs font-mono mt-1">
-                              {displayJob.initial_quantity - displayJob.quantity + 1}/{displayJob.initial_quantity}
+                              {currentJob.initial_quantity - currentJob.quantity + 1}/{currentJob.initial_quantity}
                             </span>
                           )}
                         </div>

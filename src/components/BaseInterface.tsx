@@ -78,32 +78,27 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
   useEffect(() => {
     const interval = setInterval(() => {
-        const newProgress: Record<number, number> = {};
-        playerData.craftingJobs?.forEach(job => {
-            const batchInfoRaw = localStorage.getItem(`craftingBatch_${job.workbench_id}`);
-            const batchInfo = batchInfoRaw ? JSON.parse(batchInfoRaw) : null;
-
-            if (batchInfo && batchInfo.totalItems > 1) {
-                const totalDuration = batchInfo.totalItems * batchInfo.durationPerItem;
-                const elapsedTime = Date.now() - batchInfo.startTime;
-                newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
-            } else {
-                const startTime = new Date(job.started_at).getTime();
-                const endTime = new Date(job.ends_at).getTime();
-                const totalDuration = endTime - startTime;
-                if (totalDuration > 0) {
-                    const elapsedTime = Date.now() - startTime;
-                    newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
-                } else {
-                    newProgress[job.workbench_id] = 100;
-                }
-            }
-        });
-        setCraftingProgress(newProgress);
+      if (!playerData?.craftingJobs) {
+        setCraftingProgress({});
+        return;
+      }
+      const newProgress: Record<number, number> = {};
+      playerData.craftingJobs.forEach(job => {
+        const startTime = new Date(job.started_at).getTime();
+        const endTime = new Date(job.ends_at).getTime();
+        const totalDuration = endTime - startTime;
+        if (totalDuration > 0) {
+          const elapsedTime = Date.now() - startTime;
+          newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
+        } else {
+          newProgress[job.workbench_id] = 100;
+        }
+      });
+      setCraftingProgress(newProgress);
     }, 200);
 
     return () => clearInterval(interval);
-  }, [playerData.craftingJobs]);
+  }, [playerData?.craftingJobs]);
 
   const isDraggingRef = useRef(false);
   const panState = useRef<{
