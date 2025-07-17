@@ -345,10 +345,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                     }, 2000);
                 }
             } else {
-                const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
-                if (isHovered) {
-                    handleCancelConstruction(x, y);
-                }
+                handleCancelConstruction(x, y);
             }
             return;
         } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
@@ -530,27 +527,29 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         if (cell.showTrash) {
           return <X className="w-8 h-8 text-red-500" />;
         }
+        return (
+          <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-xs font-mono">
+              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+            </span>
+          </div>
+        );
       } else {
         return (
-          <>
-            <div className="flex flex-col items-center justify-center text-white gap-1 h-full group-hover:hidden">
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-1 h-full transition-opacity duration-150 group-hover:opacity-0">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span className="text-xs font-mono">
                 <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
               </span>
             </div>
-            <X className="w-8 h-8 text-red-500 hidden group-hover:block" />
-          </>
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+              <X className="w-8 h-8 text-red-500" />
+            </div>
+          </div>
         );
       }
-      return (
-        <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-xs font-mono">
-            <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-          </span>
-        </div>
-      );
     }
     if (cell.canBuild) {
       if (isJobRunning) {
