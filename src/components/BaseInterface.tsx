@@ -345,7 +345,10 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                     }, 2000);
                 }
             } else {
-                handleCancelConstruction(x, y);
+                const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
+                if (isHovered) {
+                    handleCancelConstruction(x, y);
+                }
             }
             return;
         } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
@@ -523,12 +526,14 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
-      const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
-      if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
+      const isHovered = !isMobile && hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
+      const showTrashIcon = isHovered || (isMobile && cell.showTrash);
+
+      if (showTrashIcon) {
         return <X className="w-8 h-8 text-red-500" />;
       }
       return (
-        <div className="flex flex-col items-center justify-center text-white gap-1">
+        <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-xs font-mono">
             <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
