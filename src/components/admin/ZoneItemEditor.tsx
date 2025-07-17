@@ -37,8 +37,6 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
   const initialZoneIconRef = useRef(zone.icon);
   const [interactionType, setInteractionType] = useState<'Ressource' | 'Action' | 'Non défini'>(zone.interaction_type);
   const initialInteractionTypeRef = useRef(zone.interaction_type);
-  const [zoneIdName, setZoneIdName] = useState(zone.id_name);
-  const initialZoneIdNameRef = useRef(zone.id_name);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -150,18 +148,6 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
     }
   };
 
-  const handleZoneIdNameSave = async () => {
-    if (zoneIdName === initialZoneIdNameRef.current) return;
-    const { error } = await supabase.from('map_layout').update({ id_name: zoneIdName || null }).eq('id', zone.id);
-    if (error) {
-      showError("Erreur de mise à jour de l'ID Nom.");
-      setZoneIdName(initialZoneIdNameRef.current);
-    } else {
-      showSuccess("ID Nom de la zone mis à jour.");
-      initialZoneIdNameRef.current = zoneIdName;
-    }
-  };
-
   const fetchZoneItems = useCallback(async () => {
     setLoading(true);
     try {
@@ -249,29 +235,17 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
             />
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label className="text-sm font-medium text-gray-400">Type d'interaction</Label>
-            <select
-              value={interactionType}
-              onChange={(e) => handleInteractionTypeSave(e.target.value as 'Ressource' | 'Action' | 'Non défini')}
-              className="w-full mt-1 bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="Ressource">Ressource (Exploration, Campement)</option>
-              <option value="Action">Action (Marché, Faction)</option>
-              <option value="Non défini">Non défini (Indisponible)</option>
-            </select>
-          </div>
-          <div>
-            <Label className="text-sm font-medium text-gray-400">ID Nom (actions spéciales)</Label>
-            <Input
-              value={zoneIdName || ''}
-              onChange={(e) => setZoneIdName(e.target.value)}
-              onBlur={handleZoneIdNameSave}
-              className="w-full mt-1 bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="ex: metro, market, bank..."
-            />
-          </div>
+        <div className="mt-4">
+          <Label className="text-sm font-medium text-gray-400">Type d'interaction</Label>
+          <select
+            value={interactionType}
+            onChange={(e) => handleInteractionTypeSave(e.target.value as 'Ressource' | 'Action' | 'Non défini')}
+            className="w-full mt-1 bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="Ressource">Ressource (Exploration, Campement)</option>
+            <option value="Action">Action (Marché, Faction)</option>
+            <option value="Non défini">Non défini (Indisponible)</option>
+          </select>
         </div>
         <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full sm:flex-1">
