@@ -48,6 +48,12 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   }, [endTime, calculateRemaining]);
 
   useEffect(() => {
+    if (isFinalizing) {
+      onCompleteRef.current();
+    }
+  }, [isFinalizing]);
+
+  useEffect(() => {
     if (isFinalizing) return;
 
     let animationFrameId: number;
@@ -60,7 +66,6 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
         if (!completedRef.current) {
           completedRef.current = true;
           setIsFinalizing(true);
-          onCompleteRef.current();
         }
       } else {
         animationFrameId = requestAnimationFrame(loop);
