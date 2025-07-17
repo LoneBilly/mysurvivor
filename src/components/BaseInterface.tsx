@@ -68,6 +68,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
+  const [initialBuildCell, setInitialBuildCell] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
 
   const isJobRunning = useMemo(() => {
@@ -395,6 +396,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     } else {
         if (data && data.length > 0) {
             addConstructionJob(data[0]);
+            setInitialBuildCell({ x, y });
         } else {
             refreshPlayerData(true);
         }
@@ -437,6 +439,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     } else {
       if (data && data.length > 0) {
         addConstructionJob(data[0]);
+        setInitialBuildCell({ x, y });
         refreshPlayerData(true); // Refresh resources
       } else {
         refreshPlayerData(true);
@@ -502,6 +505,19 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
+      const isInitial = initialBuildCell && initialBuildCell.x === cell.x && initialBuildCell.y === cell.y;
+      
+      if (isInitial) {
+        return (
+          <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-xs font-mono">
+              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+            </span>
+          </div>
+        );
+      }
+
       return (
         <div className="relative w-full h-full flex items-center justify-center">
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-1 h-full transition-opacity duration-150 group-hover:opacity-0">
@@ -582,6 +598,11 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
               <button
                 key={`${x}-${y}`}
                 onClick={() => handleCellClick(x, y)}
+                onMouseLeave={() => {
+                  if (initialBuildCell && initialBuildCell.x === x && initialBuildCell.y === y) {
+                    setInitialBuildCell(null);
+                  }
+                }}
                 className={cn(
                   "group absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
                   getCellStyle(cell)
