@@ -34,91 +34,97 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const lastCheckedUserId = useRef<string | null>(null);
-  const isCheckingProfile = useRef(false);
+  const profileCheckInProgress = useRef(false);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    // Reset all states on sign out
+    setUser(null);
+    setSession(null);
+    setRole(null);
     setBannedInfo({ isBanned: false, reason: null });
     lastCheckedUserId.current = null;
-    isCheckingProfile.current = false;
+    profileCheckInProgress.current = false;
     navigate('/');
   }, [navigate]);
 
-  const checkUserAndProfile = useCallback(async (session: Session | null) => {
-    if (!session?.user) {
-      lastCheckedUserId.current = null;
-      setLoading(false);
-      return;
-    }
-
-    if (session.user.id === lastCheckedUserId.current) {
-      setLoading(false);
-      return;
-    }
-
-    if (isCheckingProfile.current) {
-      return;
-    }
-
-    isCheckingProfile.current = true;
-    
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('username, role, is_banned, ban_reason')
-        .eq('id', session.user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      lastCheckedUserId.current = session.user.id;
-
-      if (profile) {
-        if (profile.is_banned) {
-          setBannedInfo({ isBanned: true, reason: profile.ban_reason });
-        } else {
-          setBannedInfo({ isBanned: false, reason: null });
-          setRole(profile.role);
-          if (profile.username === null && location.pathname !== '/create-profile') {
-            navigate('/create-profile');
-          } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
-            navigate('/game');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      lastCheckedUserId.current = null;
-    } finally {
-      isCheckingProfile.current = false;
-      setLoading(false);
-    }
-  }, [navigate, location.pathname]);
-
   useEffect(() => {
-    const initialCheck = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const handleAuthChange = async (_event: string, session: Session | null) => {
       setSession(session);
       setUser(session?.user ?? null);
-      await checkUserAndProfile(session);
-      setLoading(false);
-    };
-    initialCheck();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        checkUserAndProfile(session);
+      if (!session?.user) {
+        setLoading(false);
+        setRole(null);
+        setBannedInfo({ isBanned: false, reason: null });
+        lastCheckedUserId.current = null;
+        profileCheckInProgress.current = false;
+        return;
       }
-    );
 
-    return () => subscription.unsubscribe();
-  }, [checkUserAndProfile]);
+      const userId = session.user.id;
+
+      // Combined check: bail if we've already checked this user OR if a check is currently running.
+      if (lastCheckedUserId.current === userId || profileCheckInProgress.current) {
+        return;
+      }
+
+      // Acquire lock
+      profileCheckInProgress.current = true;
+      setLoading(true);
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('username, role, is_banned, ban_reason')
+          .eq('id', userId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
+        // On success, mark this user as checked.
+        lastCheckedUserId.current = userId;
+
+        if (profile) {
+          if (profile.is_banned) {
+            setBannedInfo({ isBanned: true, reason: profile.ban_reason });
+          } else {
+            setBannedInfo({ isBanned: false, reason: null });
+            setRole(profile.role);
+            if (profile.username === null && location.pathname !== '/create-profile') {
+              navigate('/create-profile');
+            } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
+              navigate('/game');
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error checking user profile:", err);
+        // If the check fails, we should allow it to be tried again.
+        lastCheckedUserId.current = null;
+      } finally {
+        // Release the lock and update loading state.
+        profileCheckInProgress.current = false;
+        setLoading(false);
+      }
+    };
+
+    // Initial check on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleAuthChange('INITIAL_SESSION', session);
+    });
+
+    // Set up the listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, location.pathname]);
 
   const value = useMemo(() => ({
     user,
