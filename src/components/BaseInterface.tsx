@@ -526,17 +526,32 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
-      const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
-      if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
-        return <Trash2 className="w-8 h-8 text-red-500 pointer-events-none" />;
+      if (isMobile) {
+        if (cell.showTrash) {
+          return <Trash2 className="w-8 h-8 text-red-500 pointer-events-none" />;
+        }
+        return (
+          <div className="flex flex-col items-center justify-center text-white gap-1 pointer-events-none">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-xs font-mono">
+              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+            </span>
+          </div>
+        );
       }
+      
       return (
-        <div className="flex flex-col items-center justify-center text-white gap-1 pointer-events-none">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-xs font-mono">
-            <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-          </span>
-        </div>
+        <>
+          <div className="group-hover:hidden flex flex-col items-center justify-center text-white gap-1 pointer-events-none">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-xs font-mono">
+              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+            </span>
+          </div>
+          <div className="hidden group-hover:flex items-center justify-center pointer-events-none">
+            <Trash2 className="w-8 h-8 text-red-500" />
+          </div>
+        </>
       );
     }
     if (cell.canBuild) {
@@ -608,7 +623,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 onMouseEnter={() => !isMobile && cell.type === 'in_progress' && setHoveredConstruction({x, y})}
                 onMouseLeave={() => !isMobile && setHoveredConstruction(null)}
                 className={cn(
-                  "absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
+                  "group absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
                   getCellStyle(cell)
                 )}
                 style={{
