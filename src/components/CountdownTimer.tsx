@@ -78,15 +78,17 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   }, [isFinalizing, calculateRemaining]);
 
   if (isFinalizing) {
-    return (
-      <div className="flex items-center justify-center gap-1 text-xs">
-        <Loader2 className="w-3 h-3 animate-spin" />
-        <span>Finalisation...</span>
-      </div>
-    );
+    return <Loader2 className="w-5 h-5 animate-spin" />;
   }
 
-  return <>{remaining.formatted}</>;
+  return (
+    <div className="flex flex-col items-center justify-center text-white gap-1">
+      <Loader2 className="w-5 h-5 animate-spin" />
+      <span className="text-xs font-mono">
+        {remaining.formatted}
+      </span>
+    </div>
+  );
 };
 
 export default CountdownTimer;

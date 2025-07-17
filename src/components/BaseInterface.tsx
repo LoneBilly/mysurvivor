@@ -527,14 +527,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
         return <X className="w-8 h-8 text-red-500" />;
       }
-      return (
-        <div className="flex flex-col items-center justify-center text-white gap-1">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-xs font-mono">
-            <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-          </span>
-        </div>
-      );
+      return <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />;
     }
     if (cell.canBuild) {
       if (isJobRunning) {
