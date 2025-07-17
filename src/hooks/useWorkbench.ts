@@ -141,12 +141,12 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
 
     if (currentItemDuration <= 0) {
         setProgress(100);
-        setTimeRemaining('');
+        setTimeRemaining('Terminé');
         return;
     }
 
     let animationFrameId: number;
-    let timeoutId: NodeJS.Timeout;
+    let isFinalizing = false;
 
     const loop = () => {
       const now = Date.now();
@@ -154,24 +154,34 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       const diff = currentItemEndTime - now;
 
       if (diff <= 0) {
-        setProgress(100);
-        setTimeRemaining('Terminé');
-        timeoutId = setTimeout(() => onUpdate(true), 1500);
+        if (!isFinalizing) {
+          isFinalizing = true;
+          setProgress(100);
+          setTimeRemaining('Finalisation...');
+          onUpdate(true);
+        }
         return;
       }
 
       const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
       setProgress(newProgress);
 
-      const remainingSeconds = Math.floor(diff / 1000);
+      const totalSecondsFloat = diff / 1000;
       let formattedTime;
-      if (remainingSeconds >= 60) {
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = remainingSeconds % 60;
-        formattedTime = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+
+      if (totalSecondsFloat < 10) {
+        formattedTime = `${totalSecondsFloat.toFixed(1)}s`;
       } else {
-        formattedTime = `${remainingSeconds}s`;
+        const totalSecondsInt = Math.ceil(totalSecondsFloat);
+        const minutes = Math.floor(totalSecondsInt / 60);
+        const seconds = totalSecondsInt % 60;
+        if (minutes > 0) {
+          formattedTime = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+        } else {
+          formattedTime = `${seconds}s`;
+        }
       }
+      
       setTimeRemaining(formattedTime);
       
       animationFrameId = requestAnimationFrame(loop);
@@ -181,7 +191,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      clearTimeout(timeoutId);
     };
   }, [currentJob, onUpdate]);
 
