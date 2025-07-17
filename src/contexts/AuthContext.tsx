@@ -76,38 +76,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [navigate, location.pathname]);
 
   useEffect(() => {
-    const handleAuthChange = async (event: string, session: Session | null) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      // We only need to fetch the full profile on SIGNED_IN.
-      // For other events like TOKEN_REFRESHED, the user/session object is updated,
-      // but we don't need to hit the database for the profile data again.
-      if (event === 'SIGNED_IN') {
-        await checkUserAndProfile(session);
-      } else if (event === 'SIGNED_OUT') {
-        setRole(null);
-        setBannedInfo({ isBanned: false, reason: null });
-        navigate('/');
-        setLoading(false);
-      } else if (event === 'INITIAL_SESSION') {
-        // This handles the initial page load
-        await checkUserAndProfile(session);
-      } else {
-        // For TOKEN_REFRESHED or USER_UPDATED, we might not need a full profile refetch
-        // unless we suspect the role or banned status could change.
-        // For now, we assume the session object is sufficient.
-        if (loading) setLoading(false);
-      }
-    };
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      handleAuthChange('INITIAL_SESSION', session);
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        handleAuthChange(event, session);
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+          checkUserAndProfile(session);
+        } else if (event === 'SIGNED_OUT') {
+          setRole(null);
+          setBannedInfo({ isBanned: false, reason: null });
+          navigate('/');
+          setLoading(false);
+        } else if (event === 'TOKEN_REFRESHED') {
+          if (loading) setLoading(false);
+        }
       }
     );
 
