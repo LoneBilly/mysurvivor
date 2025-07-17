@@ -456,10 +456,8 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     if (error) {
       showError(error.message);
       setPlayerData(originalPlayerData);
-    } else {
-      onUpdate(true);
     }
-  }, [draggedItem, dragOver, construction, playerData, setPlayerData, onUpdate]);
+  }, [draggedItem, dragOver, construction, playerData, setPlayerData]);
 
   return {
     isLoadingAction,
