@@ -78,23 +78,6 @@ const Game = () => {
     }
   }, [user, loadGameData]);
 
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (playerData) {
-        const now = Date.now();
-        const hasCompletedJobs =
-          (playerData.constructionJobs && playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now)) ||
-          (playerData.craftingJobs && playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now));
-
-        if (hasCompletedJobs) {
-          refreshPlayerData(true);
-        }
-      }
-    }, 5000); // Poll every 5 seconds
-
-    return () => clearInterval(intervalId);
-  }, [playerData, refreshPlayerData]);
-
   if (loading) {
     return <LoadingScreen />;
   }
