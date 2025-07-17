@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, HelpCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { MapCell } from '@/types/game';
-import * as LucideIcons from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useGame } from '@/contexts/GameContext';
+import ItemIcon from './ItemIcon';
 
 interface ExplorationModalProps {
   isOpen: boolean;
@@ -31,13 +32,8 @@ interface PotentialEventItem {
   } | null;
 }
 
-const getIconComponent = (iconName: string | null): React.ElementType => {
-    if (!iconName) return HelpCircle;
-    const Icon = (LucideIcons as any)[iconName];
-    return Icon && typeof Icon.render === 'function' ? Icon : HelpCircle;
-};
-
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
+  const { getIconUrl } = useGame();
   const [explorationState, setExplorationState] = useState<'idle' | 'exploring' | 'results'>('idle');
   const [loot, setLoot] = useState<any[]>([]);
   const [eventResult, setEventResult] = useState<any>(null);
@@ -154,7 +150,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
           </div>
         );
       case 'results':
-        const EventIcon = eventResult ? getIconComponent(eventResult.icon) : null;
         return (
           <>
             <DialogHeader>
@@ -164,7 +159,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               {eventResult && (
                 <div>
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    {EventIcon && <EventIcon className="w-5 h-5" />}
+                    <ItemIcon iconName={getIconUrl(eventResult.icon) || eventResult.icon} alt={eventResult.name} className="w-5 h-5" />
                     {eventResult.name}
                   </h4>
                   <p className="text-sm text-gray-300">{eventResult.description}</p>
@@ -174,16 +169,15 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 <h4 className="font-semibold mb-2">Butin trouvé :</h4>
                 {loot.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {loot.map((item, index) => {
-                      const ItemIcon = getIconComponent(item.icon);
-                      return (
-                        <div key={index} className="bg-black/20 p-2 rounded-md text-center">
-                          <ItemIcon className="w-8 h-8 mx-auto mb-1 text-gray-200" />
-                          <p className="text-sm font-medium">{item.name}</p>
-                          <p className="text-xs text-gray-400">x{item.quantity}</p>
+                    {loot.map((item, index) => (
+                      <div key={index} className="bg-black/20 p-2 rounded-md text-center">
+                        <div className="w-8 h-8 mx-auto mb-1 relative">
+                          <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
                         </div>
-                      );
-                    })}
+                        <p className="text-sm font-medium">{item.name}</p>
+                        <p className="text-xs text-gray-400">x{item.quantity}</p>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400">Vous n'avez rien trouvé d'intéressant.</p>
@@ -213,23 +207,20 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 <h4 className="font-semibold mb-2 text-sm text-gray-300">Butin potentiel :</h4>
                 {infoLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
                   <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-md min-h-[52px]">
-                    {potentialLoot.length > 0 ? potentialLoot.map((item, index) => {
-                      const Icon = getIconComponent(item.icon);
-                      return (
-                        <TooltipProvider key={`loot-${index}`}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center">
-                                <Icon className="w-6 h-6 text-gray-300" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{item.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    }) : <p className="text-xs text-gray-500 self-center px-2">Aucun butin spécifique à cette zone.</p>}
+                    {potentialLoot.length > 0 ? potentialLoot.map((item, index) => (
+                      <TooltipProvider key={`loot-${index}`}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                              <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{item.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )) : <p className="text-xs text-gray-500 self-center px-2">Aucun butin spécifique à cette zone.</p>}
                   </div>
                 )}
               </div>
@@ -238,24 +229,21 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 <h4 className="font-semibold mb-2 text-sm text-gray-300">Événements possibles :</h4>
                 {infoLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
                   <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-md min-h-[52px]">
-                    {potentialEvents.length > 0 ? potentialEvents.map((event, index) => {
-                      const Icon = getIconComponent(event.icon);
-                      return (
-                        <TooltipProvider key={`event-${index}`}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center">
-                                <Icon className="w-6 h-6 text-gray-300" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p className="font-bold">{event.name}</p>
-                              {event.description && <p className="text-xs">{event.description}</p>}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    }) : <p className="text-xs text-gray-500 self-center px-2">Aucun événement spécial dans cette zone.</p>}
+                    {potentialEvents.length > 0 ? potentialEvents.map((event, index) => (
+                      <TooltipProvider key={`event-${index}`}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                              <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="font-bold">{event.name}</p>
+                            {event.description && <p className="text-xs">{event.description}</p>}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )) : <p className="text-xs text-gray-500 self-center px-2">Aucun événement spécial dans cette zone.</p>}
                   </div>
                 )}
               </div>
