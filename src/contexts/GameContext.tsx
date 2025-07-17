@@ -9,6 +9,7 @@ interface GameContextType {
   mapLayout: MapCell[];
   items: Item[];
   refreshPlayerData: (silent?: boolean) => Promise<void>;
+  refreshConstructionJobs: () => Promise<void>;
   setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
   getIconUrl: (iconName: string | null) => string | undefined;
 }
@@ -48,6 +49,21 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
       setPlayerData(fullPlayerData);
     }
   }, [user]);
+
+  const refreshConstructionJobs = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase.from('construction_jobs').select('*').eq('player_id', user.id);
+
+    if (error) {
+        showError("Erreur de synchronisation des constructions.");
+        await refreshPlayerData(true);
+    } else {
+        setPlayerData(prev => ({
+            ...prev,
+            constructionJobs: data || [],
+        }));
+    }
+  }, [user, refreshPlayerData]);
 
   useEffect(() => {
     setPlayerData(initialData.playerData);
@@ -102,9 +118,10 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     mapLayout: initialData.mapLayout,
     items: initialData.items,
     refreshPlayerData,
+    refreshConstructionJobs,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshConstructionJobs, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>
