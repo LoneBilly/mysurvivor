@@ -32,30 +32,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
   const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
+  
   const navigate = useNavigate();
   const location = useLocation();
+
+  const navigateRef = useRef(navigate);
+  const locationRef = useRef(location);
+  useEffect(() => {
+    navigateRef.current = navigate;
+    locationRef.current = location;
+  });
 
   const lastCheckedUserId = useRef<string | null>(null);
   const profileCheckInProgress = useRef(false);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    // Reset all states on sign out
     setUser(null);
     setSession(null);
     setRole(null);
     setBannedInfo({ isBanned: false, reason: null });
     lastCheckedUserId.current = null;
     profileCheckInProgress.current = false;
-    navigate('/');
-  }, [navigate]);
+    navigateRef.current('/');
+  }, []);
 
   useEffect(() => {
     const handleAuthChange = async (_event: string, session: Session | null) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
 
-      if (!session?.user) {
+      if (!currentUser) {
         setLoading(false);
         setRole(null);
         setBannedInfo({ isBanned: false, reason: null });
@@ -64,14 +72,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      const userId = session.user.id;
+      const userId = currentUser.id;
 
-      // Combined check: bail if we've already checked this user OR if a check is currently running.
       if (lastCheckedUserId.current === userId || profileCheckInProgress.current) {
         return;
       }
 
-      // Acquire lock
       profileCheckInProgress.current = true;
       setLoading(true);
 
@@ -86,7 +92,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           throw error;
         }
 
-        // On success, mark this user as checked.
         lastCheckedUserId.current = userId;
 
         if (profile) {
@@ -95,36 +100,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           } else {
             setBannedInfo({ isBanned: false, reason: null });
             setRole(profile.role);
-            if (profile.username === null && location.pathname !== '/create-profile') {
-              navigate('/create-profile');
-            } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
-              navigate('/game');
+            if (profile.username === null && locationRef.current.pathname !== '/create-profile') {
+              navigateRef.current('/create-profile');
+            } else if (profile.username !== null && (locationRef.current.pathname === '/create-profile' || locationRef.current.pathname === '/login')) {
+              navigateRef.current('/game');
             }
           }
         }
       } catch (err) {
         console.error("Error checking user profile:", err);
-        // If the check fails, we should allow it to be tried again.
         lastCheckedUserId.current = null;
       } finally {
-        // Release the lock and update loading state.
         profileCheckInProgress.current = false;
         setLoading(false);
       }
     };
 
-    // Initial check on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleAuthChange('INITIAL_SESSION', session);
     });
 
-    // Set up the listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, []);
 
   const value = useMemo(() => ({
     user,
