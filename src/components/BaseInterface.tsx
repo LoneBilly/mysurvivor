@@ -401,27 +401,22 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       return;
     }
 
-    const originalGridData = gridData;
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     
-    const newGrid = JSON.parse(JSON.stringify(gridData));
-    const buildTime = 9 * playerData.baseConstructions.length + 15;
-    newGrid[y][x].type = 'in_progress';
-    newGrid[y][x].ends_at = new Date(Date.now() + buildTime * 1000).toISOString();
-    setGridData(updateCanBuild(newGrid));
-
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= energyCost;
     setPlayerData(newPlayerData);
 
-    const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
+    const { data: newJob, error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de la construction.");
-      setGridData(originalGridData);
       setPlayerData(originalPlayerData);
     } else {
-      refreshConstructionJobs();
+      setPlayerData(prev => ({
+        ...prev,
+        constructionJobs: [...(prev.constructionJobs || []), newJob],
+      }));
     }
   };
 
