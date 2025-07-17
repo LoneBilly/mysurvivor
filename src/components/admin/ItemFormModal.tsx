@@ -69,18 +69,22 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setPreviewUrl(null);
       setIconExists(null);
       setIsDeleteModalOpen(false);
-      setIsCraftable(false);
-      setRecipeId(null);
-
+      
       if (item) {
         const fetchRecipe = async () => {
           const { data } = await supabase.from('crafting_recipes').select('id').eq('result_item_id', item.id).single();
           if (data) {
             setRecipeId(data.id);
             setIsCraftable(true);
+          } else {
+            setRecipeId(null);
+            setIsCraftable(false);
           }
         };
         fetchRecipe();
+      } else {
+        setRecipeId(null);
+        setIsCraftable(false);
       }
 
       if (initialIcon) {
@@ -155,6 +159,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setIsValidatingIcon(true);
       const url = getPublicIconUrl(debouncedIcon);
       setPreviewUrl(url);
+      setIconExists(!!url); // Set to true if URL exists, false otherwise
       setIsValidatingIcon(false);
     };
 
@@ -192,7 +197,8 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       icon: icon || null, 
       stackable, 
       type,
-      use_action_text: useActionText || null
+      use_action_text: useActionText || null,
+      recipe_id: isCraftable ? recipeId : null, // Set recipe_id based on isCraftable
     };
     const { error } = item
       ? await supabase.from('items').update(itemData).eq('id', item.id)
@@ -228,7 +234,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6"
+          className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
         >
           <DialogHeader className="text-center">
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
