@@ -57,7 +57,7 @@ interface BaseInterfaceProps {
 
 const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
-  const { playerData, setPlayerData, refreshPlayerData, items, refreshConstructionJobs } = useGame();
+  const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
   const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
   
   const isMobile = useIsMobile();
@@ -414,14 +414,14 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     newPlayerData.playerState.energie -= energyCost;
     setPlayerData(newPlayerData);
 
-    const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
+    const { data: newJobs, error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de la construction.");
       setGridData(originalGridData);
       setPlayerData(originalPlayerData);
     } else {
-      refreshConstructionJobs();
+      setPlayerData(prev => ({ ...prev, constructionJobs: [...(prev.constructionJobs || []), ...newJobs] }));
     }
   };
 
@@ -459,14 +459,14 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     newPlayerData.playerState.energie -= building.cost_energy;
     setPlayerData(newPlayerData);
 
-    const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
+    const { data: newJobs, error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
 
     if (error) {
       showError(error.message);
       setGridData(originalGridData);
       setPlayerData(originalPlayerData);
     } else {
-      refreshConstructionJobs();
+      setPlayerData(prev => ({ ...prev, constructionJobs: [...(prev.constructionJobs || []), ...newJobs] }));
     }
   };
 
