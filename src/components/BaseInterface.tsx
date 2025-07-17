@@ -57,7 +57,7 @@ interface BaseInterfaceProps {
 
 const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
-  const { playerData, setPlayerData, refreshPlayerData, items, refreshConstructionJobs } = useGame();
+  const { playerData, setPlayerData, refreshPlayerData, items } = useGame();
   const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
   
   const isMobile = useIsMobile();
