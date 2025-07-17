@@ -15,7 +15,7 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
 
   const calculateRemaining = useCallback(() => {
     const diff = new Date(endTime).getTime() - Date.now();
-    const totalSeconds = Math.max(0, Math.floor(diff / 1000));
+    const totalSeconds = Math.max(0, Math.ceil(diff / 1000));
 
     if (totalSeconds === 0) {
       return { totalSeconds: 0, formatted: '0s' };
