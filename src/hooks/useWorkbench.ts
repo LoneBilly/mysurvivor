@@ -355,6 +355,36 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     }
   };
 
+  const swapItems = async (fromSlot: number, toSlot: number) => {
+    if (!construction || fromSlot === toSlot) return;
+
+    const originalWorkbenchItems = [...playerData.workbenchItems];
+
+    const fromItem = originalWorkbenchItems.find(i => i.workbench_id === construction.id && i.slot_position === fromSlot);
+    const toItem = originalWorkbenchItems.find(i => i.workbench_id === construction.id && i.slot_position === toSlot);
+
+    const newWorkbenchItems = originalWorkbenchItems.map(item => {
+      if (item.id === fromItem?.id) return { ...item, slot_position: toSlot };
+      if (item.id === toItem?.id) return { ...item, slot_position: fromSlot };
+      return item;
+    });
+    
+    setPlayerData(prev => ({ ...prev, workbenchItems: newWorkbenchItems }));
+
+    const { error } = await supabase.rpc('swap_workbench_items', {
+      p_workbench_id: construction.id,
+      p_from_slot: fromSlot,
+      p_to_slot: toSlot,
+    });
+
+    if (error) {
+      showError(error.message);
+      setPlayerData(prev => ({ ...prev, workbenchItems: originalWorkbenchItems }));
+    } else {
+      onUpdate(true);
+    }
+  };
+
   return {
     isLoadingAction,
     currentJob,
@@ -371,5 +401,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     discardOutput,
     moveItemToInventory,
     moveItemFromInventory,
+    swapItems,
   };
 };
