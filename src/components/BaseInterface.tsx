@@ -68,7 +68,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [initialBuildCell, setInitialBuildCell] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
 
   const isJobRunning = useMemo(() => {
@@ -317,34 +316,36 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   };
 
   const handleCellClick = async (x: number, y: number) => {
-    if (isDraggingRef.current) {
-        return;
-    }
+    if (isDraggingRef.current) return;
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
 
-    if (isJobRunning) {
-        if (cell.type === 'in_progress') {
+    if (cell.type === 'in_progress') {
+        if (cell.showTrash) {
             handleCancelConstruction(x, y);
-            return;
-        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
-            if (cell.type === 'chest') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    setChestModalState({ isOpen: true, construction: constructionData });
-                }
-            } else if (cell.type === 'workbench') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    onInspectWorkbench(constructionData);
-                }
-            } else {
-                showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
-            }
         } else {
-            showInfo("Une construction est déjà en cours.");
+            const newGrid = JSON.parse(JSON.stringify(gridData));
+            newGrid.forEach((row: BaseCell[]) => row.forEach((c: BaseCell) => c.showTrash = false));
+            newGrid[y][x].showTrash = true;
+            setGridData(newGrid);
+
+            setTimeout(() => {
+                setGridData(currentGrid => {
+                    if (currentGrid && currentGrid[y]?.[x]?.showTrash) {
+                        const finalGrid = JSON.parse(JSON.stringify(currentGrid));
+                        finalGrid[y][x].showTrash = false;
+                        return finalGrid;
+                    }
+                    return currentGrid;
+                });
+            }, 3000);
         }
+        return;
+    }
+
+    if (isJobRunning) {
+        showInfo("Une construction est déjà en cours.");
         return;
     }
     
@@ -396,10 +397,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     } else {
         if (data && data.length > 0) {
             addConstructionJob(data[0]);
-            setInitialBuildCell({ x, y });
         } else {
             refreshPlayerData(true);
         }
+    }
+  };
+
+  const handleCellMouseLeave = (x: number, y: number) => {
+    if (gridData?.[y]?.[x]?.showTrash) {
+        const newGrid = JSON.parse(JSON.stringify(gridData));
+        newGrid[y][x].showTrash = false;
+        setGridData(newGrid);
     }
   };
 
@@ -439,7 +447,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     } else {
       if (data && data.length > 0) {
         addConstructionJob(data[0]);
-        setInitialBuildCell({ x, y });
         refreshPlayerData(true); // Refresh resources
       } else {
         refreshPlayerData(true);
@@ -455,7 +462,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
           return "bg-white/20 border-white/30 cursor-not-allowed opacity-60";
         }
         return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
-      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
+      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer";
       case 'chest': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
       case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
       case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
@@ -505,32 +512,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
-      const isInitial = initialBuildCell && initialBuildCell.x === cell.x && initialBuildCell.y === cell.y;
-      
-      if (isInitial) {
+        if (cell.showTrash) {
+            return <X className="w-8 h-8 text-red-500" />;
+        }
         return (
-          <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-xs font-mono">
-              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-            </span>
-          </div>
+            <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-xs font-mono">
+                    <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+                </span>
+            </div>
         );
-      }
-
-      return (
-        <div className="relative w-full h-full flex items-center justify-center">
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-1 h-full transition-opacity duration-150 group-hover:opacity-0">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-xs font-mono">
-              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-            </span>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-            <X className="w-8 h-8 text-red-500" />
-          </div>
-        </div>
-      );
     }
     if (cell.canBuild) {
       if (isJobRunning) {
@@ -598,11 +590,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
               <button
                 key={`${x}-${y}`}
                 onClick={() => handleCellClick(x, y)}
-                onMouseLeave={() => {
-                  if (initialBuildCell && initialBuildCell.x === x && initialBuildCell.y === y) {
-                    setInitialBuildCell(null);
-                  }
-                }}
+                onMouseLeave={() => handleCellMouseLeave(x, y)}
                 className={cn(
                   "group absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
                   getCellStyle(cell)
