@@ -185,7 +185,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       showError("L'icône spécifiée n'existe pas dans le stockage.");
       return;
     }
-    if (isCraftable && !recipeId) {
+    if (isCraftable && !recipeId && item) { // Only check recipeId if item exists (i.e., editing)
       showError("Veuillez définir une recette pour cet objet craftable.");
       return;
     }
@@ -317,7 +317,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox id="craftable" checked={isCraftable} onCheckedChange={(checked) => setIsCraftable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading || !item} />
+                <Checkbox id="craftable" checked={isCraftable} onCheckedChange={(checked) => setIsCraftable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
                 <Label htmlFor="craftable" className="text-gray-300 font-mono">Craftable</Label>
               </div>
             </div>
@@ -337,7 +337,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                     </Button>
                   )}
                 </div>
-                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !recipeId)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !recipeId && item)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {item ? 'Sauvegarder' : 'Créer l\'objet'}
                 </Button>
