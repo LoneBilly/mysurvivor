@@ -34,73 +34,80 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
   const navigate = useNavigate();
   const location = useLocation();
+  
   const lastCheckedUserId = useRef<string | null>(null);
+  const isCheckingProfile = useRef(false);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setBannedInfo({ isBanned: false, reason: null });
     lastCheckedUserId.current = null;
+    isCheckingProfile.current = false;
     navigate('/');
   }, [navigate]);
 
   const checkUserAndProfile = useCallback(async (session: Session | null) => {
-    if (session?.user) {
-      // Si on a déjà vérifié cet utilisateur avec succès, on ne recommence pas.
-      if (session.user.id === lastCheckedUserId.current) {
-        setLoading(false);
-        return;
+    if (!session?.user) {
+      lastCheckedUserId.current = null;
+      setLoading(false);
+      return;
+    }
+
+    if (session.user.id === lastCheckedUserId.current) {
+      setLoading(false);
+      return;
+    }
+
+    if (isCheckingProfile.current) {
+      return;
+    }
+
+    isCheckingProfile.current = true;
+    
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('username, role, is_banned, ban_reason')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
       }
 
-      const currentUserId = session.user.id;
-      // On marque immédiatement l'ID comme "en cours de vérification" pour stopper les appels en double.
-      lastCheckedUserId.current = currentUserId;
+      lastCheckedUserId.current = session.user.id;
 
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('username, role, is_banned, ban_reason')
-          .eq('id', currentUserId)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          throw error; // L'erreur sera gérée dans le bloc catch.
-        }
-
-        if (profile) {
-          if (profile.is_banned) {
-            setBannedInfo({ isBanned: true, reason: profile.ban_reason });
-          } else {
-            setBannedInfo({ isBanned: false, reason: null });
-            setRole(profile.role);
-            if (profile.username === null && location.pathname !== '/create-profile') {
-              navigate('/create-profile');
-            } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
-              navigate('/game');
-            }
+      if (profile) {
+        if (profile.is_banned) {
+          setBannedInfo({ isBanned: true, reason: profile.ban_reason });
+        } else {
+          setBannedInfo({ isBanned: false, reason: null });
+          setRole(profile.role);
+          if (profile.username === null && location.pathname !== '/create-profile') {
+            navigate('/create-profile');
+          } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
+            navigate('/game');
           }
         }
-        // En cas de succès, lastCheckedUserId reste défini, empêchant de futurs appels inutiles.
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-        // En cas d'échec, on réinitialise le flag pour permettre une nouvelle tentative plus tard.
-        if (lastCheckedUserId.current === currentUserId) {
-          lastCheckedUserId.current = null;
-        }
-      } finally {
-        setLoading(false);
       }
-    } else {
+    } catch (error) {
+      console.error('Error fetching profile:', error);
       lastCheckedUserId.current = null;
+    } finally {
+      isCheckingProfile.current = false;
       setLoading(false);
     }
   }, [navigate, location.pathname]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initialCheck = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
-      checkUserAndProfile(session);
-    });
+      await checkUserAndProfile(session);
+      setLoading(false);
+    };
+    initialCheck();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
