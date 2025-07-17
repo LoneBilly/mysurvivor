@@ -274,18 +274,14 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   const collectOutput = async () => {
     if (!construction || !outputItem || !outputItem.items) return { inventoryFull: false };
 
-    const { data, error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
+    const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
     
     if (error) {
       showError(error.message);
       if (error.message.includes("Votre inventaire est plein")) return { inventoryFull: true };
     } else {
       showSuccess("Objet récupéré !");
-      setPlayerData(prev => ({
-        ...prev,
-        inventory: data.inventory,
-        baseConstructions: prev.baseConstructions.map(c => c.id === data.construction.id ? data.construction : c),
-      }));
+      onUpdate(true);
     }
     return { inventoryFull: false };
   };
