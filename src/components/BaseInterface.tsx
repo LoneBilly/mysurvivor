@@ -250,8 +250,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   }, [isActive, loading, gridData, campfirePosition, centerViewport]);
 
   const handleCancelConstruction = async (x: number, y: number) => {
-    if (!gridData) return;
-    const originalGridData = gridData;
+    if (!gridData || !user) return;
+    const originalGridData = JSON.parse(JSON.stringify(gridData));
+    const originalJobs = [...(playerData.constructionJobs || [])];
 
     const newGrid = JSON.parse(JSON.stringify(gridData));
     newGrid[y][x].type = 'empty';
@@ -259,13 +260,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     newGrid[y][x].showTrash = false;
     setGridData(updateCanBuild(newGrid));
 
+    setPlayerData(prev => ({
+        ...prev,
+        constructionJobs: prev.constructionJobs?.filter(job => !(job.x === x && job.y === y))
+    }));
+
     const { error } = await supabase.rpc('cancel_construction_job', { p_x: x, p_y: y });
 
     if (error) {
-      showError(error.message || "Erreur lors de l'annulation.");
-      setGridData(originalGridData);
-    } else {
-      refreshPlayerData();
+        showError(error.message || "Erreur lors de l'annulation.");
+        setGridData(originalGridData);
+        setPlayerData(prev => ({ ...prev, constructionJobs: originalJobs }));
     }
   };
 
@@ -313,92 +318,88 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
   const handleCellClick = async (x: number, y: number) => {
     if (isDraggingRef.current) {
-      return;
+        return;
     }
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
-    const isHovered = hoveredConstruction && hoveredConstruction.x === x && hoveredConstruction.y === y;
 
     if (isJobRunning) {
-      if (cell.type === 'in_progress') {
-        // Allow cancelling
-        if (isMobile) {
-          if (cell.showTrash) {
-            handleCancelConstruction(x, y);
-          } else {
-            const newGrid = JSON.parse(JSON.stringify(gridData));
-            newGrid[y][x].showTrash = true;
-            setGridData(newGrid);
-            setTimeout(() => {
-              setGridData(currentGrid => {
-                if (currentGrid && currentGrid[y][x].showTrash) {
-                  const finalGrid = JSON.parse(JSON.stringify(currentGrid));
-                  finalGrid[y][x].showTrash = false;
-                  return finalGrid;
+        if (cell.type === 'in_progress') {
+            if (isMobile) {
+                if (cell.showTrash) {
+                    handleCancelConstruction(x, y);
+                } else {
+                    const newGrid = JSON.parse(JSON.stringify(gridData));
+                    newGrid[y][x].showTrash = true;
+                    setGridData(newGrid);
+                    setTimeout(() => {
+                        setGridData(currentGrid => {
+                            if (currentGrid && currentGrid[y][x].showTrash) {
+                                const finalGrid = JSON.parse(JSON.stringify(currentGrid));
+                                finalGrid[y][x].showTrash = false;
+                                return finalGrid;
+                            }
+                            return currentGrid;
+                        });
+                    }, 2000);
                 }
-                return currentGrid;
-              });
-            }, 2000);
-          }
+            } else {
+                handleCancelConstruction(x, y);
+            }
+            return;
+        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
+            if (cell.type === 'chest') {
+                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+                if (constructionData) {
+                    setChestModalState({ isOpen: true, construction: constructionData });
+                }
+            } else if (cell.type === 'workbench') {
+                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+                if (constructionData) {
+                    onInspectWorkbench(constructionData);
+                }
+            } else {
+                showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
+            }
         } else {
-          if (isHovered) {
-            handleCancelConstruction(x, y);
-          }
+            showInfo("Une construction est déjà en cours.");
         }
-      } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
-        // Allow interaction with specific buildings
-        if (cell.type === 'chest') {
-          const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-          if (constructionData) {
-            setChestModalState({ isOpen: true, construction: constructionData });
-          }
-        } else if (cell.type === 'workbench') {
-          const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-          if (constructionData) {
-            onInspectWorkbench(constructionData);
-          }
-        } else {
-          showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
-        }
-      } else {
-        showInfo("Une construction est déjà en cours.");
-      }
-      return;
+        return;
     }
     
     if (cell.type === 'foundation') {
-      setFoundationMenu({ isOpen: true, x, y });
-      return;
+        setFoundationMenu({ isOpen: true, x, y });
+        return;
     }
 
     if (cell.type === 'chest') {
-      const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-      if (constructionData) {
-        setChestModalState({ isOpen: true, construction: constructionData });
-      }
-      return;
+        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+        if (constructionData) {
+            setChestModalState({ isOpen: true, construction: constructionData });
+        }
+        return;
     }
 
     if (cell.type === 'workbench') {
-      const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-      if (constructionData) {
-        onInspectWorkbench(constructionData);
-      }
-      return;
+        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+        if (constructionData) {
+            onInspectWorkbench(constructionData);
+        }
+        return;
     }
 
     if (Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'foundation' && cell.type !== 'campfire') {
-      showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
-      return;
+        showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
+        return;
     }
 
     if (!cell.canBuild || cell.type !== 'empty') return;
 
     const energyCost = 90;
     if (playerData.playerState.energie < energyCost) {
-      showError("Énergie insuffisante.");
-      return;
+        showError("Énergie insuffisante.");
+        return;
     }
 
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
@@ -410,14 +411,14 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const { data, error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
-      showError(error.message || "Erreur lors de la construction.");
-      setPlayerData(originalPlayerData);
+        showError(error.message || "Erreur lors de la construction.");
+        setPlayerData(originalPlayerData);
     } else {
-      if (data && data.length > 0) {
-        addConstructionJob(data[0]);
-      } else {
-        refreshPlayerData(true);
-      }
+        if (data && data.length > 0) {
+            addConstructionJob(data[0]);
+        } else {
+            refreshPlayerData(true);
+        }
     }
   };
 
