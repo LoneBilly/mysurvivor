@@ -41,56 +41,78 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     navigate('/');
   }, [navigate]);
 
-  useEffect(() => {
-    const checkUserAndProfile = async (session: Session | null) => {
-      setBannedInfo({ isBanned: false, reason: null });
-      if (session?.user) {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('username, role, is_banned, ban_reason')
-          .eq('id', session.user.id)
-          .single();
+  const checkUserAndProfile = useCallback(async (session: Session | null) => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-          setLoading(false);
-          return;
-        }
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('username, role, is_banned, ban_reason')
+      .eq('id', session.user.id)
+      .single();
 
-        if (profile) {
-          if (profile.is_banned) {
-            setBannedInfo({ isBanned: true, reason: profile.ban_reason });
-            setLoading(false);
-            return;
-          }
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching profile:', error);
+      setLoading(false);
+      return;
+    }
 
-          setRole(profile.role);
-          if (profile.username === null && location.pathname !== '/create-profile') {
-            navigate('/create-profile');
-          } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
-            navigate('/game');
-          }
+    if (profile) {
+      if (profile.is_banned) {
+        setBannedInfo({ isBanned: true, reason: profile.ban_reason });
+      } else {
+        setBannedInfo({ isBanned: false, reason: null });
+        setRole(profile.role);
+        if (profile.username === null && location.pathname !== '/create-profile') {
+          navigate('/create-profile');
+        } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
+          navigate('/game');
         }
       }
-      setLoading(false);
+    }
+    setLoading(false);
+  }, [navigate, location.pathname]);
+
+  useEffect(() => {
+    const handleAuthChange = async (event: string, session: Session | null) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      // We only need to fetch the full profile on SIGNED_IN.
+      // For other events like TOKEN_REFRESHED, the user/session object is updated,
+      // but we don't need to hit the database for the profile data again.
+      if (event === 'SIGNED_IN') {
+        await checkUserAndProfile(session);
+      } else if (event === 'SIGNED_OUT') {
+        setRole(null);
+        setBannedInfo({ isBanned: false, reason: null });
+        navigate('/');
+        setLoading(false);
+      } else if (event === 'INITIAL_SESSION') {
+        // This handles the initial page load
+        await checkUserAndProfile(session);
+      } else {
+        // For TOKEN_REFRESHED or USER_UPDATED, we might not need a full profile refetch
+        // unless we suspect the role or banned status could change.
+        // For now, we assume the session object is sufficient.
+        if (loading) setLoading(false);
+      }
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      checkUserAndProfile(session);
+      handleAuthChange('INITIAL_SESSION', session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        checkUserAndProfile(session);
+      (event, session) => {
+        handleAuthChange(event, session);
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [checkUserAndProfile, navigate, loading]);
 
   const value = useMemo(() => ({
     user,
