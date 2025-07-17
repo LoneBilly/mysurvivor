@@ -191,7 +191,9 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               {eventResult && (
                 <div>
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <ItemIcon iconName={getIconUrl(eventResult.icon) || eventResult.icon} alt={eventResult.name} className="w-5 h-5" />
+                    <div className="w-5 h-5 relative flex-shrink-0">
+                      <ItemIcon iconName={getIconUrl(eventResult.icon) || eventResult.icon} alt={eventResult.name} />
+                    </div>
                     {eventResult.name}
                   </h4>
                   <p className="text-sm text-gray-300">{eventResult.description}</p>
