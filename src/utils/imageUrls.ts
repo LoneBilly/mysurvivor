@@ -9,16 +9,6 @@ export const getPublicIconUrl = (iconName: string | null): string | null => {
     return iconName;
   }
 
-  // Heuristique pour différencier les icônes Lucide des fichiers de stockage.
-  // Les icônes Lucide sont généralement en PascalCase et n'ont pas d'extensions de fichier.
-  const isLucideIcon = /^[A-Z]/.test(iconName) && !iconName.includes('.');
-
-  if (isLucideIcon) {
-    // C'est un nom d'icône Lucide, pas un fichier dans le stockage.
-    // Retourne null pour que le composant ItemIcon puisse le gérer comme un nom de composant.
-    return null;
-  }
-
   const baseName = iconName.split('.')[0];
   const webpIconName = `${baseName}.webp`;
 
