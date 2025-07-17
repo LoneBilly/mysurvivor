@@ -1,22 +1,29 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from "vite";
+import dyadComponentTagger from "@dyad-sh/react-vite-component-tagger";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+export default defineConfig(() => ({
+  server: {
+    host: "::", // Permet l'accès externe
+    port: 8080, // Port de développement
+
+    // Autorisation d'accès aux fichiers du projet
+    fs: {
+      allow: ['.']
+    },
+
+    hmr: {
+      port: 8080,
     },
   },
-  server: {
-    // This configuration is necessary for the Vite development server
-    // to work correctly within the sandboxed environment.
-    // It ensures that the Hot Module Replacement (HMR) feature,
-    // which uses WebSockets, can establish a connection.
-    hmr: {
-        port: 443,
-    }
-  }
-})
+  plugins: [
+    dyadComponentTagger(),
+    react()
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+}));
