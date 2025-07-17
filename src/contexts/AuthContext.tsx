@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
   const navigate = useNavigate();
   const location = useLocation();
+  const effectRan = useRef(false); // Le garde pour le Strict Mode
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -41,56 +42,75 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     navigate('/');
   }, [navigate]);
 
-  useEffect(() => {
-    const checkUserAndProfile = async (session: Session | null) => {
-      setBannedInfo({ isBanned: false, reason: null });
-      if (session?.user) {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('username, role, is_banned, ban_reason')
-          .eq('id', session.user.id)
-          .single();
+  const checkUserAndProfile = useCallback(async (session: Session | null) => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-          setLoading(false);
-          return;
-        }
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('username, role, is_banned, ban_reason')
+      .eq('id', session.user.id)
+      .single();
 
-        if (profile) {
-          if (profile.is_banned) {
-            setBannedInfo({ isBanned: true, reason: profile.ban_reason });
-            setLoading(false);
-            return;
-          }
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching profile:', error);
+      setLoading(false);
+      return;
+    }
 
-          setRole(profile.role);
-          if (profile.username === null && location.pathname !== '/create-profile') {
-            navigate('/create-profile');
-          } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
-            navigate('/game');
-          }
+    if (profile) {
+      if (profile.is_banned) {
+        setBannedInfo({ isBanned: true, reason: profile.ban_reason });
+      } else {
+        setBannedInfo({ isBanned: false, reason: null });
+        setRole(profile.role);
+        if (profile.username === null && location.pathname !== '/create-profile') {
+          navigate('/create-profile');
+        } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
+          navigate('/game');
         }
       }
-      setLoading(false);
-    };
+    }
+    setLoading(false);
+  }, [navigate, location.pathname]);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      checkUserAndProfile(session);
-    });
+  useEffect(() => {
+    // En Strict Mode, ce useEffect s'exécute deux fois.
+    // Le garde `effectRan` empêche la logique de s'exécuter la deuxième fois.
+    if (effectRan.current === true) {
+      return;
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        checkUserAndProfile(session);
+
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+          checkUserAndProfile(session);
+        } else if (event === 'SIGNED_OUT') {
+          setRole(null);
+          setBannedInfo({ isBanned: false, reason: null });
+          navigate('/');
+          setLoading(false);
+        } else if (event === 'TOKEN_REFRESHED') {
+          if (loading) setLoading(false);
+        }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    // On marque le garde comme "exécuté"
+    effectRan.current = true;
+
+    return () => {
+      subscription.unsubscribe();
+      // Au démontage, on réinitialise le garde.
+      // Cela n'affecte pas le comportement en production.
+      effectRan.current = false;
+    };
+  }, [checkUserAndProfile, navigate, loading]);
 
   const value = useMemo(() => ({
     user,
