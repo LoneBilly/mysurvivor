@@ -97,6 +97,27 @@ const Game = () => {
     };
   }, [user, refreshPlayerData]);
 
+  useEffect(() => {
+    const jobCheckInterval = setInterval(() => {
+      if (playerData?.craftingJobs && playerData.craftingJobs.length > 0) {
+        const now = Date.now();
+        const hasCompletedJob = playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
+        if (hasCompletedJob) {
+          refreshPlayerData(true);
+        }
+      }
+      if (playerData?.constructionJobs && playerData.constructionJobs.length > 0) {
+        const now = Date.now();
+        const hasCompletedJob = playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
+        if (hasCompletedJob) {
+          refreshPlayerData(true);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(jobCheckInterval);
+  }, [playerData, refreshPlayerData]);
+
   if (loading) {
     return <LoadingScreen />;
   }

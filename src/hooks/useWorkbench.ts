@@ -10,7 +10,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
-  const timerCompletedRef = useRef(false);
 
   const currentJob = useMemo(() => {
     if (!construction) return null;
@@ -135,8 +134,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       setTimeRemaining('');
       return;
     }
-
-    timerCompletedRef.current = false;
     
     const currentItemEndTime = new Date(currentJob.ends_at).getTime();
     const currentItemDuration = currentJob.craft_time_seconds * 1000;
@@ -145,10 +142,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     if (currentItemDuration <= 0) {
         setProgress(100);
         setTimeRemaining('');
-        if (!timerCompletedRef.current) {
-            timerCompletedRef.current = true;
-            refreshPlayerData(true);
-        }
         return;
     }
 
@@ -162,10 +155,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
         cancelAnimationFrame(animationFrameId);
         setProgress(100);
         setTimeRemaining('');
-        if (!timerCompletedRef.current) {
-          timerCompletedRef.current = true;
-          refreshPlayerData(true);
-        }
         return;
       }
 
@@ -189,7 +178,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     animationFrameId = requestAnimationFrame(updateTimer);
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [currentJob, refreshPlayerData]);
+  }, [currentJob]);
 
   const startCraft = useCallback(async (quantity: number) => {
     if (!matchedRecipe || !construction || quantity <= 0) return;
