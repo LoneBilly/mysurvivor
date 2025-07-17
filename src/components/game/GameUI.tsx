@@ -209,29 +209,17 @@ const GameUI = () => {
           return;
         }
         
-        const originalState = JSON.parse(JSON.stringify(playerData));
-        const newState = { 
-          ...playerData, 
-          playerState: { 
-            ...playerData.playerState, 
-            position_x: x, 
-            position_y: y, 
-            energie: playerData.playerState.energie - energyCost 
-          }
-        };
+        const originalState = { ...playerData };
+        const newState = { ...playerData, playerState: { ...playerData.playerState, position_x: x, position_y: y, energie: playerData.playerState.energie - energyCost }};
         setPlayerData(newState);
-        
+        handleCellSelect(cell, newState);
+
         const { error } = await supabase.rpc('move_player', { target_x: x, target_y: y });
-        
         if (error) {
           showError(error.message || "Déplacement impossible.");
-          setPlayerData(originalState); // Revert on error
+          setPlayerData(originalState);
         } else {
-          // Success, the state is already updated optimistically.
-          // We can do a silent refresh to sync any potential side-effects.
-          refreshPlayerData(true);
-          // After the move, re-evaluate actions on the new cell.
-          handleCellSelect(cell, newState);
+          refreshPlayerData();
         }
       };
 
@@ -265,7 +253,7 @@ const GameUI = () => {
     return {
       wood: playerData.playerState.wood + inventoryWood + chestWood,
       metal: playerData.playerState.metal + inventoryMetal + chestMetal,
-      components: playerData.playerState.components + inventoryComponents,
+      components: playerData.playerState.components + inventoryComponents + chestComponents,
     };
   }, [playerData, items]);
 
