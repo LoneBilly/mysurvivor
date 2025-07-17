@@ -7,13 +7,14 @@ export default defineConfig(() => ({
   server: {
     host: "::", // Permet l'accès externe
     port: 8080, // Port de développement
-    hmr: {
-      protocol: 'wss'
-    },
+
     // Autorisation d'accès aux fichiers du projet
     fs: {
       allow: ['.']
     },
+
+    // Autorisation d'un hôte spécifique (à remplacer par ton sous-domaine ngrok actuel)
+    allowedHosts: ['d67fdfadf6e5.ngrok-free.app'],
   },
   plugins: [
     dyadComponentTagger(),
