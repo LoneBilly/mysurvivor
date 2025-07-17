@@ -526,11 +526,22 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
-      const isHovered = !isMobile && hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
-      const showTrashIcon = isHovered || (isMobile && cell.showTrash);
-
-      if (showTrashIcon) {
-        return <X className="w-8 h-8 text-red-500" />;
+      if (isMobile) {
+        if (cell.showTrash) {
+          return <X className="w-8 h-8 text-red-500" />;
+        }
+      } else {
+        return (
+          <>
+            <div className="flex flex-col items-center justify-center text-white gap-1 h-full group-hover:hidden">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-xs font-mono">
+                <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+              </span>
+            </div>
+            <X className="w-8 h-8 text-red-500 hidden group-hover:block" />
+          </>
+        );
       }
       return (
         <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
@@ -610,7 +621,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 onMouseEnter={() => !isMobile && cell.type === 'in_progress' && setHoveredConstruction({x, y})}
                 onMouseLeave={() => !isMobile && setHoveredConstruction(null)}
                 className={cn(
-                  "absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
+                  "group absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
                   getCellStyle(cell)
                 )}
                 style={{
