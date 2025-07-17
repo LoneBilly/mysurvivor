@@ -132,7 +132,7 @@ const GameUI = () => {
         case 'Action':
           const idName = cell.id_name?.toLowerCase();
           switch (idName) {
-            case 'marche':
+            case 'marché':
               setIsMarketOpen(true);
               break;
             case 'commissariat':

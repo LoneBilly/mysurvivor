@@ -9,6 +9,7 @@ import { showError } from '@/utils/toast';
 import { GameProvider } from '@/contexts/GameContext';
 import { preloadImages } from '@/utils/preloadImages';
 import { getPublicIconUrl } from '@/utils/imageUrls';
+import * as LucideIcons from "lucide-react";
 
 const Game = () => {
   const { user } = useAuth();
@@ -44,10 +45,13 @@ const Game = () => {
     const urlsToPreload: string[] = [];
     for (const item of itemsData) {
       if (item.icon) {
-        const publicUrl = getPublicIconUrl(item.icon);
-        if (publicUrl) {
-          urlMap.set(item.icon, publicUrl);
-          urlsToPreload.push(publicUrl);
+        const isLucideIcon = !!(LucideIcons as any)[item.icon];
+        if (!isLucideIcon) {
+          const publicUrl = getPublicIconUrl(item.icon);
+          if (publicUrl) {
+            urlMap.set(item.icon, publicUrl);
+            urlsToPreload.push(publicUrl);
+          }
         }
       }
     }
