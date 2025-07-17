@@ -43,50 +43,59 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     navigate('/');
   }, [navigate]);
 
-  useEffect(() => {
-    const checkUserAndProfile = async (session: Session | null) => {
-      if (session?.user) {
-        // Si on a déjà vérifié ce user ID, on ne refait pas l'appel.
-        if (session.user.id === lastCheckedUserId.current) {
-          setLoading(false);
-          return;
-        }
+  const checkUserAndProfile = useCallback(async (session: Session | null) => {
+    if (session?.user) {
+      // Si on a déjà vérifié cet utilisateur avec succès, on ne recommence pas.
+      if (session.user.id === lastCheckedUserId.current) {
+        setLoading(false);
+        return;
+      }
 
+      const currentUserId = session.user.id;
+      // On marque immédiatement l'ID comme "en cours de vérification" pour stopper les appels en double.
+      lastCheckedUserId.current = currentUserId;
+
+      try {
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('username, role, is_banned, ban_reason')
-          .eq('id', session.user.id)
+          .eq('id', currentUserId)
           .single();
 
-        lastCheckedUserId.current = session.user.id;
-
         if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-          setLoading(false);
-          return;
+          throw error; // L'erreur sera gérée dans le bloc catch.
         }
 
         if (profile) {
           if (profile.is_banned) {
             setBannedInfo({ isBanned: true, reason: profile.ban_reason });
-            setLoading(false);
-            return;
-          }
-
-          setBannedInfo({ isBanned: false, reason: null });
-          setRole(profile.role);
-          if (profile.username === null && location.pathname !== '/create-profile') {
-            navigate('/create-profile');
-          } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
-            navigate('/game');
+          } else {
+            setBannedInfo({ isBanned: false, reason: null });
+            setRole(profile.role);
+            if (profile.username === null && location.pathname !== '/create-profile') {
+              navigate('/create-profile');
+            } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
+              navigate('/game');
+            }
           }
         }
-      } else {
-        lastCheckedUserId.current = null;
+        // En cas de succès, lastCheckedUserId reste défini, empêchant de futurs appels inutiles.
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        // En cas d'échec, on réinitialise le flag pour permettre une nouvelle tentative plus tard.
+        if (lastCheckedUserId.current === currentUserId) {
+          lastCheckedUserId.current = null;
+        }
+      } finally {
+        setLoading(false);
       }
+    } else {
+      lastCheckedUserId.current = null;
       setLoading(false);
-    };
+    }
+  }, [navigate, location.pathname]);
 
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -102,7 +111,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate, location.pathname]);
+  }, [checkUserAndProfile]);
 
   const value = useMemo(() => ({
     user,
