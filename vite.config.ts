@@ -12,10 +12,6 @@ export default defineConfig(() => ({
     fs: {
       allow: ['.']
     },
-
-    hmr: {
-      port: 8080,
-    },
   },
   plugins: [
     dyadComponentTagger(),
