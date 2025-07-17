@@ -50,12 +50,39 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     discardOutput,
     moveItemToInventory,
     moveItemFromInventory,
+    draggedItem,
+    dragOver,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
   } = useWorkbench(construction, onUpdate);
 
   useEffect(() => {
     if (craftQuantity > maxCraftQuantity) setCraftQuantity(maxCraftQuantity > 0 ? maxCraftQuantity : 1);
     if (maxCraftQuantity === 0 && craftQuantity !== 1) setCraftQuantity(1);
   }, [maxCraftQuantity, craftQuantity]);
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd]);
 
   const handleStartCraft = () => {
     startCraft(craftQuantity);
@@ -109,17 +136,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
             <div className="bg-black/20 rounded-lg p-3 border border-slate-700 space-y-3">
               <div className="flex flex-row items-center justify-center gap-2">
                 {/* Ingredients */}
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 gap-1" data-slot-target="workbench">
                   {ingredientSlots.map((item, index) => (
                     <div key={item?.id || index} className="w-12 h-12">
                       <InventorySlot
                         item={item}
                         index={index}
                         isUnlocked={true}
-                        onDragStart={() => {}}
+                        onDragStart={(idx, node, e) => handleDragStart(idx, node, e)}
                         onItemClick={() => handleOpenInventorySelector(index)}
-                        isBeingDragged={false}
-                        isDragOver={false}
+                        isBeingDragged={draggedItem?.index === index}
+                        isDragOver={dragOver?.index === index}
                         isLocked={!!currentJob}
                         onRemove={handleRemoveItemFromWorkbench}
                       />

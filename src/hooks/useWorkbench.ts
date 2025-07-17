@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
@@ -10,6 +10,11 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
+
+  // D&D state
+  const [draggedItem, setDraggedItem] = useState<{ index: number } | null>(null);
+  const [dragOver, setDragOver] = useState<{ index: number } | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
   const currentJob = useMemo(() => {
     if (!construction) return null;
@@ -355,6 +360,107 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     }
   };
 
+  // D&D logic
+  const handleDragStart = useCallback((index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    if (currentJob) return;
+    e.preventDefault();
+    setDraggedItem({ index });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  }, [currentJob]);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const slotElement = elements.find(el => el.hasAttribute('data-slot-index') && (el as HTMLElement).closest('[data-slot-target="workbench"]'));
+    
+    if (slotElement) {
+      const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
+      if (index !== -1) {
+        setDragOver({ index });
+        return;
+      }
+    }
+    setDragOver(null);
+  }, []);
+
+  const handleDragEnd = useCallback(async () => {
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+  
+    if (!draggedItem || !dragOver || !construction) {
+      setDraggedItem(null);
+      setDragOver(null);
+      return;
+    }
+  
+    const { index: fromIndex } = draggedItem;
+    const { index: toIndex } = dragOver;
+  
+    setDraggedItem(null);
+    setDragOver(null);
+  
+    if (fromIndex === toIndex) return;
+  
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+  
+    // Optimistic update
+    const newWorkbenchItems = [...playerData.workbenchItems];
+    const fromItem = newWorkbenchItems.find(i => i.workbench_id === construction.id && i.slot_position === fromIndex);
+    const toItem = newWorkbenchItems.find(i => i.workbench_id === construction.id && i.slot_position === toIndex);
+
+    if (!fromItem) return;
+
+    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+      const fromItemIndex = newWorkbenchItems.findIndex(i => i.id === fromItem.id);
+      const toItemIndex = newWorkbenchItems.findIndex(i => i.id === toItem.id);
+      newWorkbenchItems[toItemIndex].quantity += fromItem.quantity;
+      newWorkbenchItems.splice(fromItemIndex, 1);
+    } else {
+      const fromItemIndex = newWorkbenchItems.findIndex(i => i.id === fromItem.id);
+      if (fromItemIndex !== -1) newWorkbenchItems[fromItemIndex].slot_position = toIndex;
+      if (toItem) {
+        const toItemIndex = newWorkbenchItems.findIndex(i => i.id === toItem.id);
+        if (toItemIndex !== -1) newWorkbenchItems[toItemIndex].slot_position = fromIndex;
+      }
+    }
+
+    setPlayerData(prev => ({ ...prev, workbenchItems: newWorkbenchItems }));
+
+    const { error } = await supabase.rpc('swap_workbench_items', {
+      p_workbench_id: construction.id,
+      p_from_slot: fromIndex,
+      p_to_slot: toIndex,
+    });
+
+    if (error) {
+      showError(error.message);
+      setPlayerData(originalPlayerData);
+    } else {
+      onUpdate(true);
+    }
+  }, [draggedItem, dragOver, construction, playerData, setPlayerData, onUpdate]);
+
   return {
     isLoadingAction,
     currentJob,
@@ -371,5 +477,10 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     discardOutput,
     moveItemToInventory,
     moveItemFromInventory,
+    draggedItem,
+    dragOver,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
   };
 };
