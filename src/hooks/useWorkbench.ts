@@ -269,43 +269,18 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   const collectOutput = async () => {
     if (!construction || !outputItem || !outputItem.items) return { inventoryFull: false };
 
-    const isStackable = outputItem.items.stackable;
-    const existingStackIndex = playerData.inventory.findIndex(invItem => invItem.item_id === outputItem.item_id);
-    const hasEmptySlot = playerData.inventory.length < playerData.playerState.unlocked_slots;
-
-    if (!hasEmptySlot && !(isStackable && existingStackIndex !== -1)) {
-        showError("Votre inventaire est plein. Libérez de l'espace pour récupérer votre butin.");
-        return { inventoryFull: true };
-    }
-
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-
-    const newPlayerData = JSON.parse(JSON.stringify(playerData));
-    const constructionIndex = newPlayerData.baseConstructions.findIndex((c: BaseConstruction) => c.id === construction.id);
-    if (constructionIndex !== -1) {
-      newPlayerData.baseConstructions[constructionIndex].output_item_id = null;
-      newPlayerData.baseConstructions[constructionIndex].output_quantity = null;
-    }
-    if (isStackable && existingStackIndex !== -1) {
-      newPlayerData.inventory[existingStackIndex].quantity += outputItem.quantity;
-    } else {
-      const firstEmptySlot = Array.from({ length: newPlayerData.playerState.unlocked_slots }, (_, i) => i)
-                                  .find(slot => !newPlayerData.inventory.some((item: InventoryItem) => item.slot_position === slot));
-      if (firstEmptySlot !== undefined) {
-        newPlayerData.inventory.push({ ...outputItem, slot_position: firstEmptySlot });
-      }
-    }
-    setPlayerData(newPlayerData);
-
-    const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
+    const { data, error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
     
     if (error) {
       showError(error.message);
-      setPlayerData(originalPlayerData);
       if (error.message.includes("Votre inventaire est plein")) return { inventoryFull: true };
     } else {
       showSuccess("Objet récupéré !");
-      onUpdate(true);
+      setPlayerData(prev => ({
+        ...prev,
+        inventory: data.inventory,
+        baseConstructions: prev.baseConstructions.map(c => c.id === data.construction.id ? data.construction : c),
+      }));
     }
     return { inventoryFull: false };
   };
