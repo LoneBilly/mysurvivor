@@ -57,7 +57,7 @@ interface BaseInterfaceProps {
 
 const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
-  const { playerData, setPlayerData, refreshPlayerData, items, refreshConstructionJobs } = useGame();
+  const { playerData, setPlayerData, refreshPlayerData, items, addConstructionJob } = useGame();
   const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
   
   const isMobile = useIsMobile();
@@ -401,27 +401,19 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       return;
     }
 
-    const originalGridData = gridData;
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     
-    const newGrid = JSON.parse(JSON.stringify(gridData));
-    const buildTime = 9 * playerData.baseConstructions.length + 15;
-    newGrid[y][x].type = 'in_progress';
-    newGrid[y][x].ends_at = new Date(Date.now() + buildTime * 1000).toISOString();
-    setGridData(updateCanBuild(newGrid));
-
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= energyCost;
     setPlayerData(newPlayerData);
 
-    const { error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
+    const { data, error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
 
     if (error) {
       showError(error.message || "Erreur lors de la construction.");
-      setGridData(originalGridData);
       setPlayerData(originalPlayerData);
     } else {
-      refreshConstructionJobs();
+      addConstructionJob(data[0]);
     }
   };
 
@@ -447,26 +439,20 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       return;
     }
 
-    const originalGridData = gridData;
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-
-    const newGrid = JSON.parse(JSON.stringify(gridData));
-    newGrid[y][x].type = 'in_progress';
-    newGrid[y][x].ends_at = new Date(Date.now() + building.build_time_seconds * 1000).toISOString();
-    setGridData(updateCanBuild(newGrid));
 
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
     newPlayerData.playerState.energie -= building.cost_energy;
     setPlayerData(newPlayerData);
 
-    const { error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
+    const { data, error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
 
     if (error) {
       showError(error.message);
-      setGridData(originalGridData);
       setPlayerData(originalPlayerData);
     } else {
-      refreshConstructionJobs();
+      addConstructionJob(data[0]);
+      refreshPlayerData(true); // Refresh resources
     }
   };
 

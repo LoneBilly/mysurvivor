@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { FullPlayerData, MapCell, Item } from '@/types/game';
+import { FullPlayerData, MapCell, Item, ConstructionJob } from '@/types/game';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
@@ -9,7 +9,7 @@ interface GameContextType {
   mapLayout: MapCell[];
   items: Item[];
   refreshPlayerData: (silent?: boolean) => Promise<void>;
-  refreshConstructionJobs: () => Promise<void>;
+  addConstructionJob: (job: ConstructionJob) => void;
   setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
   getIconUrl: (iconName: string | null) => string | undefined;
 }
@@ -50,20 +50,12 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     }
   }, [user]);
 
-  const refreshConstructionJobs = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase.from('construction_jobs').select('*').eq('player_id', user.id);
-
-    if (error) {
-        showError("Erreur de synchronisation des constructions.");
-        await refreshPlayerData(true);
-    } else {
-        setPlayerData(prev => ({
-            ...prev,
-            constructionJobs: data || [],
-        }));
-    }
-  }, [user, refreshPlayerData]);
+  const addConstructionJob = (job: ConstructionJob) => {
+    setPlayerData(prev => ({
+      ...prev,
+      constructionJobs: [...(prev.constructionJobs || []), job],
+    }));
+  };
 
   useEffect(() => {
     setPlayerData(initialData.playerData);
@@ -118,10 +110,10 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     mapLayout: initialData.mapLayout,
     items: initialData.items,
     refreshPlayerData,
-    refreshConstructionJobs,
+    addConstructionJob,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshConstructionJobs, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>
