@@ -242,13 +242,22 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   }, [matchedRecipe, construction, onUpdate, playerData, setPlayerData, resultItem]);
 
   const cancelCraft = async () => {
-    if (!construction) return;
-    setIsLoadingAction(true);
+    if (!construction || !currentJob) return;
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    
+    setPlayerData(prev => ({
+      ...prev,
+      craftingJobs: prev.craftingJobs?.filter(job => job.id !== currentJob.id)
+    }));
+
     const { error } = await supabase.rpc('cancel_crafting_job', { p_workbench_id: construction.id });
-    if (error) showError(error.message);
-    else showSuccess("Fabrication annulée.");
-    await refreshPlayerData();
-    setIsLoadingAction(false);
+    if (error) {
+      showError(error.message);
+      setPlayerData(originalPlayerData);
+    } else {
+      showSuccess("Fabrication annulée.");
+      onUpdate(true);
+    }
   };
 
   const collectOutput = async () => {
@@ -267,13 +276,11 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
 
     // Optimistic UI Update
     const newPlayerData = JSON.parse(JSON.stringify(playerData));
-    // Remove from workbench output
     const constructionIndex = newPlayerData.baseConstructions.findIndex((c: BaseConstruction) => c.id === construction.id);
     if (constructionIndex !== -1) {
       newPlayerData.baseConstructions[constructionIndex].output_item_id = null;
       newPlayerData.baseConstructions[constructionIndex].output_quantity = null;
     }
-    // Add to inventory
     if (isStackable && existingStackIndex !== -1) {
       newPlayerData.inventory[existingStackIndex].quantity += outputItem.quantity;
     } else {
@@ -289,59 +296,82 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     
     if (error) {
       showError(error.message);
-      setPlayerData(originalPlayerData); // Revert on error
-      if (error.message.includes("Votre inventaire est plein")) {
-        return { inventoryFull: true };
-      }
+      setPlayerData(originalPlayerData);
+      if (error.message.includes("Votre inventaire est plein")) return { inventoryFull: true };
     } else {
       showSuccess("Objet récupéré !");
-      onUpdate(true); // Refresh with real data
+      onUpdate(true);
     }
     return { inventoryFull: false };
   };
 
   const discardOutput = async () => {
     if (!construction) return;
-    setIsLoadingAction(true);
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    
+    setPlayerData(prev => ({
+      ...prev,
+      baseConstructions: prev.baseConstructions.map(c => c.id === construction.id ? { ...c, output_item_id: null, output_quantity: null } : c)
+    }));
+
     const { error } = await supabase.rpc('discard_workbench_output', { p_workbench_id: construction.id });
-    setIsLoadingAction(false);
-    if (error) showError(error.message);
-    else {
+    if (error) {
+      showError(error.message);
+      setPlayerData(originalPlayerData);
+    } else {
       showSuccess("Objet jeté.");
-      onUpdate();
+      onUpdate(true);
     }
   };
 
   const moveItemToInventory = async (workbenchItemId: number, quantity: number) => {
-    setIsLoadingAction(true);
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    const itemToMove = playerData.workbenchItems.find(item => item.id === workbenchItemId);
+    if (!itemToMove) return;
+
+    setPlayerData(prev => {
+      const newWorkbenchItems = prev.workbenchItems.filter(item => item.id !== workbenchItemId);
+      const newInventory = [...prev.inventory, { ...itemToMove, slot_position: -1 }]; // Placeholder slot
+      return { ...prev, workbenchItems: newWorkbenchItems, inventory: newInventory };
+    });
+
     const { error } = await supabase.rpc('move_item_from_workbench_to_inventory', {
       p_workbench_item_id: workbenchItemId,
       p_quantity_to_move: quantity,
     });
-    setIsLoadingAction(false);
     if (error) {
       showError(error.message);
+      setPlayerData(originalPlayerData);
     } else {
       showSuccess("Objet retourné à l'inventaire.");
-      onUpdate();
+      onUpdate(true);
     }
   };
 
   const moveItemFromInventory = async (inventoryItemId: number, quantity: number, targetSlot: number) => {
     if (!construction) return;
-    setIsLoadingAction(true);
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    const itemToMove = playerData.inventory.find(item => item.id === inventoryItemId);
+    if (!itemToMove) return;
+
+    setPlayerData(prev => {
+      const newInventory = prev.inventory.filter(item => item.id !== inventoryItemId);
+      const newWorkbenchItems = [...prev.workbenchItems, { ...itemToMove, slot_position: targetSlot, workbench_id: construction.id }];
+      return { ...prev, inventory: newInventory, workbenchItems: newWorkbenchItems };
+    });
+
     const { error } = await supabase.rpc('move_item_to_workbench', {
       p_inventory_id: inventoryItemId,
       p_workbench_id: construction.id,
       p_quantity_to_move: quantity,
       p_target_slot: targetSlot
     });
-    setIsLoadingAction(false);
     if (error) {
       showError(error.message);
+      setPlayerData(originalPlayerData);
     } else {
       showSuccess("Objet transféré.");
-      onUpdate();
+      onUpdate(true);
     }
   };
 
