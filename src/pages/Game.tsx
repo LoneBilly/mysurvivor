@@ -79,25 +79,6 @@ const Game = () => {
   }, [user, loadGameData]);
 
   useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('public-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public' },
-        () => {
-          refreshPlayerData(true);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, refreshPlayerData]);
-
-  useEffect(() => {
     const jobCheckInterval = setInterval(() => {
       if (playerData?.craftingJobs && playerData.craftingJobs.length > 0) {
         const now = Date.now();

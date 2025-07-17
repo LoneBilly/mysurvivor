@@ -37,17 +37,18 @@ interface ZoneEvent {
 
 interface EventManagerProps {
   mapLayout: MapCell[];
+  events: Event[];
+  allItems: Item[];
+  onEventsUpdate: () => void;
 }
 
 const STAT_OPTIONS = ['vie', 'faim', 'soif', 'energie'];
 
-const EventManager = ({ mapLayout }: EventManagerProps) => {
+const EventManager = ({ mapLayout, events, allItems, onEventsUpdate }: EventManagerProps) => {
   const isMobile = useIsMobile();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [allItems, setAllItems] = useState<Item[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [zoneEvents, setZoneEvents] = useState<ZoneEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -65,36 +66,16 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
 
   const resourceZones = mapLayout.filter(zone => zone.interaction_type === 'Ressource');
 
-  const fetchInitialData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [eventsRes, itemsRes] = await Promise.all([
-        supabase.from('events').select('*').order('name'),
-        supabase.from('items').select('id, name').order('name')
-      ]);
-      if (eventsRes.error) throw eventsRes.error;
-      if (itemsRes.error) throw itemsRes.error;
-      setEvents(eventsRes.data || []);
-      setAllItems(itemsRes.data || []);
-    } catch (error) {
-      showError("Impossible de charger les données initiales.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const fetchZoneEvents = useCallback(async (eventId: number) => {
+    setLoading(true);
     const { data, error } = await supabase.from('zone_events').select('*').eq('event_id', eventId);
     if (error) {
       showError("Impossible de charger les configurations de zones.");
     } else {
       setZoneEvents(data || []);
     }
+    setLoading(false);
   }, []);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
 
   useEffect(() => {
     if (selectedEvent) {
@@ -108,20 +89,17 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
       return;
     }
     const eventData = { name: eventName.trim(), description: eventDescription.trim() || null, icon: eventIcon.trim() || null };
-    const promise = selectedEvent ? supabase.from('events').update(eventData).eq('id', selectedEvent.id).select().single() : supabase.from('events').insert(eventData).select().single();
-    const { data, error } = await promise;
+    const promise = selectedEvent ? supabase.from('events').update(eventData).eq('id', selectedEvent.id) : supabase.from('events').insert(eventData);
+    const { error } = await promise;
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
       showSuccess(`Événement ${selectedEvent ? 'mis à jour' : 'créé'} !`);
-      if (selectedEvent) {
-        const updatedEvent = data as Event;
-        setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
-        setSelectedEvent(updatedEvent);
-      } else {
-        setEvents(prev => [...prev, data as Event]);
-      }
+      onEventsUpdate();
       setIsCreatingEvent(false);
+      if (selectedEvent) {
+        setSelectedEvent(prev => prev ? { ...prev, ...eventData } : null);
+      }
     }
   };
 
@@ -132,7 +110,7 @@ const EventManager = ({ mapLayout }: EventManagerProps) => {
       showError("Erreur lors de la suppression.");
     } else {
       showSuccess("Événement supprimé !");
-      setEvents(prev => prev.filter(e => e.id !== deleteModal.event!.id));
+      onEventsUpdate();
       if (selectedEvent?.id === deleteModal.event.id) setSelectedEvent(null);
     }
     setDeleteModal({ isOpen: false, event: null });

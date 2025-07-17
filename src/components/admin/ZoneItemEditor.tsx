@@ -7,9 +7,16 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Loader2, ArrowLeft, Search, Plus, HelpCircle } from 'lucide-react';
 import * as LucideIcons from "lucide-react";
 import { showSuccess, showError } from '@/utils/toast';
-import { Item, ZoneItem, ZoneItemEditorProps } from '@/types/admin';
+import { Item, ZoneItem } from '@/types/admin';
+import { MapCell } from '@/types/game';
 import ZoneIconEditorModal from './ZoneIconEditorModal';
 import ItemFormModal from './ItemFormModal';
+
+interface ZoneItemEditorProps {
+  zone: MapCell;
+  onBack: () => void;
+  allItems: Item[];
+}
 
 const getZoneIconComponent = (iconName: string | null): React.ElementType => {
     if (!iconName) return LucideIcons.Map;
@@ -20,8 +27,7 @@ const getZoneIconComponent = (iconName: string | null): React.ElementType => {
     return HelpCircle;
 };
 
-const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
-  const [items, setItems] = useState<Item[]>([]);
+const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
   const [zoneItemSettings, setZoneItemSettings] = useState<Map<number, { spawn_chance: number; max_quantity: number }>>(new Map());
   const initialZoneItemsRef = useRef<Map<number, { spawn_chance: number; max_quantity: number }>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -142,21 +148,13 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     }
   };
 
-  const fetchItemsAndZoneItems = useCallback(async () => {
+  const fetchZoneItems = useCallback(async () => {
     setLoading(true);
     try {
-      const [itemsRes, zoneItemsRes] = await Promise.all([
-        supabase.from('items').select('*'),
-        supabase.from('zone_items').select('*').eq('zone_id', zone.id)
-      ]);
-
-      if (itemsRes.error) throw itemsRes.error;
-      if (zoneItemsRes.error) throw zoneItemsRes.error;
-
-      const sortedItems = (itemsRes.data || []).sort((a, b) => a.name.localeCompare(b.name));
-      setItems(sortedItems);
+      const { data: zoneItemsRes, error: zoneItemsError } = await supabase.from('zone_items').select('*').eq('zone_id', zone.id);
+      if (zoneItemsError) throw zoneItemsError;
       
-      const initialData = zoneItemsRes.data || [];
+      const initialData = zoneItemsRes || [];
       const settingsMap = new Map<number, { spawn_chance: number; max_quantity: number }>();
       initialData.forEach(zi => settingsMap.set(zi.item_id, { spawn_chance: zi.spawn_chance, max_quantity: zi.max_quantity || 1 }));
       setZoneItemSettings(settingsMap);
@@ -171,8 +169,8 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
   }, [zone.id]);
 
   useEffect(() => {
-    fetchItemsAndZoneItems();
-  }, [zone.id, fetchItemsAndZoneItems]);
+    fetchZoneItems();
+  }, [zone.id, fetchZoneItems]);
 
   const handleSettingChange = (itemId: number, field: 'spawn_chance' | 'max_quantity', valueStr: string) => {
     const newSettings = new Map(zoneItemSettings);
@@ -213,7 +211,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
     setIsItemFormModalOpen(true);
   };
 
-  const filteredItems = items.filter(item =>
+  const filteredItems = allItems.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (typeFilter === 'all' || item.type === typeFilter)
   );
@@ -338,7 +336,7 @@ const ZoneItemEditor = ({ zone, onBack }: ZoneItemEditorProps) => {
         isOpen={isItemFormModalOpen}
         onClose={() => setIsItemFormModalOpen(false)}
         item={editingItem}
-        onSave={fetchItemsAndZoneItems}
+        onSave={onBack}
       />
     </Card>
   );

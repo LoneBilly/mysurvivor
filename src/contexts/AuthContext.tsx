@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -32,65 +32,101 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
   const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
+  
   const navigate = useNavigate();
   const location = useLocation();
 
+  const navigateRef = useRef(navigate);
+  const locationRef = useRef(location);
+  useEffect(() => {
+    navigateRef.current = navigate;
+    locationRef.current = location;
+  });
+
+  // Use a single ref to track the user ID being fetched.
+  // This prevents race conditions and duplicate fetches for the same user.
+  const fetchingProfileForId = useRef<string | null>(null);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setRole(null);
     setBannedInfo({ isBanned: false, reason: null });
-    navigate('/');
-  }, [navigate]);
+    fetchingProfileForId.current = null; // Reset on sign out
+    navigateRef.current('/');
+  }, []);
 
   useEffect(() => {
-    const checkUserAndProfile = async (session: Session | null) => {
-      setBannedInfo({ isBanned: false, reason: null });
-      if (session?.user) {
+    const handleAuthChange = async (_event: string, session: Session | null) => {
+      setSession(session);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (!currentUser) {
+        setLoading(false);
+        setRole(null);
+        setBannedInfo({ isBanned: false, reason: null });
+        fetchingProfileForId.current = null;
+        return;
+      }
+
+      const userId = currentUser.id;
+
+      // If we are already fetching a profile for this user, do nothing.
+      if (fetchingProfileForId.current === userId) {
+        return;
+      }
+
+      // Lock to prevent other calls from fetching for this user.
+      fetchingProfileForId.current = userId;
+      setLoading(true);
+
+      try {
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('username, role, is_banned, ban_reason')
-          .eq('id', session.user.id)
+          .eq('id', userId)
           .single();
 
         if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-          setLoading(false);
-          return;
+          throw error;
         }
 
         if (profile) {
           if (profile.is_banned) {
             setBannedInfo({ isBanned: true, reason: profile.ban_reason });
-            setLoading(false);
-            return;
-          }
-
-          setRole(profile.role);
-          if (profile.username === null && location.pathname !== '/create-profile') {
-            navigate('/create-profile');
-          } else if (profile.username !== null && (location.pathname === '/create-profile' || location.pathname === '/login')) {
-            navigate('/game');
+          } else {
+            setBannedInfo({ isBanned: false, reason: null });
+            setRole(profile.role);
+            if (profile.username === null && locationRef.current.pathname !== '/create-profile') {
+              navigateRef.current('/create-profile');
+            } else if (profile.username !== null && (locationRef.current.pathname === '/create-profile' || locationRef.current.pathname === '/login')) {
+              navigateRef.current('/game');
+            }
           }
         }
+      } catch (err) {
+        console.error("Error checking user profile:", err);
+        // On error, unlock to allow a re-fetch for this user on the next event.
+        if (fetchingProfileForId.current === userId) {
+          fetchingProfileForId.current = null;
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      checkUserAndProfile(session);
+      handleAuthChange('INITIAL_SESSION', session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        checkUserAndProfile(session);
-      }
-    );
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
-    return () => subscription.unsubscribe();
-  }, [navigate, location.pathname]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const value = useMemo(() => ({
     user,
