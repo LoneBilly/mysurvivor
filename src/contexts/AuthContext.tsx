@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -34,22 +34,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [bannedInfo, setBannedInfo] = useState<{ isBanned: boolean; reason: string | null }>({ isBanned: false, reason: null });
   const navigate = useNavigate();
   const location = useLocation();
+  const lastCheckedUserId = useRef<string | null>(null);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setBannedInfo({ isBanned: false, reason: null });
+    lastCheckedUserId.current = null;
     navigate('/');
   }, [navigate]);
 
   useEffect(() => {
     const checkUserAndProfile = async (session: Session | null) => {
-      setBannedInfo({ isBanned: false, reason: null });
       if (session?.user) {
+        // Si on a déjà vérifié ce user ID, on ne refait pas l'appel.
+        if (session.user.id === lastCheckedUserId.current) {
+          setLoading(false);
+          return;
+        }
+
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('username, role, is_banned, ban_reason')
           .eq('id', session.user.id)
           .single();
+
+        lastCheckedUserId.current = session.user.id;
 
         if (error && error.code !== 'PGRST116') {
           console.error('Error fetching profile:', error);
@@ -64,6 +73,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             return;
           }
 
+          setBannedInfo({ isBanned: false, reason: null });
           setRole(profile.role);
           if (profile.username === null && location.pathname !== '/create-profile') {
             navigate('/create-profile');
@@ -71,6 +81,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             navigate('/game');
           }
         }
+      } else {
+        lastCheckedUserId.current = null;
       }
       setLoading(false);
     };
@@ -90,7 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   const value = useMemo(() => ({
     user,
