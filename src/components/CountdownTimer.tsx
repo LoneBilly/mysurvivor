@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface CountdownTimerProps {
   endTime: string;
@@ -9,6 +10,8 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
   const completedRef = useRef(false);
+
+  const [isFinalizing, setIsFinalizing] = useState(false);
 
   const calculateRemaining = useCallback(() => {
     const diff = new Date(endTime).getTime() - Date.now();
@@ -33,14 +36,16 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
 
   useEffect(() => {
     completedRef.current = false;
+    setIsFinalizing(false);
     setRemaining(calculateRemaining());
   }, [endTime, calculateRemaining]);
 
   useEffect(() => {
     if (remaining.totalSeconds <= 0) {
-      if (!completedRef.current) {
+      if (!completedRef.current && !isFinalizing) {
         completedRef.current = true;
-        setTimeout(() => onCompleteRef.current(), 1500);
+        setIsFinalizing(true);
+        onCompleteRef.current();
       }
       return;
     }
@@ -50,7 +55,16 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [remaining, calculateRemaining]);
+  }, [remaining, calculateRemaining, isFinalizing]);
+
+  if (isFinalizing) {
+    return (
+      <div className="flex items-center justify-center gap-1 text-xs">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>Finalisation...</span>
+      </div>
+    );
+  }
 
   return <>{remaining.formatted}</>;
 };
