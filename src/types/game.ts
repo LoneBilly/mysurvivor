@@ -109,6 +109,7 @@ export interface CraftingJob {
   result_item_icon: string;
   quantity: number;
   initial_quantity: number;
+  craft_time_seconds: number;
 }
 
 export interface ChestItem {

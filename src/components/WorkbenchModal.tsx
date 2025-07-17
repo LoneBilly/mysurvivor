@@ -111,35 +111,40 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   }, [matchedRecipe, construction, craftQuantity, onUpdate]);
 
   useEffect(() => {
-    if (!currentJob) {
+    if (!currentJob || !currentJob.craft_time_seconds) {
       setProgress(0);
       setTimeRemaining('');
       return;
     }
 
     timerCompletedRef.current = false;
-    const startTime = new Date(currentJob.started_at).getTime();
-    const endTime = new Date(currentJob.ends_at).getTime();
-    const totalDuration = endTime - startTime;
-
-    if (totalDuration <= 0) {
-        setProgress(100);
-        setTimeRemaining('');
-        if (!timerCompletedRef.current) {
-            timerCompletedRef.current = true;
-            refreshPlayerData();
-        }
-        return;
-    }
-
     let animationFrameId: number;
 
     const updateTimer = () => {
-      const now = Date.now();
-      const elapsedTime = now - startTime;
-      const diff = endTime - now;
+      const totalBatchDuration = currentJob.initial_quantity * currentJob.craft_time_seconds * 1000;
+      if (totalBatchDuration <= 0) {
+        setProgress(100);
+        setTimeRemaining('');
+        return;
+      }
 
-      if (diff <= 0) {
+      const itemsCompleted = currentJob.initial_quantity - currentJob.quantity;
+      const timeElapsedForCompletedItems = itemsCompleted * currentJob.craft_time_seconds * 1000;
+      
+      const currentItemEndTime = new Date(currentJob.ends_at).getTime();
+      const currentItemDuration = currentJob.craft_time_seconds * 1000;
+      const currentItemStartTime = currentItemEndTime - currentItemDuration;
+      
+      const timeElapsedForCurrentItem = Math.max(0, Date.now() - currentItemStartTime);
+      
+      const totalTimeElapsed = timeElapsedForCompletedItems + timeElapsedForCurrentItem;
+      
+      const newProgress = Math.min(100, (totalTimeElapsed / totalBatchDuration) * 100);
+      setProgress(newProgress);
+
+      const totalTimeRemainingMs = totalBatchDuration - totalTimeElapsed;
+
+      if (totalTimeRemainingMs <= 0) {
         cancelAnimationFrame(animationFrameId);
         setProgress(100);
         setTimeRemaining('');
@@ -150,10 +155,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         return;
       }
 
-      const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
-      setProgress(newProgress);
-
-      const remainingSeconds = Math.ceil(diff / 1000);
+      const remainingSeconds = Math.ceil(totalTimeRemainingMs / 1000);
       let formattedTime;
       if (remainingSeconds >= 60) {
         const minutes = Math.floor(remainingSeconds / 60);

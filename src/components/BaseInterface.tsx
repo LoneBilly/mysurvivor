@@ -84,15 +84,29 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       }
       const newProgress: Record<number, number> = {};
       playerData.craftingJobs.forEach(job => {
-        const startTime = new Date(job.started_at).getTime();
-        const endTime = new Date(job.ends_at).getTime();
-        const totalDuration = endTime - startTime;
-        if (totalDuration > 0) {
-          const elapsedTime = Date.now() - startTime;
-          newProgress[job.workbench_id] = Math.min(100, (elapsedTime / totalDuration) * 100);
-        } else {
-          newProgress[job.workbench_id] = 100;
+        if (!job.craft_time_seconds) {
+          newProgress[job.workbench_id] = 0;
+          return;
         }
+
+        const totalBatchDuration = job.initial_quantity * job.craft_time_seconds * 1000;
+        if (totalBatchDuration <= 0) {
+          newProgress[job.workbench_id] = 100;
+          return;
+        }
+        
+        const itemsCompleted = job.initial_quantity - job.quantity;
+        const timeElapsedForCompletedItems = itemsCompleted * job.craft_time_seconds * 1000;
+        
+        const currentItemEndTime = new Date(job.ends_at).getTime();
+        const currentItemDuration = job.craft_time_seconds * 1000;
+        const currentItemStartTime = currentItemEndTime - currentItemDuration;
+        
+        const timeElapsedForCurrentItem = Math.max(0, Date.now() - currentItemStartTime);
+        
+        const totalTimeElapsed = timeElapsedForCompletedItems + timeElapsedForCurrentItem;
+        
+        newProgress[job.workbench_id] = Math.min(100, (totalTimeElapsed / totalBatchDuration) * 100);
       });
       setCraftingProgress(newProgress);
     }, 200);
