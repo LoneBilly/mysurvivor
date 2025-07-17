@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemIcon from "./ItemIcon";
@@ -50,100 +50,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     discardOutput,
     moveItemToInventory,
     moveItemFromInventory,
-    swapItems,
   } = useWorkbench(construction, onUpdate);
-
-  const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'crafting' } | null>(null);
-  const [dragOver, setDragOver] = useState<{ index: number; target: 'crafting' } | null>(null);
-  const draggedItemNode = useRef<HTMLDivElement | null>(null);
-
-  const handleDragStart = (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    setDraggedItem({ index, source: 'crafting' });
-    
-    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
-    if (!ghostNode) return;
-
-    ghostNode.style.position = 'fixed';
-    ghostNode.style.pointerEvents = 'none';
-    ghostNode.style.zIndex = '5000';
-    ghostNode.style.width = '56px';
-    ghostNode.style.height = '56px';
-    ghostNode.style.opacity = '0.85';
-    ghostNode.style.transform = 'scale(1.1)';
-    document.body.appendChild(ghostNode);
-    draggedItemNode.current = ghostNode;
-
-    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-    handleDragMove(clientX, clientY);
-  };
-
-  const handleDragMove = useCallback((clientX: number, clientY: number) => {
-    if (draggedItemNode.current) {
-      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
-      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
-    }
-
-    const elements = document.elementsFromPoint(clientX, clientY);
-    const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
-    
-    if (slotElement) {
-      const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
-      const targetElement = (slotElement as HTMLElement).closest('[data-slot-target]');
-      const target = targetElement?.getAttribute('data-slot-target') as 'crafting' | undefined;
-
-      if (index !== -1 && target === 'crafting') {
-        setDragOver({ index, target });
-        return;
-      }
-    }
-    setDragOver(null);
-  }, []);
-
-  const handleDragEnd = async () => {
-    if (draggedItemNode.current) {
-      document.body.removeChild(draggedItemNode.current);
-      draggedItemNode.current = null;
-    }
-  
-    if (!draggedItem || !dragOver) {
-      setDraggedItem(null);
-      setDragOver(null);
-      return;
-    }
-  
-    const { index: fromIndex } = draggedItem;
-    const { index: toIndex } = dragOver;
-  
-    setDraggedItem(null);
-    setDragOver(null);
-  
-    if (fromIndex === toIndex) return;
-  
-    await swapItems(fromIndex, toIndex);
-  };
-
-  useEffect(() => {
-    const moveHandler = (e: MouseEvent | TouchEvent) => {
-      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-      handleDragMove(clientX, clientY);
-    };
-    const endHandler = () => handleDragEnd();
-
-    if (draggedItem) {
-      window.addEventListener('mousemove', moveHandler);
-      window.addEventListener('mouseup', endHandler);
-      window.addEventListener('touchmove', moveHandler, { passive: false });
-      window.addEventListener('touchend', endHandler);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', moveHandler);
-      window.removeEventListener('mouseup', endHandler);
-      window.removeEventListener('touchmove', moveHandler);
-      window.removeEventListener('touchend', endHandler);
-    };
-  }, [draggedItem, handleDragMove, handleDragEnd]);
 
   useEffect(() => {
     if (craftQuantity > maxCraftQuantity) setCraftQuantity(maxCraftQuantity > 0 ? maxCraftQuantity : 1);
@@ -204,15 +111,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                 {/* Ingredients */}
                 <div className="grid grid-cols-3 gap-1">
                   {ingredientSlots.map((item, index) => (
-                    <div key={item?.id || index} className="w-12 h-12" data-slot-target="crafting">
+                    <div key={item?.id || index} className="w-12 h-12">
                       <InventorySlot
                         item={item}
                         index={index}
                         isUnlocked={true}
-                        onDragStart={(idx, node, e) => handleDragStart(idx, node, e)}
+                        onDragStart={() => {}}
                         onItemClick={() => handleOpenInventorySelector(index)}
-                        isBeingDragged={draggedItem?.source === 'crafting' && draggedItem?.index === index}
-                        isDragOver={dragOver?.target === 'crafting' && dragOver?.index === index}
+                        isBeingDragged={false}
+                        isDragOver={false}
                         isLocked={!!currentJob}
                         onRemove={handleRemoveItemFromWorkbench}
                       />
