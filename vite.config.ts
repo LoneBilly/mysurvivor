@@ -13,9 +13,8 @@ export default defineConfig(() => ({
       allow: ['.']
     },
 
-    hmr: {
-      port: 8080,
-    },
+    // Autorisation d'un hôte spécifique (à remplacer par ton sous-domaine ngrok actuel)
+    allowedHosts: ['d67fdfadf6e5.ngrok-free.app'],
   },
   plugins: [
     dyadComponentTagger(),

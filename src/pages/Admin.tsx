@@ -8,7 +8,6 @@ import ItemManager from "@/components/admin/ItemManager";
 import EventManager from "@/components/admin/EventManager";
 import BuildingManager from "@/components/admin/BuildingManager";
 import { MapCell } from "@/types/game";
-import { Item } from "@/types/admin";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2, ArrowLeft, Map, Users, Package, Zap, Wrench } from "lucide-react";
@@ -18,48 +17,28 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Admin = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('map');
-  
-  // Centralized data states
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [buildings, setBuildings] = useState<any[]>([]);
-  
+  const [loading, setLoading] = useState(true);
   const [selectedZone, setSelectedZone] = useState<MapCell | null>(null);
+  const [activeTab, setActiveTab] = useState('map');
 
-  const fetchAdminData = useCallback(async () => {
+  const fetchMapLayout = useCallback(async () => {
     setLoading(true);
-    try {
-      const [mapRes, itemsRes, eventsRes, buildingsRes] = await Promise.all([
-        supabase.from('map_layout').select('*').order('y').order('x'),
-        supabase.from('items').select('*').order('name'),
-        supabase.from('events').select('*').order('name'),
-        supabase.from('building_definitions').select('*').order('name'),
-      ]);
-
-      if (mapRes.error) throw mapRes.error;
-      if (itemsRes.error) throw itemsRes.error;
-      if (eventsRes.error) throw eventsRes.error;
-      if (buildingsRes.error) throw buildingsRes.error;
-
-      setMapLayout(mapRes.data as MapCell[]);
-      setItems(itemsRes.data as Item[]);
-      setEvents(eventsRes.data);
-      setBuildings(buildingsRes.data);
-
-    } catch (error: any) {
-      console.error("Error fetching admin data:", error);
-      showError("Impossible de charger les données d'administration.");
-    } finally {
-      setLoading(false);
+    const { data, error } = await supabase.from('map_layout').select('*').order('y').order('x');
+    if (error) {
+      console.error("Error fetching map layout:", error);
+      showError("Impossible de charger la carte.");
+    } else {
+      setMapLayout(data as MapCell[]);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchAdminData();
-  }, [fetchAdminData]);
+    if (!selectedZone) {
+      fetchMapLayout();
+    }
+  }, [selectedZone, fetchMapLayout]);
 
   const handleMapUpdate = async (newLayout: MapCell[], changedCells: MapCell[]) => {
     setMapLayout(newLayout);
@@ -74,12 +53,9 @@ const Admin = () => {
   };
 
   const handleZoneSelect = (zone: MapCell) => setSelectedZone(zone);
-  const handleBackToGrid = () => {
-    setSelectedZone(null);
-    fetchAdminData(); // Refresh data when coming back
-  };
+  const handleBackToGrid = () => setSelectedZone(null);
 
-  if (loading) {
+  if (loading && !mapLayout.length) {
     return <div className="h-full bg-gray-900 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
   }
 
@@ -89,7 +65,7 @@ const Admin = () => {
         return (
           <div className="w-full h-full flex items-center justify-center">
             {selectedZone ? (
-              <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} allItems={items} />
+              <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
             ) : (
               <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
             )}
@@ -98,11 +74,11 @@ const Admin = () => {
       case 'players':
         return <PlayerManager mapLayout={mapLayout} />;
       case 'items':
-        return <ItemManager items={items} onItemsUpdate={fetchAdminData} />;
+        return <ItemManager />;
       case 'events':
-        return <EventManager mapLayout={mapLayout} events={events} allItems={items} onEventsUpdate={fetchAdminData} />;
+        return <EventManager mapLayout={mapLayout} />;
       case 'buildings':
-        return <BuildingManager buildings={buildings} onBuildingsUpdate={fetchAdminData} />;
+        return <BuildingManager />;
       default:
         return null;
     }
@@ -156,7 +132,7 @@ const Admin = () => {
             <TabsContent value="map" className="flex-1 min-h-0">
               <div className="w-full h-full flex items-center justify-center">
                 {selectedZone ? (
-                  <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} allItems={items} />
+                  <ZoneItemEditor zone={selectedZone} onBack={handleBackToGrid} />
                 ) : (
                   <AdminMapGrid mapLayout={mapLayout} onMapUpdate={handleMapUpdate} onZoneSelect={handleZoneSelect} />
                 )}
@@ -166,13 +142,13 @@ const Admin = () => {
               <PlayerManager mapLayout={mapLayout} />
             </TabsContent>
             <TabsContent value="items" className="flex-1 min-h-0">
-              <ItemManager items={items} onItemsUpdate={fetchAdminData} />
+              <ItemManager />
             </TabsContent>
             <TabsContent value="events" className="flex-1 min-h-0">
-              <EventManager mapLayout={mapLayout} events={events} allItems={items} onEventsUpdate={fetchAdminData} />
+              <EventManager mapLayout={mapLayout} />
             </TabsContent>
             <TabsContent value="buildings" className="flex-1 min-h-0">
-              <BuildingManager buildings={buildings} onBuildingsUpdate={fetchAdminData} />
+              <BuildingManager />
             </TabsContent>
           </Tabs>
         )}

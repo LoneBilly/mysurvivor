@@ -46,7 +46,7 @@ interface ExplorationModalProps {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, playerData, setPlayerData } = useGame();
+  const { getIconUrl } = useGame();
   const [activeTab, setActiveTab] = useState('exploration');
   const [potentialLoot, setPotentialLoot] = useState<{name: string}[]>([]);
   const [scoutedTargets, setScoutedTargets] = useState<ScoutedTarget[]>([]);
@@ -162,13 +162,8 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   const handleCollectOne = async (itemToCollect: FoundItem) => {
     setInventoryFullError(false);
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-    const originalFoundItems = foundItems ? [...foundItems] : null;
-
-    // Optimistic UI Update
-    setFoundItems(currentItems => (currentItems?.filter(item => item.item_id !== itemToCollect.item_id) || null));
-    
     const payload = [{ item_id: itemToCollect.item_id, quantity: itemToCollect.quantity }];
+    
     const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: payload });
 
     if (error) {
@@ -178,12 +173,13 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       } else {
         showError(error.message);
       }
-      // Revert UI
-      setPlayerData(originalPlayerData);
-      setFoundItems(originalFoundItems);
     } else {
       showSuccess(`${itemToCollect.name} x${itemToCollect.quantity} ajouté à l'inventaire !`);
-      onUpdate(true);
+      setFoundItems(currentItems => {
+        const newItems = currentItems?.filter(item => item.item_id !== itemToCollect.item_id);
+        return newItems && newItems.length > 0 ? newItems : null;
+      });
+      onUpdate();
     }
   };
 

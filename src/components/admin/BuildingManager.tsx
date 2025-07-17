@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,16 +35,27 @@ interface BuildingDefinition {
   cost_components: number;
 }
 
-interface BuildingManagerProps {
-  buildings: BuildingDefinition[];
-  onBuildingsUpdate: () => void;
-}
-
-const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps) => {
-  const [loading, setLoading] = useState(false);
+const BuildingManager = () => {
+  const [buildings, setBuildings] = useState<BuildingDefinition[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBuilding, setEditingBuilding] = useState<BuildingDefinition | null>(null);
   const isMobile = useIsMobile();
+
+  const fetchBuildings = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('building_definitions').select('*').order('name');
+    if (error) {
+      showError("Impossible de charger les bâtiments.");
+    } else {
+      setBuildings(data || []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchBuildings();
+  }, [fetchBuildings]);
 
   const handleEdit = (building: BuildingDefinition) => {
     setEditingBuilding({ ...building });
@@ -64,7 +75,7 @@ const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps)
     } else {
       showSuccess("Bâtiment mis à jour.");
       setIsModalOpen(false);
-      onBuildingsUpdate();
+      fetchBuildings();
     }
     setLoading(false);
   };
@@ -83,6 +94,10 @@ const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps)
     const Icon = (LucideIcons as any)[iconName];
     return Icon && typeof Icon.render === 'function' ? Icon : Wrench;
   };
+
+  if (loading && !buildings.length) {
+    return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
+  }
 
   return (
     <>

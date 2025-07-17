@@ -11,18 +11,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, Search, PlusCircle, Check, X } from 'lucide-react';
+import { showError } from '@/utils/toast';
 import { Item } from '@/types/admin';
 import ItemFormModal from './ItemFormModal';
 import ItemIcon from '@/components/ItemIcon';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-interface ItemManagerProps {
-  items: Item[];
-  onItemsUpdate: () => void;
-}
-
-const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
+const ItemManager = () => {
+  const [items, setItems] = useState<Item[]>([]);
   const [craftableItemIds, setCraftableItemIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,23 +28,34 @@ const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const isMobile = useIsMobile();
 
-  const fetchRecipes = useCallback(async () => {
+  const fetchItemsAndRecipes = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: recipesRes, error: recipesError } = await supabase.from('crafting_recipes').select('result_item_id');
-      if (recipesError) throw recipesError;
-      const craftableIds = new Set(recipesRes.map(r => r.result_item_id));
+      const [itemsRes, recipesRes] = await Promise.all([
+        supabase.from('items').select('*').order('name', { ascending: true }),
+        supabase.from('crafting_recipes').select('result_item_id')
+      ]);
+
+      if (itemsRes.error) throw itemsRes.error;
+      if (recipesRes.error) throw recipesRes.error;
+
+      setItems(itemsRes.data as Item[]);
+      
+      const craftableIds = new Set(recipesRes.data.map(r => r.result_item_id));
       setCraftableItemIds(craftableIds);
+
     } catch (error) {
+      showError("Impossible de charger les objets et recettes.");
       console.error(error);
+      setItems([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
+    fetchItemsAndRecipes();
+  }, [fetchItemsAndRecipes]);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -57,6 +65,10 @@ const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
   const handleEdit = (item: Item) => {
     setEditingItem(item);
     setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    fetchItemsAndRecipes();
   };
 
   const filteredItems = items.filter(item =>
@@ -172,7 +184,7 @@ const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         item={editingItem}
-        onSave={onItemsUpdate}
+        onSave={handleSave}
       />
     </>
   );
