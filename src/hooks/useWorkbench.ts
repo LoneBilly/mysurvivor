@@ -10,6 +10,9 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+  const completedJobId = useRef<number | null>(null);
 
   const currentJob = useMemo(() => {
     if (!construction) return null;
@@ -129,33 +132,33 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   }, [matchedRecipe, ingredientSlots, outputItem, items]);
 
   useEffect(() => {
-    if (!currentJob || !currentJob.craft_time_seconds) {
+    if (!currentJob) {
       setProgress(0);
       setTimeRemaining('');
+      completedJobId.current = null;
       return;
     }
-    
-    const currentItemEndTime = new Date(currentJob.ends_at).getTime();
-    const currentItemDuration = currentJob.craft_time_seconds * 1000;
-    const currentItemStartTime = currentItemEndTime - currentItemDuration;
 
-    if (currentItemDuration <= 0) {
-        setProgress(100);
-        setTimeRemaining('');
-        return;
-    }
-
-    const updateProgressAndTimer = () => {
-      const now = Date.now();
-      const elapsedTime = now - currentItemStartTime;
-      const diff = currentItemEndTime - now;
+    const interval = setInterval(() => {
+      const currentItemEndTime = new Date(currentJob.ends_at).getTime();
+      const diff = currentItemEndTime - Date.now();
 
       if (diff <= 0) {
         setProgress(100);
         setTimeRemaining('');
-        return true; // finished
+        if (completedJobId.current !== currentJob.id) {
+          completedJobId.current = currentJob.id;
+          setTimeout(() => {
+            onUpdateRef.current(true);
+          }, 1500);
+        }
+        clearInterval(interval);
+        return;
       }
 
+      const currentItemDuration = currentJob.craft_time_seconds * 1000;
+      const currentItemStartTime = currentItemEndTime - currentItemDuration;
+      const elapsedTime = Date.now() - currentItemStartTime;
       const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
       setProgress(newProgress);
 
@@ -169,23 +172,9 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
         formattedTime = `${remainingSeconds}s`;
       }
       setTimeRemaining(formattedTime);
-      return false; // not finished
-    };
+    }, 200);
 
-    // Initial update to avoid stutter
-    if (updateProgressAndTimer()) {
-      return;
-    }
-
-    let animationFrameId: number;
-    const loop = () => {
-      if (!updateProgressAndTimer()) {
-        animationFrameId = requestAnimationFrame(loop);
-      }
-    };
-    animationFrameId = requestAnimationFrame(loop);
-
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => clearInterval(interval);
   }, [currentJob]);
 
   const startCraft = useCallback(async (quantity: number) => {
@@ -238,7 +227,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     const { error } = await supabase.rpc('start_craft', { 
       p_workbench_id: construction.id, 
       p_recipe_id: matchedRecipe.id,
-      p_quantity: quantity
+      p_quantity: quantity 
     });
     
     if (error) {
