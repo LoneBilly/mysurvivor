@@ -2,12 +2,14 @@ import { createContext, useContext, useState, ReactNode, useEffect, useCallback,
 import { FullPlayerData, MapCell, Item } from '@/types/game';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { showError } from '@/utils/toast';
 
 interface GameContextType {
   playerData: FullPlayerData;
   mapLayout: MapCell[];
   items: Item[];
   refreshPlayerData: (silent?: boolean) => Promise<void>;
+  refreshAfterConstructionStart: () => Promise<void>;
   setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
   getIconUrl: (iconName: string | null) => string | undefined;
 }
@@ -29,13 +31,43 @@ interface GameProviderProps {
     mapLayout: MapCell[];
     items: Item[];
   };
-  refreshPlayerData: (silent?: boolean) => Promise<void>;
   iconUrlMap: Map<string, string>;
 }
 
-export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrlMap }: GameProviderProps) => {
+export const GameProvider = ({ children, initialData, iconUrlMap }: GameProviderProps) => {
   const [playerData, setPlayerData] = useState<FullPlayerData>(initialData.playerData);
   const { user } = useAuth();
+
+  const refreshPlayerData = useCallback(async (silent = false) => {
+    if (!user) return;
+    const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
+
+    if (playerDataError) {
+      if (!silent) showError("Erreur lors de la mise à jour des données.");
+      console.error(playerDataError);
+    } else {
+      setPlayerData(fullPlayerData);
+    }
+  }, [user]);
+
+  const refreshAfterConstructionStart = useCallback(async () => {
+    if (!user) return;
+    const [jobsRes, stateRes] = await Promise.all([
+        supabase.from('construction_jobs').select('*').eq('player_id', user.id),
+        supabase.from('player_states').select('*').eq('id', user.id).single()
+    ]);
+
+    if (jobsRes.error || stateRes.error) {
+        showError("Erreur de synchronisation après construction.");
+        await refreshPlayerData(true);
+    } else {
+        setPlayerData(prev => ({
+            ...prev,
+            constructionJobs: jobsRes.data || [],
+            playerState: { ...prev.playerState, ...stateRes.data }
+        }));
+    }
+  }, [user, refreshPlayerData]);
 
   useEffect(() => {
     setPlayerData(initialData.playerData);
@@ -90,9 +122,10 @@ export const GameProvider = ({ children, initialData, refreshPlayerData, iconUrl
     mapLayout: initialData.mapLayout,
     items: initialData.items,
     refreshPlayerData,
+    refreshAfterConstructionStart,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshAfterConstructionStart, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>

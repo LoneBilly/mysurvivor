@@ -19,18 +19,6 @@ const Game = () => {
   const [iconUrlMap, setIconUrlMap] = useState<Map<string, string>>(new Map());
   const dataLoaded = useRef(false);
 
-  const refreshPlayerData = useCallback(async (silent = false) => {
-    if (!user) return;
-    const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
-
-    if (playerDataError) {
-      if (!silent) showError("Erreur lors de la mise à jour des données.");
-      console.error(playerDataError);
-    } else {
-      setPlayerData(fullPlayerData);
-    }
-  }, [user]);
-
   const loadGameData = useCallback(async (user: User) => {
     setLoading(true);
 
@@ -89,7 +77,6 @@ const Game = () => {
   return (
     <GameProvider 
       initialData={{ playerData, mapLayout, items }} 
-      refreshPlayerData={refreshPlayerData}
       iconUrlMap={iconUrlMap}
     >
       <GameUI />
