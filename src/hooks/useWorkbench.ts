@@ -159,7 +159,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
       setProgress(newProgress);
 
-      const remainingSeconds = Math.ceil(diff / 1000);
+      const remainingSeconds = Math.round(diff / 1000);
       let formattedTime;
       if (remainingSeconds >= 60) {
         const minutes = Math.floor(remainingSeconds / 60);
