@@ -19,6 +19,7 @@ interface BaseCell {
   type: string;
   canBuild?: boolean;
   ends_at?: string;
+  showTrash?: boolean;
 }
 
 const GRID_SIZE = 31;
@@ -68,7 +69,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [initialBuildCell, setInitialBuildCell] = useState<{x: number, y: number} | null>(null);
-  const [armedForCancel, setArmedForCancel] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
 
   const isJobRunning = useMemo(() => {
@@ -187,7 +187,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false }))
+      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
     );
 
     let campPos: { x: number; y: number } | null = null;
@@ -257,6 +257,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const newGrid = JSON.parse(JSON.stringify(gridData));
     newGrid[y][x].type = 'empty';
     newGrid[y][x].ends_at = undefined;
+    newGrid[y][x].showTrash = false;
     setGridData(updateCanBuild(newGrid));
 
     setPlayerData(prev => ({
@@ -316,46 +317,28 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   };
 
   const handleCellClick = async (x: number, y: number) => {
-    if (isDraggingRef.current) return;
+    if (isDraggingRef.current) {
+        return;
+    }
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
-    const isInitial = initialBuildCell && initialBuildCell.x === x && initialBuildCell.y === y;
 
-    if (armedForCancel && (!cell || cell.type !== 'in_progress' || armedForCancel.x !== x || armedForCancel.y !== y)) {
-        setArmedForCancel(null);
-    }
-
-    if (cell.type === 'in_progress') {
-        if (isMobile) {
-            if (armedForCancel && armedForCancel.x === x && armedForCancel.y === y) {
-                handleCancelConstruction(x, y);
-                setArmedForCancel(null);
-            } else {
-                setArmedForCancel({ x, y });
-            }
-        } else {
-            if (isInitial) {
-                setInitialBuildCell(null);
-                setArmedForCancel({ x, y });
-            } else if (armedForCancel && armedForCancel.x === x && armedForCancel.y === y) {
-                handleCancelConstruction(x, y);
-                setArmedForCancel(null);
-            } else {
-                handleCancelConstruction(x, y);
-            }
-        }
-        return;
-    }
-    
     if (isJobRunning) {
-        if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
+        if (cell.type === 'in_progress') {
+            handleCancelConstruction(x, y);
+            return;
+        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
             if (cell.type === 'chest') {
                 const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) setChestModalState({ isOpen: true, construction: constructionData });
+                if (constructionData) {
+                    setChestModalState({ isOpen: true, construction: constructionData });
+                }
             } else if (cell.type === 'workbench') {
                 const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) onInspectWorkbench(constructionData);
+                if (constructionData) {
+                    onInspectWorkbench(constructionData);
+                }
             } else {
                 showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
             }
@@ -372,13 +355,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     if (cell.type === 'chest') {
         const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) setChestModalState({ isOpen: true, construction: constructionData });
+        if (constructionData) {
+            setChestModalState({ isOpen: true, construction: constructionData });
+        }
         return;
     }
 
     if (cell.type === 'workbench') {
         const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) onInspectWorkbench(constructionData);
+        if (constructionData) {
+            onInspectWorkbench(constructionData);
+        }
         return;
     }
 
@@ -519,9 +506,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     if (cell.type === 'in_progress' && cell.ends_at) {
       const isInitial = initialBuildCell && initialBuildCell.x === cell.x && initialBuildCell.y === cell.y;
-      const isArmed = armedForCancel && armedForCancel.x === cell.x && armedForCancel.y === cell.y;
-
-      if (isInitial && !isMobile) {
+      
+      if (isInitial) {
         return (
           <div className="flex flex-col items-center justify-center text-white gap-1 h-full">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -534,19 +520,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
       return (
         <div className="relative w-full h-full flex items-center justify-center">
-          <div className={cn(
-            "absolute inset-0 flex flex-col items-center justify-center text-white gap-1 h-full transition-opacity duration-150",
-            (isMobile && isArmed) ? "opacity-0" : "group-hover:opacity-0"
-          )}>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-1 h-full transition-opacity duration-150 group-hover:opacity-0">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="text-xs font-mono">
               <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
             </span>
           </div>
-          <div className={cn(
-            "absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150",
-            (isMobile && isArmed) ? "opacity-100" : "group-hover:opacity-100"
-          )}>
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
             <X className="w-8 h-8 text-red-500" />
           </div>
         </div>
@@ -621,9 +601,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 onMouseLeave={() => {
                   if (initialBuildCell && initialBuildCell.x === x && initialBuildCell.y === y) {
                     setInitialBuildCell(null);
-                  }
-                  if (armedForCancel && armedForCancel.x === x && armedForCancel.y === y) {
-                    setTimeout(() => setArmedForCancel(null), 500);
                   }
                 }}
                 className={cn(
