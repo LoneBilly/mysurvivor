@@ -130,23 +130,24 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   }, [matchedRecipe, ingredientSlots, outputItem, items]);
 
   useEffect(() => {
-    if (!currentJob) {
+    if (!currentJob || !currentJob.craft_time_seconds) {
       setProgress(0);
       setTimeRemaining('');
       return;
     }
 
     timerCompletedRef.current = false;
-    const startTime = new Date(currentJob.started_at).getTime();
-    const endTime = new Date(currentJob.ends_at).getTime();
-    const totalDuration = endTime - startTime;
+    
+    const currentItemEndTime = new Date(currentJob.ends_at).getTime();
+    const currentItemDuration = currentJob.craft_time_seconds * 1000;
+    const currentItemStartTime = currentItemEndTime - currentItemDuration;
 
-    if (totalDuration <= 0) {
+    if (currentItemDuration <= 0) {
         setProgress(100);
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
             timerCompletedRef.current = true;
-            refreshPlayerData();
+            refreshPlayerData(true);
         }
         return;
     }
@@ -154,8 +155,8 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     let animationFrameId: number;
     const updateTimer = () => {
       const now = Date.now();
-      const elapsedTime = now - startTime;
-      const diff = endTime - now;
+      const elapsedTime = now - currentItemStartTime;
+      const diff = currentItemEndTime - now;
 
       if (diff <= 0) {
         cancelAnimationFrame(animationFrameId);
@@ -163,12 +164,12 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
         setTimeRemaining('');
         if (!timerCompletedRef.current) {
           timerCompletedRef.current = true;
-          refreshPlayerData();
+          refreshPlayerData(true);
         }
         return;
       }
 
-      const newProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
+      const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
       setProgress(newProgress);
 
       const remainingSeconds = Math.ceil(diff / 1000);
