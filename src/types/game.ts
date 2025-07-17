@@ -135,6 +135,7 @@ export interface MapCell {
   type: string;
   icon: string | null;
   interaction_type: 'Ressource' | 'Action' | 'Non défini';
+  id_name: string | null;
 }
 
 export interface Item {

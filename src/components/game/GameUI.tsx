@@ -111,7 +111,7 @@ const GameUI = () => {
 
   const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
     const currentState = stateOverride || playerData;
-    const { x, y, type, id, interaction_type } = cell;
+    const { x, y, type, id, interaction_type, id_name } = cell;
 
     const isDiscovered = currentState.playerState.zones_decouvertes.includes(id);
     const isCurrentPosition = currentState.playerState.position_x === x && currentState.playerState.position_y === y;
@@ -130,32 +130,29 @@ const GameUI = () => {
     if (isCurrentPosition) {
       switch (interaction_type) {
         case 'Action':
-          switch (id) {
-            case 10: // Marché
+          switch (id_name) {
+            case 'market':
               setIsMarketOpen(true);
               break;
-            case 2: // Commissariat
+            case 'bounty_office':
               setIsBountyOpen(true);
               break;
-            case 23: // Metro
+            case 'metro':
               setIsMetroOpen(true);
               break;
-            case 12: // Faction: Scouts
+            case 'scouts_faction':
               setIsFactionScoutsModalOpen(true);
               break;
+            case 'bank':
+              setIsBankOpen(true);
+              break;
             default:
-              // Fallback for actions not defined by ID, like the bank
-              const lowerCaseType = type.toLowerCase().trim();
-              if (lowerCaseType.includes('banque')) {
-                setIsBankOpen(true);
-              } else {
-                setModalState({
-                  isOpen: true,
-                  title: formatZoneName(type),
-                  description: "Cette action n'est pas encore configurée.",
-                  actions: [{ label: "Compris", onClick: closeModal }],
-                });
-              }
+              setModalState({
+                isOpen: true,
+                title: formatZoneName(type),
+                description: "Cette action n'est pas encore configurée.",
+                actions: [{ label: "Compris", onClick: closeModal }],
+              });
               break;
           }
           break;
