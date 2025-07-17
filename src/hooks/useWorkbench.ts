@@ -146,7 +146,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     }
 
     let animationFrameId: number;
-    let isFinalizing = false;
 
     const loop = () => {
       const now = Date.now();
@@ -154,12 +153,8 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       const diff = currentItemEndTime - now;
 
       if (diff <= 0) {
-        if (!isFinalizing) {
-          isFinalizing = true;
-          setProgress(100);
-          setTimeRemaining('Finalisation...');
-          onUpdate(true);
-        }
+        setProgress(100);
+        setTimeRemaining('Terminé');
         return;
       }
 
@@ -192,7 +187,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [currentJob, onUpdate]);
+  }, [currentJob]);
 
   const startCraft = useCallback(async (quantity: number) => {
     if (!matchedRecipe || !construction || quantity <= 0 || !resultItem) return;
