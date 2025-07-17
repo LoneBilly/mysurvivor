@@ -128,19 +128,15 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     return max;
   }, [matchedRecipe, ingredientSlots, outputItem, items]);
 
-  const currentJobId = currentJob?.id;
-  const currentJobEndsAt = currentJob?.ends_at;
-  const currentJobCraftTime = currentJob?.craft_time_seconds;
-
   useEffect(() => {
-    if (!currentJobId || !currentJobEndsAt || !currentJobCraftTime) {
+    if (!currentJob || !currentJob.craft_time_seconds) {
       setProgress(0);
       setTimeRemaining('');
       return;
     }
     
-    const currentItemEndTime = new Date(currentJobEndsAt).getTime();
-    const currentItemDuration = currentJobCraftTime * 1000;
+    const currentItemEndTime = new Date(currentJob.ends_at).getTime();
+    const currentItemDuration = currentJob.craft_time_seconds * 1000;
     const currentItemStartTime = currentItemEndTime - currentItemDuration;
 
     if (currentItemDuration <= 0) {
@@ -163,7 +159,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
       setProgress(newProgress);
 
-      const remainingSeconds = Math.ceil(diff / 1000);
+      const remainingSeconds = Math.floor(diff / 1000);
       let formattedTime;
       if (remainingSeconds >= 60) {
         const minutes = Math.floor(remainingSeconds / 60);
@@ -190,7 +186,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     animationFrameId = requestAnimationFrame(loop);
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [currentJobId, currentJobEndsAt, currentJobCraftTime]);
+  }, [currentJob]);
 
   const startCraft = useCallback(async (quantity: number) => {
     if (!matchedRecipe || !construction || quantity <= 0 || !resultItem) return;
