@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BaseConstruction, ConstructionJob, CraftingJob } from "@/types/game";
 import FoundationMenuModal from "./FoundationMenuModal";
 import ChestModal from "./ChestModal";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useGame } from "@/contexts/GameContext";
 import CountdownTimer from "./CountdownTimer";
 import CraftingProgressBar from "./CraftingProgressBar";
@@ -488,8 +488,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
-        if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
         if (hasOutput) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
+        if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
         return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
       }
       case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
@@ -514,6 +514,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       const hasOutput = construction && construction.output_item_id;
       const Icon = buildingIcons.workbench;
 
+      if (hasOutput) {
+        return <Icon className="w-8 h-8 text-green-400" />;
+      }
       if (job) {
         return (
           <>
@@ -521,9 +524,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
           </>
         );
-      }
-      if (hasOutput) {
-        return <Icon className="w-8 h-8 text-green-400" />;
       }
     }
 
