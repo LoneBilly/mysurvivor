@@ -145,17 +145,15 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
         return;
     }
 
-    let animationFrameId: number;
-    const updateTimer = () => {
+    const updateProgressAndTimer = () => {
       const now = Date.now();
       const elapsedTime = now - currentItemStartTime;
       const diff = currentItemEndTime - now;
 
       if (diff <= 0) {
-        cancelAnimationFrame(animationFrameId);
         setProgress(100);
         setTimeRemaining('');
-        return;
+        return true; // finished
       }
 
       const newProgress = Math.min(100, (elapsedTime / currentItemDuration) * 100);
@@ -171,11 +169,21 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
         formattedTime = `${remainingSeconds}s`;
       }
       setTimeRemaining(formattedTime);
-
-      animationFrameId = requestAnimationFrame(updateTimer);
+      return false; // not finished
     };
 
-    animationFrameId = requestAnimationFrame(updateTimer);
+    // Initial update to avoid stutter
+    if (updateProgressAndTimer()) {
+      return;
+    }
+
+    let animationFrameId: number;
+    const loop = () => {
+      if (!updateProgressAndTimer()) {
+        animationFrameId = requestAnimationFrame(loop);
+      }
+    };
+    animationFrameId = requestAnimationFrame(loop);
 
     return () => cancelAnimationFrame(animationFrameId);
   }, [currentJob]);
