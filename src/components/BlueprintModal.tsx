@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { supabase } from '@/integrations/supabase/client';
-import { showError } from '@/utils/toast';
-import { Loader2, BookOpen, ArrowRight } from 'lucide-react';
-import { CraftingRecipe, Item } from '@/types/game';
+import { BookOpen, ArrowRight } from 'lucide-react';
+import { CraftingRecipe } from '@/types/game';
 import { useGame } from '@/contexts/GameContext';
 import ItemIcon from './ItemIcon';
 
@@ -12,54 +10,22 @@ interface BlueprintModalProps {
   onClose: () => void;
 }
 
-interface LearnedBlueprint {
-  recipe_id: number;
-}
-
 const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
-  const { items: allItems, getIconUrl } = useGame();
+  const { playerData, items: allItems, getIconUrl } = useGame();
   const [learnedRecipes, setLearnedRecipes] = useState<CraftingRecipe[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchLearnedBlueprints = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: learnedData, error: learnedError } = await supabase
-        .from('learned_blueprints')
-        .select('recipe_id');
-      
-      if (learnedError) throw learnedError;
-
-      const recipeIds = (learnedData as LearnedBlueprint[]).map(b => b.recipe_id);
-
-      if (recipeIds.length === 0) {
-        setLearnedRecipes([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data: recipesData, error: recipesError } = await supabase
-        .from('crafting_recipes')
-        .select('*')
-        .in('id', recipeIds);
-
-      if (recipesError) throw recipesError;
-
-      setLearnedRecipes(recipesData || []);
-
-    } catch (error: any) {
-      showError("Impossible de charger vos blueprints.");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const allRecipes = playerData.craftingRecipes;
+  const learnedBlueprintIds = useMemo(() => new Set(playerData.learnedBlueprints.map(b => b.recipe_id)), [playerData.learnedBlueprints]);
 
   useEffect(() => {
     if (isOpen) {
-      fetchLearnedBlueprints();
+      setLoading(true);
+      const filteredRecipes = allRecipes.filter(recipe => learnedBlueprintIds.has(recipe.id));
+      setLearnedRecipes(filteredRecipes);
+      setLoading(false);
     }
-  }, [isOpen, fetchLearnedBlueprints]);
+  }, [isOpen, allRecipes, learnedBlueprintIds]);
 
   const getIngredientName = (id: number | null) => {
     if (!id) return '';

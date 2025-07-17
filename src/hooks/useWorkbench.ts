@@ -6,10 +6,11 @@ import { BaseConstruction, CraftingRecipe, InventoryItem } from "@/types/game";
 
 export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (silent?: boolean) => void) => {
   const { playerData, items, refreshPlayerData } = useGame();
-  const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState('');
+
+  const recipes = playerData.craftingRecipes;
 
   const currentJob = useMemo(() => {
     if (!construction) return null;
@@ -49,16 +50,6 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     });
     return slots;
   }, [workbenchItems]);
-
-  const fetchRecipes = useCallback(async () => {
-    const { data, error } = await supabase.from('crafting_recipes').select('*');
-    if (error) showError("Impossible de charger les recettes.");
-    else setRecipes(data || []);
-  }, []);
-
-  useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
 
   const matchedRecipe = useMemo(() => {
     for (const recipe of recipes) {
