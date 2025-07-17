@@ -130,30 +130,32 @@ const GameUI = () => {
     if (isCurrentPosition) {
       switch (interaction_type) {
         case 'Action':
-          const idName = cell.id_name?.toLowerCase();
-          switch (idName) {
-            case 'marché':
+          switch (id) {
+            case 10: // Marché
               setIsMarketOpen(true);
               break;
-            case 'commissariat':
+            case 2: // Commissariat
               setIsBountyOpen(true);
               break;
-            case 'metro':
+            case 23: // Metro
               setIsMetroOpen(true);
               break;
-            case 'scouts':
+            case 12: // Faction: Scouts
               setIsFactionScoutsModalOpen(true);
               break;
-            case 'banque':
-              setIsBankOpen(true);
-              break;
             default:
-              setModalState({
-                isOpen: true,
-                title: formatZoneName(type),
-                description: "Cette action n'est pas encore configurée.",
-                actions: [{ label: "Compris", onClick: closeModal }],
-              });
+              // Fallback for actions not defined by ID, like the bank
+              const lowerCaseType = type.toLowerCase().trim();
+              if (lowerCaseType.includes('banque')) {
+                setIsBankOpen(true);
+              } else {
+                setModalState({
+                  isOpen: true,
+                  title: formatZoneName(type),
+                  description: "Cette action n'est pas encore configurée.",
+                  actions: [{ label: "Compris", onClick: closeModal }],
+                });
+              }
               break;
           }
           break;

@@ -26,7 +26,6 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
 
   const travelOptions = useMemo(() => {
     return mapLayout.filter(zone => 
-      zone.id_name === 'metro' &&
       discoveredZones.includes(zone.id) && 
       zone.id !== currentZoneId &&
       zone.type !== 'unknown'
