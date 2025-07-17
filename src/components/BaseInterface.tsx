@@ -68,6 +68,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
+  const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
 
   const isJobRunning = useMemo(() => {
@@ -325,7 +326,27 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     if (isJobRunning) {
         if (cell.type === 'in_progress') {
-            handleCancelConstruction(x, y);
+            if (isMobile) {
+                if (cell.showTrash) {
+                    handleCancelConstruction(x, y);
+                } else {
+                    const newGrid = JSON.parse(JSON.stringify(gridData));
+                    newGrid[y][x].showTrash = true;
+                    setGridData(newGrid);
+                    setTimeout(() => {
+                        setGridData(currentGrid => {
+                            if (currentGrid && currentGrid[y][x].showTrash) {
+                                const finalGrid = JSON.parse(JSON.stringify(currentGrid));
+                                finalGrid[y][x].showTrash = false;
+                                return finalGrid;
+                            }
+                            return currentGrid;
+                        });
+                    }, 2000);
+                }
+            } else {
+                handleCancelConstruction(x, y);
+            }
             return;
         } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
             if (cell.type === 'chest') {
@@ -502,17 +523,16 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
+      const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
+      if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
+        return <X className="w-8 h-8 text-red-500" />;
+      }
       return (
-        <div className="relative w-full h-full flex items-center justify-center">
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-1 h-full transition-opacity duration-150 group-hover:opacity-0">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-xs font-mono">
-              <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
-            </span>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-            <X className="w-8 h-8 text-red-500" />
-          </div>
+        <div className="flex flex-col items-center justify-center text-white gap-1">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-xs font-mono">
+            <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />
+          </span>
         </div>
       );
     }
@@ -582,8 +602,10 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
               <button
                 key={`${x}-${y}`}
                 onClick={() => handleCellClick(x, y)}
+                onMouseEnter={() => !isMobile && cell.type === 'in_progress' && setHoveredConstruction({x, y})}
+                onMouseLeave={() => !isMobile && setHoveredConstruction(null)}
                 className={cn(
-                  "group absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
+                  "absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
                   getCellStyle(cell)
                 )}
                 style={{
