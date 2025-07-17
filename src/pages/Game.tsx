@@ -69,7 +69,7 @@ const Game = () => {
     
     setPlayerData(fullPlayerData);
     setLoading(false);
-  }, [refreshPlayerData]);
+  }, []);
 
   useEffect(() => {
     if (user && !dataLoaded.current) {
@@ -79,12 +79,23 @@ const Game = () => {
   }, [user, loadGameData]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      refreshPlayerData(true);
-    }, 5000);
+    if (!user) return;
 
-    return () => clearInterval(intervalId);
-  }, [refreshPlayerData]);
+    const channel = supabase
+      .channel('public-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        () => {
+          refreshPlayerData(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, refreshPlayerData]);
 
   if (loading) {
     return <LoadingScreen />;
