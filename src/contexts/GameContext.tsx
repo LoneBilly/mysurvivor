@@ -1,123 +1,129 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { FullPlayerData, MapCell, Item, ConstructionJob } from '@/types/game';
-import { useAuth } from '@/contexts/AuthContext';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { FullPlayerData, Item, CraftingRecipe, LearnedBlueprint } from '@/types/game';
 import { showError } from '@/utils/toast';
+import { Session } from '@supabase/supabase-js';
 
 interface GameContextType {
-  playerData: FullPlayerData;
-  mapLayout: MapCell[];
+  playerData: FullPlayerData | null;
   items: Item[];
-  refreshPlayerData: (silent?: boolean) => Promise<void>;
-  addConstructionJob: (job: ConstructionJob) => void;
-  setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
-  getIconUrl: (iconName: string | null) => string | undefined;
+  recipes: CraftingRecipe[];
+  learnedBlueprints: LearnedBlueprint[];
+  loading: boolean;
+  session: Session | null;
+  getIconUrl: (icon: string | null | undefined) => string | null;
+  fetchPlayerData: (force?: boolean) => Promise<void>;
+  setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData | null>>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
+export const GameProvider = ({ children }: { children: ReactNode }) => {
+  const [playerData, setPlayerData] = useState<FullPlayerData | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
+  const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
+  const [learnedBlueprints, setLearnedBlueprints] = useState<LearnedBlueprint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchStaticData = useCallback(async () => {
+    try {
+      const [itemsRes, recipesRes] = await Promise.all([
+        supabase.from('items').select('*'),
+        supabase.from('crafting_recipes').select('*, items!result_item_id(name, icon)')
+      ]);
+      if (itemsRes.error) throw itemsRes.error;
+      if (recipesRes.error) throw recipesRes.error;
+      setItems(itemsRes.data as Item[]);
+      setRecipes(recipesRes.data as any[]);
+    } catch (error: any) {
+      showError(`Erreur de chargement des données de jeu: ${error.message}`);
+    }
+  }, []);
+
+  const fetchPlayerData = useCallback(async (force = false) => {
+    if (!session?.user) {
+      setPlayerData(null);
+      return;
+    }
+    if (!force && playerData) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_full_player_data', { p_user_id: session.user.id });
+      if (error) throw error;
+      setPlayerData(data);
+
+      const { data: blueprints, error: blueprintsError } = await supabase
+        .from('learned_blueprints')
+        .select('*')
+        .eq('player_id', session.user.id);
+      if (blueprintsError) throw blueprintsError;
+      setLearnedBlueprints(blueprints as LearnedBlueprint[]);
+
+    } catch (error: any) {
+      showError(`Erreur de chargement des données du joueur: ${error.message}`);
+      setPlayerData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [session, playerData]);
+
+  useEffect(() => {
+    fetchStaticData();
+  }, [fetchStaticData]);
+
+  useEffect(() => {
+    if (session) {
+      fetchPlayerData();
+    } else {
+      setLoading(false);
+      setPlayerData(null);
+    }
+  }, [session, fetchPlayerData]);
+
+  const getIconUrl = useCallback((icon: string | null | undefined): string | null => {
+    if (!icon || icon.startsWith('http') || !/^[a-zA-Z0-9_.-]+$/.test(icon)) {
+      return icon || null;
+    }
+    // CORRECTION : Utilisation du bon nom de bucket 'items' au lieu de 'items.icons'
+    const { data } = supabase.storage.from('items').getPublicUrl(icon);
+    return data.publicUrl;
+  }, []);
+
+  const value = {
+    playerData,
+    items,
+    recipes,
+    learnedBlueprints,
+    loading,
+    session,
+    getIconUrl,
+    fetchPlayerData,
+    setPlayerData,
+  };
+
+  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+};
+
 export const useGame = () => {
   const context = useContext(GameContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useGame must be used within a GameProvider');
   }
   return context;
-};
-
-interface GameProviderProps {
-  children: ReactNode;
-  initialData: {
-    playerData: FullPlayerData;
-    mapLayout: MapCell[];
-    items: Item[];
-  };
-  iconUrlMap: Map<string, string>;
-}
-
-export const GameProvider = ({ children, initialData, iconUrlMap }: GameProviderProps) => {
-  const [playerData, setPlayerData] = useState<FullPlayerData>(initialData.playerData);
-  const { user } = useAuth();
-
-  const refreshPlayerData = useCallback(async (silent = false) => {
-    if (!user) return;
-    const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
-
-    if (playerDataError) {
-      if (!silent) showError("Erreur lors de la mise à jour des données.");
-      console.error(playerDataError);
-    } else {
-      setPlayerData(fullPlayerData);
-    }
-  }, [user]);
-
-  const addConstructionJob = (job: ConstructionJob) => {
-    setPlayerData(prev => ({
-      ...prev,
-      constructionJobs: [...(prev.constructionJobs || []), job],
-    }));
-  };
-
-  useEffect(() => {
-    setPlayerData(initialData.playerData);
-  }, [initialData.playerData]);
-
-  const handlePartialUpdate = useCallback(async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase.rpc('finalize_craft_and_get_changes', { p_user_id: user.id });
-
-    if (error) {
-      console.error("Error during partial update:", error);
-      refreshPlayerData(true);
-      return;
-    }
-
-    if (data) {
-      setPlayerData(prevData => ({
-        ...prevData,
-        craftingJobs: data.craftingJobs,
-        baseConstructions: data.baseConstructions,
-      }));
-    }
-  }, [user, refreshPlayerData]);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      const now = new Date().getTime();
-      
-      const hasCompletedCraftingJob = playerData.craftingJobs && playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
-      if (hasCompletedCraftingJob) {
-        handlePartialUpdate();
-      }
-
-      const hasCompletedConstructionJob = playerData.constructionJobs && playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
-      if (hasCompletedConstructionJob) {
-        refreshPlayerData(true);
-      }
-    }, 2000);
-
-    return () => clearInterval(intervalId);
-  }, [playerData.craftingJobs, playerData.constructionJobs, refreshPlayerData, handlePartialUpdate]);
-
-
-  const getIconUrl = useCallback((iconName: string | null): string | undefined => {
-    if (!iconName) return undefined;
-    return iconUrlMap.get(iconName);
-  }, [iconUrlMap]);
-
-  const value = useMemo(() => ({
-    playerData,
-    mapLayout: initialData.mapLayout,
-    items: initialData.items,
-    refreshPlayerData,
-    addConstructionJob,
-    setPlayerData,
-    getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, addConstructionJob, getIconUrl]);
-
-  return (
-    <GameContext.Provider value={value}>
-      {children}
-    </GameContext.Provider>
-  );
 };
