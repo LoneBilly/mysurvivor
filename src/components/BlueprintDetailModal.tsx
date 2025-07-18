@@ -25,6 +25,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
   const slots = useMemo(() => {
     if (!recipe) return [];
+    // Ensure all 3 slots are represented, even if empty, to maintain layout
     const s: ({ item_id: number | null; quantity: number | null; } | null)[] = [null, null, null];
     
     if (recipe.slot1_item_id) s[0] = { item_id: recipe.slot1_item_id, quantity: recipe.slot1_quantity };
@@ -63,15 +64,22 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           </DialogDescription>
         </DialogHeader>
 
-        <div className={cn("py-4 flex flex-col items-center gap-6", isMobile ? "overflow-y-auto no-scrollbar" : "")}>
+        {/* Main content area for recipe display */}
+        <div className={cn(
+          "py-6 flex items-center justify-center gap-4 sm:gap-8",
+          isMobile ? "flex-col overflow-y-auto no-scrollbar" : "flex-row"
+        )}>
           {/* Ingredients Section */}
-          <div className="flex flex-row flex-wrap justify-center items-center gap-4">
+          <div className={cn(
+            "flex justify-center items-center gap-3 sm:gap-4",
+            isMobile ? "flex-wrap" : "flex-row"
+          )}>
             {slots.map((slot, index) => {
               const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
               
               return (
-                <div key={index} className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center relative">
+                <div key={index} className="flex flex-col items-center text-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 w-24 h-28 sm:w-28 sm:h-32 justify-between">
+                  <div className="w-16 h-16 flex items-center justify-center relative">
                     {ingredientItem ? (
                       <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
                     ) : (
@@ -80,7 +88,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
                   </div>
                   {ingredientItem && (
                     <>
-                      <p className="text-sm font-semibold mt-2">{ingredientItem.name}</p>
+                      <p className="text-sm font-semibold mt-1 truncate w-full px-1">{ingredientItem.name}</p>
                       <p className="text-xs text-gray-400">x{slot?.quantity}</p>
                     </>
                   )}
@@ -90,20 +98,20 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           </div>
 
           {/* Arrow Separator */}
-          <ArrowRight className={cn("w-8 h-8 text-white", isMobile ? "rotate-90" : "")} />
+          <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-4" : "")} />
 
           {/* Result Item Section */}
-          <div className="flex flex-col items-center text-center">
-            <div className="w-24 h-24 bg-white/10 rounded-lg flex items-center justify-center relative">
+          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-700/50 border border-slate-600 w-32 h-36 sm:w-40 sm:h-44 justify-between">
+            <div className="w-24 h-24 flex items-center justify-center relative">
               <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
             </div>
-            <p className="text-lg font-bold mt-3">{resultItem.name}</p>
+            <p className="text-lg font-bold mt-2 truncate w-full px-1">{resultItem.name}</p>
             <p className="text-base text-gray-300">x{recipe.result_quantity}</p>
           </div>
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button onClick={onClose} variant="outline">Fermer</Button>
+          <Button onClick={onClose} variant="outline" className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600">Fermer</Button>
         </div>
       </DialogContent>
     </Dialog>
