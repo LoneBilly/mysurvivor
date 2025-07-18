@@ -82,7 +82,7 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="h-48 flex items-center justify-center">
+      <div className="h-64 flex items-center justify-center">
         <Wheel segments={wagerWheelSegments} isSpinning={isSpinning} resultIndex={resultIndex} onSpinEnd={onSpinEnd} />
       </div>
       <div className="h-10 text-center flex items-center justify-center">
@@ -169,7 +169,7 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="h-48 flex items-center justify-center">
+      <div className="h-64 flex items-center justify-center">
         <Wheel segments={colorRouletteSegments} isSpinning={isSpinning} resultIndex={resultIndex} onSpinEnd={onSpinEnd} />
       </div>
       <div className="h-10 text-center flex items-center justify-center">
