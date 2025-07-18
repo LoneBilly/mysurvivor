@@ -23,7 +23,9 @@ import MetroModal from "../MetroModal";
 import BankModal from "../BankModal";
 import BountyModal from "../BountyModal";
 import WorkbenchModal from "../WorkbenchModal";
-import MoreOptionsModal from "../MoreOptionsModal"; // Import the new modal
+import MoreOptionsModal from "../MoreOptionsModal";
+import HotelModal from '../HotelModal';
+import CasinoModal from '../CasinoModal';
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -47,7 +49,10 @@ const GameUI = () => {
   const [isMetroOpen, setIsMetroOpen] = useState(false);
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isBountyOpen, setIsBountyOpen] = useState(false);
-  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false); // New state for MoreOptionsModal
+  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
+  const [isHotelOpen, setIsHotelOpen] = useState(false);
+  const [isCasinoOpen, setIsCasinoOpen] = useState(false);
+  const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -113,7 +118,7 @@ const GameUI = () => {
 
   const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
     const currentState = stateOverride || playerData;
-    const { x, y, type, id, interaction_type, id_name } = cell; // Added id_name
+    const { x, y, type, id, interaction_type, id_name } = cell;
 
     const isDiscovered = currentState.playerState.zones_decouvertes.includes(id);
     const isCurrentPosition = currentState.playerState.position_x === x && currentState.playerState.position_y === y;
@@ -132,8 +137,14 @@ const GameUI = () => {
     if (isCurrentPosition) {
       switch (interaction_type) {
         case 'Action':
-          if (id_name?.includes('metro')) { // Use id_name for specific metro check
+          if (id_name?.includes('metro')) {
             setIsMetroOpen(true);
+          } else if (type.toLowerCase().includes('casino')) {
+            setSelectedZoneForAction(cell);
+            setIsCasinoOpen(true);
+          } else if (type.toLowerCase().includes('hotel')) {
+            setSelectedZoneForAction(cell);
+            setIsHotelOpen(true);
           } else if (id === 10) { // Marché
             setIsMarketOpen(true);
           } else if (id === 2) { // Commissariat
@@ -167,7 +178,6 @@ const GameUI = () => {
             actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
           }
 
-          // Si il n'y a qu'une seule action possible (explorer), ouvrir directement la modale d'exploration
           if (actions.length === 1 && actions[0].label === "Explorer") {
             handleExploreAction(cell);
           } else {
@@ -297,7 +307,22 @@ const GameUI = () => {
         onUpdate={refreshBaseState}
         onOpenInventory={() => setIsInventoryOpen(true)}
       />
-      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} /> {/* New MoreOptionsModal */}
+      <HotelModal
+        isOpen={isHotelOpen}
+        onClose={() => setIsHotelOpen(false)}
+        zone={selectedZoneForAction}
+        credits={playerData.playerState.credits}
+        onUpdate={refreshPlayerData}
+        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
+      />
+      <CasinoModal
+        isOpen={isCasinoOpen}
+        onClose={() => setIsCasinoOpen(false)}
+        credits={playerData.playerState.credits}
+        onUpdate={refreshPlayerData}
+        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
+      />
+      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} />
     </div>
   );
 };
