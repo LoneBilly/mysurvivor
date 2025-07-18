@@ -39,7 +39,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
   if (!recipe || !resultItem) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[90vw] max-w-lg h-full max-h-[90vh] overflow-y-auto bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+        <DialogContent className="w-[90vw] max-w-lg overflow-y-auto bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
           <DialogHeader className="text-center">
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Détail du Blueprint</DialogTitle>
             <DialogDescription>Chargement des détails du blueprint...</DialogDescription>
@@ -54,8 +54,8 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-lg h-full max-h-[90vh] overflow-y-auto bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6">
-        <DialogHeader className="text-center">
+      <DialogContent className="w-[90vw] max-w-lg overflow-y-auto bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6">
+        <DialogHeader className="text-center mb-4">
           <Wrench className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
             Recette de {resultItem.name}
@@ -67,7 +67,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
         {/* Main content area for recipe display */}
         <div className={cn(
-          "py-6 flex flex-col items-center justify-center gap-4 sm:gap-8"
+          "flex flex-col items-center justify-center gap-4 sm:gap-6"
         )}>
           {/* Ingredients Section */}
           <div className="flex flex-row flex-nowrap justify-center gap-3 sm:gap-4 w-full overflow-x-auto pb-2 no-scrollbar">
@@ -86,7 +86,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           </div>
 
           {/* Arrow Separator */}
-          <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-4" : "")} />
+          <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-2" : "")} />
 
           {/* Result Item Section */}
           <RecipeItemSlot
