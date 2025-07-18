@@ -38,7 +38,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
   if (!recipe || !resultItem) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+        <DialogContent className="w-[90vw] max-w-lg h-full max-h-[90vh] overflow-y-auto bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
           <DialogHeader className="text-center">
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Détail du Blueprint</DialogTitle>
             <DialogDescription>Chargement des détails du blueprint...</DialogDescription>
@@ -53,7 +53,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6">
+      <DialogContent className="w-[90vw] max-w-lg h-full max-h-[90vh] overflow-y-auto bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center">
           <Wrench className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
