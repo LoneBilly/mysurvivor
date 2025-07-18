@@ -82,17 +82,19 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <div className="h-24 bg-black/20 rounded-lg flex items-center justify-center text-2xl font-bold overflow-hidden">
+          <div className="h-24 bg-black/20 rounded-lg text-2xl font-bold overflow-hidden">
             {isSpinning && spinningResult ? (
               <LootboxSpinner resultLabel={spinningResult.label} onSpinEnd={handleSpinEnd} />
             ) : result ? (
-              <div className="text-center">
+              <div className="flex flex-col items-center justify-center h-full text-center">
                 <p className="text-lg">Vous avez gagné</p>
                 <p className="text-4xl font-bold text-yellow-400">{result.winnings} crédits</p>
                 <p className="text-sm text-gray-400">({result.label})</p>
               </div>
             ) : (
-              <p>Placez votre pari.</p>
+              <div className="flex items-center justify-center h-full">
+                <p>Placez votre pari.</p>
+              </div>
             )}
           </div>
 
