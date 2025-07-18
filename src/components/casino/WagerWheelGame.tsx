@@ -14,11 +14,11 @@ interface WagerWheelGameProps {
 }
 
 const wheelData = [
-  { option: 'Perte Totale', style: { backgroundColor: '#dc2626' } }, // red-600
-  { option: 'Petite Perte', style: { backgroundColor: '#f97316' } }, // orange-500
-  { option: 'Remboursé', style: { backgroundColor: '#6b7280' } }, // gray-500
-  { option: 'Double Gain', style: { backgroundColor: '#2563eb' } }, // blue-600
-  { option: 'Jackpot!', style: { backgroundColor: '#eab308' } }, // yellow-500
+  { option: 'Perte Totale', style: { backgroundColor: '#991b1b', textColor: '#fecaca' } },
+  { option: 'Petite Perte', style: { backgroundColor: '#c2410c', textColor: '#fed7aa' } },
+  { option: 'Remboursé', style: { backgroundColor: '#475569', textColor: '#cbd5e1' } },
+  { option: 'Double Gain', style: { backgroundColor: '#0369a1', textColor: '#bae6fd' } },
+  { option: 'Jackpot!', style: { backgroundColor: '#ca8a04', textColor: '#fef08a' } },
 ];
 
 const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
@@ -49,21 +49,20 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
       setPrizeNumber(prizeIndex >= 0 ? prizeIndex : 0);
       setMustSpin(true);
 
-      // The toast and update will be handled by onStopSpinning
       setTimeout(() => {
         const netChange = data.winnings - data.bet;
         if (netChange > 0) showSuccess(`Vous avez gagné ${netChange} crédits !`);
         else if (netChange < 0) showError(`Vous avez perdu ${Math.abs(netChange)} crédits.`);
         else showInfo("Vous avez récupéré votre mise.");
         onUpdate();
-      }, 5500); // Delay toast to match animation
+      }, 8500);
     }
   };
 
   return (
     <div className="py-4 space-y-4">
       <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="flex items-center justify-center mt-10">
+      <div className="flex items-center justify-center my-4 h-64">
         <Wheel
           mustStartSpinning={mustSpin}
           prizeNumber={prizeNumber}
@@ -73,9 +72,12 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
             setLoading(false);
           }}
           backgroundColors={['#374151', '#1f2937']}
-          textColors={['#ffffff']}
           outerBorderColor="#4b5563"
+          outerBorderWidth={5}
           radiusLineColor="#4b5563"
+          radiusLineWidth={1}
+          fontSize={12}
+          spinDuration={0.8}
           pointerProps={{
             style: {
               fill: '#eab308',

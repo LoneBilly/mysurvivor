@@ -17,22 +17,22 @@ interface ColorRouletteGameProps {
 type Color = 'red' | 'blue' | 'green';
 
 const colorWheelData = [
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Vert', style: { backgroundColor: '#16a34a' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
+  { style: { backgroundColor: '#b91c1c' } }, // red-700
+  { style: { backgroundColor: '#1d4ed8' } }, // blue-700
+  { style: { backgroundColor: '#b91c1c' } },
+  { style: { backgroundColor: '#1d4ed8' } },
+  { style: { backgroundColor: '#b91c1c' } },
+  { style: { backgroundColor: '#1d4ed8' } },
+  { style: { backgroundColor: '#15803d' } }, // green-700
+  { style: { backgroundColor: '#b91c1c' } },
+  { style: { backgroundColor: '#1d4ed8' } },
+  { style: { backgroundColor: '#b91c1c' } },
 ];
 
 const colorMap: Record<Color, string> = {
-  red: 'Rouge',
-  blue: 'Bleu',
-  green: 'Vert',
+  red: '#b91c1c',
+  blue: '#1d4ed8',
+  green: '#15803d',
 };
 
 const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps) => {
@@ -64,8 +64,8 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps
       showError(error.message);
       setLoading(false);
     } else {
-      const winningOption = colorMap[data.winning_color as Color];
-      const possibleIndexes = colorWheelData.map((d, i) => d.option === winningOption ? i : -1).filter(i => i !== -1);
+      const winningColorHex = colorMap[data.winning_color as Color];
+      const possibleIndexes = colorWheelData.map((d, i) => d.style.backgroundColor === winningColorHex ? i : -1).filter(i => i !== -1);
       const prizeIndex = possibleIndexes[Math.floor(Math.random() * possibleIndexes.length)];
       
       setPrizeNumber(prizeIndex);
@@ -75,14 +75,14 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps
         if (data.win) showSuccess(`Gagné ! Vous remportez ${data.winnings} crédits.`);
         else showError(`Perdu... La couleur était ${data.winning_color}.`);
         onUpdate();
-      }, 5500);
+      }, 8500);
     }
   };
 
   return (
     <div className="py-4 space-y-4">
       <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="flex items-center justify-center mt-10">
+      <div className="flex items-center justify-center my-4 h-64">
         <Wheel
           mustStartSpinning={mustSpin}
           prizeNumber={prizeNumber}
@@ -91,10 +91,12 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps
             setMustSpin(false);
             setLoading(false);
           }}
-          backgroundColors={['#374151', '#1f2937']}
-          textColors={['#ffffff']}
+          textColors={['transparent']}
           outerBorderColor="#4b5563"
+          outerBorderWidth={5}
           radiusLineColor="#4b5563"
+          radiusLineWidth={1}
+          spinDuration={0.8}
           pointerProps={{
             style: {
               fill: '#eab308',
