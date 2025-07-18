@@ -185,7 +185,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       showError("L'icône spécifiée n'existe pas dans le stockage.");
       return;
     }
-    if (isCraftable && !recipeId && item) { // Only check recipeId if item exists (i.e., editing)
+    if (isCraftable && !recipeId && item) { // This check is for existing items that are craftable but have no recipe defined yet.
       showError("Veuillez définir une recette pour cet objet craftable.");
       return;
     }
