@@ -7,6 +7,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { Loader2, Dice5, Coins } from 'lucide-react';
 import CreditsInfo from './CreditsInfo';
 import { cn } from '@/lib/utils';
+import Wheel from './Wheel';
 
 interface CasinoModalProps {
   isOpen: boolean;
@@ -16,10 +17,23 @@ interface CasinoModalProps {
   onPurchaseCredits: () => void;
 }
 
+const wheelSegments = [
+  { multiplier: 2, color: 'bg-blue-600' },
+  { multiplier: 0, color: 'bg-red-600' },
+  { multiplier: 1, color: 'bg-gray-500' },
+  { multiplier: 0.5, color: 'bg-orange-500' },
+  { multiplier: 5, color: 'bg-yellow-500' },
+  { multiplier: 0, color: 'bg-red-600' },
+  { multiplier: 2, color: 'bg-blue-600' },
+  { multiplier: 0.5, color: 'bg-orange-500' },
+  { multiplier: 1, color: 'bg-gray-500' },
+  { multiplier: 0, color: 'bg-red-600' },
+];
+
 const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: CasinoModalProps) => {
   const [betAmount, setBetAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ win: boolean; winnings: number; bet: number } | null>(null);
+  const [result, setResult] = useState<{ multiplier: number; winnings: number; bet: number } | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
 
   useEffect(() => {
@@ -41,26 +55,29 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
       return;
     }
     setLoading(true);
-    setIsSpinning(true);
     setResult(null);
 
     const { data, error } = await supabase.rpc('play_casino_game', { p_bet_amount: amount });
     
-    setTimeout(() => {
-      setIsSpinning(false);
+    if (error) {
+      showError(error.message);
       setLoading(false);
-      if (error) {
-        showError(error.message);
-      } else {
-        setResult(data);
-        if (data.win) {
+    } else {
+      setResult(data);
+      setIsSpinning(true);
+      setTimeout(() => {
+        setIsSpinning(false);
+        setLoading(false);
+        if (data.winnings > data.bet) {
           showSuccess(`Vous avez gagné ${data.winnings} crédits !`);
-        } else {
+        } else if (data.winnings === 0) {
           showError(`Vous avez perdu ${data.bet} crédits.`);
+        } else {
+          showError(`Vous avez récupéré une partie de votre mise.`);
         }
         onUpdate();
-      }
-    }, 1500); // Simulate spinning time
+      }, 6500); // Wait for wheel animation to finish
+    }
   };
 
   return (
@@ -75,20 +92,16 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
           <DialogDescription className="sr-only">Tentez votre chance !</DialogDescription>
           <CreditsInfo credits={credits} className="mt-1" onClick={onPurchaseCredits} />
         </DialogHeader>
-        <div className="py-4 space-y-4">
-          <div className="h-24 bg-black/20 rounded-lg flex items-center justify-center text-2xl font-bold">
-            {isSpinning ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
-            ) : result ? (
-              <div className={cn("text-center", result.win ? "text-green-400" : "text-red-400")}>
-                <p>{result.win ? "Gagné !" : "Perdu !"}</p>
-                <p className="text-lg">{result.win ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p>
-              </div>
-            ) : (
-              <p className="text-gray-400">Placez votre pari</p>
-            )}
-          </div>
-          <div>
+        <div className="py-4 space-y-4 flex flex-col items-center">
+          <Wheel segments={wheelSegments} resultMultiplier={result?.multiplier ?? null} isSpinning={isSpinning} />
+          
+          {!isSpinning && result && (
+            <div className={cn("text-center text-xl font-bold mt-4", result.winnings > result.bet ? "text-green-400" : "text-red-400")}>
+              {result.winnings > result.bet ? `Gagné: ${result.winnings}` : `Perdu: ${result.bet - result.winnings}`} <Coins className="inline w-5 h-5" />
+            </div>
+          )}
+
+          <div className="w-full max-w-xs pt-4">
             <label htmlFor="bet-amount" className="text-sm font-medium text-white font-mono">Montant du pari</label>
             <div className="relative mt-1">
               <Input
@@ -103,8 +116,8 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
               <Coins className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
             </div>
           </div>
-          <Button onClick={handlePlay} disabled={loading || !betAmount} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Parier'}
+          <Button onClick={handlePlay} disabled={loading || !betAmount} className="w-full max-w-xs">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Lancer la roue'}
           </Button>
         </div>
       </DialogContent>
