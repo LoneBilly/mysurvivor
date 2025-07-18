@@ -6,6 +6,7 @@ import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Check, X } from 'lucide-react';
 import { MapCell } from '@/types/game';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useGame } from '@/contexts/GameContext';
 import ItemIcon from './ItemIcon';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -253,18 +254,31 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 {infoLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
                   <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-md min-h-[52px]">
                     {potentialLoot.length > 0 ? potentialLoot.map((item, index) => (
-                      <TooltipProvider key={`loot-${index}`}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative" onClick={() => isMobile && showInfo(item.name)}>
+                      isMobile ? (
+                        <Popover key={`loot-${index}`}>
+                          <PopoverTrigger asChild>
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
                               <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto text-sm p-2 bg-gray-900/80 text-white border-white/20 rounded-md">
                             <p>{item.name}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <TooltipProvider key={`loot-${index}`}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                                <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{item.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
                     )) : <p className="text-xs text-gray-500 self-center px-2">Aucun butin spécifique à cette zone.</p>}
                   </div>
                 )}
@@ -275,19 +289,33 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 {infoLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
                   <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-md min-h-[52px]">
                     {potentialEvents.length > 0 ? potentialEvents.map((event, index) => (
-                      <TooltipProvider key={`event-${index}`}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative" onClick={() => isMobile && showInfo(event.name)}>
+                      isMobile ? (
+                        <Popover key={`event-${index}`}>
+                          <PopoverTrigger asChild>
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
                               <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto text-sm p-2 bg-gray-900/80 text-white border-white/20 rounded-md max-w-xs">
                             <p className="font-bold">{event.name}</p>
                             {event.description && <p className="text-xs">{event.description}</p>}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <TooltipProvider key={`event-${index}`}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                                <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="font-bold">{event.name}</p>
+                              {event.description && <p className="text-xs">{event.description}</p>}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
                     )) : <p className="text-xs text-gray-500 self-center px-2">Aucun événement spécial dans cette zone.</p>}
                   </div>
                 )}
