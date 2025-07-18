@@ -89,12 +89,12 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
             key={index}
             ref={index === 0 ? itemRef : null}
             className={cn(
-              "w-24 sm:w-32 h-24 flex-shrink-0 flex flex-col items-center justify-center text-white font-bold text-center p-2 rounded-md mx-1 border-2 border-white/10",
+              "w-[30px] h-24 flex-shrink-0 flex flex-col items-center justify-center text-white font-bold text-center p-1 rounded-md mx-1 border-2 border-white/10 overflow-hidden text-xs",
               item.color
             )}
           >
-            <span className="text-xs sm:text-sm drop-shadow-md">{item.label}</span>
-            <span className="text-sm sm:text-lg drop-shadow-md">x{item.multiplier}</span>
+            <span className="drop-shadow-md whitespace-nowrap">{item.label}</span>
+            <span className="drop-shadow-md">x{item.multiplier}</span>
           </div>
         ))}
       </div>
