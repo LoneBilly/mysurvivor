@@ -1,100 +1,115 @@
-"use client";
-
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { CraftingRecipe } from '@/types/game';
+import { useGame } from '@/contexts/GameContext';
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { ArrowRight } from 'lucide-react';
-import ItemSlot from './ItemSlot'; // Import the new ItemSlot component
-
-// Define types for the blueprint and its nested objects based on schema
-interface Item {
-  id: number;
-  name: string;
-  icon?: string;
-  type: string;
-  stackable: boolean;
-}
-
-interface CraftingRecipe {
-  id: number;
-  result_item_id: number;
-  result_quantity: number;
-  craft_time_seconds: number;
-  slot1_item_id?: number;
-  slot1_quantity?: number;
-  slot2_item_id?: number;
-  slot2_quantity?: number;
-  slot3_item_id?: number;
-  slot3_quantity?: number;
-}
-
-interface BlueprintData {
-  id: number;
-  name: string; // Name of the blueprint itself (e.g., "Blueprint: Wooden Axe")
-  description: string;
-  icon?: string;
-  recipe: CraftingRecipe;
-  result_item: Item; // Details of the item that is crafted
-  slot1_item?: Item; // Details for ingredient 1
-  slot2_item?: Item; // Details for ingredient 2
-  slot3_item?: Item; // Details for ingredient 3
-}
+import { Loader2, Wrench, ArrowRight } from 'lucide-react';
+import ItemIcon from '@/components/ItemIcon';
+import { getPublicIconUrl } from '@/utils/imageUrls';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BlueprintDetailModalProps {
-  blueprint: BlueprintData;
   isOpen: boolean;
   onClose: () => void;
-  isMobile: boolean; // Prop to indicate mobile view
+  recipe: CraftingRecipe | null;
 }
 
-const BlueprintDetailModal: React.FC<BlueprintDetailModalProps> = ({ blueprint, isOpen, onClose, isMobile }) => {
-  if (!blueprint) return null;
+const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalProps) => {
+  const { items: allItems } = useGame();
+  const isMobile = useIsMobile();
 
-  const { recipe, result_item, slot1_item, slot2_item, slot3_item } = blueprint;
+  const resultItem = useMemo(() => {
+    return allItems.find(item => item.id === recipe?.result_item_id);
+  }, [allItems, recipe]);
 
-  const ingredients = [
-    { item: slot1_item, quantity: recipe.slot1_quantity },
-    { item: slot2_item, quantity: recipe.slot2_quantity },
-    { item: slot3_item, quantity: recipe.slot3_quantity },
-  ].filter(ing => ing.item && ing.quantity); // Filter out empty slots
+  const slots = useMemo(() => {
+    if (!recipe) return [];
+    // Ensure all 3 slots are represented, even if empty, to maintain layout
+    const s: ({ item_id: number | null; quantity: number | null; } | null)[] = [null, null, null];
+    
+    if (recipe.slot1_item_id) s[0] = { item_id: recipe.slot1_item_id, quantity: recipe.slot1_quantity };
+    if (recipe.slot2_item_id) s[1] = { item_id: recipe.slot2_item_id, quantity: recipe.slot2_quantity };
+    if (recipe.slot3_item_id) s[2] = { item_id: recipe.slot3_item_id, quantity: recipe.slot3_quantity };
+    
+    return s;
+  }, [recipe]);
+
+  if (!recipe || !resultItem) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6">
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Détail du Blueprint</DialogTitle>
+            <DialogDescription>Chargement des détails du blueprint...</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-white" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] md:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{blueprint.name}</DialogTitle>
-          <DialogDescription>{blueprint.description}</DialogDescription>
+      <DialogContent className="max-w-2xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6">
+        <DialogHeader className="text-center">
+          <Wrench className="w-10 h-10 mx-auto text-white mb-2" />
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+            Recette de {resultItem.name}
+          </DialogTitle>
+          <DialogDescription className="text-gray-400">
+            Temps de fabrication: {recipe.craft_time_seconds} secondes
+          </DialogDescription>
         </DialogHeader>
 
         {/* Main content area for recipe display */}
         <div className={cn(
           "py-6 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8",
-          "flex-wrap", // Allow items to wrap to the next line on smaller screens
-          "px-4", // Add horizontal padding for better mobile readability
           isMobile ? "overflow-y-auto no-scrollbar" : ""
         )}>
-          {ingredients.length > 0 ? (
-            <>
-              <div className="flex flex-wrap justify-center gap-4">
-                {ingredients.map((ing, index) => (
-                  <ItemSlot key={index} item={ing.item} quantity={ing.quantity} />
-                ))}
-              </div>
-              <ArrowRight className="h-8 w-8 text-gray-500 flex-shrink-0 my-4 sm:my-0" />
-              <ItemSlot item={result_item} quantity={recipe.result_quantity} />
-            </>
-          ) : (
-            <p className="text-center text-gray-600 dark:text-gray-400">Aucune recette définie pour ce blueprint.</p>
-          )}
+          {/* Ingredients Section */}
+          <div className="flex flex-row flex-wrap justify-center items-center gap-3 sm:gap-4">
+            {slots.map((slot, index) => {
+              const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
+              
+              return (
+                <div key={index} className="flex flex-col items-center text-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 w-full max-w-[90px] sm:max-w-[100px] aspect-[3/4] justify-between flex-shrink-0">
+                  <div className="w-12 h-12 flex items-center justify-center relative">
+                    {ingredientItem ? (
+                      <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Vide</div>
+                    )}
+                  </div>
+                  {ingredientItem && (
+                    <>
+                      <p className="text-sm font-semibold mt-1 min-w-0 truncate w-full px-1">{ingredientItem.name}</p>
+                      <p className="text-xs text-gray-400">x{slot?.quantity}</p>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Arrow Separator */}
+          <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-4" : "")} />
+
+          {/* Result Item Section */}
+          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-700/50 border border-slate-600 w-full max-w-[120px] sm:max-w-[140px] aspect-[3/4] justify-between flex-shrink-0">
+            <div className="w-20 h-20 flex items-center justify-center relative">
+              <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
+            </div>
+            <p className="text-lg font-bold mt-2 min-w-0 truncate w-full px-1">{resultItem.name}</p>
+            <p className="text-base text-gray-300">x{recipe.result_quantity}</p>
+          </div>
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row sm:justify-end sm:space-x-2 pt-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 sm:mb-0 sm:mr-auto">
-            Temps de fabrication: {recipe.craft_time_seconds} secondes
-          </div>
-          <Button onClick={onClose}>Fermer</Button>
-        </DialogFooter>
+        <div className="flex justify-end pt-4">
+          <Button onClick={onClose} variant="outline" className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600">Fermer</Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
