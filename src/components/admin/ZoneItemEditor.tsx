@@ -269,6 +269,7 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
               <option value="Armes">Armes</option>
               <option value="Nourriture">Nourriture</option>
               <option value="Soins">Soins</option>
+              <option value="Équipements">Équipements</option> {/* Added 'Équipements' */}
               <option value="Items divers">Items divers</option>
               <option value="Items craftés">Items craftés</option>
             </select>

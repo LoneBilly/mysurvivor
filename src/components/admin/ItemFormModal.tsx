@@ -324,6 +324,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 <option value="Nourriture">Nourriture</option>
                 <option value="Soins">Soins</option>
                 <option value="Outils">Outils</option>
+                <option value="Équipements">Équipements</option> {/* Added 'Équipements' */}
                 <option value="Items divers">Items divers</option>
                 <option value="Items craftés">Items craftés</option>
               </select>

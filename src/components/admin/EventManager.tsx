@@ -9,7 +9,7 @@ import { Loader2, Plus, Edit, Trash2, Zap, Search, ArrowLeft } from 'lucide-reac
 import { showSuccess, showError } from '@/utils/toast';
 import { MapCell } from '@/types/game';
 import { Item } from '@/types/admin';
-import * as LucideIcons from "lucide-react";
+import * => LucideIcons from "lucide-react";
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -43,6 +43,7 @@ interface EventManagerProps {
 }
 
 const STAT_OPTIONS = ['vie', 'faim', 'soif', 'energie'];
+const ITEM_TYPES = ['Ressources', 'Armes', 'Nourriture', 'Soins', 'Outils', 'Équipements', 'Items divers', 'Items craftés']; // Added 'Équipements'
 
 const EventManager = ({ mapLayout, events, allItems, onEventsUpdate }: EventManagerProps) => {
   const isMobile = useIsMobile();
