@@ -63,13 +63,13 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
         <div className={cn("py-4 flex flex-col items-center gap-6", isMobile ? "overflow-y-auto no-scrollbar" : "")}>
           {/* Ingredients Section */}
-          <div className={cn("flex items-center justify-center gap-4", isMobile ? "flex-row overflow-x-auto px-2 pb-2" : "flex-row")}>
+          <div className={cn("flex items-center justify-center gap-4", isMobile ? "flex-wrap" : "flex-row")}>
             {slots.length > 0 ? (
               slots.map((slot, index) => {
                 const ingredientItem = allItems.find(item => item.id === slot.item_id);
                 if (!ingredientItem) return null;
                 return (
-                  <div key={index} className="flex flex-col items-center text-center flex-shrink-0">
+                  <div key={index} className="flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center relative">
                       <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
                     </div>
@@ -85,7 +85,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
           {/* Arrow Separator */}
           {slots.length > 0 && (
-            <ArrowRight className="w-8 h-8 text-white" />
+            <ArrowRight className={cn("w-8 h-8 text-white", isMobile ? "rotate-90" : "")} />
           )}
 
           {/* Result Item Section */}
