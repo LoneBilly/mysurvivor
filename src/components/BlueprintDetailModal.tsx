@@ -25,10 +25,12 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
   const slots = useMemo(() => {
     if (!recipe) return [];
-    const s = [];
-    if (recipe.slot1_item_id) s.push({ item_id: recipe.slot1_item_id, quantity: recipe.slot1_quantity });
-    if (recipe.slot2_item_id) s.push({ item_id: recipe.slot2_item_id, quantity: recipe.slot2_quantity });
-    if (recipe.slot3_item_id) s.push({ item_id: recipe.slot3_item_id, quantity: recipe.slot3_quantity });
+    const s: ({ item_id: number | null; quantity: number | null; } | null)[] = [null, null, null];
+    
+    if (recipe.slot1_item_id) s[0] = { item_id: recipe.slot1_item_id, quantity: recipe.slot1_quantity };
+    if (recipe.slot2_item_id) s[1] = { item_id: recipe.slot2_item_id, quantity: recipe.slot2_quantity };
+    if (recipe.slot3_item_id) s[2] = { item_id: recipe.slot3_item_id, quantity: recipe.slot3_quantity };
+    
     return s;
   }, [recipe]);
 
@@ -63,30 +65,32 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
         <div className={cn("py-4 flex flex-col items-center gap-6", isMobile ? "overflow-y-auto no-scrollbar" : "")}>
           {/* Ingredients Section */}
-          <div className={cn("flex items-center justify-center gap-4", isMobile ? "flex-wrap" : "flex-row")}>
-            {slots.length > 0 ? (
-              slots.map((slot, index) => {
-                const ingredientItem = allItems.find(item => item.id === slot.item_id);
-                if (!ingredientItem) return null;
-                return (
-                  <div key={index} className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center relative">
+          <div className="flex flex-row flex-wrap justify-center items-center gap-4">
+            {slots.map((slot, index) => {
+              const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
+              
+              return (
+                <div key={index} className="flex flex-col items-center text-center">
+                  <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center relative">
+                    {ingredientItem ? (
                       <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
-                    </div>
-                    <p className="text-sm font-semibold mt-2">{ingredientItem.name}</p>
-                    <p className="text-xs text-gray-400">x{slot.quantity}</p>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Vide</div>
+                    )}
                   </div>
-                );
-              })
-            ) : (
-              <p className="text-gray-400">Aucun ingrédient requis.</p>
-            )}
+                  {ingredientItem && (
+                    <>
+                      <p className="text-sm font-semibold mt-2">{ingredientItem.name}</p>
+                      <p className="text-xs text-gray-400">x{slot?.quantity}</p>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Arrow Separator */}
-          {slots.length > 0 && (
-            <ArrowRight className={cn("w-8 h-8 text-white", isMobile ? "rotate-90" : "")} />
-          )}
+          <ArrowRight className={cn("w-8 h-8 text-white", isMobile ? "rotate-90" : "")} />
 
           {/* Result Item Section */}
           <div className="flex flex-col items-center text-center">
