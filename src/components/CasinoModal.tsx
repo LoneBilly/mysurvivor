@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Dice5, Coins } from 'lucide-react';
 import CreditsInfo from './CreditsInfo';
 import { cn } from '@/lib/utils';
@@ -19,7 +19,7 @@ interface CasinoModalProps {
 const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: CasinoModalProps) => {
   const [betAmount, setBetAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ win: boolean; winnings: number; bet: number } | null>(null);
+  const [result, setResult] = useState<{ multiplier: number; winnings: number; bet: number } | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
 
   useEffect(() => {
@@ -53,14 +53,47 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
         showError(error.message);
       } else {
         setResult(data);
-        if (data.win) {
-          showSuccess(`Vous avez gagné ${data.winnings} crédits !`);
+        const netChange = data.winnings - data.bet;
+        if (netChange > 0) {
+          showSuccess(`Vous avez gagné ${netChange} crédits !`);
+        } else if (netChange < 0) {
+          showError(`Vous avez perdu ${Math.abs(netChange)} crédits.`);
         } else {
-          showError(`Vous avez perdu ${data.bet} crédits.`);
+          showInfo("Vous avez récupéré votre mise.");
         }
         onUpdate();
       }
     }, 1500); // Simulate spinning time
+  };
+
+  const getResultDisplay = () => {
+    if (!result) return <p className="text-gray-400">Placez votre pari</p>;
+
+    const netChange = result.winnings - result.bet;
+    let statusText = '';
+    let amountText = '';
+    let colorClass = '';
+
+    if (netChange > 0) {
+      statusText = `Gagné ! (x${result.multiplier})`;
+      amountText = `+${netChange}`;
+      colorClass = 'text-green-400';
+    } else if (netChange < 0) {
+      statusText = `Perdu... (x${result.multiplier})`;
+      amountText = `${netChange}`;
+      colorClass = 'text-red-400';
+    } else {
+      statusText = `Remboursé (x${result.multiplier})`;
+      amountText = `+0`;
+      colorClass = 'text-yellow-400';
+    }
+
+    return (
+      <div className={cn("text-center", colorClass)}>
+        <p>{statusText}</p>
+        <p className="text-lg">{amountText} <Coins className="inline w-5 h-5" /></p>
+      </div>
+    );
   };
 
   return (
@@ -79,13 +112,8 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
           <div className="h-24 bg-black/20 rounded-lg flex items-center justify-center text-2xl font-bold">
             {isSpinning ? (
               <Loader2 className="w-8 h-8 animate-spin" />
-            ) : result ? (
-              <div className={cn("text-center", result.win ? "text-green-400" : "text-red-400")}>
-                <p>{result.win ? "Gagné !" : "Perdu !"}</p>
-                <p className="text-lg">{result.win ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p>
-              </div>
             ) : (
-              <p className="text-gray-400">Placez votre pari</p>
+              getResultDisplay()
             )}
           </div>
           <div>
@@ -104,7 +132,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
             </div>
           </div>
           <Button onClick={handlePlay} disabled={loading || !betAmount} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Parier'}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Lancer la roue'}
           </Button>
         </div>
       </DialogContent>
