@@ -8,7 +8,7 @@ import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Dice5, Coins, Palette, ArrowLeft, CircleDot, Dices } from 'lucide-react';
 import CreditsInfo from './CreditsInfo';
 import { cn } from '@/lib/utils';
-import { Wheel } from 'react-custom-roulette';
+import Wheel, { Segment } from './Wheel';
 
 interface GameProps {
   credits: number;
@@ -16,52 +16,23 @@ interface GameProps {
   onBack: () => void;
 }
 
-const wagerWheelSegments = [
-  { option: 'Jackpot!', style: { backgroundColor: '#facc15', textColor: '#111827' } },
-  { option: 'Double Gain', style: { backgroundColor: '#4ade80', textColor: '#111827' } },
-  { option: 'Remboursé', style: { backgroundColor: '#9ca3af', textColor: '#111827' } },
-  { option: 'Petite Perte', style: { backgroundColor: '#fb923c', textColor: '#111827' } },
-  { option: 'Perte Totale', style: { backgroundColor: '#f87171', textColor: '#111827' } },
+const wagerWheelSegments: Segment[] = [
+  { label: 'Jackpot!', color: '#facc15' }, // gold-400
+  { label: 'Double Gain', color: '#4ade80' }, // green-400
+  { label: 'Remboursé', color: '#9ca3af' }, // gray-400
+  { label: 'Petite Perte', color: '#fb923c' }, // orange-400
+  { label: 'Perte Totale', color: '#f87171' }, // red-400
 ];
 
 const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
   const [betAmount, setBetAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ label: string; winnings: number; bet: number } | null>(null);
-  const [mustSpin, setMustSpin] = useState(false);
-  const [prizeNumber, setPrizeNumber] = useState(0);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [resultIndex, setResultIndex] = useState<number | null>(null);
   const resultDataRef = useRef<any>(null);
 
-  const handlePlay = async () => {
-    const amount = parseInt(betAmount, 10);
-    if (isNaN(amount) || amount <= 0) {
-      showError("Montant du pari invalide.");
-      return;
-    }
-    if (credits < amount) {
-      showError("Crédits insuffisants.");
-      return;
-    }
-    setLoading(true);
-    setResult(null);
-    resultDataRef.current = null;
-
-    const { data, error } = await supabase.rpc('play_casino_game', { p_bet_amount: amount });
-    
-    if (error) {
-      setLoading(false);
-      showError(error.message);
-      return;
-    }
-
-    resultDataRef.current = data;
-    const index = wagerWheelSegments.findIndex(s => s.option === data.label);
-    setPrizeNumber(index);
-    setMustSpin(true);
-  };
-
-  const onStopSpinning = () => {
-    setMustSpin(false);
+  const onSpinEnd = () => {
     setLoading(false);
     if (resultDataRef.current) {
       const data = resultDataRef.current;
@@ -77,20 +48,42 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
     }
   };
 
+  const handlePlay = async () => {
+    const amount = parseInt(betAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      showError("Montant du pari invalide.");
+      return;
+    }
+    if (credits < amount) {
+      showError("Crédits insuffisants.");
+      return;
+    }
+    setLoading(true);
+    setIsSpinning(true);
+    setResult(null);
+    setResultIndex(null);
+    resultDataRef.current = null;
+
+    const { data, error } = await supabase.rpc('play_casino_game', { p_bet_amount: amount });
+    
+    if (error) {
+      setLoading(false);
+      setIsSpinning(false);
+      showError(error.message);
+      return;
+    }
+
+    resultDataRef.current = data;
+    const index = wagerWheelSegments.findIndex(s => s.label === data.label);
+    setResultIndex(index);
+    setIsSpinning(false);
+  };
+
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
       <div className="h-64 flex items-center justify-center">
-        <Wheel
-          mustStartSpinning={mustSpin}
-          prizeNumber={prizeNumber}
-          data={wagerWheelSegments}
-          onStopSpinning={onStopSpinning}
-          outerBorderColor="#4b5563"
-          radiusLineColor="#4b5563"
-          radiusLineWidth={1}
-          fontSize={12}
-        />
+        <Wheel segments={wagerWheelSegments} isSpinning={isSpinning} resultIndex={resultIndex} onSpinEnd={onSpinEnd} />
       </div>
       <div className="h-10 text-center flex items-center justify-center">
         {result && <div className="text-center"><p className="font-bold">{result.label}</p><p className="text-lg">{result.winnings > 0 ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p></div>}
@@ -109,10 +102,10 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
   );
 };
 
-const colorRouletteSegments = Array.from({ length: 20 }).map((_, i) => {
-  if (i === 9 || i === 19) return { style: { backgroundColor: '#22c55e' } }; // green-500 (10%)
-  if (i % 2 === 0) return { style: { backgroundColor: '#ef4444' } }; // red-500 (45%)
-  return { style: { backgroundColor: '#3b82f6' } }; // blue-500 (45%)
+const colorRouletteSegments: Segment[] = Array.from({ length: 20 }).map((_, i) => {
+  if (i === 9 || i === 19) return { label: '', color: '#22c55e' }; // green-500 (10%)
+  if (i % 2 === 0) return { label: '', color: '#ef4444' }; // red-500 (45%)
+  return { label: '', color: '#3b82f6' }; // blue-500 (45%)
 });
 
 const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
@@ -120,12 +113,11 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
   const [selectedColor, setSelectedColor] = useState<'red' | 'blue' | 'green' | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ win: boolean; winnings: number; bet: number; winning_color: string } | null>(null);
-  const [mustSpin, setMustSpin] = useState(false);
-  const [prizeNumber, setPrizeNumber] = useState(0);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [resultIndex, setResultIndex] = useState<number | null>(null);
   const resultDataRef = useRef<any>(null);
 
-  const onStopSpinning = () => {
-    setMustSpin(false);
+  const onSpinEnd = () => {
     setLoading(false);
     if (resultDataRef.current) {
       const data = resultDataRef.current;
@@ -151,13 +143,16 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
       return;
     }
     setLoading(true);
+    setIsSpinning(true);
     setResult(null);
+    setResultIndex(null);
     resultDataRef.current = null;
 
     const { data, error } = await supabase.rpc('play_color_roulette', { p_bet_amount: amount, p_color_choice: color });
 
     if (error) {
       setLoading(false);
+      setIsSpinning(false);
       showError(error.message);
       return;
     }
@@ -165,26 +160,17 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
     resultDataRef.current = data;
     const colorMap: { [key: string]: string } = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e' };
     const winningColorHex = colorMap[data.winning_color];
-    const possibleIndices = colorRouletteSegments.map((s, i) => s.style.backgroundColor === winningColorHex ? i : -1).filter(i => i !== -1);
+    const possibleIndices = colorRouletteSegments.map((s, i) => s.color === winningColorHex ? i : -1).filter(i => i !== -1);
     const randomIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
-    setPrizeNumber(randomIndex);
-    setMustSpin(true);
+    setResultIndex(randomIndex);
+    setIsSpinning(false);
   };
 
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
       <div className="h-64 flex items-center justify-center">
-        <Wheel
-          mustStartSpinning={mustSpin}
-          prizeNumber={prizeNumber}
-          data={colorRouletteSegments}
-          onStopSpinning={onStopSpinning}
-          outerBorderColor="#4b5563"
-          radiusLineColor="#4b5563"
-          radiusLineWidth={1}
-          textColors={['#ffffff']}
-        />
+        <Wheel segments={colorRouletteSegments} isSpinning={isSpinning} resultIndex={resultIndex} onSpinEnd={onSpinEnd} />
       </div>
       <div className="h-10 text-center flex items-center justify-center">
         {result && <div className={cn("text-center", result.win ? "text-green-400" : "text-red-400")}><p>La roue s'arrête sur <span className="font-bold" style={{ color: result.winning_color }}>{result.winning_color.toUpperCase()}</span></p><p className="text-lg">{result.win ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p></div>}
