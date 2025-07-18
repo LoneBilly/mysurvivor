@@ -18,12 +18,13 @@ import { Loader2 } from 'lucide-react';
 interface RecipeEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (recipeId: number) => void;
+  onSave: (recipeData: Partial<CraftingRecipe>) => void; // Changed to return recipe data
   resultItem: Item;
   recipeId: number | null;
+  isNewItem: boolean; // New prop to indicate if it's for a new item
 }
 
-const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId }: RecipeEditorModalProps) => {
+const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNewItem }: RecipeEditorModalProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Partial<CraftingRecipe>>({});
   const [loading, setLoading] = useState(false);
@@ -38,46 +39,69 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId }: Re
 
   useEffect(() => {
     const fetchRecipe = async () => {
-      if (recipeId) {
+      if (recipeId && !isNewItem) { // Only fetch if it's an existing recipe for an existing item
         setLoading(true);
         const { data } = await supabase.from('crafting_recipes').select('*').eq('id', recipeId).single();
         setEditingRecipe(data || {});
         setLoading(false);
-      } else {
+      } else { // For new item or no existing recipe
         setEditingRecipe({
-          result_item_id: resultItem.id,
+          result_item_id: resultItem.id, // This will be null for new items, handled by RPC
           result_quantity: 1,
           craft_time_seconds: 10,
+          slot1_item_id: null,
+          slot1_quantity: null,
+          slot2_item_id: null,
+          slot2_quantity: null,
+          slot3_item_id: null,
+          slot3_quantity: null,
         });
       }
     };
     if (isOpen) {
       fetchRecipe();
     }
-  }, [isOpen, recipeId, resultItem.id]);
+  }, [isOpen, recipeId, resultItem.id, isNewItem]);
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingRecipe) return;
 
-    const { id, ...recipeData } = editingRecipe;
-    recipeData.result_item_id = resultItem.id;
+    const recipeDataToSave: Partial<CraftingRecipe> = {
+      result_item_id: resultItem.id, // Will be null for new items, filled by RPC
+      result_quantity: editingRecipe.result_quantity || 1,
+      craft_time_seconds: editingRecipe.craft_time_seconds || 10,
+      slot1_item_id: editingRecipe.slot1_item_id || null,
+      slot1_quantity: editingRecipe.slot1_quantity || null,
+      slot2_item_id: editingRecipe.slot2_item_id || null,
+      slot2_quantity: editingRecipe.slot2_quantity || null,
+      slot3_item_id: editingRecipe.slot3_item_id || null,
+      slot3_quantity: editingRecipe.slot3_quantity || null,
+    };
 
-    // Clean up optional fields
-    if (!recipeData.slot1_item_id) { recipeData.slot1_item_id = null; recipeData.slot1_quantity = null; }
-    if (!recipeData.slot2_item_id) { recipeData.slot2_item_id = null; recipeData.slot2_quantity = null; }
-    if (!recipeData.slot3_item_id) { recipeData.slot3_item_id = null; recipeData.slot3_quantity = null; }
-
-    const { data, error } = id
-      ? await supabase.from('crafting_recipes').update(recipeData).eq('id', id).select().single()
-      : await supabase.from('crafting_recipes').insert(recipeData).select().single();
-
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess(`Recette ${id ? 'mise à jour' : 'créée'}.`);
-      onSave(data.id);
+    if (isNewItem) {
+      // For new items, just pass the data back to ItemFormModal
+      onSave(recipeDataToSave);
       onClose();
+    } else {
+      // For existing items, save directly to DB
+      setLoading(true);
+      const { data, error } = editingRecipe.id
+        ? await supabase.from('crafting_recipes').update(recipeDataToSave).eq('id', editingRecipe.id).select().single()
+        : await supabase.from('crafting_recipes').insert(recipeDataToSave).select().single();
+
+      if (error) {
+        showError(error.message);
+      } else {
+        showSuccess(`Recette ${editingRecipe.id ? 'mise à jour' : 'créée'}.`);
+        // Also update the item's recipe_id if it's a new recipe for an existing item
+        if (!editingRecipe.id && resultItem.id) {
+          await supabase.from('items').update({ recipe_id: data.id }).eq('id', resultItem.id);
+        }
+        onSave(data); // Pass the saved recipe data back
+        onClose();
+      }
+      setLoading(false);
     }
   };
 
@@ -123,7 +147,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId }: Re
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
         <DialogHeader>
-          <DialogTitle>Gérer le Blueprint de {resultItem.name}</DialogTitle>
+          <DialogTitle>Gérer le Blueprint de {resultItem.name || 'Nouvel Objet'}</DialogTitle>
           <DialogDescription>Définissez les ingrédients et le résultat.</DialogDescription>
         </DialogHeader>
         {loading ? <Loader2 className="w-8 h-8 animate-spin mx-auto my-8" /> : (
