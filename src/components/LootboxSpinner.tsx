@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
 
 const outcomes = [
@@ -18,96 +18,50 @@ interface LootboxSpinnerProps {
   onSpinEnd: () => void;
 }
 
-const SPINNER_ITEMS_COUNT = 50;
-const TARGET_INDEX = 45;
-
 const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd }) => {
-  const [translateX, setTranslateX] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const itemRef = useRef<HTMLDivElement>(null);
-
-  const spinnerItems = useMemo(() => {
-    const items = [];
-    for (let i = 0; i < SPINNER_ITEMS_COUNT; i++) {
-      if (i === TARGET_INDEX) {
-        items.push(getOutcomeByLabel(resultLabel));
-      } else {
-        items.push(outcomes[Math.floor(Math.random() * outcomes.length)]);
-      }
-    }
-    return items;
-  }, [resultLabel]);
+  const [currentItem, setCurrentItem] = useState(outcomes[0]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (containerRef.current && itemRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
-      
-      const itemStyle = window.getComputedStyle(itemRef.current);
-      const marginLeft = parseFloat(itemStyle.marginLeft);
-      const marginRight = parseFloat(itemStyle.marginRight);
-      const totalItemWidth = itemRef.current.offsetWidth + marginLeft + marginRight;
+    let currentInterval = 75;
+    let slowDownStarted = false;
 
-      const finalPosition = containerWidth / 2 - (TARGET_INDEX * totalItemWidth + totalItemWidth / 2);
-      const randomOffset = (Math.random() - 0.5) * (totalItemWidth * 0.8);
+    const spin = () => {
+      setCurrentItem(outcomes[Math.floor(Math.random() * outcomes.length)]);
+      intervalRef.current = setTimeout(spin, currentInterval);
+    };
 
-      setTranslateX(0);
+    spin();
 
-      const animationFrame = requestAnimationFrame(() => {
-        setTranslateX(finalPosition + randomOffset);
-      });
+    // Slow down phase
+    timeoutRef.current = setTimeout(() => {
+      slowDownStarted = true;
+      currentInterval = 300;
+    }, 3000);
 
-      const animationDuration = 5000;
-      const timeoutId = setTimeout(() => {
-        onSpinEnd();
-      }, animationDuration + 200);
+    // Final result
+    timeoutRef.current = setTimeout(() => {
+      if (intervalRef.current) clearTimeout(intervalRef.current);
+      setCurrentItem(getOutcomeByLabel(resultLabel));
+      setTimeout(onSpinEnd, 500); // Wait a bit on the final result before ending
+    }, 5000);
 
-      return () => {
-        cancelAnimationFrame(animationFrame);
-        clearTimeout(timeoutId);
-      }
-    }
+    return () => {
+      if (intervalRef.current) clearTimeout(intervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [resultLabel, onSpinEnd]);
 
   return (
-    <div ref={containerRef} className="h-full w-full bg-transparent rounded-lg relative overflow-hidden">
-      {/* Top Arrow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 
-        border-l-[10px] border-l-transparent
-        border-r-[10px] border-r-transparent
-        border-t-[10px] border-t-yellow-400 z-20"
-        style={{ filter: 'drop-shadow(0 0 5px rgba(250, 204, 21, 0.7))' }}
-      />
-      
-      {/* Spinner Items */}
-      <div
-        className="flex h-full items-center"
-        style={{
-          transform: `translateX(${translateX}px)`,
-          transition: 'transform 5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-        }}
-      >
-        {spinnerItems.map((item, index) => (
-          <div
-            key={index}
-            ref={index === 0 ? itemRef : null}
-            className={cn(
-              "w-24 sm:w-32 h-20 flex-shrink-0 flex flex-col items-center justify-center text-white font-bold text-center p-2 rounded-md mx-1 border-2 border-white/10",
-              item.color
-            )}
-          >
-            <span className="text-xs sm:text-sm drop-shadow-md">{item.label}</span>
-            <span className="text-sm sm:text-lg drop-shadow-md">x{item.multiplier}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Bottom Arrow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 
-        border-l-[10px] border-l-transparent
-        border-r-[10px] border-r-transparent
-        border-b-[10px] border-b-yellow-400 z-20"
-        style={{ filter: 'drop-shadow(0 0 5px rgba(250, 204, 21, 0.7))' }}
-      />
+    <div
+      className={cn(
+        "w-full h-full flex flex-col items-center justify-center text-white font-bold text-center p-2 rounded-md border-2 border-white/10 transition-colors duration-200",
+        currentItem.color
+      )}
+    >
+      <span className="text-lg sm:text-xl drop-shadow-md">{currentItem.label}</span>
+      <span className="text-2xl sm:text-3xl drop-shadow-md">x{currentItem.multiplier}</span>
     </div>
   );
 };
