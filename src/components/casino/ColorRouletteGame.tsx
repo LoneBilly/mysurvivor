@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Loader2, Coins, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Wheel } from 'react-custom-roulette';
 
 interface ColorRouletteGameProps {
   credits: number;
@@ -15,12 +16,31 @@ interface ColorRouletteGameProps {
 
 type Color = 'red' | 'blue' | 'green';
 
+const colorWheelData = [
+  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
+  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
+  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
+  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
+  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
+  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
+  { option: 'Vert', style: { backgroundColor: '#16a34a' } },
+  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
+  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
+  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
+];
+
+const colorMap: Record<Color, string> = {
+  red: 'Rouge',
+  blue: 'Bleu',
+  green: 'Vert',
+};
+
 const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps) => {
   const [betAmount, setBetAmount] = useState('');
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ win: boolean; winnings: number; bet: number; winning_color: Color } | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
+  const [mustSpin, setMustSpin] = useState(false);
+  const [prizeNumber, setPrizeNumber] = useState(0);
 
   const handlePlay = async () => {
     if (!selectedColor) {
@@ -37,53 +57,52 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps
       return;
     }
     setLoading(true);
-    setIsSpinning(true);
-    setResult(null);
 
     const { data, error } = await supabase.rpc('play_color_roulette', { p_bet_amount: amount, p_color_choice: selectedColor });
     
-    setTimeout(() => {
-      setIsSpinning(false);
+    if (error) {
+      showError(error.message);
       setLoading(false);
-      if (error) {
-        showError(error.message);
-      } else {
-        setResult(data);
-        if (data.win) {
-          showSuccess(`Gagné ! Vous remportez ${data.winnings} crédits.`);
-        } else {
-          showError(`Perdu... La couleur était ${data.winning_color}.`);
-        }
+    } else {
+      const winningOption = colorMap[data.winning_color as Color];
+      const possibleIndexes = colorWheelData.map((d, i) => d.option === winningOption ? i : -1).filter(i => i !== -1);
+      const prizeIndex = possibleIndexes[Math.floor(Math.random() * possibleIndexes.length)];
+      
+      setPrizeNumber(prizeIndex);
+      setMustSpin(true);
+
+      setTimeout(() => {
+        if (data.win) showSuccess(`Gagné ! Vous remportez ${data.winnings} crédits.`);
+        else showError(`Perdu... La couleur était ${data.winning_color}.`);
         onUpdate();
-      }
-    }, 1500);
-  };
-
-  const getResultDisplay = () => {
-    if (!result) return <p className="text-gray-400">Choisissez une couleur et misez</p>;
-    
-    const colorClasses = {
-      red: 'bg-red-500',
-      blue: 'bg-blue-500',
-      green: 'bg-green-500',
-    };
-
-    return (
-      <div className="flex flex-col items-center gap-2">
-        <p>La roue s'arrête sur...</p>
-        <div className={cn("w-10 h-10 rounded-full", colorClasses[result.winning_color])} />
-        <p className={cn("font-bold", result.win ? "text-green-400" : "text-red-400")}>
-          {result.win ? `Gagné ! (+${result.winnings - result.bet})` : "Perdu..."}
-        </p>
-      </div>
-    );
+      }, 5500);
+    }
   };
 
   return (
     <div className="py-4 space-y-4">
       <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="h-24 bg-black/20 rounded-lg flex items-center justify-center text-lg font-bold mt-10">
-        {isSpinning ? <Loader2 className="w-8 h-8 animate-spin" /> : getResultDisplay()}
+      <div className="flex items-center justify-center mt-10">
+        <Wheel
+          mustStartSpinning={mustSpin}
+          prizeNumber={prizeNumber}
+          data={colorWheelData}
+          onStopSpinning={() => {
+            setMustSpin(false);
+            setLoading(false);
+          }}
+          backgroundColors={['#374151', '#1f2937']}
+          textColors={['#ffffff']}
+          outerBorderColor="#4b5563"
+          radiusLineColor="#4b5563"
+          pointerProps={{
+            style: {
+              fill: '#eab308',
+              stroke: '#ca8a04',
+              strokeWidth: 2,
+            }
+          }}
+        />
       </div>
       <div>
         <Label className="text-sm font-medium text-white font-mono">Couleur</Label>

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Coins, ArrowLeft } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Wheel } from 'react-custom-roulette';
 
 interface WagerWheelGameProps {
   credits: number;
@@ -13,11 +13,19 @@ interface WagerWheelGameProps {
   onBack: () => void;
 }
 
+const wheelData = [
+  { option: 'Perte Totale', style: { backgroundColor: '#dc2626' } }, // red-600
+  { option: 'Petite Perte', style: { backgroundColor: '#f97316' } }, // orange-500
+  { option: 'Remboursé', style: { backgroundColor: '#6b7280' } }, // gray-500
+  { option: 'Double Gain', style: { backgroundColor: '#2563eb' } }, // blue-600
+  { option: 'Jackpot!', style: { backgroundColor: '#eab308' } }, // yellow-500
+];
+
 const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
   const [betAmount, setBetAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ multiplier: number; winnings: number; bet: number; label: string } | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
+  const [mustSpin, setMustSpin] = useState(false);
+  const [prizeNumber, setPrizeNumber] = useState(0);
 
   const handlePlay = async () => {
     const amount = parseInt(betAmount, 10);
@@ -30,54 +38,52 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
       return;
     }
     setLoading(true);
-    setIsSpinning(true);
-    setResult(null);
 
     const { data, error } = await supabase.rpc('play_casino_game', { p_bet_amount: amount });
     
-    setTimeout(() => {
-      setIsSpinning(false);
+    if (error) {
+      showError(error.message);
       setLoading(false);
-      if (error) {
-        showError(error.message);
-      } else {
-        setResult(data);
+    } else {
+      const prizeIndex = wheelData.findIndex(d => d.option === data.label);
+      setPrizeNumber(prizeIndex >= 0 ? prizeIndex : 0);
+      setMustSpin(true);
+
+      // The toast and update will be handled by onStopSpinning
+      setTimeout(() => {
         const netChange = data.winnings - data.bet;
-        if (netChange > 0) {
-          showSuccess(`Vous avez gagné ${netChange} crédits !`);
-        } else if (netChange < 0) {
-          showError(`Vous avez perdu ${Math.abs(netChange)} crédits.`);
-        } else {
-          showInfo("Vous avez récupéré votre mise.");
-        }
+        if (netChange > 0) showSuccess(`Vous avez gagné ${netChange} crédits !`);
+        else if (netChange < 0) showError(`Vous avez perdu ${Math.abs(netChange)} crédits.`);
+        else showInfo("Vous avez récupéré votre mise.");
         onUpdate();
-      }
-    }, 1500);
-  };
-
-  const getResultDisplay = () => {
-    if (!result) return <p className="text-gray-400">Placez votre pari</p>;
-
-    const netChange = result.winnings - result.bet;
-    let colorClass = '';
-
-    if (netChange > 0) colorClass = 'text-green-400';
-    else if (netChange < 0) colorClass = 'text-red-400';
-    else colorClass = 'text-yellow-400';
-
-    return (
-      <div className={cn("text-center", colorClass)}>
-        <p>{result.label}</p>
-        <p className="text-lg">{netChange >= 0 ? `+${netChange}`: netChange} <Coins className="inline w-5 h-5" /></p>
-      </div>
-    );
+      }, 5500); // Delay toast to match animation
+    }
   };
 
   return (
     <div className="py-4 space-y-4">
       <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="h-24 bg-black/20 rounded-lg flex items-center justify-center text-2xl font-bold mt-10">
-        {isSpinning ? <Loader2 className="w-8 h-8 animate-spin" /> : getResultDisplay()}
+      <div className="flex items-center justify-center mt-10">
+        <Wheel
+          mustStartSpinning={mustSpin}
+          prizeNumber={prizeNumber}
+          data={wheelData}
+          onStopSpinning={() => {
+            setMustSpin(false);
+            setLoading(false);
+          }}
+          backgroundColors={['#374151', '#1f2937']}
+          textColors={['#ffffff']}
+          outerBorderColor="#4b5563"
+          radiusLineColor="#4b5563"
+          pointerProps={{
+            style: {
+              fill: '#eab308',
+              stroke: '#ca8a04',
+              strokeWidth: 2,
+            }
+          }}
+        />
       </div>
       <div>
         <Label htmlFor="bet-amount" className="text-sm font-medium text-white font-mono">Montant du pari</Label>
