@@ -22,9 +22,10 @@ interface RecipeEditorModalProps {
   resultItem: Item;
   recipeId: number | null;
   isNewItem: boolean; // New prop to indicate if it's for a new item
+  initialRecipeData?: Partial<CraftingRecipe> | null; // New prop for initial draft data
 }
 
-const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNewItem }: RecipeEditorModalProps) => {
+const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNewItem, initialRecipeData }: RecipeEditorModalProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Partial<CraftingRecipe>>({});
   const [loading, setLoading] = useState(false);
@@ -40,14 +41,27 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
 
   useEffect(() => {
     const fetchRecipe = async () => {
-      if (recipeId && !isNewItem) { // Only fetch if it's an existing recipe for an existing item
+      if (isNewItem) {
+        // For new items, use initialRecipeData if provided, otherwise default values
+        setEditingRecipe(initialRecipeData || {
+          result_item_id: resultItem.id,
+          result_quantity: 1,
+          craft_time_seconds: 10,
+          slot1_item_id: null,
+          slot1_quantity: null,
+          slot2_item_id: null,
+          slot2_quantity: null,
+          slot3_item_id: null,
+          slot3_quantity: null,
+        });
+      } else if (recipeId) { // Only fetch if it's an existing recipe for an existing item
         setLoading(true);
         const { data } = await supabase.from('crafting_recipes').select('*').eq('id', recipeId).single();
         setEditingRecipe(data || {});
         setLoading(false);
-      } else { // For new item or no existing recipe
+      } else { // Existing item but no recipe yet
         setEditingRecipe({
-          result_item_id: resultItem.id, // This will be null for new items, handled by RPC
+          result_item_id: resultItem.id,
           result_quantity: 1,
           craft_time_seconds: 10,
           slot1_item_id: null,
@@ -63,7 +77,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
       fetchRecipe();
       setDuplicateError(null); // Clear duplicate error on open
     }
-  }, [isOpen, recipeId, resultItem.id, isNewItem]);
+  }, [isOpen, recipeId, resultItem.id, isNewItem, initialRecipeData]);
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();

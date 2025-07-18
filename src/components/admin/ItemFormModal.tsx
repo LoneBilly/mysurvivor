@@ -70,7 +70,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setPreviewUrl(null);
       setIconExists(null);
       setIsDeleteModalOpen(false);
-      setDraftRecipe(null); // Reset draft recipe on open
       
       if (item) {
         const fetchRecipe = async () => {
@@ -78,15 +77,18 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           if (data) {
             setRecipeId(data.id);
             setIsCraftable(true);
+            setDraftRecipe(null); // Clear draft if it's an existing item
           } else {
             setRecipeId(null);
             setIsCraftable(false);
+            setDraftRecipe(null); // Clear draft if it's an existing item without a recipe
           }
         };
         fetchRecipe();
       } else {
         setRecipeId(null);
         setIsCraftable(false);
+        setDraftRecipe(null); // Ensure draft is null for new items initially
       }
 
       if (initialIcon) {
@@ -386,7 +388,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                     </Button>
                   )}
                 </div>
-                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !draftRecipe && !item)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !draftRecipe && !item)}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {item ? 'Sauvegarder' : 'Créer l\'objet'}
                 </Button>
@@ -420,6 +422,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
             }
           }}
           isNewItem={!item}
+          initialRecipeData={draftRecipe} // Pass draft recipe data
         />
       )}
     </>
