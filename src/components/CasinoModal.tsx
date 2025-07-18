@@ -70,7 +70,7 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
         showError(`Vous avez perdu ${data.bet} crédits.`);
       }
       onUpdate();
-    }, 3000);
+    }, 5000);
   };
 
   return (
@@ -96,11 +96,11 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
   );
 };
 
-const colorRouletteSegments: Segment[] = [
-  { label: 'Rouge', color: '#ef4444' }, // red-500
-  { label: 'Vert', color: '#22c55e' }, // green-500
-  { label: 'Bleu', color: '#3b82f6' }, // blue-500
-];
+const colorRouletteSegments: Segment[] = Array.from({ length: 20 }).map((_, i) => {
+  if (i === 9 || i === 19) return { label: '', color: '#22c55e' }; // green-500 (10%)
+  if (i % 2 === 0) return { label: '', color: '#ef4444' }; // red-500 (45%)
+  return { label: '', color: '#3b82f6' }; // blue-500 (45%)
+});
 
 const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
   const [betAmount, setBetAmount] = useState('');
@@ -135,9 +135,11 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
       return;
     }
 
-    const colorMap: { [key: string]: string } = { red: 'Rouge', blue: 'Bleu', green: 'Vert' };
-    const index = colorRouletteSegments.findIndex(s => s.label === colorMap[data.winning_color]);
-    setResultIndex(index);
+    const colorMap: { [key: string]: string } = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e' };
+    const winningColorHex = colorMap[data.winning_color];
+    const possibleIndices = colorRouletteSegments.map((s, i) => s.color === winningColorHex ? i : -1).filter(i => i !== -1);
+    const randomIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
+    setResultIndex(randomIndex);
 
     setTimeout(() => {
       setIsSpinning(false);
@@ -149,7 +151,7 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
         showError(`Vous avez perdu ${data.bet} crédits.`);
       }
       onUpdate();
-    }, 3000);
+    }, 5000);
   };
 
   return (

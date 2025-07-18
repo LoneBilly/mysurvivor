@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export interface Segment {
   label: string;
@@ -18,7 +19,7 @@ const Wheel = ({ segments, isSpinning, resultIndex }: WheelProps) => {
 
   useEffect(() => {
     if (isSpinning) {
-      const randomSpins = 5 + Math.floor(Math.random() * 3);
+      const randomSpins = 5 + Math.floor(Math.random() * 5);
       setRotation(prev => prev + 360 * randomSpins);
     } else if (resultIndex !== null) {
       const targetAngle = 360 - (resultIndex * segmentAngle);
@@ -41,23 +42,38 @@ const Wheel = ({ segments, isSpinning, resultIndex }: WheelProps) => {
   return (
     <div className="relative w-48 h-48 flex items-center justify-center">
       <div
-        className="relative w-full h-full rounded-full border-4 border-yellow-400/50 shadow-lg overflow-hidden transition-transform duration-[3000ms] ease-out"
+        className="relative w-full h-full rounded-full border-4 border-yellow-400/50 shadow-lg overflow-hidden"
         style={{
           background: `conic-gradient(from 0deg, ${conicGradient})`,
           transform: `rotate(${rotation}deg)`,
+          transition: 'transform 5s cubic-bezier(0.25, 1, 0.5, 1)',
         }}
       >
+        {/* Dividers */}
+        {segments.map((_, index) => (
+          <div
+            key={`divider-${index}`}
+            className="absolute w-px h-1/2 bg-gray-800/50 top-0 left-1/2 -translate-x-1/2 origin-bottom"
+            style={{
+              transform: `rotate(${index * segmentAngle}deg)`,
+            }}
+          />
+        ))}
+        {/* Labels */}
         {segments.map((segment, index) => (
           <div
-            key={index}
-            className="absolute w-1/2 h-1/2 origin-bottom-right flex items-center"
+            key={`label-${index}`}
+            className="absolute w-1/2 h-1/2 origin-bottom-right flex items-center justify-center"
             style={{
-              transform: `rotate(${index * segmentAngle + segmentAngle / 2}deg)`,
+              transform: `rotate(${index * segmentAngle}deg)`,
             }}
           >
             <span 
-              className="text-white text-[10px] font-bold transform -rotate-90"
-              style={{ marginLeft: '-50px' }}
+              className={cn(
+                "text-white text-[10px] font-bold transform -rotate-90",
+                numSegments > 10 ? 'opacity-0' : '' // Hide labels if too many segments
+              )}
+              style={{ transform: `translateX(-50%) translateY(-150%) rotate(${segmentAngle/2}deg)` }}
             >
               {segment.label}
             </span>
