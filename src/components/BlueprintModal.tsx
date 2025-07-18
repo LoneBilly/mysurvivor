@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import BlueprintDetailModal from './BlueprintDetailModal'; // Import the new detail modal
+import BlueprintDetailModal from './BlueprintDetailModal';
+import { useIsMobile } from '@/hooks/use-mobile'; // Import useIsMobile
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -22,10 +23,11 @@ interface LearnedBlueprint {
 
 const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
   const { items: allItems } = useGame();
+  const isMobile = useIsMobile(); // Use the hook
   const [learnedRecipes, setLearnedRecipes] = useState<CraftingRecipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState('all'); // 'all' or specific item type
+  const [selectedType, setSelectedType] = useState('all');
   const [selectedRecipeForDetail, setSelectedRecipeForDetail] = useState<CraftingRecipe | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -103,38 +105,67 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
             <DialogDescription>Recettes que vous avez apprises.</DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-grow mt-4 min-h-0">
-            {/* Left Panel: Filters */}
-            <div className="w-1/4 min-w-[150px] max-w-[200px] border-r border-slate-700 pr-4 overflow-y-auto no-scrollbar flex-shrink-0">
-              <h3 className="font-bold text-lg mb-3">Types</h3>
-              <div className="flex flex-col space-y-2">
-                {uniqueItemTypes.map(type => (
-                  <Button
-                    key={type}
-                    variant="ghost"
-                    onClick={() => setSelectedType(type)}
-                    className={cn(
-                      "justify-start",
-                      selectedType === type && "bg-white/10 hover:bg-white/15"
-                    )}
+          <div className={cn("flex flex-grow mt-4 min-h-0", isMobile ? "flex-col" : "flex-row")}>
+            {/* Filters and Search */}
+            <div className={cn("flex-shrink-0", isMobile ? "w-full mb-4" : "w-1/4 min-w-[150px] max-w-[200px] border-r border-slate-700 pr-4 overflow-y-auto no-scrollbar")}>
+              {isMobile ? (
+                <div className="flex flex-col gap-3">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="Rechercher un blueprint..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 bg-white/10 border-white/20"
+                    />
+                  </div>
+                  <select
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
+                    className="w-full bg-white/10 border-white/20 px-3 h-10 rounded-lg text-white focus:ring-white/30 focus:border-white/30"
                   >
-                    {type === 'all' ? 'Tous' : type}
-                  </Button>
-                ))}
-              </div>
+                    {uniqueItemTypes.map(type => (
+                      <option key={type} value={type}>
+                        {type === 'all' ? 'Tous les types' : type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-bold text-lg mb-3">Types</h3>
+                  <div className="flex flex-col space-y-2">
+                    {uniqueItemTypes.map(type => (
+                      <Button
+                        key={type}
+                        variant="ghost"
+                        onClick={() => setSelectedType(type)}
+                        className={cn(
+                          "justify-start",
+                          selectedType === type && "bg-white/10 hover:bg-white/15"
+                        )}
+                      >
+                        {type === 'all' ? 'Tous' : type}
+                      </Button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Right Panel: Search and List */}
-            <div className="flex-grow pl-4 flex flex-col min-h-0">
-              <div className="relative mb-4 flex-shrink-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Rechercher un blueprint..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white/10 border-white/20"
-                />
-              </div>
+            {/* Right Panel: List */}
+            <div className={cn("flex-grow flex flex-col min-h-0", isMobile ? "pl-0" : "pl-4")}>
+              {!isMobile && ( // Search bar only on desktop here, moved to top for mobile
+                <div className="relative mb-4 flex-shrink-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Rechercher un blueprint..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-white/10 border-white/20"
+                  />
+                </div>
+              )}
 
               <div className="flex-grow overflow-y-auto no-scrollbar space-y-3">
                 {loading ? (

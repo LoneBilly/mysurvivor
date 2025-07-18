@@ -3,6 +3,8 @@ import { ArrowRight } from "lucide-react";
 import { CraftingRecipe, Item, InventoryItem } from "@/types/game";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
+import { useIsMobile } from '@/hooks/use-mobile'; // Import useIsMobile
+import { cn } from '@/lib/utils'; // Import cn for conditional classes
 
 interface BlueprintDetailModalProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface BlueprintDetailModalProps {
 
 const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalProps) => {
   const { items: allItems } = useGame();
+  const isMobile = useIsMobile(); // Use the hook
 
   if (!recipe) return null;
 
@@ -45,7 +48,10 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+      <DialogContent className={cn(
+        "bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6", // Adjusted padding
+        isMobile ? "w-[95vw] h-[90vh] max-w-none max-h-none" : "sm:max-w-xl" // Full screen on mobile
+      )}>
         <DialogHeader className="text-center">
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
             Recette: {resultItem?.name || 'Objet Inconnu'}
@@ -54,13 +60,30 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
             Détails de la fabrication.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 flex flex-col items-center justify-center gap-4">
-          <div className="flex items-center gap-1">
-            {slots.map((slot, index) => (
-              <div key={index} className="w-16 h-16">
+        <div className={cn("py-4 flex flex-col items-center justify-center gap-4", isMobile ? "overflow-y-auto no-scrollbar" : "")}>
+          <div className={cn("flex items-center gap-1", isMobile ? "flex-col" : "flex-row")}>
+            <div className={cn("flex items-center gap-1", isMobile ? "flex-col" : "flex-row")}> {/* Nested flex for ingredients */}
+              {slots.map((slot, index) => (
+                <div key={index} className="w-16 h-16">
+                  <InventorySlot
+                    item={getRecipeSlotItem(slot.itemId, slot.quantity, slot.slotNum)}
+                    index={slot.slotNum}
+                    isUnlocked={true}
+                    onDragStart={() => {}}
+                    onItemClick={() => {}}
+                    isBeingDragged={false}
+                    isDragOver={false}
+                    isLocked={true}
+                  />
+                </div>
+              ))}
+            </div>
+            <ArrowRight className={cn("w-8 h-8 text-gray-400 flex-shrink-0", isMobile ? "rotate-90 my-4" : "mx-2 sm:mx-4")} />
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-24 h-24 relative">
                 <InventorySlot
-                  item={getRecipeSlotItem(slot.itemId, slot.quantity, slot.slotNum)}
-                  index={slot.slotNum}
+                  item={getRecipeSlotItem(resultItem?.id || null, recipe.result_quantity, -1)}
+                  index={-1}
                   isUnlocked={true}
                   onDragStart={() => {}}
                   onItemClick={() => {}}
@@ -69,24 +92,9 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
                   isLocked={true}
                 />
               </div>
-            ))}
-          </div>
-          <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
-          <div className="flex flex-col items-center gap-1">
-            <div className="w-24 h-24 relative">
-              <InventorySlot
-                item={getRecipeSlotItem(resultItem?.id || null, recipe.result_quantity, -1)}
-                index={-1}
-                isUnlocked={true}
-                onDragStart={() => {}}
-                onItemClick={() => {}}
-                isBeingDragged={false}
-                isDragOver={false}
-                isLocked={true}
-              />
+              <span className="font-bold text-white text-center mt-1 text-lg">{resultItem?.name || 'Objet final'}</span>
+              <span className="text-sm text-gray-400">x{recipe.result_quantity}</span>
             </div>
-            <span className="font-bold text-white text-center mt-1 text-lg">{resultItem?.name || 'Objet final'}</span>
-            <span className="text-sm text-gray-400">x{recipe.result_quantity}</span>
           </div>
           <div className="text-sm text-gray-400 mt-4">
             Temps de fabrication: <span className="font-bold">{recipe.craft_time_seconds} secondes</span>
