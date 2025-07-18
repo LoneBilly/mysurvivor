@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { cn } from "@/lib/utils";
 
 const outcomes = [
@@ -38,7 +38,7 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
     return items;
   }, [resultLabel]);
 
-  useEffect(() => {
+  const calculatePosition = useCallback(() => {
     if (containerRef.current && itemRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
       
@@ -53,15 +53,35 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
       requestAnimationFrame(() => {
         setTranslateX(finalPosition + randomOffset);
       });
-
-      const animationDuration = 5000;
-      const timeoutId = setTimeout(() => {
-        onSpinEnd();
-      }, animationDuration + 200);
-
-      return () => clearTimeout(timeoutId);
     }
-  }, [resultLabel, onSpinEnd]);
+  }, []);
+
+  useEffect(() => {
+    calculatePosition();
+
+    const animationDuration = 5000;
+    const timeoutId = setTimeout(() => {
+      onSpinEnd();
+    }, animationDuration + 200);
+
+    const containerElement = containerRef.current;
+    const resizeObserver = new ResizeObserver(() => {
+      // Recalculate without transition for immediate adjustment
+      setTranslateX(0); // Reset briefly to avoid visual glitch
+      setTimeout(calculatePosition, 0);
+    });
+
+    if (containerElement) {
+      resizeObserver.observe(containerElement);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (containerElement) {
+        resizeObserver.unobserve(containerElement);
+      }
+    };
+  }, [resultLabel, onSpinEnd, calculatePosition]);
 
   return (
     <div ref={containerRef} className="h-full w-full bg-transparent rounded-lg relative overflow-hidden">
