@@ -10,9 +10,10 @@ interface WheelProps {
   segments: Segment[];
   isSpinning: boolean;
   resultIndex: number | null;
+  onSpinEnd?: () => void;
 }
 
-const Wheel = ({ segments, isSpinning, resultIndex }: WheelProps) => {
+const Wheel = ({ segments, isSpinning, resultIndex, onSpinEnd }: WheelProps) => {
   const [rotation, setRotation] = useState(0);
   const numSegments = segments.length;
   const segmentAngle = 360 / numSegments;
@@ -37,23 +38,32 @@ const Wheel = ({ segments, isSpinning, resultIndex }: WheelProps) => {
     }
   }, [isSpinning, resultIndex, segmentAngle]);
 
+  const handleTransitionEnd = () => {
+    if (!isSpinning && onSpinEnd) {
+      onSpinEnd();
+    }
+  };
+
   const conicGradient = segments.map((s, i) => `${s.color} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg`).join(', ');
 
   return (
     <div className="relative w-48 h-48 flex items-center justify-center">
       <div
         className="relative w-full h-full rounded-full border-4 border-yellow-400/50 shadow-lg overflow-hidden"
+        onTransitionEnd={handleTransitionEnd}
         style={{
           background: `conic-gradient(from 0deg, ${conicGradient})`,
           transform: `rotate(${rotation}deg)`,
-          transition: 'transform 5s cubic-bezier(0.25, 1, 0.5, 1)',
+          transition: isSpinning 
+            ? 'transform 1s cubic-bezier(0.5, 1, 0.5, 1)' 
+            : 'transform 5s cubic-bezier(0.25, 1, 0.5, 1)',
         }}
       >
         {/* Dividers */}
         {segments.map((_, index) => (
           <div
             key={`divider-${index}`}
-            className="absolute w-px h-1/2 bg-gray-800/50 top-0 left-1/2 -translate-x-1/2 origin-bottom"
+            className="absolute w-[2px] h-1/2 bg-black/25 top-0 left-1/2 -translate-x-1/2 origin-bottom"
             style={{
               transform: `rotate(${index * segmentAngle}deg)`,
             }}
