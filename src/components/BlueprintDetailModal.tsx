@@ -8,7 +8,7 @@ import { Loader2, Wrench, ArrowRight } from 'lucide-react';
 import ItemIcon from '@/components/ItemIcon';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import { useIsMobile } from '@/hooks/use-mobile';
-import RecipeItemSlot from './RecipeItemSlot'; // Import the new component
+import RecipeItemSlot from './RecipeItemSlot';
 
 interface BlueprintDetailModalProps {
   isOpen: boolean;
@@ -70,7 +70,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           "py-6 flex flex-col items-center justify-center gap-4 sm:gap-8"
         )}>
           {/* Ingredients Section */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 w-full">
+          <div className="flex flex-row flex-nowrap justify-center gap-3 sm:gap-4 w-full overflow-x-auto pb-2 no-scrollbar">
             {slots.map((slot, index) => {
               const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
               
