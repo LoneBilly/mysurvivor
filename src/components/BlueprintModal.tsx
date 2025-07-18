@@ -86,22 +86,27 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
           ) : learnedRecipes.length > 0 ? (
             learnedRecipes.map(recipe => {
               const resultItem = allItems.find(item => item.id === recipe.result_item_id);
-              const ingredients = [
-                { id: recipe.slot1_item_id, quantity: recipe.slot1_quantity },
-                { id: recipe.slot2_item_id, quantity: recipe.slot2_quantity },
-                { id: recipe.slot3_item_id, quantity: recipe.slot3_quantity },
-              ].filter(ing => ing.id !== null);
+              const slots = [
+                { slotNum: 1, itemId: recipe.slot1_item_id, quantity: recipe.slot1_quantity },
+                { slotNum: 2, itemId: recipe.slot2_item_id, quantity: recipe.slot2_quantity },
+                { slotNum: 3, itemId: recipe.slot3_item_id, quantity: recipe.slot3_quantity },
+              ];
 
               return (
                 <div key={recipe.id} className="bg-white/5 p-4 rounded-lg border border-white/10">
                   <div className="flex items-center justify-center gap-4">
                     <div className="flex flex-col items-center gap-1">
-                      {ingredients.map((ing, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm">
-                          <div className="w-6 h-6 relative"><ItemIcon iconName={getIngredientIcon(ing.id)} alt="" /></div>
-                          <span>{getIngredientName(ing.id)} x{ing.quantity}</span>
-                        </div>
-                      ))}
+                      {slots.map((slot, index) => {
+                        if (!slot.itemId) return null;
+                        const ingredientItem = allItems.find(item => item.id === slot.itemId);
+                        const iconUrl = getIngredientIcon(slot.itemId);
+                        return (
+                          <div key={index} className="flex items-center gap-2 text-sm">
+                            <div className="w-6 h-6 relative"><ItemIcon iconName={iconUrl} alt="" /></div>
+                            <span>{`Slot ${slot.slotNum}: ${ingredientItem?.name || 'Objet inconnu'} x${slot.quantity}`}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                     <ArrowRight className="w-6 h-6 text-gray-400 flex-shrink-0" />
                     <div className="flex flex-col items-center gap-1">
