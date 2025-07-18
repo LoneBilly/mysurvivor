@@ -8,9 +8,10 @@ interface RecipeItemSlotProps {
   quantity: number | null;
   isEmpty?: boolean;
   isResult?: boolean;
+  slotNumber?: number; // New prop for slot numbering
 }
 
-const RecipeItemSlot = ({ item, quantity, isEmpty = false, isResult = false }: RecipeItemSlotProps) => {
+const RecipeItemSlot = ({ item, quantity, isEmpty = false, isResult = false, slotNumber }: RecipeItemSlotProps) => {
   const { getIconUrl } = useGame();
 
   const iconUrl = item ? getIconUrl(item.icon) : null;
@@ -23,6 +24,11 @@ const RecipeItemSlot = ({ item, quantity, isEmpty = false, isResult = false }: R
         isEmpty ? "bg-black/20 border-dashed border-slate-600" : ""
       )}
     >
+      {slotNumber && (
+        <span className="absolute top-1 left-2 text-xs font-bold text-gray-400">
+          {slotNumber}
+        </span>
+      )}
       {isEmpty ? (
         <span className="text-gray-500 text-xs">Vide</span>
       ) : (
