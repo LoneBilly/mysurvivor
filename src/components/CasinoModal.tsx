@@ -11,32 +11,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
-import { usePlayerState } from "@/contexts/PlayerStateContext";
+import { showError } from "@/utils/toast";
 import LootboxSpinner from "./LootboxSpinner";
+import CreditsInfo from "./CreditsInfo";
 
 interface CasinoModalProps {
   isOpen: boolean;
   onClose: () => void;
+  credits: number;
+  onUpdate: () => void;
+  onPurchaseCredits: () => void;
 }
 
-export function CasinoModal({ isOpen, onClose }: CasinoModalProps) {
-  const { playerState, refreshPlayerData } = usePlayerState();
-  const { toast } = useToast();
+export function CasinoModal({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: CasinoModalProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<{ winnings: number; label: string } | null>(null);
   const [spinningResult, setSpinningResult] = useState<{ winnings: number; label: string } | null>(null);
   const [betAmount, setBetAmount] = useState(10);
 
   const handlePlay = async () => {
-    if (!playerState) return;
-
-    if (playerState.credits < betAmount) {
-      toast({
-        title: "Crédits insuffisants",
-        description: `Vous n'avez pas assez de crédits pour parier ${betAmount}.`,
-        variant: "destructive",
-      });
+    if (credits < betAmount) {
+      showError(`Crédits insuffisants pour parier ${betAmount}.`);
       return;
     }
 
@@ -54,11 +49,7 @@ export function CasinoModal({ isOpen, onClose }: CasinoModalProps) {
       setSpinningResult(data);
 
     } catch (error: any) {
-      toast({
-        title: "Erreur au casino",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(`Erreur au casino: ${error.message}`);
       setIsSpinning(false);
     }
   };
@@ -66,7 +57,7 @@ export function CasinoModal({ isOpen, onClose }: CasinoModalProps) {
   const handleSpinEnd = () => {
     setResult(spinningResult);
     setIsSpinning(false);
-    refreshPlayerData();
+    onUpdate();
   };
 
   const handleClose = () => {
@@ -83,8 +74,11 @@ export function CasinoModal({ isOpen, onClose }: CasinoModalProps) {
       <DialogContent className="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
         <DialogHeader>
           <DialogTitle>Casino de la Zone</DialogTitle>
-          <DialogDescription>
-            Tentez votre chance ! Le gain est déterminé par un multiplicateur.
+          <DialogDescription asChild>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <span>Tentez votre chance ! Le gain est déterminé par un multiplicateur.</span>
+              <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
+            </div>
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
@@ -117,9 +111,6 @@ export function CasinoModal({ isOpen, onClose }: CasinoModalProps) {
                 </Button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 text-right">
-              Vos crédits : {playerState?.credits ?? 0}
-            </p>
           </div>
         </div>
         <DialogFooter>
