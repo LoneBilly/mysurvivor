@@ -152,7 +152,24 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
         <Label>{`Slot ${slot}`}</Label>
         <select
           value={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] || ''}
-          onChange={(e) => handleRecipeChange(`slot${slot}_item_id` as keyof CraftingRecipe, e.target.value ? parseInt(e.target.value) : null)}
+          onChange={(e) => {
+            const itemId = e.target.value ? parseInt(e.target.value) : null;
+            setEditingRecipe(prev => {
+              const newRecipe = { ...prev } as Partial<CraftingRecipe>;
+              (newRecipe as any)[`slot${slot}_item_id`] = itemId;
+              // If an item is selected, set quantity to 1 if it's not already set or is 0
+              if (itemId !== null) {
+                if (!(newRecipe as any)[`slot${slot}_quantity`] || (newRecipe as any)[`slot${slot}_quantity`] === 0) {
+                  (newRecipe as any)[`slot${slot}_quantity`] = 1;
+                }
+              } else {
+                // If no item is selected, clear the quantity
+                (newRecipe as any)[`slot${slot}_quantity`] = null;
+              }
+              return newRecipe;
+            });
+            setDuplicateError(null); // Clear error on any change
+          }}
           className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg"
         >
           <option value="">Aucun</option>
@@ -167,8 +184,8 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
           value={editingRecipe?.[`slot${slot}_quantity` as keyof CraftingRecipe] || ''}
           onChange={(e) => handleRecipeChange(`slot${slot}_quantity` as keyof CraftingRecipe, e.target.value ? parseInt(e.target.value) : null)}
           className="bg-white/5 border-white/20"
-          disabled={!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
-          required={!!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
+          disabled={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] === null}
+          required={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] !== null}
         />
       </div>
     </div>
