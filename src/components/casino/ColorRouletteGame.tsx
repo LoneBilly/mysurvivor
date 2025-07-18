@@ -17,16 +17,16 @@ interface ColorRouletteGameProps {
 type Color = 'red' | 'blue' | 'green';
 
 const colorWheelData = [
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Vert', style: { backgroundColor: '#16a34a' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
-  { option: 'Bleu', style: { backgroundColor: '#2563eb' } },
-  { option: 'Rouge', style: { backgroundColor: '#dc2626' } },
+  { option: 'Rouge', style: { backgroundColor: '#b91c1c' } },
+  { option: 'Bleu', style: { backgroundColor: '#1d4ed8' } },
+  { option: 'Rouge', style: { backgroundColor: '#b91c1c' } },
+  { option: 'Bleu', style: { backgroundColor: '#1d4ed8' } },
+  { option: 'Rouge', style: { backgroundColor: '#b91c1c' } },
+  { option: 'Bleu', style: { backgroundColor: '#1d4ed8' } },
+  { option: 'Vert', style: { backgroundColor: '#15803d', textColor: '#f0fdf4' } },
+  { option: 'Rouge', style: { backgroundColor: '#b91c1c' } },
+  { option: 'Bleu', style: { backgroundColor: '#1d4ed8' } },
+  { option: 'Rouge', style: { backgroundColor: '#b91c1c' } },
 ];
 
 const colorMap: Record<Color, string> = {
@@ -75,14 +75,14 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps
         if (data.win) showSuccess(`Gagné ! Vous remportez ${data.winnings} crédits.`);
         else showError(`Perdu... La couleur était ${data.winning_color}.`);
         onUpdate();
-      }, 5500);
+      }, 8500);
     }
   };
 
   return (
-    <div className="py-4 space-y-4">
-      <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="flex items-center justify-center mt-10">
+    <div className="py-4 space-y-3">
+      <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4 h-8 px-2"><ArrowLeft className="w-4 h-4 mr-1" /> Retour</Button>
+      <div className="relative w-64 h-64 mx-auto my-2">
         <Wheel
           mustStartSpinning={mustSpin}
           prizeNumber={prizeNumber}
@@ -94,22 +94,21 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: ColorRouletteGameProps
           backgroundColors={['#374151', '#1f2937']}
           textColors={['#ffffff']}
           outerBorderColor="#4b5563"
+          outerBorderWidth={5}
+          innerBorderColor="#4b5563"
+          innerBorderWidth={5}
           radiusLineColor="#4b5563"
-          pointerProps={{
-            style: {
-              fill: '#eab308',
-              stroke: '#ca8a04',
-              strokeWidth: 2,
-            }
-          }}
+          radiusLineWidth={2}
+          fontSize={12}
+          spinDuration={0.8}
         />
       </div>
       <div>
         <Label className="text-sm font-medium text-white font-mono">Couleur</Label>
         <div className="grid grid-cols-3 gap-2 mt-1">
-          <Button onClick={() => setSelectedColor('red')} className={cn("bg-red-500 hover:bg-red-600", selectedColor === 'red' && "ring-2 ring-offset-2 ring-offset-slate-800 ring-white")}>x2</Button>
-          <Button onClick={() => setSelectedColor('blue')} className={cn("bg-blue-500 hover:bg-blue-600", selectedColor === 'blue' && "ring-2 ring-offset-2 ring-offset-slate-800 ring-white")}>x2</Button>
-          <Button onClick={() => setSelectedColor('green')} className={cn("bg-green-500 hover:bg-green-600", selectedColor === 'green' && "ring-2 ring-offset-2 ring-offset-slate-800 ring-white")}>x5</Button>
+          <Button onClick={() => setSelectedColor('red')} className={cn("bg-red-700 hover:bg-red-600", selectedColor === 'red' && "ring-2 ring-offset-2 ring-offset-slate-800 ring-white")}>x2</Button>
+          <Button onClick={() => setSelectedColor('blue')} className={cn("bg-blue-700 hover:bg-blue-600", selectedColor === 'blue' && "ring-2 ring-offset-2 ring-offset-slate-800 ring-white")}>x2</Button>
+          <Button onClick={() => setSelectedColor('green')} className={cn("bg-green-700 hover:bg-green-600", selectedColor === 'green' && "ring-2 ring-offset-2 ring-offset-slate-800 ring-white")}>x5</Button>
         </div>
       </div>
       <div>

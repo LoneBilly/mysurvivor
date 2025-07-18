@@ -14,11 +14,11 @@ interface WagerWheelGameProps {
 }
 
 const wheelData = [
-  { option: 'Perte Totale', style: { backgroundColor: '#dc2626' } }, // red-600
-  { option: 'Petite Perte', style: { backgroundColor: '#f97316' } }, // orange-500
-  { option: 'Remboursé', style: { backgroundColor: '#6b7280' } }, // gray-500
-  { option: 'Double Gain', style: { backgroundColor: '#2563eb' } }, // blue-600
-  { option: 'Jackpot!', style: { backgroundColor: '#eab308' } }, // yellow-500
+  { option: 'Perte Totale', style: { backgroundColor: '#b91c1c' } },
+  { option: 'Petite Perte', style: { backgroundColor: '#d97706' } },
+  { option: 'Remboursé', style: { backgroundColor: '#4b5563' } },
+  { option: 'Double Gain', style: { backgroundColor: '#1d4ed8' } },
+  { option: 'Jackpot!', style: { backgroundColor: '#eab308', textColor: '#000' } },
 ];
 
 const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
@@ -49,21 +49,20 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
       setPrizeNumber(prizeIndex >= 0 ? prizeIndex : 0);
       setMustSpin(true);
 
-      // The toast and update will be handled by onStopSpinning
       setTimeout(() => {
         const netChange = data.winnings - data.bet;
         if (netChange > 0) showSuccess(`Vous avez gagné ${netChange} crédits !`);
         else if (netChange < 0) showError(`Vous avez perdu ${Math.abs(netChange)} crédits.`);
         else showInfo("Vous avez récupéré votre mise.");
         onUpdate();
-      }, 5500); // Delay toast to match animation
+      }, 8500);
     }
   };
 
   return (
-    <div className="py-4 space-y-4">
-      <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="flex items-center justify-center mt-10">
+    <div className="py-4 space-y-3">
+      <Button variant="ghost" onClick={onBack} className="absolute top-4 left-4 h-8 px-2"><ArrowLeft className="w-4 h-4 mr-1" /> Retour</Button>
+      <div className="relative w-64 h-64 mx-auto my-2">
         <Wheel
           mustStartSpinning={mustSpin}
           prizeNumber={prizeNumber}
@@ -75,14 +74,13 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: WagerWheelGameProps) => {
           backgroundColors={['#374151', '#1f2937']}
           textColors={['#ffffff']}
           outerBorderColor="#4b5563"
+          outerBorderWidth={5}
+          innerBorderColor="#4b5563"
+          innerBorderWidth={5}
           radiusLineColor="#4b5563"
-          pointerProps={{
-            style: {
-              fill: '#eab308',
-              stroke: '#ca8a04',
-              strokeWidth: 2,
-            }
-          }}
+          radiusLineWidth={2}
+          fontSize={12}
+          spinDuration={0.8}
         />
       </div>
       <div>
