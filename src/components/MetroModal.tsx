@@ -29,7 +29,7 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
       discoveredZones.includes(zone.id) && 
       zone.id !== currentZoneId &&
       zone.interaction_type === 'Action' && // Ensure it's an action zone
-      zone.type.toLowerCase().includes('metro') // Ensure it's a metro type
+      zone.id_name?.includes('metro') // Use id_name for specific metro check
     );
   }, [mapLayout, discoveredZones, currentZoneId]);
 
