@@ -71,7 +71,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[90vw] sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
+      <DialogContent className="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
         <DialogHeader>
           <DialogTitle>Casino de la Zone</DialogTitle>
           <DialogDescription asChild>
@@ -81,33 +81,33 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
             </div>
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-6">
-          <div className="h-32 w-full bg-black/20 rounded-lg text-2xl font-bold relative overflow-hidden flex items-center justify-center">
+        <div className="py-4 space-y-4">
+          <div className="h-24 w-full bg-black/20 rounded-lg text-2xl font-bold relative overflow-hidden">
             {isSpinning && spinningResult ? (
               <LootboxSpinner resultLabel={spinningResult.label} onSpinEnd={handleSpinEnd} />
             ) : result ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <p className="text-lg">Vous avez gagné</p>
-                <p className="text-5xl font-bold text-yellow-400">{result.winnings} crédits</p>
-                <p className="text-sm text-gray-400 mt-1">({result.label})</p>
+                <p className="text-4xl font-bold text-yellow-400">{result.winnings} crédits</p>
+                <p className="text-sm text-gray-400">({result.label})</p>
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <p className="text-gray-400">Placez votre pari.</p>
+                <p>Placez votre pari.</p>
               </div>
             )}
           </div>
 
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-center">Montant du pari :</p>
-            <div className="flex flex-wrap justify-center gap-2">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Montant du pari :</p>
+            <div className="flex gap-2">
               {betOptions.map((amount) => (
                 <Button
                   key={amount}
                   variant={betAmount === amount ? "default" : "outline"}
                   onClick={() => setBetAmount(amount)}
                   disabled={isSpinning}
-                  className="flex-1 min-w-[60px]"
+                  className="flex-1"
                 >
                   {amount}
                 </Button>
@@ -116,7 +116,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handlePlay} disabled={isSpinning} className="w-full bg-green-600 hover:bg-green-700 text-lg h-12">
+          <Button onClick={handlePlay} disabled={isSpinning} className="w-full bg-green-600 hover:bg-green-700">
             {isSpinning ? 'Bonne chance...' : `Parier ${betAmount} crédits`}
           </Button>
         </DialogFooter>
