@@ -8,6 +8,7 @@ import { Loader2, Wrench, ArrowRight } from 'lucide-react';
 import ItemIcon from '@/components/ItemIcon';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import { useIsMobile } from '@/hooks/use-mobile';
+import RecipeItemSlot from './RecipeItemSlot'; // Import the new component
 
 interface BlueprintDetailModalProps {
   isOpen: boolean;
@@ -74,21 +75,12 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
               const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
               
               return (
-                <div key={index} className="w-20 h-20 flex flex-col items-center justify-center p-1 rounded-lg bg-slate-700/50 border border-slate-600 flex-shrink-0 relative">
-                  <div className="w-10 h-10 flex items-center justify-center relative">
-                    {ingredientItem ? (
-                      <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Vide</div>
-                    )}
-                  </div>
-                  {ingredientItem && (
-                    <>
-                      <p className="text-xs font-semibold mt-1 px-1 text-center break-words text-wrap">{ingredientItem.name}</p>
-                      <p className="text-[10px] text-gray-400">x{slot?.quantity}</p>
-                    </>
-                  )}
-                </div>
+                <RecipeItemSlot
+                  key={index}
+                  item={ingredientItem}
+                  quantity={slot?.quantity}
+                  isEmpty={!ingredientItem}
+                />
               );
             })}
           </div>
@@ -97,13 +89,11 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-4" : "")} />
 
           {/* Result Item Section */}
-          <div className="w-28 h-28 flex flex-col items-center justify-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 flex-shrink-0 relative">
-            <div className="w-16 h-16 flex items-center justify-center relative">
-              <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
-            </div>
-            <p className="text-sm font-bold mt-2 px-1 text-center break-words text-wrap">{resultItem.name}</p>
-            <p className="text-xs text-gray-300">x{recipe.result_quantity}</p>
-          </div>
+          <RecipeItemSlot
+            item={resultItem}
+            quantity={recipe.result_quantity}
+            isResult={true}
+          />
         </div>
 
         <div className="flex justify-end pt-4">
