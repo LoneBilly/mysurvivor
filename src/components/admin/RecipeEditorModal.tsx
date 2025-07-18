@@ -13,22 +13,21 @@ import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, CraftingRecipe } from '@/types/game';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface RecipeEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (recipeData: Partial<CraftingRecipe> & { id?: number }) => void;
+  onSave: (recipeData: Partial<CraftingRecipe>) => void; // Changed to return recipe data
   resultItem: Item;
   recipeId: number | null;
-  isNewItem: boolean;
+  isNewItem: boolean; // New prop to indicate if it's for a new item
 }
 
 const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNewItem }: RecipeEditorModalProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Partial<CraftingRecipe>>({});
   const [loading, setLoading] = useState(false);
-  const [duplicateRecipeInfo, setDuplicateRecipeInfo] = useState<any>(null);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -40,14 +39,14 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
 
   useEffect(() => {
     const fetchRecipe = async () => {
-      if (recipeId && !isNewItem) {
+      if (recipeId && !isNewItem) { // Only fetch if it's an existing recipe for an existing item
         setLoading(true);
         const { data } = await supabase.from('crafting_recipes').select('*').eq('id', recipeId).single();
         setEditingRecipe(data || {});
         setLoading(false);
-      } else {
+      } else { // For new item or no existing recipe
         setEditingRecipe({
-          result_item_id: resultItem.id,
+          result_item_id: resultItem.id, // This will be null for new items, handled by RPC
           result_quantity: 1,
           craft_time_seconds: 10,
           slot1_item_id: null,
@@ -61,7 +60,6 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
     };
     if (isOpen) {
       fetchRecipe();
-      setDuplicateRecipeInfo(null); // Clear duplicate info on open
     }
   }, [isOpen, recipeId, resultItem.id, isNewItem]);
 
@@ -70,7 +68,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
     if (!editingRecipe) return;
 
     const recipeDataToSave: Partial<CraftingRecipe> = {
-      result_item_id: resultItem.id,
+      result_item_id: resultItem.id, // Will be null for new items, filled by RPC
       result_quantity: editingRecipe.result_quantity || 1,
       craft_time_seconds: editingRecipe.craft_time_seconds || 10,
       slot1_item_id: editingRecipe.slot1_item_id || null,
@@ -81,36 +79,13 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
       slot3_quantity: editingRecipe.slot3_quantity || null,
     };
 
-    setLoading(true);
-    const { data: duplicateCheckData, error: duplicateCheckError } = await supabase.rpc('check_duplicate_recipe_inputs', {
-        p_slot1_item_id: recipeDataToSave.slot1_item_id,
-        p_slot1_quantity: recipeDataToSave.slot1_quantity,
-        p_slot2_item_id: recipeDataToSave.slot2_item_id,
-        p_slot2_quantity: recipeDataToSave.slot2_quantity,
-        p_slot3_item_id: recipeDataToSave.slot3_item_id,
-        p_slot3_quantity: recipeDataToSave.slot3_quantity,
-        p_current_recipe_id: editingRecipe.id || null
-    });
-
-    if (duplicateCheckError) {
-        showError("Erreur lors de la vérification des doublons.");
-        console.error(duplicateCheckError);
-        setLoading(false);
-        return;
-    }
-
-    if (duplicateCheckData && duplicateCheckData.length > 0) {
-        setDuplicateRecipeInfo(duplicateCheckData[0]);
-        setLoading(false);
-        return;
-    } else {
-        setDuplicateRecipeInfo(null);
-    }
-
     if (isNewItem) {
+      // For new items, just pass the data back to ItemFormModal
       onSave(recipeDataToSave);
       onClose();
     } else {
+      // For existing items, save directly to DB
+      setLoading(true);
       const { data, error } = editingRecipe.id
         ? await supabase.from('crafting_recipes').update(recipeDataToSave).eq('id', editingRecipe.id).select().single()
         : await supabase.from('crafting_recipes').insert(recipeDataToSave).select().single();
@@ -119,19 +94,15 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
         showError(error.message);
       } else {
         showSuccess(`Recette ${editingRecipe.id ? 'mise à jour' : 'créée'}.`);
+        // Also update the item's recipe_id if it's a new recipe for an existing item
         if (!editingRecipe.id && resultItem.id) {
           await supabase.from('items').update({ recipe_id: data.id }).eq('id', resultItem.id);
         }
-        onSave(data);
+        onSave(data); // Pass the saved recipe data back
         onClose();
       }
+      setLoading(false);
     }
-    setLoading(false);
-  };
-
-  const getIngredientName = (id: number | null) => {
-    if (!id) return 'Vide';
-    return items.find(item => item.id === id)?.name || 'Objet inconnu';
   };
 
   const renderSlotInput = (slot: 1 | 2 | 3) => (
@@ -198,24 +169,8 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
               <Label>Temps de fabrication (secondes)</Label>
               <Input required type="number" min="1" value={editingRecipe?.craft_time_seconds || 10} onChange={(e) => setEditingRecipe(prev => ({ ...prev, craft_time_seconds: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />
             </div>
-
-            {duplicateRecipeInfo && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-lg flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Attention: Recette dupliquée !</p>
-                  <p className="text-sm">Cette combinaison d'ingrédients est déjà utilisée par l'objet: <span className="font-bold">{duplicateRecipeInfo.result_item_name}</span>.</p>
-                  <p className="text-xs mt-1">Ingrédients:
-                    {duplicateRecipeInfo.s1_item_id && ` ${getIngredientName(duplicateRecipeInfo.s1_item_id)} x${duplicateRecipeInfo.s1_qty}`}
-                    {duplicateRecipeInfo.s2_item_id && `, ${getIngredientName(duplicateRecipeInfo.s2_item_id)} x${duplicateRecipeInfo.s2_qty}`}
-                    {duplicateRecipeInfo.s3_item_id && `, ${getIngredientName(duplicateRecipeInfo.s3_item_id)} x${duplicateRecipeInfo.s3_qty}`}
-                  </p>
-                </div>
-              </div>
-            )}
-
             <DialogFooter>
-              <Button type="submit" disabled={!!duplicateRecipeInfo}>Sauvegarder</Button>
+              <Button type="submit">Sauvegarder</Button>
             </DialogFooter>
           </form>
         )}
