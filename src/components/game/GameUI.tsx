@@ -111,7 +111,7 @@ const GameUI = () => {
 
   const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
     const currentState = stateOverride || playerData;
-    const { x, y, type, id, interaction_type } = cell;
+    const { x, y, type, id, interaction_type, id_name } = cell; // Added id_name
 
     const isDiscovered = currentState.playerState.zones_decouvertes.includes(id);
     const isCurrentPosition = currentState.playerState.position_x === x && currentState.playerState.position_y === y;
@@ -130,8 +130,7 @@ const GameUI = () => {
     if (isCurrentPosition) {
       switch (interaction_type) {
         case 'Action':
-          const lowerCaseType = type.toLowerCase().trim();
-          if (lowerCaseType.includes('metro')) {
+          if (id_name?.includes('metro')) { // Use id_name for specific metro check
             setIsMetroOpen(true);
           } else if (id === 10) { // Marché
             setIsMarketOpen(true);
@@ -139,7 +138,7 @@ const GameUI = () => {
             setIsBountyOpen(true);
           } else if (id === 12) { // Faction: Scouts
             setIsFactionScoutsModalOpen(true);
-          } else if (lowerCaseType.includes('banque')) { // Bank
+          } else if (type.toLowerCase().includes('banque')) { // Bank (still using type for generic bank)
             setIsBankOpen(true);
           } else {
             setModalState({
