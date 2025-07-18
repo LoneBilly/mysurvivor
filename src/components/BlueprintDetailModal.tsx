@@ -66,17 +66,17 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
 
         {/* Main content area for recipe display */}
         <div className={cn(
-          "py-6 flex flex-col items-center justify-center gap-4 sm:gap-8",
-          isMobile ? "overflow-y-auto no-scrollbar" : "sm:flex-row"
+          "py-6 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8",
+          isMobile ? "overflow-y-auto no-scrollbar" : ""
         )}>
           {/* Ingredients Section */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-md sm:max-w-none">
+          <div className="flex flex-row flex-wrap justify-center items-center gap-3 sm:gap-4">
             {slots.map((slot, index) => {
               const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
               
               return (
-                <div key={index} className="flex flex-col items-center text-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 h-full min-h-[120px] justify-between flex-shrink-0">
-                  <div className="w-12 h-12 flex items-center justify-center relative flex-shrink-0">
+                <div key={index} className="flex flex-col items-center text-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 w-full max-w-[90px] sm:max-w-[100px] aspect-[3/4] justify-between flex-shrink-0">
+                  <div className="w-12 h-12 flex items-center justify-center relative">
                     {ingredientItem ? (
                       <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
                     ) : (
@@ -85,7 +85,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
                   </div>
                   {ingredientItem && (
                     <>
-                      <p className="text-sm font-semibold mt-1 px-1 break-words text-wrap">{ingredientItem.name}</p>
+                      <p className="text-sm font-semibold mt-1 min-w-0 truncate w-full px-1">{ingredientItem.name}</p>
                       <p className="text-xs text-gray-400">x{slot?.quantity}</p>
                     </>
                   )}
@@ -98,11 +98,11 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-4" : "")} />
 
           {/* Result Item Section */}
-          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-700/50 border border-slate-600 w-full max-w-[140px] min-h-[160px] justify-between flex-shrink-0">
-            <div className="w-20 h-20 flex items-center justify-center relative flex-shrink-0">
+          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-700/50 border border-slate-600 w-full max-w-[120px] sm:max-w-[140px] aspect-[3/4] justify-between flex-shrink-0">
+            <div className="w-20 h-20 flex items-center justify-center relative">
               <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
             </div>
-            <p className="text-lg font-bold mt-2 px-1 break-words text-wrap">{resultItem.name}</p>
+            <p className="text-lg font-bold mt-2 min-w-0 truncate w-full px-1">{resultItem.name}</p>
             <p className="text-base text-gray-300">x{recipe.result_quantity}</p>
           </div>
         </div>
