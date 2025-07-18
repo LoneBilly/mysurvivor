@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
-import { Loader2, BookOpen, ArrowRight } from 'lucide-react';
-import { CraftingRecipe, Item, InventoryItem } from '@/types/game';
+import { Loader2, BookOpen, Search, Eye } from 'lucide-react';
+import { CraftingRecipe, Item } from '@/types/game';
 import { useGame } from '@/contexts/GameContext';
-import ItemIcon from './ItemIcon'; // Keep for general icon display if needed, though InventorySlot uses it internally
-import InventorySlot from './InventorySlot'; // Import InventorySlot
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import BlueprintDetailModal from './BlueprintDetailModal'; // Import the new detail modal
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -18,9 +21,13 @@ interface LearnedBlueprint {
 }
 
 const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
-  const { items: allItems, getIconUrl } = useGame();
+  const { items: allItems } = useGame();
   const [learnedRecipes, setLearnedRecipes] = useState<CraftingRecipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState('all'); // 'all' or specific item type
+  const [selectedRecipeForDetail, setSelectedRecipeForDetail] = useState<CraftingRecipe | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const fetchLearnedBlueprints = useCallback(async () => {
     setLoading(true);
@@ -59,99 +66,120 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
   useEffect(() => {
     if (isOpen) {
       fetchLearnedBlueprints();
+      setSearchTerm('');
+      setSelectedType('all');
+      setSelectedRecipeForDetail(null);
+      setIsDetailModalOpen(false);
     }
   }, [isOpen, fetchLearnedBlueprints]);
 
-  const getRecipeSlotItem = (itemId: number | null, quantity: number | null, slotPosition: number): InventoryItem | null => {
-    if (!itemId || !quantity || quantity <= 0) return null;
-    const itemDetails = allItems.find(item => item.id === itemId);
-    if (!itemDetails) return null;
+  const uniqueItemTypes = useMemo(() => {
+    const types = new Set<string>();
+    allItems.forEach(item => types.add(item.type));
+    return ['all', ...Array.from(types).sort()];
+  }, [allItems]);
 
-    return {
-      id: itemId, // Using item ID as a unique key for recipe slot
-      item_id: itemId,
-      quantity: quantity,
-      slot_position: slotPosition,
-      items: {
-        name: itemDetails.name,
-        description: itemDetails.description,
-        icon: itemDetails.icon,
-        type: itemDetails.type,
-        use_action_text: itemDetails.use_action_text,
-        stackable: itemDetails.stackable,
-      },
-    };
+  const filteredRecipes = useMemo(() => {
+    return learnedRecipes.filter(recipe => {
+      const resultItem = allItems.find(item => item.id === recipe.result_item_id);
+      const matchesSearch = resultItem?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = selectedType === 'all' || resultItem?.type === selectedType;
+      return matchesSearch && matchesType;
+    });
+  }, [learnedRecipes, allItems, searchTerm, selectedType]);
+
+  const handleViewRecipe = (recipe: CraftingRecipe) => {
+    setSelectedRecipeForDetail(recipe);
+    setIsDetailModalOpen(true);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-        <DialogHeader className="text-center">
-          <BookOpen className="w-10 h-10 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Blueprints</DialogTitle>
-          <DialogDescription>Recettes que vous avez apprises.</DialogDescription>
-        </DialogHeader>
-        <div className="py-4 max-h-[60vh] overflow-y-auto space-y-3 pr-2">
-          {loading ? (
-            <div className="flex justify-center items-center h-32"><Loader2 className="w-6 h-6 animate-spin" /></div>
-          ) : learnedRecipes.length > 0 ? (
-            learnedRecipes.map(recipe => {
-              const resultItem = allItems.find(item => item.id === recipe.result_item_id);
-              const slots = [
-                { slotNum: 0, itemId: recipe.slot1_item_id, quantity: recipe.slot1_quantity },
-                { slotNum: 1, itemId: recipe.slot2_item_id, quantity: recipe.slot2_quantity },
-                { slotNum: 2, itemId: recipe.slot3_item_id, quantity: recipe.slot3_quantity },
-              ];
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-5xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
+          <DialogHeader className="text-center flex-shrink-0">
+            <BookOpen className="w-10 h-10 mx-auto text-white mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Blueprints</DialogTitle>
+            <DialogDescription>Recettes que vous avez apprises.</DialogDescription>
+          </DialogHeader>
 
-              return (
-                <div key={recipe.id} className="bg-white/5 p-4 rounded-lg border border-white/10">
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    {/* Ingredients */}
-                    <div className="flex items-center gap-1">
-                      {slots.map((slot, index) => (
-                        <div key={index} className="w-16 h-16"> {/* Each slot container */}
-                          <InventorySlot
-                            item={getRecipeSlotItem(slot.itemId, slot.quantity, slot.slotNum)}
-                            index={slot.slotNum}
-                            isUnlocked={true}
-                            onDragStart={() => {}} // No drag for display
-                            onItemClick={() => {}} // No click action for display
-                            isBeingDragged={false}
-                            isDragOver={false}
-                            isLocked={true} // Make it non-interactive
-                          />
-                        </div>
-                      ))}
-                    </div>
+          <div className="flex flex-grow mt-4 min-h-0">
+            {/* Left Panel: Filters */}
+            <div className="w-1/4 min-w-[150px] max-w-[200px] border-r border-slate-700 pr-4 overflow-y-auto no-scrollbar flex-shrink-0">
+              <h3 className="font-bold text-lg mb-3">Types</h3>
+              <div className="flex flex-col space-y-2">
+                {uniqueItemTypes.map(type => (
+                  <Button
+                    key={type}
+                    variant="ghost"
+                    onClick={() => setSelectedType(type)}
+                    className={cn(
+                      "justify-start",
+                      selectedType === type && "bg-white/10 hover:bg-white/15"
+                    )}
+                  >
+                    {type === 'all' ? 'Tous' : type}
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-                    <ArrowRight className="w-6 h-6 text-gray-400 flex-shrink-0 mx-2 sm:mx-4" />
+            {/* Right Panel: Search and List */}
+            <div className="flex-grow pl-4 flex flex-col min-h-0">
+              <div className="relative mb-4 flex-shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher un blueprint..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white/10 border-white/20"
+                />
+              </div>
 
-                    {/* Result Item */}
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="w-20 h-20 relative"> {/* Larger for result */}
-                        <InventorySlot
-                          item={getRecipeSlotItem(resultItem?.id || null, recipe.result_quantity, -1)} // Use -1 for slot_position as it's not a real slot
-                          index={-1}
-                          isUnlocked={true}
-                          onDragStart={() => {}}
-                          onItemClick={() => {}}
-                          isBeingDragged={false}
-                          isDragOver={false}
-                          isLocked={true}
-                        />
-                      </div>
-                      <span className="font-bold text-white text-center mt-1">{resultItem?.name || 'Objet final'}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-center text-gray-400 py-10">Vous n'avez appris aucun blueprint.</p>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+              <div className="flex-grow overflow-y-auto no-scrollbar space-y-3">
+                {loading ? (
+                  <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                ) : filteredRecipes.length > 0 ? (
+                  filteredRecipes.map(recipe => {
+                    const resultItem = allItems.find(item => item.id === recipe.result_item_id);
+                    if (!resultItem) return null; // Should not happen if data is consistent
+
+                    return (
+                      <Card key={recipe.id} className="bg-white/5 border-white/10">
+                        <CardContent className="p-3 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3 flex-grow min-w-0">
+                            <div className="w-12 h-12 relative flex-shrink-0">
+                              <img src={resultItem.icon ? (resultItem.icon.startsWith('http') ? resultItem.icon : `/icons/${resultItem.icon}`) : '/icons/default.webp'} alt={resultItem.name} className="w-full h-full object-contain" />
+                            </div>
+                            <div className="flex-grow min-w-0">
+                              <p className="font-bold text-white truncate">{resultItem.name}</p>
+                              <p className="text-sm text-gray-400 truncate">x{recipe.result_quantity}</p>
+                            </div>
+                          </div>
+                          <Button size="sm" onClick={() => handleViewRecipe(recipe)}>
+                            <Eye className="w-4 h-4 mr-2" /> Voir la recette
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <p className="text-center text-gray-400 py-10">
+                    {searchTerm || selectedType !== 'all' ? "Aucun blueprint trouvé avec ces critères." : "Vous n'avez appris aucun blueprint."}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <BlueprintDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        recipe={selectedRecipeForDetail}
+      />
+    </>
   );
 };
 
