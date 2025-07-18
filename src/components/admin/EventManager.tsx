@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Slider } from '@/components/ui/slider';
+import { IconPicker } from './IconPicker';
 
 interface Event {
   id: number;
@@ -154,8 +155,6 @@ const EventEditor = ({
   const startEditingZoneEvent = (zoneEvent: ZoneEvent) => setEditingZoneEvent({ ...zoneEvent });
   const startAddingZoneEvent = () => setEditingZoneEvent({ zone_id: undefined, spawn_chance: 10, success_chance: 50, effects: { stats: {}, item: { id: null, quantity: 1 } } });
 
-  const IconComponent = getIconComponent(icon);
-
   return (
     <div className="flex flex-col h-full overflow-y-auto no-scrollbar p-1">
       <div className="flex items-center gap-2 mb-4 p-4 flex-shrink-0">
@@ -169,7 +168,7 @@ const EventEditor = ({
           <CardContent className="space-y-4">
             <div><Label>Nom</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-            <div><Label>Icône</Label><div className="flex items-center gap-2"><IconComponent className="w-6 h-6" /><Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="Nom de l'icône Lucide" /></div></div>
+            <div><Label>Icône</Label><IconPicker value={icon} onChange={setIcon} /></div>
           </CardContent>
           <CardFooter><Button onClick={handleSaveEventDetails}><Save className="w-4 h-4 mr-2" />Sauvegarder</Button></CardFooter>
         </Card>
