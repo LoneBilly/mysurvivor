@@ -11,6 +11,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import BlueprintDetailModal from './BlueprintDetailModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import ItemIcon from '@/components/ItemIcon'; // Import ItemIcon
+import { getPublicIconUrl } from '@/utils/imageUrls'; // Import getPublicIconUrl
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -63,7 +65,7 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [allItems]); // Added allItems to dependency array to ensure correct item lookup
 
   useEffect(() => {
     if (isOpen) {
@@ -183,8 +185,8 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
                       <Card key={recipe.id} className="bg-white/5 border-white/10">
                         <CardContent className="p-3 flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 flex-grow min-w-0">
-                            <div className="w-12 h-12 relative flex-shrink-0">
-                              <img src={resultItem.icon ? (resultItem.icon.startsWith('http') ? resultItem.icon : `/icons/${resultItem.icon}`) : '/icons/default.webp'} alt={resultItem.name} className="w-full h-full object-contain" />
+                            <div className="w-12 h-12 relative flex-shrink-0 bg-slate-700/50 rounded-md flex items-center justify-center">
+                              <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
                             </div>
                             <div className="flex-grow min-w-0">
                               <p className="font-bold text-white truncate">{resultItem.name}</p>
