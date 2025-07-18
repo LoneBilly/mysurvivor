@@ -1,87 +1,75 @@
-import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
-import { BookOpen, Loader2 } from 'lucide-react';
-import { Item, CraftingRecipe } from '@/types/game';
-import { getPublicIconUrl } from '@/utils/imageUrls';
+import { showError } from '@/utils/toast';
+import { Loader2, BookOpen, ArrowRight } from 'lucide-react';
+import { CraftingRecipe, Item } from '@/types/game';
+import { useGame } from '@/contexts/GameContext';
+import ItemIcon from './ItemIcon';
 
 interface BlueprintModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
-  const [learnedBlueprints, setLearnedBlueprints] = useState<CraftingRecipe[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<Item[]>([]); // Need to fetch all items
+interface LearnedBlueprint {
+  recipe_id: number;
+}
 
-  useEffect(() => {
-    const fetchBlueprints = async () => {
-      setLoading(true);
+const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
+  const { items: allItems, getIconUrl } = useGame();
+  const [learnedRecipes, setLearnedRecipes] = useState<CraftingRecipe[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLearnedBlueprints = useCallback(async () => {
+    setLoading(true);
+    try {
       const { data: learnedData, error: learnedError } = await supabase
         .from('learned_blueprints')
         .select('recipe_id');
+      
+      if (learnedError) throw learnedError;
 
-      if (learnedError) {
-        showError(learnedError.message);
+      const recipeIds = (learnedData as LearnedBlueprint[]).map(b => b.recipe_id);
+
+      if (recipeIds.length === 0) {
+        setLearnedRecipes([]);
         setLoading(false);
         return;
       }
 
-      const recipeIds = learnedData.map(bp => bp.recipe_id);
+      const { data: recipesData, error: recipesError } = await supabase
+        .from('crafting_recipes')
+        .select('*')
+        .in('id', recipeIds);
 
-      if (recipeIds.length > 0) {
-        const { data: recipesData, error: recipesError } = await supabase
-          .from('crafting_recipes')
-          .select(`
-            *,
-            result_item:items!crafting_recipes_result_item_id_fkey(name, icon)
-          `)
-          .in('id', recipeIds);
+      if (recipesError) throw recipesError;
 
-        if (recipesError) {
-          showError(recipesError.message);
-          setLoading(false);
-          return;
-        }
-        setLearnedBlueprints(recipesData || []);
-      } else {
-        setLearnedBlueprints([]);
-      }
+      setLearnedRecipes(recipesData || []);
 
-      // Fetch all items for ingredient display
-      const { data: allItems, error: itemsError } = await supabase.from('items').select('*');
-      if (itemsError) {
-        console.error("Error fetching all items:", itemsError);
-      } else {
-        setItems(allItems || []);
-      }
-
+    } catch (error: any) {
+      showError("Impossible de charger vos blueprints.");
+      console.error(error);
+    } finally {
       setLoading(false);
-    };
-
-    if (isOpen) {
-      fetchBlueprints();
     }
-  }, [isOpen]);
+  }, []);
 
-  const getItemName = (itemId: number | null) => {
-    if (!itemId) return 'N/A';
-    const item = items.find(i => i.id === itemId);
-    return item ? item.name : 'Objet inconnu';
+  useEffect(() => {
+    if (isOpen) {
+      fetchLearnedBlueprints();
+    }
+  }, [isOpen, fetchLearnedBlueprints]);
+
+  const getIngredientName = (id: number | null) => {
+    if (!id) return '';
+    return allItems.find(item => item.id === id)?.name || 'Objet inconnu';
   };
 
-  const getItemIcon = (itemId: number | null) => {
-    if (!itemId) return null;
-    const item = items.find(i => i.id === itemId);
-    return item?.icon ? getPublicIconUrl(item.icon) : null;
+  const getIngredientIcon = (id: number | null) => {
+    if (!id) return null;
+    const item = allItems.find(item => item.id === id);
+    return getIconUrl(item?.icon || null) || item?.icon || null;
   };
 
   return (
@@ -90,54 +78,44 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
         <DialogHeader className="text-center">
           <BookOpen className="w-10 h-10 mx-auto text-white mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Blueprints</DialogTitle>
+          <DialogDescription>Recettes que vous avez apprises.</DialogDescription>
         </DialogHeader>
-        {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader2 className="w-8 h-8 animate-spin text-white" />
-          </div>
-        ) : (
-          <div className="py-4 max-h-[70vh] overflow-y-auto pr-2">
-            {learnedBlueprints.length === 0 ? (
-              <p className="text-center text-gray-400">Vous n'avez appris aucun blueprint pour le moment.</p>
-            ) : (
-              <div className="space-y-4">
-                {learnedBlueprints.map(recipe => (
-                  <div key={recipe.id} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <img src={getPublicIconUrl(recipe.result_item.icon || '')} alt={recipe.result_item.name} className="w-12 h-12 object-contain" />
-                      <div>
-                        <h3 className="font-semibold text-lg">{recipe.result_item.name}</h3>
-                        <p className="text-sm text-gray-400">Quantité: {recipe.result_quantity}</p>
-                        <p className="text-sm text-gray-400">Temps de fabrication: {recipe.craft_time_seconds}s</p>
-                        <div className="mt-2 text-sm text-gray-300">
-                          <p className="font-medium">Ingrédients:</p>
-                          <div className="grid grid-cols-3 gap-2 mt-1">
-                            {[1, 2, 3].map(slot => {
-                              const itemId = recipe[`slot${slot}_item_id` as keyof CraftingRecipe];
-                              const quantity = recipe[`slot${slot}_quantity` as keyof CraftingRecipe];
-                              if (itemId && quantity) {
-                                return (
-                                  <div key={slot} className="flex items-center gap-1 bg-white/10 p-2 rounded-md">
-                                    <img src={getItemIcon(itemId) || ''} alt={getItemName(itemId)} className="w-6 h-6 object-contain" />
-                                    <span>{getItemName(itemId)} x{quantity}</span>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })}
-                          </div>
+        <div className="py-4 max-h-[60vh] overflow-y-auto space-y-3 pr-2">
+          {loading ? (
+            <div className="flex justify-center items-center h-32"><Loader2 className="w-6 h-6 animate-spin" /></div>
+          ) : learnedRecipes.length > 0 ? (
+            learnedRecipes.map(recipe => {
+              const resultItem = allItems.find(item => item.id === recipe.result_item_id);
+              const ingredients = [
+                { id: recipe.slot1_item_id, quantity: recipe.slot1_quantity },
+                { id: recipe.slot2_item_id, quantity: recipe.slot2_quantity },
+                { id: recipe.slot3_item_id, quantity: recipe.slot3_quantity },
+              ].filter(ing => ing.id !== null);
+
+              return (
+                <div key={recipe.id} className="bg-white/5 p-4 rounded-lg border border-white/10">
+                  <div className="flex items-center justify-center gap-4">
+                    <div className="flex flex-col items-center gap-1">
+                      {ingredients.map((ing, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <div className="w-6 h-6 relative"><ItemIcon iconName={getIngredientIcon(ing.id)} alt="" /></div>
+                          <span>{getIngredientName(ing.id)} x{ing.quantity}</span>
                         </div>
-                      </div>
+                      ))}
+                    </div>
+                    <ArrowRight className="w-6 h-6 text-gray-400 flex-shrink-0" />
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-10 h-10 relative"><ItemIcon iconName={getIngredientIcon(resultItem?.id || null)} alt="" /></div>
+                      <span className="font-bold">{resultItem?.name || 'Objet final'} x{recipe.result_quantity}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        <DialogFooter>
-          <Button onClick={onClose}>Fermer</Button>
-        </DialogFooter>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-center text-gray-400 py-10">Vous n'avez appris aucun blueprint.</p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
