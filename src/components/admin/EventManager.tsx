@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Slider } from '@/components/ui/slider';
+import { IconCombobox } from './IconCombobox';
 
 interface Event {
   id: number;
@@ -169,7 +170,13 @@ const EventEditor = ({
           <CardContent className="space-y-4">
             <div><Label>Nom</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-            <div><Label>Icône</Label><div className="flex items-center gap-2"><IconComponent className="w-6 h-6" /><Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="Nom de l'icône Lucide" /></div></div>
+            <div>
+              <Label>Icône</Label>
+              <div className="flex items-center gap-2">
+                <IconComponent className="w-6 h-6" />
+                <IconCombobox value={icon} onChange={setIcon} />
+              </div>
+            </div>
           </CardContent>
           <CardFooter><Button onClick={handleSaveEventDetails}><Save className="w-4 h-4 mr-2" />Sauvegarder</Button></CardFooter>
         </Card>
