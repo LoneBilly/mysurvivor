@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CraftingRecipe } from '@/types/game';
-import { useGame } '@/contexts/GameContext';
+import { useGame } from '@/contexts/GameContext';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2, Wrench, ArrowRight } from 'lucide-react';
@@ -87,7 +87,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           </div>
 
           {/* Arrow Separator */}
-          <ArrowRight className="w-8 h-8 text-white flex-shrink-0 rotate-90 my-2" /> {/* Always rotate 90 degrees */}
+          <ArrowRight className="w-8 h-8 text-white flex-shrink-0 rotate-90 my-2" />
 
           {/* Result Item Section */}
           <RecipeItemSlot
