@@ -46,7 +46,7 @@ const GameFooter = ({ stats, credits, onInventaire, onPurchaseCredits, onMoreOpt
         <div className="flex items-center gap-2">
           <Button
             onClick={onPurchaseCredits}
-            className="flex items-center justify-center space-x-2 bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all px-3"
+            className="flex items-center justify-between bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all px-3 w-24"
             variant="default"
           >
             <Coins className="w-5 h-5 text-yellow-400" />
@@ -62,7 +62,7 @@ const GameFooter = ({ stats, credits, onInventaire, onPurchaseCredits, onMoreOpt
           </Button>
           <Button
             onClick={onMoreOptions}
-            className="flex-shrink-0 flex items-center justify-center bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all px-3"
+            className="flex-shrink-0 flex items-center justify-center bg-white/10 text-white hover:bg-white/20 rounded-lg border border-white/20 transition-all w-24"
             variant="default"
           >
             <MoreHorizontal className="w-5 h-5" />
