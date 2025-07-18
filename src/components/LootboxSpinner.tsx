@@ -52,19 +52,25 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
 
       setTranslateX(0);
 
-      setTimeout(() => {
+      const animationFrame = requestAnimationFrame(() => {
         setTranslateX(finalPosition + randomOffset);
-      }, 100);
+      });
 
       const animationDuration = 5000;
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         onSpinEnd();
       }, animationDuration + 200);
+
+      return () => {
+        cancelAnimationFrame(animationFrame);
+        clearTimeout(timeoutId);
+      }
     }
   }, [resultLabel, onSpinEnd]);
 
   return (
-    <div ref={containerRef} className="h-full w-full bg-transparent rounded-lg relative">
+    <div ref={containerRef} className="h-full w-full bg-transparent rounded-lg relative overflow-hidden">
+      {/* Top Arrow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 
         border-l-[10px] border-l-transparent
         border-r-[10px] border-r-transparent
@@ -72,30 +78,30 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
         style={{ filter: 'drop-shadow(0 0 5px rgba(250, 204, 21, 0.7))' }}
       />
       
-      <div className="h-full w-full overflow-hidden">
-        <div
-          className="flex h-full items-center"
-          style={{
-            transform: `translateX(${translateX}px)`,
-            transition: 'transform 5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-          }}
-        >
-          {spinnerItems.map((item, index) => (
-            <div
-              key={index}
-              ref={index === 0 ? itemRef : null}
-              className={cn(
-                "w-24 sm:w-32 h-20 flex-shrink-0 flex flex-col items-center justify-center text-white font-bold text-center p-2 rounded-md mx-1 border-2 border-white/10",
-                item.color
-              )}
-            >
-              <span className="text-xs sm:text-sm drop-shadow-md">{item.label}</span>
-              <span className="text-sm sm:text-lg drop-shadow-md">x{item.multiplier}</span>
-            </div>
-          ))}
-        </div>
+      {/* Spinner Items */}
+      <div
+        className="flex h-full items-center"
+        style={{
+          transform: `translateX(${translateX}px)`,
+          transition: 'transform 5s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+      >
+        {spinnerItems.map((item, index) => (
+          <div
+            key={index}
+            ref={index === 0 ? itemRef : null}
+            className={cn(
+              "w-24 sm:w-32 h-20 flex-shrink-0 flex flex-col items-center justify-center text-white font-bold text-center p-2 rounded-md mx-1 border-2 border-white/10",
+              item.color
+            )}
+          >
+            <span className="text-xs sm:text-sm drop-shadow-md">{item.label}</span>
+            <span className="text-sm sm:text-lg drop-shadow-md">x{item.multiplier}</span>
+          </div>
+        ))}
       </div>
 
+      {/* Bottom Arrow */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 
         border-l-[10px] border-l-transparent
         border-r-[10px] border-r-transparent

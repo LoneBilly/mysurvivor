@@ -82,7 +82,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <div className="h-24 bg-black/20 rounded-lg text-2xl font-bold overflow-hidden">
+          <div className="h-24 w-full bg-black/20 rounded-lg text-2xl font-bold relative overflow-hidden">
             {isSpinning && spinningResult ? (
               <LootboxSpinner resultLabel={spinningResult.label} onSpinEnd={handleSpinEnd} />
             ) : result ? (
