@@ -102,14 +102,14 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
 
     if (duplicateCheck && duplicateCheck.length > 0) {
       const duplicate = duplicateCheck[0];
-      const ingredientNames = [];
-      if (duplicate.s1_item_id) ingredientNames.push(`${items.find(i => i.id === duplicate.s1_item_id)?.name || 'Objet inconnu'} x${duplicate.s1_qty}`);
-      if (duplicate.s2_item_id) ingredientNames.push(`${items.find(i => i.id === duplicate.s2_item_id)?.name || 'Objet inconnu'} x${duplicate.s2_qty}`);
-      if (duplicate.s3_item_id) ingredientNames.push(`${items.find(i => i.id === duplicate.s3_item_id)?.name || 'Objet inconnu'} x${duplicate.s3_qty}`);
+      const ingredientDetails = [];
+      if (duplicate.s1_item_id) ingredientDetails.push(`Slot 1: ${items.find(i => i.id === duplicate.s1_item_id)?.name || 'Objet inconnu'} x${duplicate.s1_qty}`);
+      if (duplicate.s2_item_id) ingredientDetails.push(`Slot 2: ${items.find(i => i.id === duplicate.s2_item_id)?.name || 'Objet inconnu'} x${duplicate.s2_qty}`);
+      if (duplicate.s3_item_id) ingredientDetails.push(`Slot 3: ${items.find(i => i.id === duplicate.s3_item_id)?.name || 'Objet inconnu'} x${duplicate.s3_qty}`);
       
       setDuplicateError(
         `Cette combinaison d'ingrédients est déjà utilisée pour fabriquer "${duplicate.result_item_name}". ` +
-        `Ingrédients: ${ingredientNames.join(', ')}.`
+        `Détails: ${ingredientDetails.join(', ')}.`
       );
       setLoading(false);
       return;
@@ -141,23 +141,18 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
     }
   };
 
+  const handleRecipeChange = (field: keyof CraftingRecipe, value: any) => {
+    setEditingRecipe(prev => ({ ...prev, [field]: value }));
+    setDuplicateError(null); // Clear error on any change
+  };
+
   const renderSlotInput = (slot: 1 | 2 | 3) => (
     <div className="grid grid-cols-2 gap-2">
       <div>
         <Label>{`Slot ${slot}`}</Label>
         <select
           value={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] || ''}
-          onChange={(e) => setEditingRecipe(prev => {
-            const newRecipe = { ...prev } as Partial<CraftingRecipe>;
-            const itemId = e.target.value ? parseInt(e.target.value) : undefined;
-            (newRecipe as any)[`slot${slot}_item_id`] = itemId;
-            if (itemId) {
-              (newRecipe as any)[`slot${slot}_quantity`] = (newRecipe as any)[`slot${slot}_quantity`] || 1;
-            } else {
-              (newRecipe as any)[`slot${slot}_quantity`] = undefined;
-            }
-            return newRecipe;
-          })}
+          onChange={(e) => handleRecipeChange(`slot${slot}_item_id` as keyof CraftingRecipe, e.target.value ? parseInt(e.target.value) : null)}
           className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg"
         >
           <option value="">Aucun</option>
@@ -170,7 +165,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
           type="number"
           min="1"
           value={editingRecipe?.[`slot${slot}_quantity` as keyof CraftingRecipe] || ''}
-          onChange={(e) => setEditingRecipe(prev => ({ ...prev, [`slot${slot}_quantity`]: e.target.value ? parseInt(e.target.value) : 1 }))}
+          onChange={(e) => handleRecipeChange(`slot${slot}_quantity` as keyof CraftingRecipe, e.target.value ? parseInt(e.target.value) : null)}
           className="bg-white/5 border-white/20"
           disabled={!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
           required={!!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
@@ -195,7 +190,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
               </div>
               <div>
                 <Label>Quantité</Label>
-                <Input required type="number" min="1" value={editingRecipe?.result_quantity || 1} onChange={(e) => setEditingRecipe(prev => ({ ...prev, result_quantity: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />
+                <Input required type="number" min="1" value={editingRecipe?.result_quantity || 1} onChange={(e) => handleRecipeChange('result_quantity', parseInt(e.target.value))} className="bg-white/5 border-white/20" />
               </div>
             </div>
             {renderSlotInput(1)}
@@ -203,7 +198,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
             {renderSlotInput(3)}
             <div>
               <Label>Temps de fabrication (secondes)</Label>
-              <Input required type="number" min="1" value={editingRecipe?.craft_time_seconds || 10} onChange={(e) => setEditingRecipe(prev => ({ ...prev, craft_time_seconds: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />
+              <Input required type="number" min="1" value={editingRecipe?.craft_time_seconds || 10} onChange={(e) => handleRecipeChange('craft_time_seconds', parseInt(e.target.value))} className="bg-white/5 border-white/20" />
             </div>
             {duplicateError && (
               <div className="text-red-400 text-sm p-3 border border-red-500/30 rounded-lg bg-red-500/10">
