@@ -111,7 +111,7 @@ const GameUI = () => {
 
   const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
     const currentState = stateOverride || playerData;
-    const { x, y, type, id, interaction_type, id_name } = cell; // Destructure id_name
+    const { x, y, type, id, interaction_type } = cell;
 
     const isDiscovered = currentState.playerState.zones_decouvertes.includes(id);
     const isCurrentPosition = currentState.playerState.position_x === x && currentState.playerState.position_y === y;
@@ -131,10 +131,7 @@ const GameUI = () => {
       switch (interaction_type) {
         case 'Action':
           const lowerCaseType = type.toLowerCase().trim();
-          const lowerCaseIdName = id_name?.toLowerCase().trim() || ''; // Use id_name if available
-          
-          // Check for metro zones using both type and id_name for flexibility
-          if (lowerCaseType.includes('metro') || lowerCaseIdName.includes('metro')) {
+          if (lowerCaseType.includes('metro')) {
             setIsMetroOpen(true);
           } else if (id === 10) { // Marché
             setIsMarketOpen(true);
@@ -204,7 +201,7 @@ const GameUI = () => {
         }
         
         const originalState = { ...playerData };
-        const newState = { ...playerData, playerState: { ...playerData.playerState, position_x: x, y: y, energie: playerData.playerState.energie - energyCost }};
+        const newState = { ...playerData, playerState: { ...playerData.playerState, position_x: x, position_y: y, energie: playerData.playerState.energie - energyCost }};
         setPlayerData(newState);
         handleCellSelect(cell, newState);
 
@@ -286,7 +283,7 @@ const GameUI = () => {
       <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} inventory={playerData.inventory} unlockedSlots={playerData.playerState.unlocked_slots} onUpdate={refreshInventoryAndChests} />
       <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <PurchaseCreditsModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
-      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModal(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
+      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <ExplorationModal isOpen={isExplorationModalOpen} onClose={() => setIsExplorationModalOpen(false)} zone={selectedZoneForExploration} onUpdate={refreshPlayerData} onOpenInventory={() => setIsInventoryOpen(true)} />
       <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshResources} />

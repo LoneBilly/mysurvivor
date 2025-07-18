@@ -75,7 +75,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
               const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
               
               return (
-                <div key={index} className="flex flex-col items-center text-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 w-28 h-32 sm:w-32 sm:h-36 justify-center flex-shrink-0">
+                <div key={index} className="flex flex-col items-center text-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 w-24 h-28 sm:w-28 sm:h-32 justify-between flex-shrink-0">
                   <div className="w-16 h-16 flex items-center justify-center relative">
                     {ingredientItem ? (
                       <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
@@ -98,7 +98,7 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-4" : "")} />
 
           {/* Result Item Section */}
-          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-700/50 border border-slate-600 w-36 h-40 sm:w-44 sm:h-48 justify-center flex-shrink-0">
+          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-700/50 border border-slate-600 w-32 h-36 sm:w-40 sm:h-44 justify-between flex-shrink-0">
             <div className="w-24 h-24 flex items-center justify-center relative">
               <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
             </div>
