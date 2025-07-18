@@ -8,6 +8,7 @@ import { MapCell } from '@/types/game';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGame } from '@/contexts/GameContext';
 import ItemIcon from './ItemIcon';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ExplorationModalProps {
   isOpen: boolean;
@@ -60,6 +61,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [potentialLoot, setPotentialLoot] = useState<{ name: string; icon: string | null; }[]>([]);
   const [potentialEvents, setPotentialEvents] = useState<{ name: string; icon: string | null; description: string | null; }[]>([]);
   const [infoLoading, setInfoLoading] = useState(true);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!isOpen) {
@@ -254,7 +256,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                       <TooltipProvider key={`loot-${index}`}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative" onClick={() => isMobile && showInfo(item.name)}>
                               <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
                             </div>
                           </TooltipTrigger>
@@ -276,7 +278,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                       <TooltipProvider key={`event-${index}`}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative" onClick={() => isMobile && showInfo(event.name)}>
                               <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
                             </div>
                           </TooltipTrigger>
