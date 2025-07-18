@@ -69,13 +69,13 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           "py-6 flex flex-col items-center justify-center gap-4 sm:gap-8"
         )}>
           {/* Ingredients Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 w-full">
             {slots.map((slot, index) => {
               const ingredientItem = slot?.item_id ? allItems.find(item => item.id === slot.item_id) : null;
               
               return (
-                <div key={index} className="flex flex-col items-center text-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 flex-grow min-h-[120px] justify-between">
-                  <div className="w-12 h-12 flex items-center justify-center relative">
+                <div key={index} className="w-20 h-20 flex flex-col items-center justify-center p-1 rounded-lg bg-slate-700/50 border border-slate-600 flex-shrink-0 relative">
+                  <div className="w-10 h-10 flex items-center justify-center relative">
                     {ingredientItem ? (
                       <ItemIcon iconName={getPublicIconUrl(ingredientItem.icon)} alt={ingredientItem.name} />
                     ) : (
@@ -84,8 +84,8 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
                   </div>
                   {ingredientItem && (
                     <>
-                      <p className="text-sm font-semibold mt-1 px-1 text-center break-words text-wrap">{ingredientItem.name}</p>
-                      <p className="text-xs text-gray-400">x{slot?.quantity}</p>
+                      <p className="text-xs font-semibold mt-1 px-1 text-center break-words text-wrap">{ingredientItem.name}</p>
+                      <p className="text-[10px] text-gray-400">x{slot?.quantity}</p>
                     </>
                   )}
                 </div>
@@ -94,15 +94,15 @@ const BlueprintDetailModal = ({ isOpen, onClose, recipe }: BlueprintDetailModalP
           </div>
 
           {/* Arrow Separator */}
-          <ArrowRight className={cn("w-8 h-8 text-white", isMobile ? "rotate-90 my-4" : "")} />
+          <ArrowRight className={cn("w-8 h-8 text-white flex-shrink-0", isMobile ? "rotate-90 my-4" : "")} />
 
           {/* Result Item Section */}
-          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-700/50 border border-slate-600 w-full max-w-[140px] min-h-[160px] justify-between">
-            <div className="w-20 h-20 flex items-center justify-center relative">
+          <div className="w-28 h-28 flex flex-col items-center justify-center p-2 rounded-lg bg-slate-700/50 border border-slate-600 flex-shrink-0 relative">
+            <div className="w-16 h-16 flex items-center justify-center relative">
               <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
             </div>
-            <p className="text-lg font-bold mt-2 px-1 text-center break-words text-wrap">{resultItem.name}</p>
-            <p className="text-base text-gray-300">x{recipe.result_quantity}</p>
+            <p className="text-sm font-bold mt-2 px-1 text-center break-words text-wrap">{resultItem.name}</p>
+            <p className="text-xs text-gray-300">x{recipe.result_quantity}</p>
           </div>
         </div>
 
