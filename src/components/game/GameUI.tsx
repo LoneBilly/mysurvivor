@@ -23,6 +23,7 @@ import MetroModal from "../MetroModal";
 import BankModal from "../BankModal";
 import BountyModal from "../BountyModal";
 import WorkbenchModal from "../WorkbenchModal";
+import MoreOptionsModal from "../MoreOptionsModal"; // Import the new modal
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -46,6 +47,7 @@ const GameUI = () => {
   const [isMetroOpen, setIsMetroOpen] = useState(false);
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isBountyOpen, setIsBountyOpen] = useState(false);
+  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false); // New state for MoreOptionsModal
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -275,7 +277,7 @@ const GameUI = () => {
           />
         </div>
       </main>
-      <GameFooter stats={playerData.playerState} credits={playerData.playerState.credits} onInventaire={() => setIsInventoryOpen(true)} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
+      <GameFooter stats={playerData.playerState} credits={playerData.playerState.credits} onInventaire={() => setIsInventoryOpen(true)} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} onMoreOptions={() => setIsMoreOptionsOpen(true)} />
       <ActionModal isOpen={modalState.isOpen} onClose={closeModal} title={modalState.title} description={modalState.description} actions={modalState.actions} />
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
       <OptionsModal isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} />
@@ -295,6 +297,7 @@ const GameUI = () => {
         onUpdate={refreshBaseState}
         onOpenInventory={() => setIsInventoryOpen(true)}
       />
+      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} /> {/* New MoreOptionsModal */}
     </div>
   );
 };
