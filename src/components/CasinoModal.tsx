@@ -23,7 +23,7 @@ interface CasinoModalProps {
   onPurchaseCredits: () => void;
 }
 
-export function CasinoModal({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: CasinoModalProps) {
+const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: CasinoModalProps) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<{ winnings: number; label: string } | null>(null);
   const [spinningResult, setSpinningResult] = useState<{ winnings: number; label: string } | null>(null);
@@ -121,4 +121,6 @@ export function CasinoModal({ isOpen, onClose, credits, onUpdate, onPurchaseCred
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default CasinoModal;
