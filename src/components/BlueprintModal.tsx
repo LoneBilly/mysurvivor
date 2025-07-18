@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import BlueprintDetailModal from './BlueprintDetailModal';
-import { useIsMobile } from '@/hooks/use-mobile'; // Import useIsMobile
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ interface LearnedBlueprint {
 
 const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
   const { items: allItems } = useGame();
-  const isMobile = useIsMobile(); // Use the hook
+  const isMobile = useIsMobile();
   const [learnedRecipes, setLearnedRecipes] = useState<CraftingRecipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -77,7 +77,11 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
 
   const uniqueItemTypes = useMemo(() => {
     const types = new Set<string>();
-    allItems.forEach(item => types.add(item.type));
+    allItems.forEach(item => {
+      if (item.type !== 'Blueprint') { // Exclude 'Blueprint' type
+        types.add(item.type);
+      }
+    });
     return ['all', ...Array.from(types).sort()];
   }, [allItems]);
 
@@ -155,7 +159,7 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
 
             {/* Right Panel: List */}
             <div className={cn("flex-grow flex flex-col min-h-0", isMobile ? "pl-0" : "pl-4")}>
-              {!isMobile && ( // Search bar only on desktop here, moved to top for mobile
+              {!isMobile && (
                 <div className="relative mb-4 flex-shrink-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
@@ -173,7 +177,7 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
                 ) : filteredRecipes.length > 0 ? (
                   filteredRecipes.map(recipe => {
                     const resultItem = allItems.find(item => item.id === recipe.result_item_id);
-                    if (!resultItem) return null; // Should not happen if data is consistent
+                    if (!resultItem) return null;
 
                     return (
                       <Card key={recipe.id} className="bg-white/5 border-white/10">
