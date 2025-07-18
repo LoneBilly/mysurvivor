@@ -28,6 +28,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
   const [items, setItems] = useState<Item[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Partial<CraftingRecipe>>({});
   const [loading, setLoading] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -60,6 +61,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
     };
     if (isOpen) {
       fetchRecipe();
+      setDuplicateError(null); // Clear duplicate error on open
     }
   }, [isOpen, recipeId, resultItem.id, isNewItem]);
 
@@ -79,13 +81,47 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
       slot3_quantity: editingRecipe.slot3_quantity || null,
     };
 
+    // Check for duplicates before saving
+    setLoading(true);
+    const { data: duplicateCheck, error: duplicateErrorRpc } = await supabase.rpc('check_duplicate_recipe_inputs', {
+      p_slot1_item_id: recipeDataToSave.slot1_item_id,
+      p_slot1_quantity: recipeDataToSave.slot1_quantity,
+      p_slot2_item_id: recipeDataToSave.slot2_item_id,
+      p_slot2_quantity: recipeDataToSave.slot2_quantity,
+      p_slot3_item_id: recipeDataToSave.slot3_item_id,
+      p_slot3_quantity: recipeDataToSave.slot3_quantity,
+      p_current_recipe_id: editingRecipe.id || null // Exclude current recipe if editing
+    });
+
+    if (duplicateErrorRpc) {
+      showError("Erreur lors de la vérification des doublons.");
+      console.error(duplicateErrorRpc);
+      setLoading(false);
+      return;
+    }
+
+    if (duplicateCheck && duplicateCheck.length > 0) {
+      const duplicate = duplicateCheck[0];
+      const ingredientNames = [];
+      if (duplicate.s1_item_id) ingredientNames.push(`${items.find(i => i.id === duplicate.s1_item_id)?.name || 'Objet inconnu'} x${duplicate.s1_qty}`);
+      if (duplicate.s2_item_id) ingredientNames.push(`${items.find(i => i.id === duplicate.s2_item_id)?.name || 'Objet inconnu'} x${duplicate.s2_qty}`);
+      if (duplicate.s3_item_id) ingredientNames.push(`${items.find(i => i.id === duplicate.s3_item_id)?.name || 'Objet inconnu'} x${duplicate.s3_qty}`);
+      
+      setDuplicateError(
+        `Cette combinaison d'ingrédients est déjà utilisée pour fabriquer "${duplicate.result_item_name}". ` +
+        `Ingrédients: ${ingredientNames.join(', ')}.`
+      );
+      setLoading(false);
+      return;
+    }
+    setDuplicateError(null); // Clear error if no duplicate found
+
     if (isNewItem) {
       // For new items, just pass the data back to ItemFormModal
       onSave(recipeDataToSave);
       onClose();
     } else {
       // For existing items, save directly to DB
-      setLoading(true);
       const { data, error } = editingRecipe.id
         ? await supabase.from('crafting_recipes').update(recipeDataToSave).eq('id', editingRecipe.id).select().single()
         : await supabase.from('crafting_recipes').insert(recipeDataToSave).select().single();
@@ -169,8 +205,13 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
               <Label>Temps de fabrication (secondes)</Label>
               <Input required type="number" min="1" value={editingRecipe?.craft_time_seconds || 10} onChange={(e) => setEditingRecipe(prev => ({ ...prev, craft_time_seconds: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />
             </div>
+            {duplicateError && (
+              <div className="text-red-400 text-sm p-3 border border-red-500/30 rounded-lg bg-red-500/10">
+                {duplicateError}
+              </div>
+            )}
             <DialogFooter>
-              <Button type="submit">Sauvegarder</Button>
+              <Button type="submit" disabled={!!duplicateError}>Sauvegarder</Button>
             </DialogFooter>
           </form>
         )}
