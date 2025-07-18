@@ -19,12 +19,12 @@ interface LootboxSpinnerProps {
 }
 
 const SPINNER_ITEMS_COUNT = 50;
-const ITEM_WIDTH_PX = 128 + 8; // w-32 (128px) + mx-1 (4px on each side = 8px)
 const TARGET_INDEX = 45;
 
 const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd }) => {
   const [translateX, setTranslateX] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const itemRef = useRef<HTMLDivElement>(null);
 
   const spinnerItems = useMemo(() => {
     const items = [];
@@ -39,10 +39,16 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
   }, [resultLabel]);
 
   useEffect(() => {
-    if (containerRef.current) {
+    if (containerRef.current && itemRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
-      const finalPosition = containerWidth / 2 - (TARGET_INDEX * ITEM_WIDTH_PX + ITEM_WIDTH_PX / 2);
-      const randomOffset = (Math.random() - 0.5) * (ITEM_WIDTH_PX * 0.8);
+      
+      const itemStyle = window.getComputedStyle(itemRef.current);
+      const marginLeft = parseFloat(itemStyle.marginLeft);
+      const marginRight = parseFloat(itemStyle.marginRight);
+      const totalItemWidth = itemRef.current.offsetWidth + marginLeft + marginRight;
+
+      const finalPosition = containerWidth / 2 - (TARGET_INDEX * totalItemWidth + totalItemWidth / 2);
+      const randomOffset = (Math.random() - 0.5) * (totalItemWidth * 0.8);
 
       setTranslateX(0);
 
@@ -59,10 +65,13 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
 
   return (
     <div ref={containerRef} className="h-24 w-full bg-transparent rounded-lg overflow-hidden relative">
-      <div 
-        className="absolute top-0 left-1/2 -translate-x-1/2 h-full w-1 bg-white/80 z-10 rounded-full"
-        style={{ boxShadow: '0 0 15px 2px white' }}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 
+        border-l-[10px] border-l-transparent
+        border-r-[10px] border-r-transparent
+        border-t-[10px] border-t-yellow-400 z-20"
+        style={{ filter: 'drop-shadow(0 0 5px rgba(250, 204, 21, 0.7))' }}
       />
+      
       <div
         className="flex h-full items-center"
         style={{
@@ -73,16 +82,24 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
         {spinnerItems.map((item, index) => (
           <div
             key={index}
+            ref={index === 0 ? itemRef : null}
             className={cn(
-              "w-32 h-20 flex-shrink-0 flex flex-col items-center justify-center text-white font-bold text-center p-2 rounded-md mx-1 border-2 border-white/10",
+              "w-24 sm:w-32 h-20 flex-shrink-0 flex flex-col items-center justify-center text-white font-bold text-center p-2 rounded-md mx-1 border-2 border-white/10",
               item.color
             )}
           >
-            <span className="text-sm drop-shadow-md">{item.label}</span>
-            <span className="text-lg drop-shadow-md">x{item.multiplier}</span>
+            <span className="text-xs sm:text-sm drop-shadow-md">{item.label}</span>
+            <span className="text-sm sm:text-lg drop-shadow-md">x{item.multiplier}</span>
           </div>
         ))}
       </div>
+
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 
+        border-l-[10px] border-l-transparent
+        border-r-[10px] border-r-transparent
+        border-b-[10px] border-b-yellow-400 z-20"
+        style={{ filter: 'drop-shadow(0 0 5px rgba(250, 204, 21, 0.7))' }}
+      />
     </div>
   );
 };
