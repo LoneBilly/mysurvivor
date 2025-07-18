@@ -8,9 +8,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import * as LucideIcons from "lucide-react";
-import { IconCombobox } from './IconCombobox';
 
 interface ZoneIconEditorModalProps {
   isOpen: boolean;
@@ -65,7 +65,13 @@ const ZoneIconEditorModal = ({ isOpen, onClose, currentIcon, onSave }: ZoneIconE
                 <Label htmlFor="icon-name" className="text-gray-300 font-mono">
                   Nom de l'icône
                 </Label>
-                <IconCombobox value={iconName} onChange={setIconName} />
+                <Input
+                  id="icon-name"
+                  value={iconName}
+                  onChange={(e) => setIconName(e.target.value)}
+                  className="mt-1 bg-white/5 border border-white/20 rounded-lg focus:ring-white/30 focus:border-white/30"
+                  placeholder="Ex: Home, Shield, etc."
+                />
               </div>
             </div>
           </div>
