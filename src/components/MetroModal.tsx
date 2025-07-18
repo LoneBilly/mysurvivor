@@ -28,7 +28,8 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
     return mapLayout.filter(zone => 
       discoveredZones.includes(zone.id) && 
       zone.id !== currentZoneId &&
-      zone.type !== 'unknown'
+      zone.interaction_type === 'Action' && // Ensure it's an action zone
+      zone.type.toLowerCase().includes('metro') // Ensure it's a metro type
     );
   }, [mapLayout, discoveredZones, currentZoneId]);
 
