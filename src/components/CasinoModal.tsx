@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Dice5, Coins, Palette, ArrowLeft, CircleDot, Dices } from 'lucide-react';
 import CreditsInfo from './CreditsInfo';
 import { cn } from '@/lib/utils';
+import Wheel, { Segment } from './Wheel';
 
 interface GameProps {
   credits: number;
@@ -14,11 +16,20 @@ interface GameProps {
   onBack: () => void;
 }
 
+const wagerWheelSegments: Segment[] = [
+  { label: 'Jackpot!', color: '#facc15' }, // gold-400
+  { label: 'Double Gain', color: '#4ade80' }, // green-400
+  { label: 'Remboursé', color: '#9ca3af' }, // gray-400
+  { label: 'Petite Perte', color: '#fb923c' }, // orange-400
+  { label: 'Perte Totale', color: '#f87171' }, // red-400
+];
+
 const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
   const [betAmount, setBetAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ label: string; winnings: number; bet: number } | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [resultIndex, setResultIndex] = useState<number | null>(null);
 
   const handlePlay = async () => {
     const amount = parseInt(betAmount, 10);
@@ -33,33 +44,43 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
     setLoading(true);
     setIsSpinning(true);
     setResult(null);
+    setResultIndex(null);
 
     const { data, error } = await supabase.rpc('play_casino_game', { p_bet_amount: amount });
+    
+    if (error) {
+      setLoading(false);
+      setIsSpinning(false);
+      showError(error.message);
+      return;
+    }
+
+    const index = wagerWheelSegments.findIndex(s => s.label === data.label);
+    setResultIndex(index);
     
     setTimeout(() => {
       setIsSpinning(false);
       setLoading(false);
-      if (error) {
-        showError(error.message);
+      setResult(data);
+      if (data.winnings > data.bet) {
+        showSuccess(`Vous avez gagné ${data.winnings} crédits !`);
+      } else if (data.winnings > 0) {
+        showInfo(`Vous avez récupéré ${data.winnings} crédits.`);
       } else {
-        setResult(data);
-        if (data.winnings > data.bet) {
-          showSuccess(`Vous avez gagné ${data.winnings} crédits !`);
-        } else if (data.winnings > 0) {
-          showInfo(`Vous avez récupéré ${data.winnings} crédits.`);
-        } else {
-          showError(`Vous avez perdu ${data.bet} crédits.`);
-        }
-        onUpdate();
+        showError(`Vous avez perdu ${data.bet} crédits.`);
       }
-    }, 1500);
+      onUpdate();
+    }, 3000);
   };
 
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="h-24 bg-black/20 rounded-lg flex items-center justify-center text-2xl font-bold">
-        {isSpinning ? <Loader2 className="w-8 h-8 animate-spin" /> : result ? <div className="text-center"><p>{result.label}</p><p className="text-lg">{result.winnings > 0 ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p></div> : <p className="text-gray-400">Placez votre pari</p>}
+      <div className="h-48 flex items-center justify-center">
+        <Wheel segments={wagerWheelSegments} isSpinning={isSpinning} resultIndex={resultIndex} />
+      </div>
+      <div className="h-10 text-center flex items-center justify-center">
+        {result && <div className="text-center"><p className="font-bold">{result.label}</p><p className="text-lg">{result.winnings > 0 ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p></div>}
       </div>
       <div>
         <Label htmlFor="bet-amount" className="text-sm font-medium text-white font-mono">Montant du pari</Label>
@@ -75,12 +96,19 @@ const WagerWheelGame = ({ credits, onUpdate, onBack }: GameProps) => {
   );
 };
 
+const colorRouletteSegments: Segment[] = [
+  { label: 'Rouge', color: '#ef4444' }, // red-500
+  { label: 'Vert', color: '#22c55e' }, // green-500
+  { label: 'Bleu', color: '#3b82f6' }, // blue-500
+];
+
 const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
   const [betAmount, setBetAmount] = useState('');
   const [selectedColor, setSelectedColor] = useState<'red' | 'blue' | 'green' | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ win: boolean; winnings: number; bet: number; winning_color: string } | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [resultIndex, setResultIndex] = useState<number | null>(null);
 
   const handlePlay = async (color: 'red' | 'blue' | 'green') => {
     setSelectedColor(color);
@@ -96,31 +124,42 @@ const ColorRouletteGame = ({ credits, onUpdate, onBack }: GameProps) => {
     setLoading(true);
     setIsSpinning(true);
     setResult(null);
+    setResultIndex(null);
 
     const { data, error } = await supabase.rpc('play_color_roulette', { p_bet_amount: amount, p_color_choice: color });
+
+    if (error) {
+      setLoading(false);
+      setIsSpinning(false);
+      showError(error.message);
+      return;
+    }
+
+    const colorMap: { [key: string]: string } = { red: 'Rouge', blue: 'Bleu', green: 'Vert' };
+    const index = colorRouletteSegments.findIndex(s => s.label === colorMap[data.winning_color]);
+    setResultIndex(index);
 
     setTimeout(() => {
       setIsSpinning(false);
       setLoading(false);
-      if (error) {
-        showError(error.message);
+      setResult(data);
+      if (data.win) {
+        showSuccess(`Vous avez gagné ${data.winnings} crédits !`);
       } else {
-        setResult(data);
-        if (data.win) {
-          showSuccess(`Vous avez gagné ${data.winnings} crédits !`);
-        } else {
-          showError(`Vous avez perdu ${data.bet} crédits.`);
-        }
-        onUpdate();
+        showError(`Vous avez perdu ${data.bet} crédits.`);
       }
-    }, 1500);
+      onUpdate();
+    }, 3000);
   };
 
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4"><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
-      <div className="h-24 bg-black/20 rounded-lg flex items-center justify-center text-2xl font-bold">
-        {isSpinning ? <Loader2 className="w-8 h-8 animate-spin" /> : result ? <div className={cn("text-center", result.win ? "text-green-400" : "text-red-400")}><p>La roue s'arrête sur <span className="font-bold" style={{ color: result.winning_color }}>{result.winning_color.toUpperCase()}</span></p><p className="text-lg">{result.win ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p></div> : <p className="text-gray-400">Choisissez une couleur</p>}
+      <div className="h-48 flex items-center justify-center">
+        <Wheel segments={colorRouletteSegments} isSpinning={isSpinning} resultIndex={resultIndex} />
+      </div>
+      <div className="h-10 text-center flex items-center justify-center">
+        {result && <div className={cn("text-center", result.win ? "text-green-400" : "text-red-400")}><p>La roue s'arrête sur <span className="font-bold" style={{ color: result.winning_color }}>{result.winning_color.toUpperCase()}</span></p><p className="text-lg">{result.win ? `+${result.winnings}` : `-${result.bet}`} <Coins className="inline w-5 h-5" /></p></div>}
       </div>
       <div>
         <Label htmlFor="bet-amount-color" className="text-sm font-medium text-white font-mono">Montant du pari</Label>
