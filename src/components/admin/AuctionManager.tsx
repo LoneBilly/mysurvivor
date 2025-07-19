@@ -8,6 +8,7 @@ import { showError } from '@/utils/toast';
 import AuctionFormModal from './AuctionFormModal';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ItemIcon from '../ItemIcon';
+import { useNavigate } from 'react-router-dom';
 
 interface Auction {
   id: number;
@@ -30,6 +31,7 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const fetchAuctions = useCallback(async () => {
     setLoading(true);
@@ -61,9 +63,14 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
       <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
         <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2"><Gavel /> Gestion des Enchères</h2>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => navigate('/admin/bids')} variant="outline">
+              Voir l'historique
+            </Button>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
+            </Button>
+          </div>
         </div>
         <div className="flex-grow overflow-y-auto">
           {loading ? (

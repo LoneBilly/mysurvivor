@@ -11,6 +11,7 @@ import CreditsInfo from './CreditsInfo';
 import ActionModal from './ActionModal';
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import LootboxSpinner from "./LootboxSpinner";
+import { useAuth } from '@/contexts/AuthContext';
 
 // --- Types ---
 interface Auction {
@@ -54,6 +55,7 @@ const Countdown = ({ endTime }: { endTime: string }) => {
 
 // --- Main Component ---
 const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: CasinoModalProps) => {
+  const { user } = useAuth();
   const [activeGame, setActiveGame] = useState<'lobby' | 'roulette' | 'auction'>('lobby');
   
   // States for Roulette
@@ -126,7 +128,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
   }, [isOpen, activeGame, fetchAuctions]);
 
   const handlePlaceBid = async () => {
-    if (!selectedAuction) return;
+    if (!selectedAuction || !user) return;
     const amount = parseInt(bidAmountAuction, 10);
     if (isNaN(amount) || amount <= 0) {
       showError("Montant invalide.");
@@ -136,7 +138,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
       showError("Crédits insuffisants.");
       return;
     }
-    const { error } = await supabase.from('auction_bids').insert({ auction_id: selectedAuction.id, amount });
+    const { error } = await supabase.from('auction_bids').insert({ auction_id: selectedAuction.id, amount, player_id: user.id });
     if (error) {
       showError(error.message.includes('duplicate key') ? "Vous avez déjà enchéri sur cet objet." : "Erreur lors de la mise.");
     } else {
