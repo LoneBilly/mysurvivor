@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
-import { Loader2, Search, Shield, Package, Check, X, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, Shield, Package, Check, X, AlertTriangle, Castle } from 'lucide-react';
 import { MapCell, DiscoverableZone } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import * as LucideIcons from "lucide-react";
@@ -80,8 +80,24 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       showError("Impossible de charger les informations de la zone.");
       console.error(error);
     } else {
+      const eventsFromDb = data.potentialEvents || [];
+      
+      if (zone.interaction_type === 'Ressource') {
+        eventsFromDb.push({
+          name: "Découverte de zone",
+          icon: "Map",
+          description: "Vous avez une chance de trouver une carte révélant des zones adjacentes inexplorées."
+        });
+      }
+
+      eventsFromDb.push({
+        name: "Découverte de base",
+        icon: "Castle",
+        description: "Vous pourriez tomber sur la base d'un autre survivant, ce qui débloquerait une option d'attaque."
+      });
+
       setPotentialLoot(data.potentialLoot || []);
-      setPotentialEvents(data.potentialEvents || []);
+      setPotentialEvents(eventsFromDb);
     }
     setLoading(false);
   }, [zone]);
