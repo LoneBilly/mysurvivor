@@ -4,14 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Search, Plus, HelpCircle, Trash2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, Plus, HelpCircle } from 'lucide-react';
 import * as LucideIcons from "lucide-react";
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, ZoneItem } from '@/types/admin';
 import { MapCell } from '@/types/game';
 import ZoneIconEditorModal from './ZoneIconEditorModal';
 import ItemFormModal from './ItemFormModal';
-import ActionModal from '../ActionModal';
 
 interface ZoneItemEditorProps {
   zone: MapCell;
@@ -32,8 +31,8 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
   const [zoneItemSettings, setZoneItemSettings] = useState<Map<number, { spawn_chance: number; max_quantity: number }>>(new Map());
   const initialZoneItemsRef = useRef<Map<number, { spawn_chance: number; max_quantity: number }>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [zoneName, setZoneName] = useState(zone.type || '');
-  const initialZoneNameRef = useRef(zone.type || '');
+  const [zoneName, setZoneName] = useState(zone.type);
+  const initialZoneNameRef = useRef(zone.type);
   const [zoneIcon, setZoneIcon] = useState(zone.icon);
   const initialZoneIconRef = useRef(zone.icon);
   const [interactionType, setInteractionType] = useState<'Ressource' | 'Action' | 'Non défini'>(zone.interaction_type);
@@ -44,7 +43,6 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
   const [isIconEditorOpen, setIsIconEditorOpen] = useState(false);
   const [isItemFormModalOpen, setIsItemFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleSaveSettings = useCallback(async () => {
     const initialSettings = initialZoneItemsRef.current;
@@ -114,11 +112,6 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
 
   const handleZoneNameSave = async () => {
     if (zoneName === initialZoneNameRef.current) return;
-    if (!zoneName.trim()) {
-      showError("Le nom de la zone ne peut pas être vide.");
-      setZoneName(initialZoneNameRef.current);
-      return;
-    }
     const { error } = await supabase.from('map_layout').update({ type: zoneName }).eq('id', zone.id);
     if (error) {
       showError("Erreur de mise à jour du nom.");
@@ -152,17 +145,6 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
       showSuccess("Type d'interaction mis à jour.");
       initialInteractionTypeRef.current = newType;
       setInteractionType(newType);
-    }
-  };
-
-  const handleDeleteZone = async () => {
-    setIsDeleteModalOpen(false);
-    const { error } = await supabase.rpc('delete_zone_type', { p_zone_id: zone.id });
-    if (error) {
-        showError(error.message);
-    } else {
-        showSuccess("Zone réinitialisée.");
-        onBack();
     }
   };
 
@@ -237,147 +219,131 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
   const CurrentIconComponent = getZoneIconComponent(zoneIcon);
 
   return (
-    <>
-      <Card className="w-full max-w-4xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col h-full">
-        <CardHeader className="flex-shrink-0 border-b border-gray-700 p-4">
-          <div className="flex items-center justify-between gap-4">
-            <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Button variant="ghost" size="icon" onClick={() => setIsIconEditorOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
-                <CurrentIconComponent className="w-8 h-8" />
-              </Button>
+    <Card className="w-full max-w-4xl mx-auto bg-gray-800/50 border-gray-700 text-white flex flex-col h-full">
+      <CardHeader className="flex-shrink-0 border-b border-gray-700 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => setIsIconEditorOpen(true)} className="p-0 h-auto w-auto text-gray-300 hover:text-white">
+              <CurrentIconComponent className="w-8 h-8" />
+            </Button>
+            <Input
+              value={zoneName}
+              onChange={(e) => setZoneName(e.target.value)}
+              onBlur={handleZoneNameSave}
+              className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto truncate"
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <Label className="text-sm font-medium text-gray-400">Type d'interaction</Label>
+          <select
+            value={interactionType}
+            onChange={(e) => handleInteractionTypeSave(e.target.value as 'Ressource' | 'Action' | 'Non défini')}
+            className="w-full mt-1 bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="Ressource">Ressource (Exploration, Campement)</option>
+            <option value="Action">Action (Marché, Faction)</option>
+            <option value="Non défini">Non défini (Indisponible)</option>
+          </select>
+        </div>
+        {interactionType !== 'Action' && (
+          <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative w-full sm:flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                value={zoneName}
-                onChange={(e) => setZoneName(e.target.value)}
-                onBlur={handleZoneNameSave}
-                placeholder="Nom de la zone"
-                className="text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-500 p-0 h-auto truncate"
+                type="text"
+                placeholder="Rechercher un objet..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-900/50 border-gray-600 pl-10"
               />
             </div>
-            <Button onClick={() => setIsDeleteModalOpen(true)} variant="destructive" size="icon">
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="mt-4">
-            <Label className="text-sm font-medium text-gray-400">Type d'interaction</Label>
-            <select
-              value={interactionType}
-              onChange={(e) => handleInteractionTypeSave(e.target.value as 'Ressource' | 'Action' | 'Non défini')}
-              className="w-full mt-1 bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="Ressource">Ressource (Exploration, Campement)</option>
-              <option value="Action">Action (Marché, Faction)</option>
-              <option value="Non défini">Non défini (Indisponible)</option>
-            </select>
-          </div>
-          {interactionType !== 'Action' && (
-            <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative w-full sm:flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Rechercher un objet..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-gray-900/50 border-gray-600 pl-10"
-                />
-              </div>
-              <div className="flex w-full sm:w-auto gap-3">
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="all">Tous les types</option>
-                  <option value="Ressources">Ressources</option>
-                  <option value="Armes">Armes</option>
-                  <option value="Nourriture">Nourriture</option>
-                  <option value="Soins">Soins</option>
-                  <option value="Équipements">Équipements</option>
-                  <option value="Items divers">Items divers</option>
-                  <option value="Items craftés">Items craftés</option>
-                </select>
-                <Button onClick={handleCreateItem} className="flex-shrink-0">
-                  <Plus className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Ajouter</span>
-                </Button>
-              </div>
+            <div className="flex w-full sm:w-auto gap-3">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="all">Tous les types</option>
+                <option value="Ressources">Ressources</option>
+                <option value="Armes">Armes</option>
+                <option value="Nourriture">Nourriture</option>
+                <option value="Soins">Soins</option>
+                <option value="Équipements">Équipements</option>
+                <option value="Items divers">Items divers</option>
+                <option value="Items craftés">Items craftés</option>
+              </select>
+              <Button onClick={handleCreateItem} className="flex-shrink-0">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Ajouter</span>
+              </Button>
             </div>
-          )}
-        </CardHeader>
-        {interactionType !== 'Action' && (
-          <CardContent className="flex-1 overflow-y-auto p-4">
-            {loading ? (
-              <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredItems.map(item => (
-                  <div key={item.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600/50 flex flex-col">
-                    <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-lg font-semibold text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
-                      {item.name}
-                    </Button>
-                    <div className="grid grid-cols-2 gap-4 mt-auto pt-3 border-t border-gray-600/50">
-                      <div className="space-y-1">
-                        <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance (%)</Label>
-                        <Input
-                          id={`item-chance-${item.id}`}
-                          type="number"
-                          inputMode="numeric"
-                          min="0" max="100"
-                          value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
-                          onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
-                          onBlur={handleSaveSettings}
-                          className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Qté. Max</Label>
-                        <Input
-                          id={`item-quantity-${item.id}`}
-                          type="number"
-                          inputMode="numeric"
-                          min="1"
-                          value={zoneItemSettings.get(item.id)?.max_quantity || '1'}
-                          onChange={(e) => handleSettingChange(item.id, 'max_quantity', e.target.value)}
-                          onBlur={handleSaveSettings}
-                          className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          placeholder="1"
-                        />
-                      </div>
+          </div>
+        )}
+      </CardHeader>
+      {interactionType !== 'Action' && (
+        <CardContent className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredItems.map(item => (
+                <div key={item.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600/50 flex flex-col">
+                  <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-lg font-semibold text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
+                    {item.name}
+                  </Button>
+                  <div className="grid grid-cols-2 gap-4 mt-auto pt-3 border-t border-gray-600/50">
+                    <div className="space-y-1">
+                      <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance (%)</Label>
+                      <Input
+                        id={`item-chance-${item.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="0" max="100"
+                        value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
+                        onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
+                        onBlur={handleSaveSettings}
+                        className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Qté. Max</Label>
+                      <Input
+                        id={`item-quantity-${item.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        value={zoneItemSettings.get(item.id)?.max_quantity || '1'}
+                        onChange={(e) => handleSettingChange(item.id, 'max_quantity', e.target.value)}
+                        onBlur={handleSaveSettings}
+                        className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="1"
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      )}
 
-        <ZoneIconEditorModal
-          isOpen={isIconEditorOpen}
-          onClose={() => setIsIconEditorOpen(false)}
-          currentIcon={zoneIcon}
-          onSave={handleZoneIconSave}
-        />
-
-        <ItemFormModal
-          isOpen={isItemFormModalOpen}
-          onClose={() => setIsItemFormModalOpen(false)}
-          item={editingItem}
-          onSave={onBack}
-        />
-      </Card>
-      <ActionModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        title="Réinitialiser la zone"
-        description={`Êtes-vous sûr de vouloir supprimer les données de cette zone (ID: ${zone.id}) ? Elle redeviendra une case vide éditable.`}
-        actions={[
-          { label: "Confirmer", onClick: handleDeleteZone, variant: "destructive" },
-          { label: "Annuler", onClick: () => setIsDeleteModalOpen(false), variant: "secondary" },
-        ]}
+      <ZoneIconEditorModal
+        isOpen={isIconEditorOpen}
+        onClose={() => setIsIconEditorOpen(false)}
+        currentIcon={zoneIcon}
+        onSave={handleZoneIconSave}
       />
-    </>
+
+      <ItemFormModal
+        isOpen={isItemFormModalOpen}
+        onClose={() => setIsItemFormModalOpen(false)}
+        item={editingItem}
+        onSave={onBack}
+      />
+    </Card>
   );
 };
 
