@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import GameHeader from "../GameHeader";
 import GameGrid from "../GameGrid";
 import GameFooter from "../GameFooter";
@@ -54,6 +54,7 @@ const GameUI = () => {
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
   const [isMoving, setIsMoving] = useState(false);
+  const isInitialMount = useRef(true);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -228,6 +229,19 @@ const GameUI = () => {
       });
     }
   };
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (!isMoving) {
+      const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
+      if (currentZone) {
+        handleCellSelect(currentZone);
+      }
+    }
+  }, [playerData.playerState.position_x, playerData.playerState.position_y]);
 
   const scoutingMissions = useMemo(() => ({
     inProgress: playerData.scoutingMissions.filter(m => m.status === 'in_progress'),
