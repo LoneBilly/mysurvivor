@@ -64,23 +64,12 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       const fetchZoneInfo = async () => {
         setInfoLoading(true);
         try {
-          const [lootRes, eventsRes] = await Promise.all([
-            supabase.from('zone_items').select('items(name, icon, description)').eq('zone_id', zone.id),
-            supabase.from('zone_events').select('events(name, icon, description)').eq('zone_id', zone.id)
-          ]);
+          const { data, error } = await supabase.rpc('get_zone_info', { p_zone_id: zone.id });
 
-          if (lootRes.error) throw lootRes.error;
-          if (eventsRes.error) throw eventsRes.error;
+          if (error) throw error;
 
-          const lootData = (lootRes.data as { items: { name: string; icon: string | null; description: string | null; } | null }[])
-            .map(item => item.items)
-            .filter((item): item is { name: string; icon: string | null; description: string | null; } => item !== null);
-          setPotentialLoot(lootData);
-
-          const eventData = (eventsRes.data as { events: { name: string; icon: string | null; description: string | null; } | null }[])
-            .map(item => item.events)
-            .filter((item): item is { name: string; icon: string | null; description: string | null; } => item !== null);
-          setPotentialEvents(eventData);
+          setPotentialLoot(data.potentialLoot || []);
+          setPotentialEvents(data.potentialEvents || []);
 
           if (zone.interaction_type === 'Ressource') {
             const discoveredSet = new Set(playerData.playerState.zones_decouvertes);
