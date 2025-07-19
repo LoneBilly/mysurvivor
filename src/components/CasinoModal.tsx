@@ -22,9 +22,10 @@ interface CasinoModalProps {
   credits: number;
   onUpdate: () => void;
   onPurchaseCredits: () => void;
+  zoneName: string;
 }
 
-const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: CasinoModalProps) => {
+const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: CasinoModalProps) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<{ winnings: number; label: string } | null>(null);
   const [spinningResult, setSpinningResult] = useState<{ winnings: number; label: string } | null>(null);
@@ -71,7 +72,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Casino de la Zone</DialogTitle>
+          <DialogTitle>{zoneName}</DialogTitle>
           <DialogDescription asChild>
             <div className="flex flex-col items-center gap-2 text-center">
               <span>Tentez votre chance !</span>
