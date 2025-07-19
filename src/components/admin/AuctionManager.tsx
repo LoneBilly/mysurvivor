@@ -3,15 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, PlusCircle, Gavel, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Gavel } from 'lucide-react';
 import { Item } from '@/types/admin';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import AuctionFormModal from './AuctionFormModal';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ItemIcon from '../ItemIcon';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AuctionBidsModal from './AuctionBidsModal';
-import ActionModal from '../ActionModal';
 
 interface Auction {
   id: number;
@@ -35,7 +34,6 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   const [loading, setLoading] = useState(true);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isBidsModalOpen, setIsBidsModalOpen] = useState(false);
-  const [actionModal, setActionModal] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; variant?: "default" | "destructive" }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const isMobile = useIsMobile();
 
   const fetchAuctions = useCallback(async () => {
@@ -63,27 +61,6 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
     return { amount: winning.amount, username: winning.profiles?.username || 'Anonyme' };
   };
 
-  const handleDeleteAuction = (auction: Auction) => {
-    setActionModal({
-      isOpen: true,
-      title: "Confirmer la suppression",
-      description: `Êtes-vous sûr de vouloir supprimer l'enchère pour "${auction.items.name} x${auction.item_quantity}" ? Toutes les enchères placées seront remboursées.`,
-      variant: "destructive",
-      onConfirm: async () => {
-        setLoading(true);
-        const { error } = await supabase.rpc('admin_delete_auction', { p_auction_id: auction.id });
-        if (error) {
-          showError(error.message);
-        } else {
-          showSuccess("Enchère supprimée et enchères remboursées.");
-          fetchAuctions();
-        }
-        setLoading(false);
-        setActionModal({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
-      }
-    });
-  };
-
   return (
     <>
       <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
@@ -107,7 +84,7 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                 const winningBid = getWinningBid(auction.auction_bids);
                 return (
                   <Card key={auction.id} className="bg-gray-800/60 border-gray-700">
-                    <CardHeader className="p-3 flex flex-row items-start justify-between">
+                    <CardHeader className="p-3">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
                           <ItemIcon iconName={getPublicIconUrl(auction.items.icon)} alt={auction.items.name} />
@@ -117,9 +94,6 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                           <p className="text-xs text-gray-400 truncate max-w-[200px]">{auction.description}</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteAuction(auction)}>
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
                     </CardHeader>
                     <CardContent className="p-3 pt-0 space-y-2 text-sm">
                       <div>
@@ -143,7 +117,6 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                   <TableHead>Fin le</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Gagnant / Offre max</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -169,11 +142,6 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                       <TableCell>
                         {auction.status === 'completed' ? `${winningBid.username} (${winningBid.amount} crédits)` : `${winningBid.amount} crédits`}
                       </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteAuction(auction)}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -194,16 +162,6 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
       <AuctionBidsModal
         isOpen={isBidsModalOpen}
         onClose={() => setIsBidsModalOpen(false)}
-      />
-      <ActionModal
-        isOpen={actionModal.isOpen}
-        onClose={() => setActionModal({ ...actionModal, isOpen: false })}
-        title={actionModal.title}
-        description={actionModal.description}
-        actions={[
-          { label: "Confirmer", onClick: actionModal.onConfirm, variant: actionModal.variant },
-          { label: "Annuler", onClick: () => setActionModal({ ...actionModal, isOpen: false }), variant: "secondary" },
-        ]}
       />
     </>
   );
