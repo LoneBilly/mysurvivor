@@ -8,12 +8,12 @@ import ItemManager from "@/components/admin/ItemManager";
 import EventManager from "@/components/admin/EventManager";
 import BuildingManager from "@/components/admin/BuildingManager";
 import AuctionManager from "@/components/admin/AuctionManager";
-import PatchNotesManager from "@/components/admin/PatchNotesManager";
+import PatchNotesManager from "@/components/admin/PatchNotesManager"; // Import new component
 import { MapCell } from "@/types/game";
 import { Item } from "@/types/admin";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2, ArrowLeft, Map, Users, Package, Zap, Wrench, Gavel, FileText } from "lucide-react";
+import { Loader2, ArrowLeft, Map, Users, Package, Zap, Wrench, Gavel, FileText } from "lucide-react"; // Add icons
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 

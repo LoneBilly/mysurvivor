@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import BlueprintDetailModal from './BlueprintDetailModal';
-import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import ItemIcon from '@/components/ItemIcon'; // Import ItemIcon
 import { getPublicIconUrl } from '@/utils/imageUrls'; // Import getPublicIconUrl
 

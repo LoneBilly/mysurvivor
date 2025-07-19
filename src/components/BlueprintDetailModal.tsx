@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Loader2, Wrench, ArrowRight } from 'lucide-react';
 import ItemIcon from '@/components/ItemIcon';
 import { getPublicIconUrl } from '@/utils/imageUrls';
-import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import RecipeItemSlot from './RecipeItemSlot';
 
 interface BlueprintDetailModalProps {

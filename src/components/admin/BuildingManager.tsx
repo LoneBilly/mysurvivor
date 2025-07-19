@@ -22,7 +22,7 @@ import {
 import { Loader2, Edit, Wrench } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import * as LucideIcons from "lucide-react";
-import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BuildingDefinition {
   type: string;
