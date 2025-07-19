@@ -1,22 +1,43 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import ItemIcon from "./ItemIcon";
-import { useGame } from "@/contexts/GameContext";
-import { DiscoverableZone } from "@/types/game";
-import { cn } from "@/lib/utils";
-import * as LucideIcons from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { MapPin, CheckCircle } from "lucide-react";
+
+// Définition des types pour les données de l'événement
+interface Zone {
+  id: number;
+  x: number;
+  y: number;
+  type: string;
+  icon: string;
+  is_discovered: boolean;
+}
+
+interface InfoData {
+  name: string;
+  description: string;
+  icon: string;
+  discoverable_zones?: Zone[];
+  loot?: any[];
+  effects?: any;
+}
 
 interface InfoDisplayModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
-  description: string | null;
-  icon: string | null;
-  adjacentZones?: DiscoverableZone[] | null;
+  info: InfoData | null;
 }
 
-const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZones }: InfoDisplayModalProps) => {
-  const { getIconUrl } = useGame();
-  const iconUrl = getIconUrl(icon);
+export function InfoDisplayModal({ isOpen, onClose, info }: InfoDisplayModalProps) {
+  if (!info) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -24,40 +45,57 @@ const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZ
         <DialogHeader>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-lg bg-slate-700/50 border-slate-600 flex-shrink-0 relative p-1">
-              <ItemIcon iconName={iconUrl || icon} alt={title} />
+              {info.icon && (
+                <img src={`/icons/events/${info.icon}.webp`} alt={info.name} className="w-full h-full object-contain" />
+              )}
             </div>
             <div>
-              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{title}</DialogTitle>
+              <DialogTitle className="text-xl font-bold text-yellow-400">{info.name}</DialogTitle>
+              <DialogDescription className="text-slate-300 mt-1">
+                {info.description}
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
-        <div className="py-4">
-          {description ? (
-            <p className="text-gray-300">{description}</p>
-          ) : (
-            <p className="text-gray-400 italic">Aucune description disponible.</p>
-          )}
-          {adjacentZones && (
-            <div className="mt-4">
-              <h4 className="font-semibold mb-2">Zones adjacentes potentiellement découvertes :</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {adjacentZones.map(zone => {
-                  const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
-                  return (
-                    <div key={zone.id} className={cn("p-2 rounded-md flex flex-col items-center", zone.is_discovered ? "bg-green-500/20 border border-green-500/30" : "bg-blue-500/20 border-blue-500/30")}>
-                      <Icon className="w-6 h-6 mb-1" />
-                      <span className="text-xs text-center">{zone.type}</span>
-                      {zone.is_discovered && <span className="text-xs text-green-300">(Déjà découvert)</span>}
+        
+        {info.discoverable_zones && info.discoverable_zones.length > 0 && (
+          <div className="my-4">
+            <h3 className="font-semibold text-lg text-slate-200 mb-3 border-b border-slate-700 pb-2">Carte trouvée</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {info.discoverable_zones.map((zone) => (
+                <div key={zone.id} className={`p-2 rounded-lg border ${zone.is_discovered ? 'bg-green-900/30 border-green-700/50' : 'bg-slate-700/50 border-slate-600'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-slate-800 rounded-md flex items-center justify-center">
+                      <img src={`/icons/zones/${zone.icon}`} alt={zone.type} className="w-6 h-6" />
                     </div>
-                  );
-                })}
-              </div>
+                    <span className="font-medium text-sm text-slate-100">{zone.type}</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-2 flex items-center justify-between">
+                    <span>({zone.x}, {zone.y})</span>
+                    {zone.is_discovered ? (
+                      <div className="flex items-center gap-1 text-green-400">
+                        <CheckCircle size={14} />
+                        <span>Déjà connu</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-yellow-400">
+                        <MapPin size={14} />
+                        <span>Nouveau</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button onClick={onClose} className="bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold">
+            Fermer
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-};
-
-export default InfoDisplayModal;
+}
