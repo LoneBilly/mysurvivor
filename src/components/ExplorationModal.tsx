@@ -6,11 +6,10 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Search, Shield, Package, Check, X, AlertTriangle, Castle } from 'lucide-react';
-import { MapCell, DiscoverableZone } from '@/types/game';
+import { MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import * as LucideIcons from "lucide-react";
 import { useGame } from '@/contexts/GameContext';
-import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import InfoDisplayModal from './InfoDisplayModal';
 
@@ -26,13 +25,19 @@ interface FoundItem {
   type: string;
 }
 
+interface NewlyDiscoveredZone {
+  id: number;
+  type: string;
+  icon: string | null;
+}
+
 interface EventResult {
   name: string;
   description: string;
   icon: string | null;
   effects: Record<string, number>;
   success: boolean;
-  discoverable_zones?: DiscoverableZone[];
+  newly_discovered_zone?: NewlyDiscoveredZone;
 }
 
 interface ScoutedTarget {
@@ -66,10 +71,8 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [progress, setProgress] = useState(0);
   const [foundItems, setFoundItems] = useState<FoundItem[] | null>(null);
   const [eventResult, setEventResult] = useState<EventResult | null>(null);
-  const [discoverableZones, setDiscoverableZones] = useState<DiscoverableZone[] | null>(null);
   const [inventoryFullError, setInventoryFullError] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
-  const [discoveringZoneId, setDiscoveringZoneId] = useState<number | null>(null);
   const [detailedInfo, setDetailedInfo] = useState<PotentialInfo | null>(null);
 
   const fetchZoneInfo = useCallback(async () => {
@@ -118,7 +121,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     setProgress(0);
     setFoundItems(null);
     setEventResult(null);
-    setDiscoverableZones(null);
     setInventoryFullError(false);
     setRemainingTime(0);
   };
@@ -145,8 +147,9 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
       if (event_result) {
         setEventResult(event_result);
-        if (event_result.discoverable_zones) {
-          setDiscoverableZones(event_result.discoverable_zones);
+        if (event_result.newly_discovered_zone) {
+          showSuccess(`Nouvelle zone découverte : ${event_result.newly_discovered_zone.type} !`);
+          await refreshPlayerData();
         }
         if (event_result.success && event_result.effects) {
           const effectsText = Object.entries(event_result.effects)
@@ -158,7 +161,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       onUpdate();
     }
     setIsExploring(false);
-  }, [zone, onUpdate]);
+  }, [zone, onUpdate, refreshPlayerData]);
 
   useEffect(() => {
     if (!isExploring) return;
@@ -187,7 +190,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     setProgress(0);
     setFoundItems(null);
     setEventResult(null);
-    setDiscoverableZones(null);
     setInventoryFullError(false);
     setRemainingTime(EXPLORATION_DURATION_S);
   };
@@ -221,19 +223,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     showInfo(`${itemToDiscard.name} a été jeté.`);
   };
 
-  const handleDiscoverZone = async (zoneId: number) => {
-    setDiscoveringZoneId(zoneId);
-    const { error } = await supabase.rpc('discover_zone', { p_zone_to_discover_id: zoneId });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Nouvelle zone découverte !");
-      await refreshPlayerData();
-      setDiscoverableZones(prev => prev?.map(z => z.id === zoneId ? { ...z, is_discovered: true } : z) || null);
-    }
-    setDiscoveringZoneId(null);
-  };
-
   useEffect(() => {
     if (foundItems !== null && foundItems.length === 0) {
       setFoundItems(null);
@@ -256,7 +245,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const resetView = () => {
     setFoundItems(null);
     setEventResult(null);
-    setDiscoverableZones(null);
   };
 
   return (
@@ -286,23 +274,15 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                           <p className="text-sm text-gray-300">{eventResult.description}</p>
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  {discoverableZones && (
-                    <div className="p-3 rounded-lg border bg-green-500/10 border-green-500/30">
-                      <h4 className="font-semibold mb-2">Zones adjacentes révélées :</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {discoverableZones.map(zone => {
-                          const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
-                          return (
-                            <Button key={zone.id} disabled={zone.is_discovered || discoveringZoneId === zone.id} onClick={() => handleDiscoverZone(zone.id)} className={cn("h-auto flex flex-col items-center p-2", zone.is_discovered ? "bg-green-500/20 border-green-500/30 cursor-not-allowed" : "bg-blue-500/20 border-blue-500/30")}>
-                              {discoveringZoneId === zone.id ? <Loader2 className="w-6 h-6 animate-spin mb-1" /> : <Icon className="w-6 h-6 mb-1" />}
-                              <span className="text-xs text-center">{zone.type}</span>
-                            </Button>
-                          );
-                        })}
-                      </div>
+                      {eventResult.newly_discovered_zone && (
+                        <div className="mt-3 p-2 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
+                          {(() => { const ZoneIcon = getEventIcon(eventResult.newly_discovered_zone.icon); return <ZoneIcon className="w-6 h-6 flex-shrink-0 text-green-300" />; })()}
+                          <div>
+                            <p className="font-semibold text-green-200">Nouvelle zone découverte !</p>
+                            <p className="text-sm text-green-400">{eventResult.newly_discovered_zone.type}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
