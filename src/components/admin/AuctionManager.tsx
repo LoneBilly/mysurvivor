@@ -9,8 +9,8 @@ import { showError } from '@/utils/toast';
 import AuctionFormModal from './AuctionFormModal';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ItemIcon from '../ItemIcon';
-import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import AuctionBidsModal from './AuctionBidsModal';
 
 interface Auction {
   id: number;
@@ -32,8 +32,8 @@ interface AuctionManagerProps {
 const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const navigate = useNavigate();
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isBidsModalOpen, setIsBidsModalOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const fetchAuctions = useCallback(async () => {
@@ -67,10 +67,10 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
         <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
           <h2 className="text-xl font-bold flex items-center gap-2"><Gavel /> Gestion des Enchères</h2>
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-            <Button onClick={() => navigate('/admin/bids')} variant="outline" className="w-full">
+            <Button onClick={() => setIsBidsModalOpen(true)} variant="outline" className="w-full">
               Voir l'historique
             </Button>
-            <Button onClick={() => setIsModalOpen(true)} className="w-full">
+            <Button onClick={() => setIsFormModalOpen(true)} className="w-full">
               <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
             </Button>
           </div>
@@ -151,13 +151,17 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
         </div>
       </div>
       <AuctionFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
         onSave={() => {
           fetchAuctions();
           onUpdate();
         }}
         allItems={allItems}
+      />
+      <AuctionBidsModal
+        isOpen={isBidsModalOpen}
+        onClose={() => setIsBidsModalOpen(false)}
       />
     </>
   );

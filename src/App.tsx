@@ -8,7 +8,6 @@ import Login from '@/pages/Login';
 import CreateProfile from '@/pages/CreateProfile';
 import Game from '@/pages/Game';
 import Admin from '@/pages/Admin';
-import AdminBids from '@/pages/AdminBids';
 import NotFound from '@/pages/NotFound';
 
 import PublicRoute from '@/components/PublicRoute';
@@ -27,7 +26,6 @@ function App() {
           <Route path="/game" element={<PrivateRoute><Game /></PrivateRoute>} />
           
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-          <Route path="/admin/bids" element={<AdminRoute><AdminBids /></AdminRoute>} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
