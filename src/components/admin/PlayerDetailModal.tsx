@@ -157,7 +157,7 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout 
               >
                 <option value="" disabled>Choisir une base...</option>
                 {mapLayout
-                  .filter(cell => cell.type.toLowerCase() !== 'unknown')
+                  .filter(cell => cell.type && cell.type.toLowerCase() !== 'unknown')
                   .map(cell => (
                     <option key={cell.id} value={cell.id.toString()}>
                       {cell.type} ({cell.x}, {cell.y})

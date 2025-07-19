@@ -142,7 +142,7 @@ export interface MapCell {
   id: number;
   x: number;
   y: number;
-  type: string;
+  type: string | null;
   icon: string | null;
   interaction_type: 'Ressource' | 'Action' | 'Non défini';
 }
