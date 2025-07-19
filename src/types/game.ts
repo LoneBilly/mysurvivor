@@ -160,7 +160,3 @@ export interface MarketListing {
   created_at: string;
   views: number;
 }
-
-export interface DiscoverableZone extends MapCell {
-  is_discovered: boolean;
-}

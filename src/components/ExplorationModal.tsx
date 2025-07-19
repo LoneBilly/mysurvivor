@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Check, X } from 'lucide-react';
-import { MapCell, DiscoverableZone } from '@/types/game';
+import { MapCell } from '@/types/game';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useGame } from '@/contexts/GameContext';
 import ItemIcon from './ItemIcon';
-import InfoDisplayModal from './InfoDisplayModal';
-import { cn } from '@/lib/utils';
-import * as LucideIcons from "lucide-react";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ExplorationModalProps {
   isOpen: boolean;
@@ -17,6 +17,21 @@ interface ExplorationModalProps {
   zone: MapCell | null;
   onUpdate: () => void;
   onOpenInventory: () => void;
+}
+
+interface PotentialLootItem {
+  items: {
+    name: string;
+    icon: string | null;
+  } | null;
+}
+
+interface PotentialEventItem {
+  events: {
+    name: string;
+    icon: string | null;
+    description: string | null;
+  } | null;
 }
 
 interface FoundItem {
@@ -34,22 +49,20 @@ interface EventResult {
   icon: string | null;
   effects: Record<string, number>;
   success: boolean;
-  discoverable_zones?: DiscoverableZone[];
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, refreshInventoryAndChests, refreshResources, refreshPlayerData, mapLayout, playerData } = useGame();
+  const { getIconUrl, playerData, setPlayerData, refreshInventoryAndChests, refreshResources } = useGame();
   const [explorationState, setExplorationState] = useState<'idle' | 'exploring' | 'results'>('idle');
   const [loot, setLoot] = useState<FoundItem[]>([]);
   const [eventResult, setEventResult] = useState<EventResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [inventoryFullError, setInventoryFullError] = useState(false);
 
-  const [potentialLoot, setPotentialLoot] = useState<{ name: string; icon: string | null; description: string | null; }[]>([]);
+  const [potentialLoot, setPotentialLoot] = useState<{ name: string; icon: string | null; }[]>([]);
   const [potentialEvents, setPotentialEvents] = useState<{ name: string; icon: string | null; description: string | null; }[]>([]);
   const [infoLoading, setInfoLoading] = useState(true);
-  const [infoModalData, setInfoModalData] = useState<{ title: string; description: string | null; icon: string | null; adjacentZones?: DiscoverableZone[] | null; } | null>(null);
-  const [adjacentZones, setAdjacentZones] = useState<DiscoverableZone[] | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!isOpen) {
@@ -58,36 +71,28 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         setLoot([]);
         setEventResult(null);
         setInventoryFullError(false);
-        setAdjacentZones(null);
       }, 300);
     } else if (zone) {
       const fetchZoneInfo = async () => {
         setInfoLoading(true);
         try {
-          const { data, error } = await supabase.rpc('get_zone_info', { p_zone_id: zone.id });
+          const [lootRes, eventsRes] = await Promise.all([
+            supabase.from('zone_items').select('items(name, icon)').eq('zone_id', zone.id),
+            supabase.from('zone_events').select('events(name, icon, description)').eq('zone_id', zone.id)
+          ]);
 
-          if (error) throw error;
+          if (lootRes.error) throw lootRes.error;
+          if (eventsRes.error) throw eventsRes.error;
 
-          setPotentialLoot(data.potentialLoot || []);
-          setPotentialEvents(data.potentialEvents || []);
+          const lootData = (lootRes.data as PotentialLootItem[])
+            .map(item => item.items)
+            .filter((item): item is { name: string; icon: string | null } => item !== null);
+          setPotentialLoot(lootData);
 
-          if (zone.interaction_type === 'Ressource') {
-            const discoveredSet = new Set(playerData.playerState.zones_decouvertes);
-            const currentZone = mapLayout.find(z => z.id === zone.id);
-            if (currentZone) {
-              const adjZones = mapLayout
-                .filter(z => 
-                  z.type && // Exclude empty zones
-                  !(z.x === currentZone.x && z.y === currentZone.y) && // Exclude center
-                  Math.abs(z.x - currentZone.x) <= 1 && // Check 3x3 square
-                  Math.abs(z.y - currentZone.y) <= 1
-                )
-                .map(z => ({ ...z, is_discovered: discoveredSet.has(z.id) }));
-              setAdjacentZones(adjZones);
-            }
-          } else {
-            setAdjacentZones(null);
-          }
+          const eventData = (eventsRes.data as PotentialEventItem[])
+            .map(item => item.events)
+            .filter((item): item is { name: string; icon: string | null; description: string | null } => item !== null);
+          setPotentialEvents(eventData);
 
         } catch (error) {
           console.error("Error fetching zone info:", error);
@@ -100,7 +105,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
       fetchZoneInfo();
     }
-  }, [isOpen, zone, mapLayout, playerData.playerState.zones_decouvertes]);
+  }, [isOpen, zone]);
 
   const handleStartExploration = async () => {
     if (!zone) return;
@@ -158,27 +163,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     showInfo(`${itemToDiscard.name} a été jeté.`);
   };
 
-  const handleDiscoverZone = async (zoneId: number) => {
-    setLoading(true);
-    const { error } = await supabase.rpc('discover_zone', { p_zone_to_discover_id: zoneId });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Nouvelle zone découverte !");
-      await refreshPlayerData();
-      setEventResult(prev => {
-        if (!prev || !prev.discoverable_zones) return prev;
-        return {
-          ...prev,
-          discoverable_zones: prev.discoverable_zones.map(z => 
-            z.id === zoneId ? { ...z, is_discovered: true } : z
-          )
-        };
-      });
-    }
-    setLoading(false);
-  };
-
   useEffect(() => {
     if (loot !== null && loot.length === 0 && explorationState === 'results') {
       if (!eventResult) {
@@ -213,30 +197,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                     {eventResult.name}
                   </h4>
                   <p className="text-sm text-gray-300">{eventResult.description}</p>
-                </div>
-              )}
-              {eventResult?.name === 'Découverte de zone' && eventResult.success && eventResult.discoverable_zones && (
-                <div className="mt-4">
-                  <h4 className="font-semibold mb-2">Zones adjacentes révélées :</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {eventResult.discoverable_zones.map(zone => {
-                      const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
-                      return (
-                        <Button
-                          key={zone.id}
-                          disabled={zone.is_discovered || loading}
-                          onClick={() => handleDiscoverZone(zone.id)}
-                          className={cn(
-                            "h-auto flex flex-col items-center p-2",
-                            zone.is_discovered ? "bg-green-500/20 border-green-500/30 cursor-not-allowed" : "bg-blue-500/20 border-blue-500/30"
-                          )}
-                        >
-                          <Icon className="w-6 h-6 mb-1" />
-                          <span className="text-xs text-center">{zone.type}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
                 </div>
               )}
               <div>
@@ -279,11 +239,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         );
       case 'idle':
       default:
-        const discoveryEvent = { name: 'Découverte de zone', description: 'Vous pourriez trouver une carte révélant une zone voisine.', icon: 'Map' };
-        const allPotentialEvents = [...potentialEvents];
-        if (zone?.interaction_type === 'Ressource') {
-            allPotentialEvents.push(discoveryEvent);
-        }
         return (
           <>
             <DialogHeader>
@@ -299,9 +254,31 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 {infoLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
                   <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-md min-h-[52px]">
                     {potentialLoot.length > 0 ? potentialLoot.map((item, index) => (
-                      <button key={`loot-${index}`} onClick={() => setInfoModalData({ title: item.name, description: item.description, icon: item.icon })} className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative cursor-pointer hover:bg-gray-600 transition-colors">
-                        <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
-                      </button>
+                      isMobile ? (
+                        <Popover key={`loot-${index}`}>
+                          <PopoverTrigger asChild>
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                              <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto text-sm p-2 bg-gray-900/80 text-white border-white/20 rounded-md">
+                            <p>{item.name}</p>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <TooltipProvider key={`loot-${index}`}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                                <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{item.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
                     )) : <p className="text-xs text-gray-500 self-center px-2">Aucun butin spécifique à cette zone.</p>}
                   </div>
                 )}
@@ -311,18 +288,34 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 <h4 className="font-semibold mb-2 text-sm text-gray-300">Événements possibles :</h4>
                 {infoLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
                   <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-md min-h-[52px]">
-                    {allPotentialEvents.length > 0 ? allPotentialEvents.map((event, index) => (
-                      <button key={`event-${index}`} onClick={() => {
-                        const isDiscovery = event.name === 'Découverte de zone';
-                        setInfoModalData({ 
-                            title: event.name, 
-                            description: event.description, 
-                            icon: event.icon,
-                            ...(isDiscovery && { adjacentZones: adjacentZones })
-                        });
-                      }} className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative cursor-pointer hover:bg-gray-600 transition-colors">
-                        <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
-                      </button>
+                    {potentialEvents.length > 0 ? potentialEvents.map((event, index) => (
+                      isMobile ? (
+                        <Popover key={`event-${index}`}>
+                          <PopoverTrigger asChild>
+                            <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                              <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto text-sm p-2 bg-gray-900/80 text-white border-white/20 rounded-md max-w-xs">
+                            <p className="font-bold">{event.name}</p>
+                            {event.description && <p className="text-xs">{event.description}</p>}
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <TooltipProvider key={`event-${index}`}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative">
+                                <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="font-bold">{event.name}</p>
+                              {event.description && <p className="text-xs">{event.description}</p>}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
                     )) : <p className="text-xs text-gray-500 self-center px-2">Aucun événement spécial dans cette zone.</p>}
                   </div>
                 )}
@@ -340,24 +333,14 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent 
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700"
-        >
-          {renderContent()}
-        </DialogContent>
-      </Dialog>
-      <InfoDisplayModal 
-        isOpen={!!infoModalData}
-        onClose={() => setInfoModalData(null)}
-        title={infoModalData?.title || ''}
-        description={infoModalData?.description || null}
-        icon={infoModalData?.icon || null}
-        adjacentZones={infoModalData?.adjacentZones}
-      />
-    </>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent 
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700"
+      >
+        {renderContent()}
+      </DialogContent>
+    </Dialog>
   );
 };
 

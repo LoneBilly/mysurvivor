@@ -65,7 +65,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   };
 
   const getCellContent = (cell: MapCell & { discovered: boolean }) => {
-    if (!cell || !cell.type) return null;
+    if (!cell || cell.type === 'unknown') return null;
     if (!cell.discovered) return <Lock className="w-1/2 h-1/2 text-gray-400" />;
     
     const IconComponent = cell.icon ? (LucideIcons as any)[cell.icon] : LucideIcons.Building2;
@@ -78,7 +78,7 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
   };
 
   const getCellStyle = (cell: MapCell & { discovered: boolean }) => {
-    if (!cell || !cell.type) {
+    if (!cell || cell.type === 'unknown') {
       return "bg-black/20 border-transparent cursor-default";
     }
 
@@ -96,13 +96,13 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
     );
   };
 
-  const formatZoneName = (name: string | null): string => {
+  const formatZoneName = (name: string): string => {
     if (!name) return "Zone Inconnue";
     return name.charAt(0).toUpperCase() + name.slice(1);
   };
 
   const handleMouseEnter = (e: React.MouseEvent, cell: MapCell & { discovered: boolean }) => {
-    if (isMobile || !cell || !cell.type) return;
+    if (isMobile || !cell || cell.type === 'unknown') return;
     const content = cell.discovered ? formatZoneName(cell.type) : "Zone non découverte";
     setTooltip({
       visible: true,
@@ -146,8 +146,8 @@ const GameGrid = ({ mapLayout, onCellSelect, discoveredZones, playerPosition, ba
               row.map((cell, x) => (
                 <button
                   key={`${x}-${y}`}
-                  onClick={() => cell && cell.type && onCellSelect(cell)}
-                  disabled={!cell || !cell.type}
+                  onClick={() => cell && cell.type !== 'unknown' && onCellSelect(cell)}
+                  disabled={!cell || cell.type === 'unknown'}
                   className={cn(
                     "relative aspect-square flex items-center justify-center font-bold rounded-lg border transition-all duration-200 w-full h-full",
                     getCellStyle(cell)
