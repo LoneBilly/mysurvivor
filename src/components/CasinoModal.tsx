@@ -21,7 +21,7 @@ interface Auction {
   item_quantity: number;
   description: string;
   items: { name: string; icon: string | null };
-  auction_bids: { amount: number }[];
+  auction_bids: { amount: number; player_id: string }[];
 }
 
 interface CasinoModalProps {
@@ -115,7 +115,11 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
   // --- Auction Logic ---
   const fetchAuctions = useCallback(async () => {
     setLoadingAuctions(true);
-    const { data, error } = await supabase.from('auctions').select('*, items(name, icon), auction_bids(amount)').eq('status', 'active');
+    const { data, error } = await supabase
+      .from('auctions')
+      .select('*, items(name, icon), auction_bids(amount, player_id)')
+      .eq('status', 'active');
+      
     if (error) showError("Impossible de charger les enchères.");
     else setAuctions(data as Auction[]);
     setLoadingAuctions(false);
@@ -138,11 +142,17 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
       showError("Crédits insuffisants.");
       return;
     }
-    const { error } = await supabase.from('auction_bids').insert({ auction_id: selectedAuction.id, amount, player_id: user.id });
+    const { error } = await supabase
+      .from('auction_bids')
+      .upsert(
+        { auction_id: selectedAuction.id, player_id: user.id, amount: amount },
+        { onConflict: 'player_id,auction_id' }
+      );
+
     if (error) {
-      showError(error.message.includes('duplicate key') ? "Vous avez déjà enchéri sur cet objet." : "Erreur lors de la mise.");
+      showError("Erreur lors de la mise à jour de l'enchère.");
     } else {
-      showSuccess("Enchère placée !");
+      showSuccess("Enchère mise à jour !");
       onUpdate();
       fetchAuctions();
       setSelectedAuction(null);
@@ -210,7 +220,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
           <div className="py-4 max-h-[60vh] overflow-y-auto space-y-3">
             {loadingAuctions ? <div className="flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
             : auctions.length > 0 ? auctions.map(auction => {
-              const userBid = auction.auction_bids[0]?.amount;
+              const userBid = auction.auction_bids.find(b => b.player_id === user?.id)?.amount;
               return (
                 <div key={auction.id} className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-4">
                   <div className="w-16 h-16 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
@@ -221,11 +231,19 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
                     <p className="text-xs text-gray-400">{auction.description}</p>
                     <p className="text-xs text-gray-300 flex items-center gap-1 mt-1"><Clock size={12} /> <Countdown endTime={auction.ends_at} /></p>
                   </div>
-                  {userBid ? (
-                    <div className="text-center"><p className="text-xs text-gray-400">Votre enchère</p><p className="font-bold text-yellow-400">{userBid}</p></div>
-                  ) : (
-                    <Button size="sm" onClick={() => setSelectedAuction(auction)}>Enchérir</Button>
-                  )}
+                  <div className="text-center flex-shrink-0">
+                    {userBid && (
+                      <p className="text-xs text-gray-400 mb-1">
+                        Votre enchère: <span className="font-bold text-yellow-400">{userBid}</span>
+                      </p>
+                    )}
+                    <Button size="sm" onClick={() => {
+                      setSelectedAuction(auction);
+                      setBidAmountAuction(userBid ? String(userBid) : '');
+                    }}>
+                      {userBid ? "Modifier" : "Enchérir"}
+                    </Button>
+                  </div>
                 </div>
               )
             }) : <p className="text-center text-gray-400">Aucune enchère en cours.</p>}
