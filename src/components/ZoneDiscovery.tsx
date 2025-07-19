@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/components/ui/use-toast";
+import { showSuccess, showError } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
-import { getIconUrl } from '@/lib/utils';
 import { ItemIcon } from './ItemIcon';
 import { Loader2 } from 'lucide-react';
+import { useGame } from '@/contexts/GameContext';
 
 type Zone = { id: number; x: number; y: number; type: string; icon: string; };
 
@@ -14,7 +14,7 @@ interface ZoneDiscoveryProps {
 }
 
 export function ZoneDiscovery({ discoverableZones, onDiscovery }: ZoneDiscoveryProps) {
-  const { toast } = useToast();
+  const { getIconUrl } = useGame();
   const [discoveringZoneId, setDiscoveringZoneId] = useState<number | null>(null);
 
   const handleDiscover = async (zoneId: number) => {
@@ -22,17 +22,10 @@ export function ZoneDiscovery({ discoverableZones, onDiscovery }: ZoneDiscoveryP
     const { error } = await supabase.rpc('discover_zone', { p_zone_to_discover_id: zoneId });
 
     if (error) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
       setDiscoveringZoneId(null);
     } else {
-      toast({
-        title: "Succès",
-        description: "Nouvelle zone découverte !",
-      });
+      showSuccess("Nouvelle zone découverte !");
       onDiscovery();
     }
   };

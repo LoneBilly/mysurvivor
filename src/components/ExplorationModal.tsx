@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { ItemIcon } from "./ItemIcon"
-import { getIconUrl } from "@/lib/utils"
 import { ZoneDiscovery } from "./ZoneDiscovery"
+import { useGame } from "@/contexts/GameContext"
 
 type LootItem = {
   item_id: number;
@@ -42,6 +42,8 @@ interface ExplorationModalProps {
 }
 
 export function ExplorationModal({ explorationResult, isOpen, onClose, onLootCollected }: ExplorationModalProps) {
+  const { getIconUrl } = useGame();
+
   if (!isOpen || !explorationResult) {
     return null;
   }
