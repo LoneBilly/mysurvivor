@@ -1,13 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import React, { useMemo, useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MapCell } from '@/types/game';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, TramFront } from 'lucide-react';
-import { MapCell } from '@/types/game';
-import CreditsInfo from './CreditsInfo';
-
-const TRAVEL_COST = 10;
+import { Loader2, Coins } from 'lucide-react';
+import Icon from './Icon';
 
 interface MetroModalProps {
   isOpen: boolean;
@@ -21,77 +20,107 @@ interface MetroModalProps {
   zoneName: string;
 }
 
-const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, credits, onUpdate, onPurchaseCredits, zoneName }: MetroModalProps) => {
-  const [selectedZoneId, setSelectedZoneId] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+const MetroModal: React.FC<MetroModalProps> = ({
+  isOpen,
+  onClose,
+  mapLayout,
+  discoveredZones,
+  currentZoneId,
+  credits,
+  onUpdate,
+  onPurchaseCredits,
+  zoneName,
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const travelCost = 10;
 
-  const travelOptions = useMemo(() => {
-    return mapLayout.filter(zone => 
-      discoveredZones.includes(zone.id) && 
-      zone.id !== currentZoneId &&
-      zone.interaction_type === 'Action' &&
-      (zone.id_name?.toLowerCase().includes('metro') || zone.type.toLowerCase().includes('métro'))
-    );
+  const travelableZones = useMemo(() => {
+    return mapLayout
+      .filter(zone => 
+        discoveredZones.includes(zone.id) && 
+        zone.id !== currentZoneId &&
+        zone.type
+      )
+      .sort((a, b) => (a.type || '').localeCompare(b.type || ''));
   }, [mapLayout, discoveredZones, currentZoneId]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setSelectedZoneId('');
-    }
-  }, [isOpen]);
-
-  const handleTravel = async () => {
-    if (!selectedZoneId) {
-      showError("Veuillez sélectionner une destination.");
+  const handleTravel = async (zoneId: number) => {
+    if (credits < travelCost) {
+      showError("Crédits insuffisants pour voyager.");
       return;
     }
-    setLoading(true);
-    const { error } = await supabase.rpc('travel_with_credits', {
-      p_target_zone_id: parseInt(selectedZoneId, 10),
-    });
-    setLoading(false);
-
+    setIsLoading(true);
+    const { error } = await supabase.rpc('travel_with_credits', { p_target_zone_id: zoneId });
     if (error) {
       showError(error.message);
     } else {
-      const destination = mapLayout.find(z => z.id === parseInt(selectedZoneId, 10));
-      showSuccess(`Voyage vers ${destination?.type || 'destination'} réussi !`);
+      showSuccess("Voyage réussi !");
       onUpdate();
       onClose();
     }
+    setIsLoading(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700"
-      >
-        <DialogHeader className="text-center">
-          <TramFront className="w-10 h-10 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
-          <DialogDescription className="sr-only">Voyagez rapidement entre les zones découvertes.</DialogDescription>
-          <CreditsInfo credits={credits} className="mt-1" onClick={onPurchaseCredits} />
-        </DialogHeader>
-        <div className="py-4 space-y-4">
-          <div>
-            <label htmlFor="destination" className="text-sm font-medium text-white font-mono">Destination</label>
-            <select
-              id="destination"
-              value={selectedZoneId}
-              onChange={(e) => setSelectedZoneId(e.target.value)}
-              className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
-            >
-              <option value="" disabled>Choisir une destination...</option>
-              {travelOptions.map(zone => (
-                <option key={zone.id} value={zone.id.toString()}>
-                  {zone.type}
-                </option>
-              ))}
-            </select>
+      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+        <DialogHeader>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-lg bg-slate-700/50 border-slate-600 flex-shrink-0 relative p-1">
+              <Icon name="Metro" className="w-full h-full text-sky-400" />
+            </div>
+            <div>
+              <DialogTitle className="text-2xl font-bold">{zoneName}</DialogTitle>
+              <DialogDescription>
+                Voyagez rapidement vers une zone découverte.
+              </DialogDescription>
+            </div>
           </div>
-          <Button onClick={handleTravel} disabled={loading || !selectedZoneId || credits < TRAVEL_COST} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Voyager (${TRAVEL_COST} crédits)`}
+        </DialogHeader>
+        <div className="my-4">
+          <div className="flex justify-between items-center p-2 rounded-md bg-slate-900/50">
+            <span className="text-slate-300">Vos crédits :</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-lg text-yellow-400">{credits}</span>
+              <Coins className="w-5 h-5 text-yellow-400" />
+            </div>
+          </div>
+        </div>
+        <ScrollArea className="max-h-[40vh] pr-4">
+          <div className="space-y-2">
+            {travelableZones.length > 0 ? (
+              travelableZones.map(zone => (
+                <div key={zone.id} className="flex items-center justify-between p-2 rounded-md bg-slate-900/50 hover:bg-slate-800/70 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Icon name={zone.icon || 'Landmark'} className="w-6 h-6 text-slate-300" />
+                    <span className="font-medium">{zone.type}</span>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleTravel(zone.id)} 
+                    disabled={isLoading || credits < travelCost}
+                    className="bg-sky-500 hover:bg-sky-600"
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                      <div className="flex items-center gap-2">
+                        <span>{travelCost}</span>
+                        <Coins className="w-4 h-4" />
+                      </div>
+                    )}
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                <p>Aucune autre destination découverte pour le moment.</p>
+                <p className="text-sm">Explorez le monde pour en trouver de nouvelles !</p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+        <div className="mt-4 text-center">
+          <Button variant="link" className="text-sky-400" onClick={onPurchaseCredits}>
+            Acheter des crédits
           </Button>
         </div>
       </DialogContent>
