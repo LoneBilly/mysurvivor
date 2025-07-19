@@ -25,8 +25,9 @@ import BountyModal from "../BountyModal";
 import WorkbenchModal from "../WorkbenchModal";
 import MoreOptionsModal from "../MoreOptionsModal";
 import HotelModal from '../HotelModal';
-import CasinoModal from '../CasinoModal';
+import RouletteModal from '../RouletteModal';
 import AuctionModal from "../AuctionModal";
+import CasinoLobbyModal from "../CasinoLobbyModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -52,7 +53,8 @@ const GameUI = () => {
   const [isBountyOpen, setIsBountyOpen] = useState(false);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const [isHotelOpen, setIsHotelOpen] = useState(false);
-  const [isCasinoOpen, setIsCasinoOpen] = useState(false);
+  const [isCasinoLobbyOpen, setIsCasinoLobbyOpen] = useState(false);
+  const [isRouletteOpen, setIsRouletteOpen] = useState(false);
   const [isAuctionOpen, setIsAuctionOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
 
@@ -143,7 +145,7 @@ const GameUI = () => {
           if (id_name?.includes('metro')) {
             setIsMetroOpen(true);
           } else if (type.toLowerCase().includes('casino')) {
-            setIsCasinoOpen(true);
+            setIsCasinoLobbyOpen(true);
           } else if (type.toLowerCase().includes('hôtel')) {
             setIsHotelOpen(true);
           } else if (type.toLowerCase().includes('enchères')) {
@@ -319,9 +321,18 @@ const GameUI = () => {
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Hôtel"}
       />
-      <CasinoModal
-        isOpen={isCasinoOpen}
-        onClose={() => setIsCasinoOpen(false)}
+      <CasinoLobbyModal
+        isOpen={isCasinoLobbyOpen}
+        onClose={() => setIsCasinoLobbyOpen(false)}
+        credits={playerData.playerState.credits}
+        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
+        zoneName={selectedZoneForAction?.type || "Casino"}
+        onOpenRoulette={() => { setIsCasinoLobbyOpen(false); setIsRouletteOpen(true); }}
+        onOpenAuction={() => { setIsCasinoLobbyOpen(false); setIsAuctionOpen(true); }}
+      />
+      <RouletteModal
+        isOpen={isRouletteOpen}
+        onClose={() => setIsRouletteOpen(false)}
         credits={playerData.playerState.credits}
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}

@@ -16,7 +16,7 @@ import CreditsInfo from "./CreditsInfo";
 import LootboxSpinner from "./LootboxSpinner";
 import { Loader2 } from "lucide-react";
 
-interface CasinoModalProps {
+interface RouletteModalProps {
   isOpen: boolean;
   onClose: () => void;
   credits: number;
@@ -25,7 +25,7 @@ interface CasinoModalProps {
   zoneName: string;
 }
 
-const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: CasinoModalProps) => {
+const RouletteModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: RouletteModalProps) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<{ winnings: number; label: string } | null>(null);
   const [spinningResult, setSpinningResult] = useState<{ winnings: number; label: string } | null>(null);
@@ -126,4 +126,4 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
   );
 };
 
-export default CasinoModal;
+export default RouletteModal;
