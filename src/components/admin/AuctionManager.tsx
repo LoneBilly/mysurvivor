@@ -18,7 +18,7 @@ interface Auction {
   status: 'active' | 'completed';
   description: string | null;
   items: { name: string; icon: string | null };
-  auction_bids: { amount: number, profiles: { username: string | null } }[];
+  auction_bids: { amount: number, profiles: { username: string | null } | null }[];
 }
 
 interface AuctionManagerProps {
@@ -35,11 +35,13 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from('auctions')
-      .select('*, items(name, icon), auction_bids(amount, profiles!inner(username))')
+      .select('*, items(name, icon), auction_bids(amount, profiles(username))')
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error("Error fetching auctions:", error);
       showError("Impossible de charger les enchères.");
+      setAuctions([]);
     } else {
       setAuctions(data as Auction[]);
     }
@@ -50,9 +52,13 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
     fetchAuctions();
   }, [fetchAuctions]);
 
-  const getWinningBid = (bids: { amount: number, profiles: { username: string | null } }[]) => {
-    if (!bids || bids.length === 0) return { amount: 0, username: 'N/A' };
-    const winning = bids.reduce((max, bid) => bid.amount > max.amount ? bid : max, bids[0]);
+  const getWinningBid = (bids: { amount: number, profiles: { username: string | null } | null }[]) => {
+    if (!bids || bids.length === 0) return { amount: 0, username: 'Aucune offre' };
+    
+    const validBids = bids.filter(bid => bid.profiles);
+    if (validBids.length === 0) return { amount: 0, username: 'Aucune offre valide' };
+
+    const winning = validBids.reduce((max, bid) => bid.amount > max.amount ? bid : max, validBids[0]);
     return { amount: winning.amount, username: winning.profiles?.username || 'Anonyme' };
   };
 
@@ -85,10 +91,10 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                     <TableRow key={auction.id} className="border-gray-700">
                       <TableCell className="font-medium flex items-center gap-3">
                         <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                          <ItemIcon iconName={getPublicIconUrl(auction.items.icon)} alt={auction.items.name} />
+                          <ItemIcon iconName={getPublicIconUrl(auction.items?.icon)} alt={auction.items?.name} />
                         </div>
                         <div>
-                          {auction.items.name} x{auction.item_quantity}
+                          {auction.items?.name || 'Objet inconnu'} x{auction.item_quantity}
                           <p className="text-xs text-gray-400 truncate max-w-xs">{auction.description}</p>
                         </div>
                       </TableCell>
