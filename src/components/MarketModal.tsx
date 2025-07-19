@@ -14,7 +14,7 @@ import { ShoppingCart } from "lucide-react";
 interface MarketModalProps {
   isOpen: boolean;
   onClose: () => void;
-  zone: MapCell;
+  zone: MapCell | null;
 }
 
 const MarketModal = ({ isOpen, onClose, zone }: MarketModalProps) => {
@@ -24,6 +24,8 @@ const MarketModal = ({ isOpen, onClose, zone }: MarketModalProps) => {
     navigate('/game/market');
     onClose();
   };
+
+  if (!zone) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

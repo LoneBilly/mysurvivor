@@ -17,7 +17,7 @@ import { Loader2, Ticket } from "lucide-react";
 interface MetroModalProps {
   isOpen: boolean;
   onClose: () => void;
-  zone: MapCell;
+  zone: MapCell | null;
 }
 
 const MetroModal = ({ isOpen, onClose, zone }: MetroModalProps) => {
@@ -37,6 +37,8 @@ const MetroModal = ({ isOpen, onClose, zone }: MetroModalProps) => {
       setLoading(false);
     }
   };
+
+  if (!zone) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

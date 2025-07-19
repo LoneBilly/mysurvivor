@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface BankModalProps {
   isOpen: boolean;
   onClose: () => void;
-  zone: MapCell;
+  zone: MapCell | null;
 }
 
 const BankModal = ({ isOpen, onClose, zone }: BankModalProps) => {
@@ -46,6 +46,8 @@ const BankModal = ({ isOpen, onClose, zone }: BankModalProps) => {
       setLoading(false);
     }
   };
+
+  if (!zone) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

@@ -17,7 +17,7 @@ import { Loader2, BedDouble } from "lucide-react";
 interface HotelModalProps {
   isOpen: boolean;
   onClose: () => void;
-  zone: MapCell;
+  zone: MapCell | null;
 }
 
 const HotelModal = ({ isOpen, onClose, zone }: HotelModalProps) => {
@@ -25,6 +25,7 @@ const HotelModal = ({ isOpen, onClose, zone }: HotelModalProps) => {
   const [loading, setLoading] = useState(false);
 
   const handleRest = async () => {
+    if (!zone) return;
     setLoading(true);
     try {
       const { error } = await supabase.rpc('rest_at_hotel', { p_zone_id: zone.id });
@@ -38,6 +39,8 @@ const HotelModal = ({ isOpen, onClose, zone }: HotelModalProps) => {
       setLoading(false);
     }
   };
+
+  if (!zone) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

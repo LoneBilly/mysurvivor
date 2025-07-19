@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 interface CasinoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  zone: MapCell;
+  zone: MapCell | null;
 }
 
 const CasinoModal = ({ isOpen, onClose, zone }: CasinoModalProps) => {
@@ -59,6 +59,8 @@ const CasinoModal = ({ isOpen, onClose, zone }: CasinoModalProps) => {
       setLoading(false);
     }
   };
+
+  if (!zone) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
