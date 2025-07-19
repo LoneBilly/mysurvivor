@@ -247,84 +247,88 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
             <option value="Non défini">Non défini (Indisponible)</option>
           </select>
         </div>
-        <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative w-full sm:flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Rechercher un objet..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-900/50 border-gray-600 pl-10"
-            />
-          </div>
-          <div className="flex w-full sm:w-auto gap-3">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="all">Tous les types</option>
-              <option value="Ressources">Ressources</option>
-              <option value="Armes">Armes</option>
-              <option value="Nourriture">Nourriture</option>
-              <option value="Soins">Soins</option>
-              <option value="Équipements">Équipements</option> {/* Added 'Équipements' */}
-              <option value="Items divers">Items divers</option>
-              <option value="Items craftés">Items craftés</option>
-            </select>
-            <Button onClick={handleCreateItem} className="flex-shrink-0">
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Ajouter</span>
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto p-4">
-        {loading ? (
-          <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredItems.map(item => (
-              <div key={item.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600/50 flex flex-col">
-                <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-lg font-semibold text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
-                  {item.name}
-                </Button>
-                <div className="grid grid-cols-2 gap-4 mt-auto pt-3 border-t border-gray-600/50">
-                  <div className="space-y-1">
-                    <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance (%)</Label>
-                    <Input
-                      id={`item-chance-${item.id}`}
-                      type="number"
-                      inputMode="numeric"
-                      min="0" max="100"
-                      value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
-                      onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
-                      onBlur={handleSaveSettings}
-                      className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Qté. Max</Label>
-                    <Input
-                      id={`item-quantity-${item.id}`}
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      value={zoneItemSettings.get(item.id)?.max_quantity || '1'}
-                      onChange={(e) => handleSettingChange(item.id, 'max_quantity', e.target.value)}
-                      onBlur={handleSaveSettings}
-                      className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="1"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+        {interactionType !== 'Action' && (
+          <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative w-full sm:flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Rechercher un objet..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-900/50 border-gray-600 pl-10"
+              />
+            </div>
+            <div className="flex w-full sm:w-auto gap-3">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="w-full sm:w-[180px] bg-gray-900/50 border-gray-600 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="all">Tous les types</option>
+                <option value="Ressources">Ressources</option>
+                <option value="Armes">Armes</option>
+                <option value="Nourriture">Nourriture</option>
+                <option value="Soins">Soins</option>
+                <option value="Équipements">Équipements</option>
+                <option value="Items divers">Items divers</option>
+                <option value="Items craftés">Items craftés</option>
+              </select>
+              <Button onClick={handleCreateItem} className="flex-shrink-0">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Ajouter</span>
+              </Button>
+            </div>
           </div>
         )}
-      </CardContent>
+      </CardHeader>
+      {interactionType !== 'Action' && (
+        <CardContent className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredItems.map(item => (
+                <div key={item.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600/50 flex flex-col">
+                  <Button variant="link" onClick={() => handleEditItem(item)} className="p-0 h-auto text-lg font-semibold text-white hover:text-blue-400 w-full justify-center mb-3 truncate">
+                    {item.name}
+                  </Button>
+                  <div className="grid grid-cols-2 gap-4 mt-auto pt-3 border-t border-gray-600/50">
+                    <div className="space-y-1">
+                      <Label htmlFor={`item-chance-${item.id}`} className="text-gray-400 text-sm">Chance (%)</Label>
+                      <Input
+                        id={`item-chance-${item.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="0" max="100"
+                        value={zoneItemSettings.get(item.id)?.spawn_chance || ''}
+                        onChange={(e) => handleSettingChange(item.id, 'spawn_chance', e.target.value)}
+                        onBlur={handleSaveSettings}
+                        className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`item-quantity-${item.id}`} className="text-gray-400 text-sm">Qté. Max</Label>
+                      <Input
+                        id={`item-quantity-${item.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        value={zoneItemSettings.get(item.id)?.max_quantity || '1'}
+                        onChange={(e) => handleSettingChange(item.id, 'max_quantity', e.target.value)}
+                        onBlur={handleSaveSettings}
+                        className="w-full bg-gray-800 border-gray-600 text-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      )}
 
       <ZoneIconEditorModal
         isOpen={isIconEditorOpen}
