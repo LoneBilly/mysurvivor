@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, PlusCircle, ArrowLeft, Save, Trash2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
 
