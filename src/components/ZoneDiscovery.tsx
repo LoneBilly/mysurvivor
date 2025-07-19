@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
-import { ItemIcon } from './ItemIcon';
+import ItemIcon from './ItemIcon';
 import { Loader2 } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 

@@ -8,7 +8,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ItemIcon } from "./ItemIcon"
+import ItemIcon from "./ItemIcon"
 import { ZoneDiscovery } from "./ZoneDiscovery"
 import { useGame } from "@/contexts/GameContext"
 
