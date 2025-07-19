@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Coins, Gavel, Clock } from 'lucide-react';
+import { Loader2, Coins, Gavel, Clock, ArrowLeft } from 'lucide-react';
 import ItemIcon from './ItemIcon';
 import { useGame } from '@/contexts/GameContext';
 import CreditsInfo from './CreditsInfo';
@@ -27,6 +27,7 @@ interface AuctionModalProps {
   onUpdate: () => void;
   onPurchaseCredits: () => void;
   zoneName: string;
+  onBackToLobby: () => void;
 }
 
 const Countdown = ({ endTime }: { endTime: string }) => {
@@ -48,7 +49,7 @@ const Countdown = ({ endTime }: { endTime: string }) => {
   return <span className="font-mono">{remaining}</span>;
 };
 
-const AuctionModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: AuctionModalProps) => {
+const AuctionModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName, onBackToLobby }: AuctionModalProps) => {
   const { getIconUrl } = useGame();
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,12 +102,19 @@ const AuctionModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, z
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-          <DialogHeader className="text-center">
-            <Gavel className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
-            <DialogDescription asChild>
-              <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
-            </DialogDescription>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" size="icon" onClick={onBackToLobby} className="absolute left-4 top-4">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div className="text-center w-full">
+                <Gavel className="w-10 h-10 mx-auto text-white mb-2" />
+                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
+                <DialogDescription asChild>
+                  <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           <div className="py-4 max-h-[60vh] overflow-y-auto space-y-3">
             {loading ? <div className="flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>

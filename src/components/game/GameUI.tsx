@@ -275,6 +275,12 @@ const GameUI = () => {
 
   const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
 
+  const handleBackToCasinoLobby = () => {
+    setIsRouletteOpen(false);
+    setIsAuctionOpen(false);
+    setIsCasinoLobbyOpen(true);
+  };
+
   return (
     <div className="h-full flex flex-col text-white">
       <GameHeader spawnDate={playerData.playerState.spawn_date} onLeaderboard={() => setIsLeaderboardOpen(true)} onOptions={() => setIsOptionsOpen(true)} currentView={currentView} onBackToMap={handleHeaderBack} />
@@ -337,6 +343,7 @@ const GameUI = () => {
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Casino"}
+        onBackToLobby={handleBackToCasinoLobby}
       />
       <AuctionModal
         isOpen={isAuctionOpen}
@@ -345,6 +352,7 @@ const GameUI = () => {
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Enchères"}
+        onBackToLobby={handleBackToCasinoLobby}
       />
       <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} />
     </div>

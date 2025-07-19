@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import CreditsInfo from "./CreditsInfo";
 import LootboxSpinner from "./LootboxSpinner";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 
 interface RouletteModalProps {
   isOpen: boolean;
@@ -23,9 +23,10 @@ interface RouletteModalProps {
   onUpdate: () => void;
   onPurchaseCredits: () => void;
   zoneName: string;
+  onBackToLobby: () => void;
 }
 
-const RouletteModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: RouletteModalProps) => {
+const RouletteModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName, onBackToLobby }: RouletteModalProps) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<{ winnings: number; label: string } | null>(null);
   const [spinningResult, setSpinningResult] = useState<{ winnings: number; label: string } | null>(null);
@@ -72,13 +73,20 @@ const RouletteModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, 
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{zoneName}</DialogTitle>
-          <DialogDescription asChild>
-            <div className="flex flex-col items-center gap-2 text-center">
-              <span>Tentez votre chance !</span>
-              <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="icon" onClick={onBackToLobby} className="absolute left-4 top-4">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="text-center w-full">
+              <DialogTitle>{zoneName}</DialogTitle>
+              <DialogDescription asChild>
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <span>Tentez votre chance !</span>
+                  <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
+                </div>
+              </DialogDescription>
             </div>
-          </DialogDescription>
+          </div>
         </DialogHeader>
         
         <div className="py-4 space-y-4">
