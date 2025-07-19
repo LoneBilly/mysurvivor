@@ -3,10 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
-import { Loader2, Search, Shield, Package, Check, X, AlertTriangle, MapPin } from 'lucide-react';
+import { Loader2, Search, Shield, Package, Check, X, AlertTriangle } from 'lucide-react';
 import { MapCell, DiscoverableZone } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import * as LucideIcons from "lucide-react";
@@ -14,23 +13,14 @@ import { useGame } from '@/contexts/GameContext';
 import { cn } from '@/lib/utils';
 
 const EXPLORATION_COST = 5;
-const EXPLORATION_DURATION_S = 3;
+const EXPLORATION_DURATION_S = 3; // Reduced for better UX
 
-interface PotentialItem {
-  name: string;
-  icon: string | null;
-  description: string | null;
-}
-
-interface PotentialEvent {
-  name: string;
-  icon: string | null;
-  description: string | null;
-}
-
-interface FoundItem extends PotentialItem {
+interface FoundItem {
   item_id: number;
   quantity: number;
+  name: string;
+  icon: string | null;
+  description: string | null;
   type: string;
 }
 
@@ -58,10 +48,9 @@ interface ExplorationModalProps {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, refreshPlayerData } = useGame();
+  const { getIconUrl, playerData, setPlayerData, refreshPlayerData } = useGame();
   const [activeTab, setActiveTab] = useState('exploration');
-  const [potentialLoot, setPotentialLoot] = useState<PotentialItem[]>([]);
-  const [potentialEvents, setPotentialEvents] = useState<PotentialEvent[]>([]);
+  const [potentialLoot, setPotentialLoot] = useState<{name: string}[]>([]);
   const [scoutedTargets, setScoutedTargets] = useState<ScoutedTarget[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExploring, setIsExploring] = useState(false);
@@ -73,17 +62,14 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [remainingTime, setRemainingTime] = useState(0);
   const [discoveringZoneId, setDiscoveringZoneId] = useState<number | null>(null);
 
-  const fetchZoneInfo = useCallback(async () => {
+  const fetchPotentialLoot = useCallback(async () => {
     if (!zone) return;
     setLoading(true);
-    const { data, error } = await supabase.rpc('get_zone_info', { p_zone_id: zone.id });
+    const { data, error } = await supabase.from('zone_items').select('items(name)').eq('zone_id', zone.id);
     if (error) {
-      showError("Impossible de charger les informations de la zone.");
-      setPotentialLoot([]);
-      setPotentialEvents([]);
+      showError("Impossible de charger les objets potentiels.");
     } else {
-      setPotentialLoot(data.potentialLoot || []);
-      setPotentialEvents(data.potentialEvents || []);
+      setPotentialLoot(data.map(d => d.items).filter(Boolean) as {name: string}[]);
     }
     setLoading(false);
   }, [zone]);
@@ -111,12 +97,12 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   useEffect(() => {
     if (isOpen) {
-      if (activeTab === 'exploration') fetchZoneInfo();
+      if (activeTab === 'exploration') fetchPotentialLoot();
       if (activeTab === 'pvp') fetchScoutedTargets();
     } else {
       resetState();
     }
-  }, [isOpen, activeTab, fetchZoneInfo, fetchScoutedTargets]);
+  }, [isOpen, activeTab, fetchPotentialLoot, fetchScoutedTargets]);
 
   const finishExploration = useCallback(async () => {
     if (!zone) return;
@@ -231,7 +217,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     return scoutedTargets.filter(target => target.base_zone_type === zone.type);
   }, [scoutedTargets, zone]);
 
-  const canExplore = potentialLoot.length > 0 || potentialEvents.length > 0;
+  const canExplore = potentialLoot.length > 0;
 
   const getEventIcon = (iconName: string | null) => {
     if (!iconName) return AlertTriangle;
@@ -316,7 +302,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                   </div>
                 )}
 
-                {!foundItems && !discoverableZones && (
+                {!foundItems && (
                   <div className="text-center pt-2">
                     <Button onClick={resetView}>Continuer</Button>
                   </div>
@@ -333,55 +319,16 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 <div>
                   <h4 className="font-semibold mb-2">Butin potentiel :</h4>
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                    <TooltipProvider>
-                      <div className="flex flex-wrap gap-2">
-                        {potentialLoot.length > 0 ? potentialLoot.map((item, index) => (
-                          <Tooltip key={`${item.name}-${index}`}>
-                            <TooltipTrigger>
-                              <div className="w-10 h-10 bg-white/10 rounded flex items-center justify-center">
-                                <ItemIcon iconName={getIconUrl(item.icon)} alt={item.name} />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="font-bold">{item.name}</p>
-                              {item.description && <p className="text-xs">{item.description}</p>}
-                            </TooltipContent>
-                          </Tooltip>
-                        )) : (
-                          <span className="text-gray-400 text-sm">Aucun objet connu dans cette zone.</span>
-                        )}
-                      </div>
-                    </TooltipProvider>
+                    <div className="flex flex-wrap gap-2">
+                      {potentialLoot.length > 0 ? potentialLoot.map((item, index) => (
+                        <span key={`${item.name}-${index}`} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>
+                      )) : (
+                        <span className="text-gray-400 text-sm">Aucun objet disponible dans cette zone</span>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-2 mt-4">Événements possibles :</h4>
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                    <TooltipProvider>
-                      <div className="flex flex-wrap gap-2">
-                        {potentialEvents.length > 0 ? potentialEvents.map((event, index) => {
-                          const EventIcon = getEventIcon(event.icon);
-                          return (
-                            <Tooltip key={`${event.name}-${index}`}>
-                              <TooltipTrigger>
-                                <div className="w-10 h-10 bg-white/10 rounded flex items-center justify-center">
-                                  <EventIcon className="w-6 h-6" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="font-bold">{event.name}</p>
-                                {event.description && <p className="text-xs">{event.description}</p>}
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        }) : (
-                          <span className="text-gray-400 text-sm">Aucun événement particulier à signaler.</span>
-                        )}
-                      </div>
-                    </TooltipProvider>
-                  )}
-                </div>
-                <Button onClick={handleStartExploration} className="w-full pt-4" disabled={!canExplore || loading}>
+                <Button onClick={handleStartExploration} className="w-full" disabled={!canExplore}>
                   {canExplore ? `Lancer l'exploration (${EXPLORATION_COST} énergie, ${EXPLORATION_DURATION_S}s)` : "Exploration indisponible"}
                 </Button>
               </div>
