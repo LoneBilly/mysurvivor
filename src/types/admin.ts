@@ -8,6 +8,7 @@ export interface Item {
   stackable: boolean;
   type: string;
   use_action_text: string;
+  effects?: Record<string, any>;
 }
 
 export interface ZoneItem {

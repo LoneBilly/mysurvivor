@@ -12,6 +12,7 @@ export interface ItemDetails {
   type?: string;
   use_action_text: string;
   stackable: boolean;
+  effects?: Record<string, any>;
 }
 
 export interface InventoryItem {
@@ -155,6 +156,7 @@ export interface Item {
   icon: string | null;
   type: string;
   use_action_text: string;
+  effects?: Record<string, any>;
 }
 
 export interface MarketListing {
