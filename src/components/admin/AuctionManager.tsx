@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, PlusCircle, Gavel } from 'lucide-react';
 import { Item } from '@/types/admin';
 import { showError } from '@/utils/toast';
@@ -9,6 +10,7 @@ import AuctionFormModal from './AuctionFormModal';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ItemIcon from '../ItemIcon';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Auction {
   id: number;
@@ -32,6 +34,7 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const fetchAuctions = useCallback(async () => {
     setLoading(true);
@@ -61,13 +64,13 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   return (
     <>
       <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
-        <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
+        <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
           <h2 className="text-xl font-bold flex items-center gap-2"><Gavel /> Gestion des Enchères</h2>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => navigate('/admin/bids')} variant="outline">
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <Button onClick={() => navigate('/admin/bids')} variant="outline" className="w-full">
               Voir l'historique
             </Button>
-            <Button onClick={() => setIsModalOpen(true)}>
+            <Button onClick={() => setIsModalOpen(true)} className="w-full">
               <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
             </Button>
           </div>
@@ -75,6 +78,37 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
         <div className="flex-grow overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+          ) : isMobile ? (
+            <div className="p-4 space-y-3">
+              {auctions.map(auction => {
+                const winningBid = getWinningBid(auction.auction_bids);
+                return (
+                  <Card key={auction.id} className="bg-gray-800/60 border-gray-700">
+                    <CardHeader className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                          <ItemIcon iconName={getPublicIconUrl(auction.items.icon)} alt={auction.items.name} />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">{auction.items.name} x{auction.item_quantity}</CardTitle>
+                          <p className="text-xs text-gray-400 truncate max-w-[200px]">{auction.description}</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-400">Statut: </span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${auction.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>
+                          {auction.status === 'active' ? 'Active' : 'Terminée'}
+                        </span>
+                      </div>
+                      <div><span className="text-gray-400">Fin le: </span>{new Date(auction.ends_at).toLocaleString('fr-FR')}</div>
+                      <div><span className="text-gray-400">Offre max: </span>{winningBid.amount} crédits ({winningBid.username})</div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           ) : (
             <Table>
               <TableHeader>
