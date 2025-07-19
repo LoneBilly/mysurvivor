@@ -20,7 +20,7 @@ const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZ
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
         <DialogHeader>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-lg bg-slate-700/50 border-slate-600 flex-shrink-0 relative p-1">
