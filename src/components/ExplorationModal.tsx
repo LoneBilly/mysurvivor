@@ -218,29 +218,25 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               {eventResult?.name === 'Découverte de zone' && eventResult.success && eventResult.discoverable_zones && (
                 <div className="mt-4">
                   <h4 className="font-semibold mb-2">Zones adjacentes révélées :</h4>
-                  {eventResult.discoverable_zones.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {eventResult.discoverable_zones.map(zone => {
-                        const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
-                        return (
-                          <Button
-                            key={zone.id}
-                            disabled={zone.is_discovered || loading}
-                            onClick={() => handleDiscoverZone(zone.id)}
-                            className={cn(
-                              "h-auto flex flex-col items-center p-2",
-                              zone.is_discovered ? "bg-green-500/20 border-green-500/30 cursor-not-allowed" : "bg-blue-500/20 border-blue-500/30"
-                            )}
-                          >
-                            <Icon className="w-6 h-6 mb-1" />
-                            <span className="text-xs text-center">{zone.type}</span>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic text-center py-2">Aucune nouvelle zone adjacente n'a été trouvée.</p>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {eventResult.discoverable_zones.map(zone => {
+                      const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
+                      return (
+                        <Button
+                          key={zone.id}
+                          disabled={zone.is_discovered || loading}
+                          onClick={() => handleDiscoverZone(zone.id)}
+                          className={cn(
+                            "h-auto flex flex-col items-center p-2",
+                            zone.is_discovered ? "bg-green-500/20 border-green-500/30 cursor-not-allowed" : "bg-blue-500/20 border-blue-500/30"
+                          )}
+                        >
+                          <Icon className="w-6 h-6 mb-1" />
+                          <span className="text-xs text-center">{zone.type}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               <div>
