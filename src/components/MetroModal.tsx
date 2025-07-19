@@ -29,8 +29,8 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
     return mapLayout.filter(zone => 
       discoveredZones.includes(zone.id) && 
       zone.id !== currentZoneId &&
-      zone.interaction_type === 'Action' &&
-      (zone.id_name?.toLowerCase().includes('metro') || zone.type.toLowerCase().includes('métro'))
+      zone.interaction_type === 'Action' && // Ensure it's an action zone
+      zone.id_name?.includes('metro') // Use id_name for specific metro check
     );
   }, [mapLayout, discoveredZones, currentZoneId]);
 
@@ -85,7 +85,7 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
               <option value="" disabled>Choisir une destination...</option>
               {travelOptions.map(zone => (
                 <option key={zone.id} value={zone.id.toString()}>
-                  {zone.type}
+                  {zone.type} ({zone.x}, {zone.y})
                 </option>
               ))}
             </select>
