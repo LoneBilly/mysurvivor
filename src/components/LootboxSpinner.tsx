@@ -23,8 +23,10 @@ const TARGET_INDEX = 45;
 
 const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd }) => {
   const [translateX, setTranslateX] = useState(0);
+  const [isCalculating, setIsCalculating] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number>();
 
   const spinnerItems = useMemo(() => {
     const items = [];
@@ -50,35 +52,38 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
       const finalPosition = (containerWidth / 2) - (TARGET_INDEX * totalItemWidth + totalItemWidth / 2);
       const randomOffset = (Math.random() - 0.5) * (totalItemWidth * 0.8);
 
-      requestAnimationFrame(() => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      animationFrameRef.current = requestAnimationFrame(() => {
         setTranslateX(finalPosition + randomOffset);
+        if (isCalculating) {
+          setIsCalculating(false);
+        }
       });
     }
-  }, []);
+  }, [isCalculating]);
 
   useEffect(() => {
-    calculatePosition();
+    const containerElement = containerRef.current;
+    if (!containerElement) return;
+
+    const observer = new ResizeObserver(() => {
+        calculatePosition();
+    });
+    observer.observe(containerElement);
 
     const animationDuration = 5000;
     const timeoutId = setTimeout(() => {
       onSpinEnd();
     }, animationDuration + 200);
 
-    const containerElement = containerRef.current;
-    const resizeObserver = new ResizeObserver(() => {
-      // Recalculate without transition for immediate adjustment
-      setTranslateX(0); // Reset briefly to avoid visual glitch
-      setTimeout(calculatePosition, 0);
-    });
-
-    if (containerElement) {
-      resizeObserver.observe(containerElement);
-    }
-
     return () => {
       clearTimeout(timeoutId);
-      if (containerElement) {
-        resizeObserver.unobserve(containerElement);
+      observer.unobserve(containerElement);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [resultLabel, onSpinEnd, calculatePosition]);
@@ -100,8 +105,9 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
       <div
         className="flex h-full items-center"
         style={{
+          visibility: isCalculating ? 'hidden' : 'visible',
           transform: `translateX(${translateX}px)`,
-          transition: 'transform 5s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          transition: isCalculating ? 'none' : 'transform 5s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
         {spinnerItems.map((item, index) => (
