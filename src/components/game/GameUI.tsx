@@ -139,19 +139,19 @@ const GameUI = () => {
         case 'Action':
           if (id_name?.includes('metro')) {
             setIsMetroOpen(true);
-          } else if (type.toLowerCase().includes('casino')) {
+          } else if (id_name === 'casino') {
             setSelectedZoneForAction(cell);
             setIsCasinoOpen(true);
-          } else if (type.toLowerCase().includes('hotel')) {
+          } else if (id_name === 'hotel') {
             setSelectedZoneForAction(cell);
             setIsHotelOpen(true);
-          } else if (id === 10) { // Marché
+          } else if (id_name === 'market') {
             setIsMarketOpen(true);
-          } else if (id === 2) { // Commissariat
+          } else if (id_name === 'bounty_office') {
             setIsBountyOpen(true);
-          } else if (id === 12) { // Faction: Scouts
+          } else if (id_name === 'scout_faction') {
             setIsFactionScoutsModalOpen(true);
-          } else if (type.toLowerCase().includes('banque')) { // Bank (still using type for generic bank)
+          } else if (id_name === 'bank') {
             setIsBankOpen(true);
           } else {
             setModalState({
