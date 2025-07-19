@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Check, X } from 'lucide-react';
-import { MapCell } from '@/types/game';
+import { MapCell, DiscoverableZone } from '@/types/game';
 import { useGame } from '@/contexts/GameContext';
 import ItemIcon from './ItemIcon';
 import InfoDisplayModal from './InfoDisplayModal';
@@ -28,10 +28,6 @@ interface FoundItem {
   type: string;
 }
 
-interface DiscoverableZone extends MapCell {
-  is_discovered: boolean;
-}
-
 interface EventResult {
   name: string;
   description: string;
@@ -42,7 +38,7 @@ interface EventResult {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, refreshInventoryAndChests, refreshResources, refreshPlayerData } = useGame();
+  const { getIconUrl, refreshInventoryAndChests, refreshResources, refreshPlayerData, mapLayout, playerData } = useGame();
   const [explorationState, setExplorationState] = useState<'idle' | 'exploring' | 'results'>('idle');
   const [loot, setLoot] = useState<FoundItem[]>([]);
   const [eventResult, setEventResult] = useState<EventResult | null>(null);
@@ -52,7 +48,8 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [potentialLoot, setPotentialLoot] = useState<{ name: string; icon: string | null; description: string | null; }[]>([]);
   const [potentialEvents, setPotentialEvents] = useState<{ name: string; icon: string | null; description: string | null; }[]>([]);
   const [infoLoading, setInfoLoading] = useState(true);
-  const [infoModalData, setInfoModalData] = useState<{ title: string; description: string | null; icon: string | null } | null>(null);
+  const [infoModalData, setInfoModalData] = useState<{ title: string; description: string | null; icon: string | null; adjacentZones?: DiscoverableZone[] | null; } | null>(null);
+  const [adjacentZones, setAdjacentZones] = useState<DiscoverableZone[] | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -61,6 +58,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         setLoot([]);
         setEventResult(null);
         setInventoryFullError(false);
+        setAdjacentZones(null);
       }, 300);
     } else if (zone) {
       const fetchZoneInfo = async () => {
@@ -84,6 +82,19 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
             .filter((item): item is { name: string; icon: string | null; description: string | null; } => item !== null);
           setPotentialEvents(eventData);
 
+          if (zone.interaction_type === 'Ressource') {
+            const discoveredSet = new Set(playerData.playerState.zones_decouvertes);
+            const currentZone = mapLayout.find(z => z.id === zone.id);
+            if (currentZone) {
+              const adjZones = mapLayout
+                .filter(z => (Math.abs(z.x - currentZone.x) + Math.abs(z.y - currentZone.y)) === 1)
+                .map(z => ({ ...z, is_discovered: discoveredSet.has(z.id) }));
+              setAdjacentZones(adjZones);
+            }
+          } else {
+            setAdjacentZones(null);
+          }
+
         } catch (error) {
           console.error("Error fetching zone info:", error);
           setPotentialLoot([]);
@@ -95,7 +106,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
       fetchZoneInfo();
     }
-  }, [isOpen, zone]);
+  }, [isOpen, zone, mapLayout, playerData.playerState.zones_decouvertes]);
 
   const handleStartExploration = async () => {
     if (!zone) return;
@@ -274,6 +285,11 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         );
       case 'idle':
       default:
+        const discoveryEvent = { name: 'Découverte de zone', description: 'Vous pourriez trouver une carte révélant une zone voisine.', icon: 'Map' };
+        const allPotentialEvents = [...potentialEvents];
+        if (zone?.interaction_type === 'Ressource') {
+            allPotentialEvents.push(discoveryEvent);
+        }
         return (
           <>
             <DialogHeader>
@@ -301,8 +317,16 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                 <h4 className="font-semibold mb-2 text-sm text-gray-300">Événements possibles :</h4>
                 {infoLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
                   <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-md min-h-[52px]">
-                    {potentialEvents.length > 0 ? potentialEvents.map((event, index) => (
-                      <button key={`event-${index}`} onClick={() => setInfoModalData({ title: event.name, description: event.description, icon: event.icon })} className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative cursor-pointer hover:bg-gray-600 transition-colors">
+                    {allPotentialEvents.length > 0 ? allPotentialEvents.map((event, index) => (
+                      <button key={`event-${index}`} onClick={() => {
+                        const isDiscovery = event.name === 'Découverte de zone';
+                        setInfoModalData({ 
+                            title: event.name, 
+                            description: event.description, 
+                            icon: event.icon,
+                            ...(isDiscovery && { adjacentZones: adjacentZones })
+                        });
+                      }} className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center relative cursor-pointer hover:bg-gray-600 transition-colors">
                         <ItemIcon iconName={getIconUrl(event.icon) || event.icon} alt={event.name} />
                       </button>
                     )) : <p className="text-xs text-gray-500 self-center px-2">Aucun événement spécial dans cette zone.</p>}
@@ -337,6 +361,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         title={infoModalData?.title || ''}
         description={infoModalData?.description || null}
         icon={infoModalData?.icon || null}
+        adjacentZones={infoModalData?.adjacentZones}
       />
     </>
   );

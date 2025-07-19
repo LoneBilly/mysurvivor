@@ -1,6 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ItemIcon from "./ItemIcon";
 import { useGame } from "@/contexts/GameContext";
+import { DiscoverableZone } from "@/types/game";
+import { cn } from "@/lib/utils";
+import * as LucideIcons from "lucide-react";
 
 interface InfoDisplayModalProps {
   isOpen: boolean;
@@ -8,9 +11,10 @@ interface InfoDisplayModalProps {
   title: string;
   description: string | null;
   icon: string | null;
+  adjacentZones?: DiscoverableZone[] | null;
 }
 
-const InfoDisplayModal = ({ isOpen, onClose, title, description, icon }: InfoDisplayModalProps) => {
+const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZones }: InfoDisplayModalProps) => {
   const { getIconUrl } = useGame();
   const iconUrl = getIconUrl(icon);
 
@@ -32,6 +36,23 @@ const InfoDisplayModal = ({ isOpen, onClose, title, description, icon }: InfoDis
             <p className="text-gray-300">{description}</p>
           ) : (
             <p className="text-gray-400 italic">Aucune description disponible.</p>
+          )}
+          {adjacentZones && (
+            <div className="mt-4">
+              <h4 className="font-semibold mb-2">Zones adjacentes potentiellement découvertes :</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {adjacentZones.map(zone => {
+                  const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
+                  return (
+                    <div key={zone.id} className={cn("p-2 rounded-md flex flex-col items-center", zone.is_discovered ? "bg-green-500/20 border border-green-500/30" : "bg-blue-500/20 border border-blue-500/30")}>
+                      <Icon className="w-6 h-6 mb-1" />
+                      <span className="text-xs text-center">{zone.type}</span>
+                      {zone.is_discovered && <span className="text-xs text-green-300">(Déjà découvert)</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       </DialogContent>
