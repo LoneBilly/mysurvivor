@@ -18,9 +18,17 @@ export interface InventoryItem {
   id: number;
   item_id: number;
   quantity: number;
-  slot_position: number;
+  slot_position: number | null;
   items: ItemDetails | null;
   workbench_id?: number;
+}
+
+export interface Equipment {
+  armor: InventoryItem | null;
+  backpack: InventoryItem | null;
+  weapon: InventoryItem | null;
+  shoes: InventoryItem | null;
+  vehicle: InventoryItem | null;
 }
 
 export interface BaseConstruction {
@@ -120,6 +128,7 @@ export interface ChestItem {
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
+  equipment: Equipment;
   baseConstructions: BaseConstruction[];
   scoutingMissions: ScoutingMission[];
   constructionJobs?: ConstructionJob[];
