@@ -138,19 +138,14 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
       showError("Montant invalide.");
       return;
     }
-    if (credits < amount) {
-      showError("Crédits insuffisants.");
-      return;
-    }
-    const { error } = await supabase
-      .from('auction_bids')
-      .upsert(
-        { auction_id: selectedAuction.id, player_id: user.id, amount: amount },
-        { onConflict: 'player_id,auction_id' }
-      );
+
+    const { error } = await supabase.rpc('place_or_update_bid', {
+      p_auction_id: selectedAuction.id,
+      p_amount: amount,
+    });
 
     if (error) {
-      showError("Erreur lors de la mise à jour de l'enchère.");
+      showError(error.message);
     } else {
       showSuccess("Enchère mise à jour !");
       onUpdate();
