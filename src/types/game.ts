@@ -135,6 +135,7 @@ export interface MapCell {
   type: string;
   icon: string | null;
   interaction_type: 'Ressource' | 'Action' | 'Non défini';
+  id_name: string | null;
 }
 
 export interface Item {
@@ -159,8 +160,4 @@ export interface MarketListing {
   price: number;
   created_at: string;
   views: number;
-}
-
-export interface DiscoverableZone extends MapCell {
-  is_discovered: boolean;
 }

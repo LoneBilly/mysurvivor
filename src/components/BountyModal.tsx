@@ -12,13 +12,12 @@ interface BountyModalProps {
   onClose: () => void;
   credits: number;
   onUpdate: () => void;
-  zoneName: string;
 }
 
 type TargetPlayer = { id: string; username: string };
 type ActiveBounty = { placer_username: string; target_username: string; amount: number; created_at: string };
 
-const BountyModal = ({ isOpen, onClose, credits, onUpdate, zoneName }: BountyModalProps) => {
+const BountyModal = ({ isOpen, onClose, credits, onUpdate }: BountyModalProps) => {
   const [activeTab, setActiveTab] = useState('place');
   const [targetPlayers, setTargetPlayers] = useState<TargetPlayer[]>([]);
   const [activeBounties, setActiveBounties] = useState<ActiveBounty[]>([]);
@@ -101,7 +100,7 @@ const BountyModal = ({ isOpen, onClose, credits, onUpdate, zoneName }: BountyMod
       >
         <DialogHeader className="text-center">
           <Shield className="w-10 h-10 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Commissariat</DialogTitle>
           <DialogDescription>Placez ou consultez les primes sur la tête des survivants.</DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">

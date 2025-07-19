@@ -19,7 +19,7 @@ interface InventoryModalProps {
   onClose: () => void;
   inventory: InventoryItem[];
   unlockedSlots: number;
-  onUpdate: () => Promise<void>;
+  onUpdate: (silent?: boolean) => Promise<void>;
 }
 
 const TOTAL_SLOTS = 50;
@@ -108,7 +108,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
         console.error(error);
         setSlots(originalSlots);
     } else {
-        onUpdate();
+        onUpdate(true);
     }
   }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user, onUpdate]);
 
@@ -204,7 +204,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     } else {
       showSuccess("Objet jeté.");
       setDetailedItem(null);
-      onUpdate();
+      onUpdate(true);
     }
   };
 
@@ -221,7 +221,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     } else {
       showSuccess("Objets jetés.");
       setDetailedItem(null);
-      onUpdate();
+      onUpdate(true);
     }
   };
 

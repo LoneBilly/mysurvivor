@@ -13,10 +13,9 @@ interface BankModalProps {
   credits: number;
   bankBalance: number;
   onUpdate: () => void;
-  zoneName: string;
 }
 
-const BankModal = ({ isOpen, onClose, credits, bankBalance, onUpdate, zoneName }: BankModalProps) => {
+const BankModal = ({ isOpen, onClose, credits, bankBalance, onUpdate }: BankModalProps) => {
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,7 +79,7 @@ const BankModal = ({ isOpen, onClose, credits, bankBalance, onUpdate, zoneName }
       <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
         <DialogHeader className="text-center">
           <Landmark className="w-10 h-10 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Banque Centrale</DialogTitle>
           <DialogDescription>Gérez vos finances en toute sécurité.</DialogDescription>
         </DialogHeader>
         <div className="text-center my-4 p-3 bg-white/5 rounded-lg">

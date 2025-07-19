@@ -18,18 +18,15 @@ import { Loader2 } from 'lucide-react';
 interface RecipeEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (recipeData: Partial<CraftingRecipe>) => void; // Changed to return recipe data
+  onSave: (recipeId: number) => void;
   resultItem: Item;
   recipeId: number | null;
-  isNewItem: boolean; // New prop to indicate if it's for a new item
-  initialRecipeData?: Partial<CraftingRecipe> | null; // New prop for initial draft data
 }
 
-const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNewItem, initialRecipeData }: RecipeEditorModalProps) => {
+const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId }: RecipeEditorModalProps) => {
   const [items, setItems] = useState<Item[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Partial<CraftingRecipe>>({});
   const [loading, setLoading] = useState(false);
-  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -41,123 +38,47 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
 
   useEffect(() => {
     const fetchRecipe = async () => {
-      if (isNewItem) {
-        // For new items, use initialRecipeData if provided, otherwise default values
-        setEditingRecipe(initialRecipeData || {
-          result_item_id: resultItem.id,
-          result_quantity: 1,
-          craft_time_seconds: 10,
-          slot1_item_id: null,
-          slot1_quantity: null,
-          slot2_item_id: null,
-          slot2_quantity: null,
-          slot3_item_id: null,
-          slot3_quantity: null,
-        });
-      } else if (recipeId) { // Only fetch if it's an existing recipe for an existing item
+      if (recipeId) {
         setLoading(true);
         const { data } = await supabase.from('crafting_recipes').select('*').eq('id', recipeId).single();
         setEditingRecipe(data || {});
         setLoading(false);
-      } else { // Existing item but no recipe yet
+      } else {
         setEditingRecipe({
           result_item_id: resultItem.id,
           result_quantity: 1,
           craft_time_seconds: 10,
-          slot1_item_id: null,
-          slot1_quantity: null,
-          slot2_item_id: null,
-          slot2_quantity: null,
-          slot3_item_id: null,
-          slot3_quantity: null,
         });
       }
     };
     if (isOpen) {
       fetchRecipe();
-      setDuplicateError(null); // Clear duplicate error on open
     }
-  }, [isOpen, recipeId, resultItem.id, isNewItem, initialRecipeData]);
+  }, [isOpen, recipeId, resultItem.id]);
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingRecipe) return;
 
-    const recipeDataToSave: Partial<CraftingRecipe> = {
-      result_item_id: resultItem.id, // Will be null for new items, filled by RPC
-      result_quantity: editingRecipe.result_quantity || 1,
-      craft_time_seconds: editingRecipe.craft_time_seconds || 10,
-      slot1_item_id: editingRecipe.slot1_item_id || null,
-      slot1_quantity: editingRecipe.slot1_quantity || null,
-      slot2_item_id: editingRecipe.slot2_item_id || null,
-      slot2_quantity: editingRecipe.slot2_quantity || null,
-      slot3_item_id: editingRecipe.slot3_item_id || null,
-      slot3_quantity: editingRecipe.slot3_quantity || null,
-    };
+    const { id, ...recipeData } = editingRecipe;
+    recipeData.result_item_id = resultItem.id;
 
-    // Check for duplicates before saving
-    setLoading(true);
-    const { data: duplicateCheck, error: duplicateErrorRpc } = await supabase.rpc('check_duplicate_recipe_inputs', {
-      p_slot1_item_id: recipeDataToSave.slot1_item_id,
-      p_slot1_quantity: recipeDataToSave.slot1_quantity,
-      p_slot2_item_id: recipeDataToSave.slot2_item_id,
-      p_slot2_quantity: recipeDataToSave.slot2_quantity,
-      p_slot3_item_id: recipeDataToSave.slot3_item_id,
-      p_slot3_quantity: recipeDataToSave.slot3_quantity,
-      p_current_recipe_id: editingRecipe.id || null // Exclude current recipe if editing
-    });
+    // Clean up optional fields
+    if (!recipeData.slot1_item_id) { recipeData.slot1_item_id = null; recipeData.slot1_quantity = null; }
+    if (!recipeData.slot2_item_id) { recipeData.slot2_item_id = null; recipeData.slot2_quantity = null; }
+    if (!recipeData.slot3_item_id) { recipeData.slot3_item_id = null; recipeData.slot3_quantity = null; }
 
-    if (duplicateErrorRpc) {
-      showError("Erreur lors de la vérification des doublons.");
-      console.error(duplicateErrorRpc);
-      setLoading(false);
-      return;
-    }
+    const { data, error } = id
+      ? await supabase.from('crafting_recipes').update(recipeData).eq('id', id).select().single()
+      : await supabase.from('crafting_recipes').insert(recipeData).select().single();
 
-    if (duplicateCheck && duplicateCheck.length > 0) {
-      const duplicate = duplicateCheck[0];
-      const ingredientDetails = [];
-      if (duplicate.s1_item_id) ingredientDetails.push(`Slot 1: ${items.find(i => i.id === duplicate.s1_item_id)?.name || 'Objet inconnu'} x${duplicate.s1_qty}`);
-      if (duplicate.s2_item_id) ingredientDetails.push(`Slot 2: ${items.find(i => i.id === duplicate.s2_item_id)?.name || 'Objet inconnu'} x${duplicate.s2_qty}`);
-      if (duplicate.s3_item_id) ingredientDetails.push(`Slot 3: ${items.find(i => i.id === duplicate.s3_item_id)?.name || 'Objet inconnu'} x${duplicate.s3_qty}`);
-      
-      setDuplicateError(
-        `Cette combinaison d'ingrédients est déjà utilisée pour fabriquer "${duplicate.result_item_name}". ` +
-        `Détails: ${ingredientDetails.join(', ')}.`
-      );
-      setLoading(false);
-      return;
-    }
-    setDuplicateError(null); // Clear error if no duplicate found
-
-    if (isNewItem) {
-      // For new items, just pass the data back to ItemFormModal
-      onSave(recipeDataToSave);
-      onClose();
+    if (error) {
+      showError(error.message);
     } else {
-      // For existing items, save directly to DB
-      const { data, error } = editingRecipe.id
-        ? await supabase.from('crafting_recipes').update(recipeDataToSave).eq('id', editingRecipe.id).select().single()
-        : await supabase.from('crafting_recipes').insert(recipeDataToSave).select().single();
-
-      if (error) {
-        showError(error.message);
-      } else {
-        showSuccess(`Recette ${editingRecipe.id ? 'mise à jour' : 'créée'}.`);
-        // Also update the item's recipe_id if it's a new recipe for an existing item
-        if (!editingRecipe.id && resultItem.id) {
-          await supabase.from('items').update({ recipe_id: data.id }).eq('id', resultItem.id);
-        }
-        onSave(data); // Pass the saved recipe data back
-        onClose();
-      }
-      setLoading(false);
+      showSuccess(`Recette ${id ? 'mise à jour' : 'créée'}.`);
+      onSave(data.id);
+      onClose();
     }
-  };
-
-  const handleRecipeChange = (field: keyof CraftingRecipe, value: any) => {
-    setEditingRecipe(prev => ({ ...prev, [field]: value }));
-    setDuplicateError(null); // Clear error on any change
   };
 
   const renderSlotInput = (slot: 1 | 2 | 3) => (
@@ -166,24 +87,17 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
         <Label>{`Slot ${slot}`}</Label>
         <select
           value={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] || ''}
-          onChange={(e) => {
-            const itemId = e.target.value ? parseInt(e.target.value) : null;
-            setEditingRecipe(prev => {
-              const newRecipe = { ...prev } as Partial<CraftingRecipe>;
-              (newRecipe as any)[`slot${slot}_item_id`] = itemId;
-              // If an item is selected, set quantity to 1 if it's not already set or is 0
-              if (itemId !== null) {
-                if (!(newRecipe as any)[`slot${slot}_quantity`] || (newRecipe as any)[`slot${slot}_quantity`] === 0) {
-                  (newRecipe as any)[`slot${slot}_quantity`] = 1;
-                }
-              } else {
-                // If no item is selected, clear the quantity
-                (newRecipe as any)[`slot${slot}_quantity`] = null;
-              }
-              return newRecipe;
-            });
-            setDuplicateError(null); // Clear error on any change
-          }}
+          onChange={(e) => setEditingRecipe(prev => {
+            const newRecipe = { ...prev } as Partial<CraftingRecipe>;
+            const itemId = e.target.value ? parseInt(e.target.value) : undefined;
+            (newRecipe as any)[`slot${slot}_item_id`] = itemId;
+            if (itemId) {
+              (newRecipe as any)[`slot${slot}_quantity`] = (newRecipe as any)[`slot${slot}_quantity`] || 1;
+            } else {
+              (newRecipe as any)[`slot${slot}_quantity`] = undefined;
+            }
+            return newRecipe;
+          })}
           className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg"
         >
           <option value="">Aucun</option>
@@ -196,10 +110,10 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
           type="number"
           min="1"
           value={editingRecipe?.[`slot${slot}_quantity` as keyof CraftingRecipe] || ''}
-          onChange={(e) => handleRecipeChange(`slot${slot}_quantity` as keyof CraftingRecipe, e.target.value ? parseInt(e.target.value) : null)}
+          onChange={(e) => setEditingRecipe(prev => ({ ...prev, [`slot${slot}_quantity`]: e.target.value ? parseInt(e.target.value) : 1 }))}
           className="bg-white/5 border-white/20"
-          disabled={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] === null}
-          required={editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe] !== null}
+          disabled={!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
+          required={!!editingRecipe?.[`slot${slot}_item_id` as keyof CraftingRecipe]}
         />
       </div>
     </div>
@@ -209,7 +123,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
         <DialogHeader>
-          <DialogTitle>Gérer le Blueprint de {resultItem.name || 'Nouvel Objet'}</DialogTitle>
+          <DialogTitle>Gérer le Blueprint de {resultItem.name}</DialogTitle>
           <DialogDescription>Définissez les ingrédients et le résultat.</DialogDescription>
         </DialogHeader>
         {loading ? <Loader2 className="w-8 h-8 animate-spin mx-auto my-8" /> : (
@@ -221,7 +135,7 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
               </div>
               <div>
                 <Label>Quantité</Label>
-                <Input required type="number" min="1" value={editingRecipe?.result_quantity || 1} onChange={(e) => handleRecipeChange('result_quantity', parseInt(e.target.value))} className="bg-white/5 border-white/20" />
+                <Input required type="number" min="1" value={editingRecipe?.result_quantity || 1} onChange={(e) => setEditingRecipe(prev => ({ ...prev, result_quantity: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />
               </div>
             </div>
             {renderSlotInput(1)}
@@ -229,15 +143,10 @@ const RecipeEditorModal = ({ isOpen, onClose, onSave, resultItem, recipeId, isNe
             {renderSlotInput(3)}
             <div>
               <Label>Temps de fabrication (secondes)</Label>
-              <Input required type="number" min="1" value={editingRecipe?.craft_time_seconds || 10} onChange={(e) => handleRecipeChange('craft_time_seconds', parseInt(e.target.value))} className="bg-white/5 border-white/20" />
+              <Input required type="number" min="1" value={editingRecipe?.craft_time_seconds || 10} onChange={(e) => setEditingRecipe(prev => ({ ...prev, craft_time_seconds: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" />
             </div>
-            {duplicateError && (
-              <div className="text-red-400 text-sm p-3 border border-red-500/30 rounded-lg bg-red-500/10">
-                {duplicateError}
-              </div>
-            )}
             <DialogFooter>
-              <Button type="submit" disabled={!!duplicateError}>Sauvegarder</Button>
+              <Button type="submit">Sauvegarder</Button>
             </DialogFooter>
           </form>
         )}

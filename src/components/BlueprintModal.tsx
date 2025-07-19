@@ -1,18 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
-import { Loader2, BookOpen, Search, Eye } from 'lucide-react';
+import { Loader2, BookOpen, ArrowRight } from 'lucide-react';
 import { CraftingRecipe, Item } from '@/types/game';
 import { useGame } from '@/contexts/GameContext';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import BlueprintDetailModal from './BlueprintDetailModal';
-import { useIsMobile } from '@/hooks/use-mobile';
-import ItemIcon from '@/components/ItemIcon'; // Import ItemIcon
-import { getPublicIconUrl } from '@/utils/imageUrls'; // Import getPublicIconUrl
+import ItemIcon from './ItemIcon';
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -24,14 +17,9 @@ interface LearnedBlueprint {
 }
 
 const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
-  const { items: allItems } = useGame();
-  const isMobile = useIsMobile();
+  const { items: allItems, getIconUrl } = useGame();
   const [learnedRecipes, setLearnedRecipes] = useState<CraftingRecipe[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedRecipeForDetail, setSelectedRecipeForDetail] = useState<CraftingRecipe | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const fetchLearnedBlueprints = useCallback(async () => {
     setLoading(true);
@@ -65,158 +53,71 @@ const BlueprintModal = ({ isOpen, onClose }: BlueprintModalProps) => {
     } finally {
       setLoading(false);
     }
-  }, [allItems]); // Added allItems to dependency array to ensure correct item lookup
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       fetchLearnedBlueprints();
-      setSearchTerm('');
-      setSelectedType('all');
-      setSelectedRecipeForDetail(null);
-      setIsDetailModalOpen(false);
     }
   }, [isOpen, fetchLearnedBlueprints]);
 
-  const uniqueItemTypes = useMemo(() => {
-    const types = new Set<string>();
-    allItems.forEach(item => {
-      if (item.type !== 'Blueprint') { // Exclude 'Blueprint' type
-        types.add(item.type);
-      }
-    });
-    return ['all', ...Array.from(types).sort()];
-  }, [allItems]);
+  const getIngredientName = (id: number | null) => {
+    if (!id) return '';
+    return allItems.find(item => item.id === id)?.name || 'Objet inconnu';
+  };
 
-  const filteredRecipes = useMemo(() => {
-    return learnedRecipes.filter(recipe => {
-      const resultItem = allItems.find(item => item.id === recipe.result_item_id);
-      const matchesSearch = resultItem?.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = selectedType === 'all' || resultItem?.type === selectedType;
-      return matchesSearch && matchesType;
-    });
-  }, [learnedRecipes, allItems, searchTerm, selectedType]);
-
-  const handleViewRecipe = (recipe: CraftingRecipe) => {
-    setSelectedRecipeForDetail(recipe);
-    setIsDetailModalOpen(true);
+  const getIngredientIcon = (id: number | null) => {
+    if (!id) return null;
+    const item = allItems.find(item => item.id === id);
+    return getIconUrl(item?.icon || null) || item?.icon || null;
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-5xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
-          <DialogHeader className="text-center flex-shrink-0">
-            <BookOpen className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Blueprints</DialogTitle>
-            <DialogDescription>Recettes que vous avez apprises.</DialogDescription>
-          </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+        <DialogHeader className="text-center">
+          <BookOpen className="w-10 h-10 mx-auto text-white mb-2" />
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Blueprints</DialogTitle>
+          <DialogDescription>Recettes que vous avez apprises.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4 max-h-[60vh] overflow-y-auto space-y-3 pr-2">
+          {loading ? (
+            <div className="flex justify-center items-center h-32"><Loader2 className="w-6 h-6 animate-spin" /></div>
+          ) : learnedRecipes.length > 0 ? (
+            learnedRecipes.map(recipe => {
+              const resultItem = allItems.find(item => item.id === recipe.result_item_id);
+              const ingredients = [
+                { id: recipe.slot1_item_id, quantity: recipe.slot1_quantity },
+                { id: recipe.slot2_item_id, quantity: recipe.slot2_quantity },
+                { id: recipe.slot3_item_id, quantity: recipe.slot3_quantity },
+              ].filter(ing => ing.id !== null);
 
-          <div className={cn("flex flex-grow mt-4 min-h-0", isMobile ? "flex-col" : "flex-row")}>
-            {/* Filters and Search */}
-            <div className={cn("flex-shrink-0", isMobile ? "w-full mb-4" : "w-1/4 min-w-[150px] max-w-[200px] border-r border-slate-700 pr-4 overflow-y-auto no-scrollbar")}>
-              {isMobile ? (
-                <div className="flex flex-col gap-3">
-                  <div className="relative w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="Rechercher un blueprint..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-white/10 border-white/20"
-                    />
+              return (
+                <div key={recipe.id} className="bg-white/5 p-4 rounded-lg border border-white/10">
+                  <div className="flex items-center justify-center gap-4">
+                    <div className="flex flex-col items-center gap-1">
+                      {ingredients.map((ing, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <div className="w-6 h-6 relative"><ItemIcon iconName={getIngredientIcon(ing.id)} alt="" /></div>
+                          <span>{getIngredientName(ing.id)} x{ing.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <ArrowRight className="w-6 h-6 text-gray-400 flex-shrink-0" />
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-10 h-10 relative"><ItemIcon iconName={getIngredientIcon(resultItem?.id || null)} alt="" /></div>
+                      <span className="font-bold">{resultItem?.name || 'Objet final'} x{recipe.result_quantity}</span>
+                    </div>
                   </div>
-                  <select
-                    value={selectedType}
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="w-full bg-white/10 border-white/20 px-3 h-10 rounded-lg text-white focus:ring-white/30 focus:border-white/30"
-                  >
-                    {uniqueItemTypes.map(type => (
-                      <option key={type} value={type}>
-                        {type === 'all' ? 'Tous les types' : type}
-                      </option>
-                    ))}
-                  </select>
                 </div>
-              ) : (
-                <>
-                  <h3 className="font-bold text-lg mb-3">Types</h3>
-                  <div className="flex flex-col space-y-2">
-                    {uniqueItemTypes.map(type => (
-                      <Button
-                        key={type}
-                        variant="ghost"
-                        onClick={() => setSelectedType(type)}
-                        className={cn(
-                          "justify-start",
-                          selectedType === type && "bg-white/10 hover:bg-white/15"
-                        )}
-                      >
-                        {type === 'all' ? 'Tous' : type}
-                      </Button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Right Panel: List */}
-            <div className={cn("flex-grow flex flex-col min-h-0", isMobile ? "pl-0" : "pl-4")}>
-              {!isMobile && (
-                <div className="relative mb-4 flex-shrink-0">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Rechercher un blueprint..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white/10 border-white/20"
-                  />
-                </div>
-              )}
-
-              <div className="flex-grow overflow-y-auto no-scrollbar space-y-3">
-                {loading ? (
-                  <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
-                ) : filteredRecipes.length > 0 ? (
-                  filteredRecipes.map(recipe => {
-                    const resultItem = allItems.find(item => item.id === recipe.result_item_id);
-                    if (!resultItem) return null;
-
-                    return (
-                      <Card key={recipe.id} className="bg-white/5 border-white/10">
-                        <CardContent className="p-3 flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 flex-grow min-w-0">
-                            <div className="w-12 h-12 relative flex-shrink-0 bg-slate-700/50 rounded-md flex items-center justify-center">
-                              <ItemIcon iconName={getPublicIconUrl(resultItem.icon)} alt={resultItem.name} />
-                            </div>
-                            <div className="flex-grow min-w-0">
-                              <p className="font-bold text-white truncate">{resultItem.name}</p>
-                              <p className="text-sm text-gray-400 truncate">x{recipe.result_quantity}</p>
-                            </div>
-                          </div>
-                          <Button size="sm" onClick={() => handleViewRecipe(recipe)}>
-                            <Eye className="w-4 h-4 mr-2" /> Voir la recette
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                ) : (
-                  <p className="text-center text-gray-400 py-10">
-                    {searchTerm || selectedType !== 'all' ? "Aucun blueprint trouvé avec ces critères." : "Vous n'avez appris aucun blueprint."}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <BlueprintDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        recipe={selectedRecipeForDetail}
-      />
-    </>
+              );
+            })
+          ) : (
+            <p className="text-center text-gray-400 py-10">Vous n'avez appris aucun blueprint.</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

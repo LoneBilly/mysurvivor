@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import GameHeader from "../GameHeader";
 import GameGrid from "../GameGrid";
 import GameFooter from "../GameFooter";
@@ -23,9 +23,6 @@ import MetroModal from "../MetroModal";
 import BankModal from "../BankModal";
 import BountyModal from "../BountyModal";
 import WorkbenchModal from "../WorkbenchModal";
-import MoreOptionsModal from "../MoreOptionsModal";
-import HotelModal from '../HotelModal';
-import CasinoModal from '../CasinoModal';
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -33,7 +30,7 @@ const formatZoneName = (name: string): string => {
 };
 
 const GameUI = () => {
-  const { playerData, setPlayerData, mapLayout, items, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState } = useGame();
+  const { playerData, setPlayerData, mapLayout, items, refreshPlayerData } = useGame();
   
   const [currentView, setCurrentView] = useState<'map' | 'base'>('map');
   const [inspectedConstruction, setInspectedConstruction] = useState<BaseConstruction | null>(null);
@@ -49,12 +46,6 @@ const GameUI = () => {
   const [isMetroOpen, setIsMetroOpen] = useState(false);
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isBountyOpen, setIsBountyOpen] = useState(false);
-  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
-  const [isHotelOpen, setIsHotelOpen] = useState(false);
-  const [isCasinoOpen, setIsCasinoOpen] = useState(false);
-  const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
-  const [isMoving, setIsMoving] = useState(false);
-  const isInitialMount = useRef(true);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -96,7 +87,7 @@ const GameUI = () => {
   const handleEnterBase = () => {
     closeModal();
     setCurrentView('base');
-    refreshBaseState();
+    refreshPlayerData();
   };
 
   const handleHeaderBack = () => {
@@ -114,16 +105,17 @@ const GameUI = () => {
     if (error) {
       showError(error.message || "Erreur de démolition.");
     } else {
-      refreshBaseState();
+      refreshPlayerData();
     }
   };
 
-  const handleCellSelect = async (cell: MapCell) => {
+  const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
+    const currentState = stateOverride || playerData;
     const { x, y, type, id, interaction_type, id_name } = cell;
 
-    const isDiscovered = playerData.playerState.zones_decouvertes.includes(id);
-    const isCurrentPosition = playerData.playerState.position_x === x && playerData.playerState.position_y === y;
-    const isBaseLocation = playerData.playerState.base_position_x === x && playerData.playerState.base_position_y === y;
+    const isDiscovered = currentState.playerState.zones_decouvertes.includes(id);
+    const isCurrentPosition = currentState.playerState.position_x === x && currentState.playerState.position_y === y;
+    const isBaseLocation = currentState.playerState.base_position_x === x && currentState.playerState.base_position_y === y;
 
     if (!isDiscovered) {
       setModalState({
@@ -136,37 +128,39 @@ const GameUI = () => {
     }
 
     if (isCurrentPosition) {
-      setSelectedZoneForAction(cell);
       switch (interaction_type) {
         case 'Action':
-          if (id_name?.toLowerCase().includes('metro') || type.toLowerCase().includes('métro')) {
-            setIsMetroOpen(true);
-          } else if (type.toLowerCase().includes('casino')) {
-            setIsCasinoOpen(true);
-          } else if (type.toLowerCase().includes('hôtel')) {
-            setIsHotelOpen(true);
-          } else if (id === 10) { // Marché
-            setIsMarketOpen(true);
-          } else if (id === 2) { // Commissariat
-            setIsBountyOpen(true);
-          } else if (id === 12) { // Faction: Scouts
-            setIsFactionScoutsModalOpen(true);
-          } else if (type.toLowerCase().includes('banque')) { // Bank (still using type for generic bank)
-            setIsBankOpen(true);
-          } else {
-            setModalState({
-              isOpen: true,
-              title: formatZoneName(type),
-              description: "Cette action n'est pas encore configurée.",
-              actions: [{ label: "Compris", onClick: closeModal }],
-            });
+          switch (id_name) {
+            case 'market':
+              setIsMarketOpen(true);
+              break;
+            case 'bounty_office':
+              setIsBountyOpen(true);
+              break;
+            case 'metro':
+              setIsMetroOpen(true);
+              break;
+            case 'scouts_faction':
+              setIsFactionScoutsModalOpen(true);
+              break;
+            case 'bank':
+              setIsBankOpen(true);
+              break;
+            default:
+              setModalState({
+                isOpen: true,
+                title: formatZoneName(type),
+                description: "Cette action n'est pas encore configurée.",
+                actions: [{ label: "Compris", onClick: closeModal }],
+              });
+              break;
           }
           break;
         
         case 'Ressource':
           const actions: typeof modalState.actions = [];
           const hasBase = isBaseLocation;
-          const hasNoBase = playerData.playerState.base_position_x === null;
+          const hasNoBase = currentState.playerState.base_position_x === null;
           
           if (hasBase) {
             actions.push({ label: "Aller au campement", onClick: handleEnterBase });
@@ -178,6 +172,7 @@ const GameUI = () => {
             actions.push({ label: "Installer mon campement", onClick: handleBuildBase });
           }
 
+          // Si il n'y a qu'une seule action possible (explorer), ouvrir directement la modale d'exploration
           if (actions.length === 1 && actions[0].label === "Explorer") {
             handleExploreAction(cell);
           } else {
@@ -201,20 +196,27 @@ const GameUI = () => {
           break;
       }
     } else {
-      const distance = Math.abs(playerData.playerState.position_x - x) + Math.abs(playerData.playerState.position_y - y);
+      const distance = Math.abs(currentState.playerState.position_x - x) + Math.abs(currentState.playerState.position_y - y);
       const energyCost = distance * 10;
 
       const handleMoveAction = async () => {
-        setIsMoving(true);
-        const { error } = await supabase.rpc('move_player', { target_x: x, target_y: y });
-        
-        setIsMoving(false);
         closeModal();
+        if (playerData.playerState.energie < energyCost) {
+          showError("Pas assez d'énergie.");
+          return;
+        }
+        
+        const originalState = { ...playerData };
+        const newState = { ...playerData, playerState: { ...playerData.playerState, position_x: x, position_y: y, energie: playerData.playerState.energie - energyCost }};
+        setPlayerData(newState);
+        handleCellSelect(cell, newState);
 
+        const { error } = await supabase.rpc('move_player', { target_x: x, target_y: y });
         if (error) {
           showError(error.message || "Déplacement impossible.");
+          setPlayerData(originalState);
         } else {
-          await refreshPlayerData();
+          refreshPlayerData();
         }
       };
 
@@ -222,26 +224,10 @@ const GameUI = () => {
         isOpen: true,
         title: `Aller à ${formatZoneName(type)}`,
         description: `Ce trajet vous coûtera ${energyCost} points d'énergie.`,
-        actions: [
-          { label: isMoving ? "Déplacement..." : "Confirmer", onClick: handleMoveAction },
-          { label: "Annuler", onClick: closeModal, variant: "secondary" }
-        ],
+        actions: [{ label: "Confirmer", onClick: handleMoveAction }, { label: "Annuler", onClick: closeModal, variant: "secondary" }],
       });
     }
   };
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    if (!isMoving) {
-      const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
-      if (currentZone) {
-        handleCellSelect(currentZone);
-      }
-    }
-  }, [playerData.playerState.position_x, playerData.playerState.position_y]);
 
   const scoutingMissions = useMemo(() => ({
     inProgress: playerData.scoutingMissions.filter(m => m.status === 'in_progress'),
@@ -296,44 +282,26 @@ const GameUI = () => {
           />
         </div>
       </main>
-      <GameFooter stats={playerData.playerState} credits={playerData.playerState.credits} onInventaire={() => setIsInventoryOpen(true)} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} onMoreOptions={() => setIsMoreOptionsOpen(true)} />
+      <GameFooter stats={playerData.playerState} credits={playerData.playerState.credits} onInventaire={() => setIsInventoryOpen(true)} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <ActionModal isOpen={modalState.isOpen} onClose={closeModal} title={modalState.title} description={modalState.description} actions={modalState.actions} />
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
       <OptionsModal isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} />
-      <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} inventory={playerData.inventory} unlockedSlots={playerData.playerState.unlocked_slots} onUpdate={refreshInventoryAndChests} />
-      <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Marché"} />
+      <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} inventory={playerData.inventory} unlockedSlots={playerData.playerState.unlocked_slots} onUpdate={() => refreshPlayerData()} />
+      <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <PurchaseCreditsModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
-      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Faction Éclaireurs"} />
+      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={() => refreshPlayerData()} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <ExplorationModal isOpen={isExplorationModalOpen} onClose={() => setIsExplorationModalOpen(false)} zone={selectedZoneForExploration} onUpdate={refreshPlayerData} onOpenInventory={() => setIsInventoryOpen(true)} />
-      <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Métro"} />
-      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshResources} zoneName={selectedZoneForAction?.type || "Banque"} />
-      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshResources} zoneName={selectedZoneForAction?.type || "Commissariat"} />
+      <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
+      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshPlayerData} />
+      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} />
       <WorkbenchModal
         isOpen={!!inspectedConstruction}
         onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
-        onUpdate={refreshBaseState}
+        onUpdate={refreshPlayerData}
         onOpenInventory={() => setIsInventoryOpen(true)}
       />
-      <HotelModal
-        isOpen={isHotelOpen}
-        onClose={() => setIsHotelOpen(false)}
-        zone={selectedZoneForAction}
-        credits={playerData.playerState.credits}
-        onUpdate={refreshPlayerData}
-        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
-        zoneName={selectedZoneForAction?.type || "Hôtel"}
-      />
-      <CasinoModal
-        isOpen={isCasinoOpen}
-        onClose={() => setIsCasinoOpen(false)}
-        credits={playerData.playerState.credits}
-        onUpdate={refreshPlayerData}
-        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
-        zoneName={selectedZoneForAction?.type || "Casino"}
-      />
-      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} />
     </div>
   );
 };
