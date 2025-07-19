@@ -103,7 +103,7 @@ const LootboxSpinner: React.FC<LootboxSpinnerProps> = ({ resultLabel, onSpinEnd 
       />
       
       <div
-        className="flex h-full items-center"
+        className="absolute top-0 left-0 flex h-full items-center"
         style={{
           visibility: isCalculating ? 'hidden' : 'visible',
           transform: `translateX(${translateX}px)`,
