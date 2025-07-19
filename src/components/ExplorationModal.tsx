@@ -11,6 +11,7 @@ import ItemIcon from './ItemIcon';
 import * as LucideIcons from "lucide-react";
 import { useGame } from '@/contexts/GameContext';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const EXPLORATION_COST = 5;
 const EXPLORATION_DURATION_S = 3; // Reduced for better UX
@@ -39,6 +40,12 @@ interface ScoutedTarget {
   base_zone_type: string;
 }
 
+interface PotentialInfo {
+  name: string;
+  icon: string | null;
+  description: string | null;
+}
+
 interface ExplorationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,9 +55,10 @@ interface ExplorationModalProps {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, playerData, setPlayerData, refreshPlayerData } = useGame();
+  const { getIconUrl, refreshPlayerData } = useGame();
   const [activeTab, setActiveTab] = useState('exploration');
-  const [potentialLoot, setPotentialLoot] = useState<{name: string}[]>([]);
+  const [potentialLoot, setPotentialLoot] = useState<PotentialInfo[]>([]);
+  const [potentialEvents, setPotentialEvents] = useState<PotentialInfo[]>([]);
   const [scoutedTargets, setScoutedTargets] = useState<ScoutedTarget[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExploring, setIsExploring] = useState(false);
@@ -62,14 +70,16 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [remainingTime, setRemainingTime] = useState(0);
   const [discoveringZoneId, setDiscoveringZoneId] = useState<number | null>(null);
 
-  const fetchPotentialLoot = useCallback(async () => {
+  const fetchZoneInfo = useCallback(async () => {
     if (!zone) return;
     setLoading(true);
-    const { data, error } = await supabase.from('zone_items').select('items(name)').eq('zone_id', zone.id);
+    const { data, error } = await supabase.rpc('get_zone_info', { p_zone_id: zone.id });
     if (error) {
-      showError("Impossible de charger les objets potentiels.");
+      showError("Impossible de charger les informations de la zone.");
+      console.error(error);
     } else {
-      setPotentialLoot(data.map(d => d.items).filter(Boolean) as {name: string}[]);
+      setPotentialLoot(data.potentialLoot || []);
+      setPotentialEvents(data.potentialEvents || []);
     }
     setLoading(false);
   }, [zone]);
@@ -97,12 +107,12 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
 
   useEffect(() => {
     if (isOpen) {
-      if (activeTab === 'exploration') fetchPotentialLoot();
+      if (activeTab === 'exploration') fetchZoneInfo();
       if (activeTab === 'pvp') fetchScoutedTargets();
     } else {
       resetState();
     }
-  }, [isOpen, activeTab, fetchPotentialLoot, fetchScoutedTargets]);
+  }, [isOpen, activeTab, fetchZoneInfo, fetchScoutedTargets]);
 
   const finishExploration = useCallback(async () => {
     if (!zone) return;
@@ -217,7 +227,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     return scoutedTargets.filter(target => target.base_zone_type === zone.type);
   }, [scoutedTargets, zone]);
 
-  const canExplore = potentialLoot.length > 0;
+  const canExplore = potentialLoot.length > 0 || potentialEvents.length > 0;
 
   const getEventIcon = (iconName: string | null) => {
     if (!iconName) return AlertTriangle;
@@ -321,9 +331,43 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <div className="flex flex-wrap gap-2">
                       {potentialLoot.length > 0 ? potentialLoot.map((item, index) => (
-                        <span key={`${item.name}-${index}`} className="bg-white/10 px-2 py-1 rounded text-sm">{item.name}</span>
+                        <TooltipProvider key={`${item.name}-${index}`} delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600">
+                                <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
+                              <p>{item.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )) : (
                         <span className="text-gray-400 text-sm">Aucun objet disponible dans cette zone</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Événements possibles :</h4>
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    <div className="flex flex-wrap gap-2">
+                      {potentialEvents.length > 0 ? potentialEvents.map((event, index) => (
+                        <TooltipProvider key={`${event.name}-${index}`} delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600">
+                                <ItemIcon iconName={event.icon} alt={event.name} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
+                              <p>{event.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )) : (
+                        <span className="text-gray-400 text-sm">Aucun événement spécial dans cette zone</span>
                       )}
                     </div>
                   )}
