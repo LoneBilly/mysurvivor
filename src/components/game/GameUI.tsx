@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import GameHeader from "../GameHeader";
 import GameGrid from "../GameGrid";
 import GameFooter from "../GameFooter";
@@ -53,6 +53,8 @@ const GameUI = () => {
   const [isHotelOpen, setIsHotelOpen] = useState(false);
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
+  const isInitialMount = useRef(true);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -116,13 +118,12 @@ const GameUI = () => {
     }
   };
 
-  const handleCellSelect = async (cell: MapCell, stateOverride?: FullPlayerData) => {
-    const currentState = stateOverride || playerData;
+  const handleCellSelect = async (cell: MapCell) => {
     const { x, y, type, id, interaction_type, id_name } = cell;
 
-    const isDiscovered = currentState.playerState.zones_decouvertes.includes(id);
-    const isCurrentPosition = currentState.playerState.position_x === x && currentState.playerState.position_y === y;
-    const isBaseLocation = currentState.playerState.base_position_x === x && currentState.playerState.base_position_y === y;
+    const isDiscovered = playerData.playerState.zones_decouvertes.includes(id);
+    const isCurrentPosition = playerData.playerState.position_x === x && playerData.playerState.position_y === y;
+    const isBaseLocation = playerData.playerState.base_position_x === x && playerData.playerState.base_position_y === y;
 
     if (!isDiscovered) {
       setModalState({
@@ -138,7 +139,7 @@ const GameUI = () => {
       setSelectedZoneForAction(cell);
       switch (interaction_type) {
         case 'Action':
-          if (id_name?.includes('metro')) {
+          if (id_name?.toLowerCase().includes('metro') || type.toLowerCase().includes('métro')) {
             setIsMetroOpen(true);
           } else if (type.toLowerCase().includes('casino')) {
             setIsCasinoOpen(true);
@@ -165,7 +166,7 @@ const GameUI = () => {
         case 'Ressource':
           const actions: typeof modalState.actions = [];
           const hasBase = isBaseLocation;
-          const hasNoBase = currentState.playerState.base_position_x === null;
+          const hasNoBase = playerData.playerState.base_position_x === null;
           
           if (hasBase) {
             actions.push({ label: "Aller au campement", onClick: handleEnterBase });
@@ -200,27 +201,20 @@ const GameUI = () => {
           break;
       }
     } else {
-      const distance = Math.abs(currentState.playerState.position_x - x) + Math.abs(currentState.playerState.position_y - y);
+      const distance = Math.abs(playerData.playerState.position_x - x) + Math.abs(playerData.playerState.position_y - y);
       const energyCost = distance * 10;
 
       const handleMoveAction = async () => {
-        closeModal();
-        if (playerData.playerState.energie < energyCost) {
-          showError("Pas assez d'énergie.");
-          return;
-        }
-        
-        const originalState = { ...playerData };
-        const newState = { ...playerData, playerState: { ...playerData.playerState, position_x: x, position_y: y, energie: playerData.playerState.energie - energyCost }};
-        setPlayerData(newState);
-        handleCellSelect(cell, newState);
-
+        setIsMoving(true);
         const { error } = await supabase.rpc('move_player', { target_x: x, target_y: y });
+        
+        setIsMoving(false);
+        closeModal();
+
         if (error) {
           showError(error.message || "Déplacement impossible.");
-          setPlayerData(originalState);
         } else {
-          refreshPlayerData();
+          await refreshPlayerData();
         }
       };
 
@@ -228,10 +222,26 @@ const GameUI = () => {
         isOpen: true,
         title: `Aller à ${formatZoneName(type)}`,
         description: `Ce trajet vous coûtera ${energyCost} points d'énergie.`,
-        actions: [{ label: "Confirmer", onClick: handleMoveAction }, { label: "Annuler", onClick: closeModal, variant: "secondary" }],
+        actions: [
+          { label: isMoving ? "Déplacement..." : "Confirmer", onClick: handleMoveAction },
+          { label: "Annuler", onClick: closeModal, variant: "secondary" }
+        ],
       });
     }
   };
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (!isMoving) {
+      const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
+      if (currentZone) {
+        handleCellSelect(currentZone);
+      }
+    }
+  }, [playerData.playerState.position_x, playerData.playerState.position_y]);
 
   const scoutingMissions = useMemo(() => ({
     inProgress: playerData.scoutingMissions.filter(m => m.status === 'in_progress'),
