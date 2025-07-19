@@ -25,9 +25,7 @@ import BountyModal from "../BountyModal";
 import WorkbenchModal from "../WorkbenchModal";
 import MoreOptionsModal from "../MoreOptionsModal";
 import HotelModal from '../HotelModal';
-import RouletteModal from '../RouletteModal';
-import AuctionModal from "../AuctionModal";
-import CasinoLobbyModal from "../CasinoLobbyModal";
+import CasinoModal from '../CasinoModal';
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -53,9 +51,7 @@ const GameUI = () => {
   const [isBountyOpen, setIsBountyOpen] = useState(false);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const [isHotelOpen, setIsHotelOpen] = useState(false);
-  const [isCasinoLobbyOpen, setIsCasinoLobbyOpen] = useState(false);
-  const [isRouletteOpen, setIsRouletteOpen] = useState(false);
-  const [isAuctionOpen, setIsAuctionOpen] = useState(false);
+  const [isCasinoOpen, setIsCasinoOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
 
   const [modalState, setModalState] = useState<{
@@ -145,11 +141,9 @@ const GameUI = () => {
           if (id_name?.includes('metro')) {
             setIsMetroOpen(true);
           } else if (type.toLowerCase().includes('casino')) {
-            setIsCasinoLobbyOpen(true);
+            setIsCasinoOpen(true);
           } else if (type.toLowerCase().includes('hôtel')) {
             setIsHotelOpen(true);
-          } else if (type.toLowerCase().includes('enchères')) {
-            setIsAuctionOpen(true);
           } else if (id === 10) { // Marché
             setIsMarketOpen(true);
           } else if (id === 2) { // Commissariat
@@ -275,12 +269,6 @@ const GameUI = () => {
 
   const currentZone = mapLayout.find(z => z.x === playerData.playerState.position_x && z.y === playerData.playerState.position_y);
 
-  const handleBackToCasinoLobby = () => {
-    setIsRouletteOpen(false);
-    setIsAuctionOpen(false);
-    setIsCasinoLobbyOpen(true);
-  };
-
   return (
     <div className="h-full flex flex-col text-white">
       <GameHeader spawnDate={playerData.playerState.spawn_date} onLeaderboard={() => setIsLeaderboardOpen(true)} onOptions={() => setIsOptionsOpen(true)} currentView={currentView} onBackToMap={handleHeaderBack} />
@@ -327,32 +315,13 @@ const GameUI = () => {
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Hôtel"}
       />
-      <CasinoLobbyModal
-        isOpen={isCasinoLobbyOpen}
-        onClose={() => setIsCasinoLobbyOpen(false)}
-        credits={playerData.playerState.credits}
-        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
-        zoneName={selectedZoneForAction?.type || "Casino"}
-        onOpenRoulette={() => { setIsCasinoLobbyOpen(false); setIsRouletteOpen(true); }}
-        onOpenAuction={() => { setIsCasinoLobbyOpen(false); setIsAuctionOpen(true); }}
-      />
-      <RouletteModal
-        isOpen={isRouletteOpen}
-        onClose={() => setIsRouletteOpen(false)}
+      <CasinoModal
+        isOpen={isCasinoOpen}
+        onClose={() => setIsCasinoOpen(false)}
         credits={playerData.playerState.credits}
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Casino"}
-        onBackToLobby={handleBackToCasinoLobby}
-      />
-      <AuctionModal
-        isOpen={isAuctionOpen}
-        onClose={() => setIsAuctionOpen(false)}
-        credits={playerData.playerState.credits}
-        onUpdate={refreshPlayerData}
-        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
-        zoneName={selectedZoneForAction?.type || "Enchères"}
-        onBackToLobby={handleBackToCasinoLobby}
       />
       <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} />
     </div>
