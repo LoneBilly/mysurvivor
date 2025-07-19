@@ -87,7 +87,12 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
             const currentZone = mapLayout.find(z => z.id === zone.id);
             if (currentZone) {
               const adjZones = mapLayout
-                .filter(z => (Math.abs(z.x - currentZone.x) + Math.abs(z.y - currentZone.y)) === 1)
+                .filter(z => 
+                  z.type && // Exclude empty zones
+                  !(z.x === currentZone.x && z.y === currentZone.y) && // Exclude center
+                  Math.abs(z.x - currentZone.x) <= 1 && // Check 3x3 square
+                  Math.abs(z.y - currentZone.y) <= 1
+                )
                 .map(z => ({ ...z, is_discovered: discoveredSet.has(z.id) }));
               setAdjacentZones(adjZones);
             }
@@ -224,7 +229,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
               {eventResult?.name === 'Découverte de zone' && eventResult.success && eventResult.discoverable_zones && (
                 <div className="mt-4">
                   <h4 className="font-semibold mb-2">Zones adjacentes révélées :</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {eventResult.discoverable_zones.map(zone => {
                       const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
                       return (

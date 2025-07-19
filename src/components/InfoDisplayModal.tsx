@@ -40,11 +40,11 @@ const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZ
           {adjacentZones && (
             <div className="mt-4">
               <h4 className="font-semibold mb-2">Zones adjacentes potentiellement découvertes :</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {adjacentZones.map(zone => {
                   const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
                   return (
-                    <div key={zone.id} className={cn("p-2 rounded-md flex flex-col items-center", zone.is_discovered ? "bg-green-500/20 border border-green-500/30" : "bg-blue-500/20 border border-blue-500/30")}>
+                    <div key={zone.id} className={cn("p-2 rounded-md flex flex-col items-center", zone.is_discovered ? "bg-green-500/20 border border-green-500/30" : "bg-blue-500/20 border-blue-500/30")}>
                       <Icon className="w-6 h-6 mb-1" />
                       <span className="text-xs text-center">{zone.type}</span>
                       {zone.is_discovered && <span className="text-xs text-green-300">(Déjà découvert)</span>}
