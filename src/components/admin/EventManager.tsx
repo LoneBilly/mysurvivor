@@ -12,7 +12,7 @@ import { Item } from '@/types/admin';
 import * as LucideIcons from "lucide-react";
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { Slider } from '@/components/ui/slider';
 
 interface Event {
