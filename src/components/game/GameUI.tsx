@@ -138,7 +138,7 @@ const GameUI = () => {
       setSelectedZoneForAction(cell);
       switch (interaction_type) {
         case 'Action':
-          if (id_name?.includes('metro')) {
+          if (id_name?.toLowerCase().includes('metro') || type.toLowerCase().includes('métro')) {
             setIsMetroOpen(true);
           } else if (type.toLowerCase().includes('casino')) {
             setIsCasinoOpen(true);
