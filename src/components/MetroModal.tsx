@@ -18,17 +18,19 @@ interface MetroModalProps {
   credits: number;
   onUpdate: () => void;
   onPurchaseCredits: () => void;
+  zoneName: string;
 }
 
-const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, credits, onUpdate, onPurchaseCredits }: MetroModalProps) => {
+const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId, credits, onUpdate, onPurchaseCredits, zoneName }: MetroModalProps) => {
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const travelOptions = useMemo(() => {
     return mapLayout.filter(zone => 
-      zone.id_name === 'metro' &&
       discoveredZones.includes(zone.id) && 
-      zone.id !== currentZoneId
+      zone.id !== currentZoneId &&
+      zone.interaction_type === 'Action' &&
+      (zone.id_name?.toLowerCase().includes('metro') || zone.type.toLowerCase().includes('métro'))
     );
   }, [mapLayout, discoveredZones, currentZoneId]);
 
@@ -67,7 +69,7 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
       >
         <DialogHeader className="text-center">
           <TramFront className="w-10 h-10 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Métro Express</DialogTitle>
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
           <DialogDescription className="sr-only">Voyagez rapidement entre les zones découvertes.</DialogDescription>
           <CreditsInfo credits={credits} className="mt-1" onClick={onPurchaseCredits} />
         </DialogHeader>
@@ -83,7 +85,7 @@ const MetroModal = ({ isOpen, onClose, mapLayout, discoveredZones, currentZoneId
               <option value="" disabled>Choisir une destination...</option>
               {travelOptions.map(zone => (
                 <option key={zone.id} value={zone.id.toString()}>
-                  {zone.type} ({zone.x}, {zone.y})
+                  {zone.type}
                 </option>
               ))}
             </select>

@@ -50,6 +50,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isCraftable, setIsCraftable] = useState(false);
   const [recipeId, setRecipeId] = useState<number | null>(null);
+  const [draftRecipe, setDraftRecipe] = useState<Partial<CraftingRecipe> | null>(null); // New state for draft recipe
 
   const [availableIcons, setAvailableIcons] = useState<string[]>([]);
   const [fetchingIcons, setFetchingIcons] = useState(false);
@@ -69,18 +70,25 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setPreviewUrl(null);
       setIconExists(null);
       setIsDeleteModalOpen(false);
-      setIsCraftable(false);
-      setRecipeId(null);
-
+      
       if (item) {
         const fetchRecipe = async () => {
           const { data } = await supabase.from('crafting_recipes').select('id').eq('result_item_id', item.id).single();
           if (data) {
             setRecipeId(data.id);
             setIsCraftable(true);
+            setDraftRecipe(null); // Clear draft if it's an existing item
+          } else {
+            setRecipeId(null);
+            setIsCraftable(false);
+            setDraftRecipe(null); // Clear draft if it's an existing item without a recipe
           }
         };
         fetchRecipe();
+      } else {
+        setRecipeId(null);
+        setIsCraftable(false);
+        setDraftRecipe(null); // Ensure draft is null for new items initially
       }
 
       if (initialIcon) {
@@ -155,6 +163,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setIsValidatingIcon(true);
       const url = getPublicIconUrl(debouncedIcon);
       setPreviewUrl(url);
+      setIconExists(!!url); // Set to true if URL exists, false otherwise
       setIsValidatingIcon(false);
     };
 
@@ -180,31 +189,67 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       showError("L'icône spécifiée n'existe pas dans le stockage.");
       return;
     }
-    if (isCraftable && !recipeId) {
-      showError("Veuillez définir une recette pour cet objet craftable.");
+    if (isCraftable && !draftRecipe && !item) { // If new item is craftable but no recipe defined yet
+      showError("Veuillez définir un blueprint pour cet objet craftable.");
       return;
     }
 
     setLoading(true);
-    const itemData = { 
-      name, 
-      description, 
-      icon: icon || null, 
-      stackable, 
-      type,
-      use_action_text: useActionText || null
-    };
-    const { error } = item
-      ? await supabase.from('items').update(itemData).eq('id', item.id)
-      : await supabase.from('items').insert(itemData);
+    
+    if (!item) { // Creating a new item
+      const { data, error } = await supabase.rpc('create_item_and_recipe', {
+        p_name: name,
+        p_description: description,
+        p_icon: icon || null,
+        p_stackable: stackable,
+        p_type: type,
+        p_use_action_text: useActionText || null,
+        p_is_craftable: isCraftable,
+        p_recipe_result_quantity: draftRecipe?.result_quantity || 1,
+        p_recipe_slot1_item_id: draftRecipe?.slot1_item_id || null,
+        p_recipe_slot1_quantity: draftRecipe?.slot1_quantity || null,
+        p_recipe_slot2_item_id: draftRecipe?.slot2_item_id || null,
+        p_recipe_slot2_quantity: draftRecipe?.slot2_quantity || null,
+        p_recipe_slot3_item_id: draftRecipe?.slot3_item_id || null,
+        p_recipe_slot3_quantity: draftRecipe?.slot3_quantity || null,
+        p_recipe_craft_time_seconds: draftRecipe?.craft_time_seconds || 10,
+      }).single();
 
-    if (error) {
-      showError(`Erreur: ${error.message}`);
-    } else {
-      showSuccess(`Objet ${item ? 'mis à jour' : 'créé'} !`);
-      onSave();
-      onClose();
+      if (error) {
+        showError(`Erreur: ${error.message}`);
+        setLoading(false);
+        return;
+      }
+      showSuccess(`Objet créé !`);
+
+    } else { // Updating an existing item
+      const itemDataToUpdate = {
+        name,
+        description,
+        icon: icon || null,
+        stackable,
+        type,
+        use_action_text: useActionText || null,
+        recipe_id: isCraftable ? recipeId : null, // Keep existing recipeId or set to null if no longer craftable
+      };
+
+      const { error: updateItemError } = await supabase.from('items').update(itemDataToUpdate).eq('id', item.id);
+      if (updateItemError) {
+        showError(`Erreur lors de la mise à jour de l'objet: ${updateItemError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      // If item is no longer craftable, remove its recipe
+      if (!isCraftable && item.recipe_id) {
+        await supabase.from('items').update({ recipe_id: null }).eq('id', item.id);
+        await supabase.from('crafting_recipes').delete().eq('result_item_id', item.id);
+      }
+      showSuccess(`Objet mis à jour !`);
     }
+
+    onSave();
+    onClose();
     setLoading(false);
   };
 
@@ -223,12 +268,24 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     setLoading(false);
   };
 
+  // Create a dummy item object for RecipeEditorModal if it's a new item
+  const currentItemForRecipeEditor: Item = item || {
+    id: -1, // Temporary ID, will be replaced by RPC
+    name: name || 'Nouvel Objet',
+    description: description || '',
+    icon: icon || null,
+    stackable: stackable,
+    type: type,
+    use_action_text: useActionText || '',
+    created_at: new Date().toISOString(),
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6"
+          className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
         >
           <DialogHeader className="text-center">
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
@@ -267,6 +324,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 <option value="Nourriture">Nourriture</option>
                 <option value="Soins">Soins</option>
                 <option value="Outils">Outils</option>
+                <option value="Équipements">Équipements</option> {/* Added 'Équipements' */}
                 <option value="Items divers">Items divers</option>
                 <option value="Items craftés">Items craftés</option>
               </select>
@@ -311,14 +369,14 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                 <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox id="craftable" checked={isCraftable} onCheckedChange={(checked) => setIsCraftable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading || !item} />
+                <Checkbox id="craftable" checked={isCraftable} onCheckedChange={(checked) => setIsCraftable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
                 <Label htmlFor="craftable" className="text-gray-300 font-mono">Craftable</Label>
               </div>
             </div>
             {isCraftable && (
-              <Button type="button" variant="outline" onClick={() => setIsRecipeModalOpen(true)} disabled={!item} className="w-full flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsRecipeModalOpen(true)} disabled={loading} className="w-full flex items-center gap-2">
                 <Wrench className="w-4 h-4" />
-                {recipeId ? 'Modifier le Blueprint' : 'Créer le Blueprint'}
+                {item ? (recipeId ? 'Modifier le Blueprint' : 'Créer le Blueprint') : (draftRecipe ? 'Modifier le Blueprint' : 'Créer le Blueprint')}
               </Button>
             )}
             <DialogFooter className="pt-4">
@@ -331,7 +389,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
                     </Button>
                   )}
                 </div>
-                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !recipeId)} className="rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold transition-all hover:bg-white/20">
+                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !draftRecipe && !item)}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {item ? 'Sauvegarder' : 'Créer l\'objet'}
                 </Button>
@@ -350,13 +408,22 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           { label: "Annuler", onClick: () => setIsDeleteModalOpen(false), variant: "secondary" },
         ]}
       />
-      {item && (
+      {isRecipeModalOpen && (
         <RecipeEditorModal
           isOpen={isRecipeModalOpen}
           onClose={() => setIsRecipeModalOpen(false)}
-          resultItem={item}
+          resultItem={currentItemForRecipeEditor}
           recipeId={recipeId}
-          onSave={(newRecipeId) => setRecipeId(newRecipeId)}
+          onSave={(recipeData) => {
+            setDraftRecipe(recipeData);
+            setIsRecipeModalOpen(false);
+            // If it's an existing item and a recipe was just saved, update recipeId state
+            if (item && recipeData.id) {
+              setRecipeId(recipeData.id as number);
+            }
+          }}
+          isNewItem={!item}
+          initialRecipeData={draftRecipe} // Pass draft recipe data
         />
       )}
     </>

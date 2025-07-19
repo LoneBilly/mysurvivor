@@ -9,6 +9,9 @@ interface GameContextType {
   mapLayout: MapCell[];
   items: Item[];
   refreshPlayerData: (silent?: boolean) => Promise<void>;
+  refreshResources: () => Promise<void>;
+  refreshInventoryAndChests: () => Promise<void>;
+  refreshBaseState: () => Promise<void>;
   addConstructionJob: (job: ConstructionJob) => void;
   setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
   getIconUrl: (iconName: string | null) => string | undefined;
@@ -50,6 +53,36 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     }
   }, [user]);
 
+  const refreshResources = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase.rpc('get_player_resources', { p_user_id: user.id });
+    if (error) {
+      showError("Erreur de mise à jour des ressources.");
+    } else {
+      setPlayerData(prev => ({ ...prev, playerState: { ...prev.playerState, ...data.playerState } }));
+    }
+  }, [user]);
+
+  const refreshInventoryAndChests = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase.rpc('get_inventory_and_chests', { p_user_id: user.id });
+    if (error) {
+      showError("Erreur de mise à jour de l'inventaire.");
+    } else {
+      setPlayerData(prev => ({ ...prev, ...data }));
+    }
+  }, [user]);
+
+  const refreshBaseState = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase.rpc('get_base_state', { p_user_id: user.id });
+    if (error) {
+      showError("Erreur de mise à jour de la base.");
+    } else {
+      setPlayerData(prev => ({ ...prev, ...data }));
+    }
+  }, [user]);
+
   const addConstructionJob = (job: ConstructionJob) => {
     setPlayerData(prev => ({
       ...prev,
@@ -61,43 +94,23 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     setPlayerData(initialData.playerData);
   }, [initialData.playerData]);
 
-  const handlePartialUpdate = useCallback(async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase.rpc('finalize_craft_and_get_changes', { p_user_id: user.id });
-
-    if (error) {
-      console.error("Error during partial update:", error);
-      refreshPlayerData(true);
-      return;
-    }
-
-    if (data) {
-      setPlayerData(prevData => ({
-        ...prevData,
-        craftingJobs: data.craftingJobs,
-        baseConstructions: data.baseConstructions,
-      }));
-    }
-  }, [user, refreshPlayerData]);
-
   useEffect(() => {
     const intervalId = setInterval(() => {
       const now = new Date().getTime();
       
       const hasCompletedCraftingJob = playerData.craftingJobs && playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
       if (hasCompletedCraftingJob) {
-        handlePartialUpdate();
+        refreshBaseState();
       }
 
       const hasCompletedConstructionJob = playerData.constructionJobs && playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
       if (hasCompletedConstructionJob) {
-        refreshPlayerData(true);
+        refreshBaseState();
       }
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [playerData.craftingJobs, playerData.constructionJobs, refreshPlayerData, handlePartialUpdate]);
+  }, [playerData.craftingJobs, playerData.constructionJobs, refreshBaseState]);
 
 
   const getIconUrl = useCallback((iconName: string | null): string | undefined => {
@@ -110,10 +123,13 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     mapLayout: initialData.mapLayout,
     items: initialData.items,
     refreshPlayerData,
+    refreshResources,
+    refreshInventoryAndChests,
+    refreshBaseState,
     addConstructionJob,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, addConstructionJob, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState, addConstructionJob, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>

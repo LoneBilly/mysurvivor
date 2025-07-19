@@ -274,11 +274,19 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
   const collectOutput = async () => {
     if (!construction || !outputItem || !outputItem.items) return { inventoryFull: false };
 
+    // Client-side check
+    const isStackable = outputItem.items.stackable;
+    const existingStack = playerData.inventory.find(invItem => invItem.item_id === outputItem.item_id);
+    const hasEmptySlot = playerData.inventory.length < playerData.playerState.unlocked_slots;
+
+    if (!hasEmptySlot && !(isStackable && existingStack)) {
+      return { inventoryFull: true };
+    }
+
     const { error } = await supabase.rpc('collect_workbench_output', { p_workbench_id: construction.id });
     
     if (error) {
       showError(error.message);
-      if (error.message.includes("Votre inventaire est plein")) return { inventoryFull: true };
     } else {
       showSuccess("Objet récupéré !");
       onUpdate(true);

@@ -62,13 +62,14 @@ interface MarketModalProps {
   inventory: InventoryItem[];
   credits: number;
   saleSlots: number;
-  onUpdate: (silent?: boolean) => Promise<void>;
+  onUpdate: () => Promise<void>;
   onPurchaseCredits: () => void;
+  zoneName: string;
 }
 
-const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate, onPurchaseCredits }: MarketModalProps) => {
+const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate, onPurchaseCredits, zoneName }: MarketModalProps) => {
   const { user } = useAuth();
-  const { getIconUrl } = useGame();
+  const { getIconUrl, refreshInventoryAndChests, refreshResources } = useGame();
   const [activeTab, setActiveTab] = useState('buy');
   const [listings, setListings] = useState<MarketListing[]>([]);
   const [myListings, setMyListings] = useState<MarketListing[]>([]);
@@ -145,7 +146,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
           showError(error.message);
         } else {
           showSuccess("Achat réussi !");
-          onUpdate(true);
+          refreshInventoryAndChests();
+          refreshResources();
           fetchListings();
         }
         setLoading(false);
@@ -174,7 +176,8 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
           showError(error.message);
         } else {
           showSuccess("Action réussie !");
-          onUpdate(true);
+          refreshInventoryAndChests();
+          refreshResources();
           fetchMyListings();
         }
         setLoading(false);
@@ -200,7 +203,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
                 showError(error.message);
             } else {
                 showSuccess("Emplacement acheté !");
-                await onUpdate(true);
+                await onUpdate();
                 fetchMyListings();
             }
             setLoading(false);
@@ -239,7 +242,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         >
           <DialogHeader className="text-center flex-shrink-0">
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">{zoneName}</DialogTitle>
             <DialogDescription asChild>
               <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
             </DialogDescription>
@@ -357,7 +360,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         inventory={inventory}
         onItemListed={() => {
             fetchMyListings();
-            onUpdate(true);
+            refreshInventoryAndChests();
         }}
       />
     </>

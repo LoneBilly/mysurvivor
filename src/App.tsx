@@ -1,126 +1,38 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Game from './pages/Game';
-import Login from './pages/Login';
-import Landing from './pages/Landing';
-import CreateProfile from './pages/CreateProfile';
-import Admin from './pages/Admin';
-import NotFound from './pages/NotFound';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Toaster } from '@/components/ui/sonner';
-import AdminRoute from './components/AdminRoute';
-import PublicRoute from './components/PublicRoute';
-import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import BannedOverlay from './components/BannedOverlay';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from '@/contexts/AuthContext';
+import BannedOverlay from '@/components/BannedOverlay';
 
-const PrivateRoute = ({ children }: { children: JSX.Element }) => {
-  const { user, loading, bannedInfo } = useAuth();
+import Landing from '@/pages/Landing';
+import Login from '@/pages/Login';
+import CreateProfile from '@/pages/CreateProfile';
+import Game from '@/pages/Game';
+import Admin from '@/pages/Admin';
+import NotFound from '@/pages/NotFound';
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center landing-page-bg">
-        <div className="text-center text-white">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Authentification en cours...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (bannedInfo.isBanned) {
-    return (
-      <div className="h-full flex items-center justify-center landing-page-bg">
-        <div className="text-center text-white">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-        </div>
-      </div>
-    );
-  }
-
-  return user ? children : <Navigate to="/login" />;
-};
-
-const AppContent = () => {
-  const { bannedInfo } = useAuth();
-
-  return (
-    <>
-      {bannedInfo.isBanned && <BannedOverlay />}
-      <Routes>
-        <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        
-        <Route
-          path="/game"
-          element={
-            <PrivateRoute>
-              <Game />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/create-profile"
-          element={
-            <PrivateRoute>
-              <CreateProfile />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <Admin />
-            </AdminRoute>
-          }
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster
-        position="top-center"
-        richColors
-        className="z-[99999]"
-        toastOptions={{
-          classNames: {
-            toast: 'bg-slate-900/90 backdrop-blur-sm text-white border-slate-700/50 shadow-2xl pointer-events-auto',
-            title: 'text-sm font-semibold',
-            description: 'text-xs',
-            closeButton: 'absolute right-2.5 top-2.5 rounded-md p-1 text-white/50 opacity-80 hover:opacity-100 hover:text-white focus:opacity-100 focus:ring-2 focus:ring-white/50 transition-opacity',
-          },
-          onMouseDown: (e) => e.stopPropagation(),
-          onClick: (e) => e.stopPropagation(),
-        }}
-      />
-    </>
-  );
-}
+import PublicRoute from '@/components/PublicRoute';
+import AdminRoute from '@/components/AdminRoute';
+import PrivateRoute from '@/components/PrivateRoute';
 
 function App() {
-  useEffect(() => {
-    const preventZoom = (e: TouchEvent) => {
-      if (e.touches.length > 1) {
-        e.preventDefault();
-      }
-    };
-    const handleContext = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-
-    document.addEventListener('touchmove', preventZoom, { passive: false });
-    document.addEventListener('contextmenu', handleContext);
-
-    return () => {
-      document.removeEventListener('touchmove', preventZoom);
-      document.removeEventListener('contextmenu', handleContext);
-    };
-  }, []);
-
   return (
-    <Router>
+    <BrowserRouter>
       <AuthProvider>
-        <AppContent />
+        <Routes>
+          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          
+          <Route path="/create-profile" element={<PrivateRoute><CreateProfile /></PrivateRoute>} />
+          <Route path="/game" element={<PrivateRoute><Game /></PrivateRoute>} />
+          
+          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <BannedOverlay />
       </AuthProvider>
-    </Router>
+      <Toaster richColors position="top-right" />
+    </BrowserRouter>
   );
 }
 
