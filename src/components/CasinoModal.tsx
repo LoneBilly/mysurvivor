@@ -80,8 +80,8 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-4 space-y-4">
-          <div className="h-32 w-[28rem] max-w-full bg-black/20 rounded-lg relative overflow-hidden mx-auto">
+        <div className="py-4 space-y-4 flex flex-col items-center">
+          <div className="h-32 w-[28rem] max-w-full bg-black/20 rounded-lg relative overflow-hidden">
             {isSpinning && spinningResult ? (
               <LootboxSpinner resultLabel={spinningResult.label} onSpinEnd={handleSpinEnd} />
             ) : result ? (
@@ -97,7 +97,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits }: 
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 w-full">
             <p className="text-sm font-medium text-center">Montant du pari :</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {betOptions.map((amount) => (
