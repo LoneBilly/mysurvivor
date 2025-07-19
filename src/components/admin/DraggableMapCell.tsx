@@ -1,68 +1,73 @@
-import { useDrag, useDrop } from 'react-dnd';
-import { MapCell } from '@/types/game';
-import { cn } from '@/lib/utils';
-import * as LucideIcons from 'lucide-react';
-import { PlusCircle } from 'lucide-react';
+import { MapCell } from "@/types/game";
+import { cn } from "@/lib/utils";
+import * as LucideIcons from "lucide-react";
+import { useState } from "react";
 
 interface DraggableMapCellProps {
   cell: MapCell;
-  onClick: (cell: MapCell) => void;
-  onDropCell: (fromId: number, toId: number) => void;
-  isBeingDragged: boolean;
+  onDrop: (draggedCell: MapCell, targetCell: MapCell) => void;
+  onSelect: (cell: MapCell) => void;
 }
 
-const DraggableMapCell = ({ cell, onClick, onDropCell, isBeingDragged }: DraggableMapCellProps) => {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: 'MAP_CELL',
-    item: { id: cell.id },
-    collect: (monitor) => ({
-      isDragging: !!monitor.isDragging(),
-    }),
-  }));
-
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: 'MAP_CELL',
-    drop: (item: { id: number }) => onDropCell(item.id, cell.id),
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-    }),
-  }));
+const DraggableMapCell = ({ cell, onDrop, onSelect }: DraggableMapCellProps) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const isUnknown = cell.type === 'unknown';
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({ id: cell.id }));
+    setIsDragging(true);
+    e.dataTransfer.setData("application/json", JSON.stringify(cell));
+    e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
-    // Logic for drag end if needed
+  const handleDragEnd = () => {
+    setIsDragging(false);
   };
 
-  const IconComponent = cell.icon ? (LucideIcons as any)[cell.icon] || LucideIcons.MapPin : LucideIcons.MapPin;
-  const isEmpty = !cell.type;
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const draggedCellData = e.dataTransfer.getData("application/json");
+    if (draggedCellData) {
+      const draggedCell: MapCell = JSON.parse(draggedCellData);
+      onDrop(draggedCell, cell);
+    }
+  };
+
+  const handleClick = () => {
+    // Pour éviter de déclencher le clic à la fin d'un glisser-déposer
+    if (!isDragging) {
+      onSelect(cell);
+    }
+  };
+
+  const IconComponent = !isUnknown && cell.icon ? (LucideIcons as any)[cell.icon] : null;
 
   return (
     <div
-      ref={(node) => drag(drop(node))}
-      draggable={!isEmpty}
+      draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onClick={() => onClick(cell)}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      onClick={handleClick}
       className={cn(
-        "w-24 h-24 border border-gray-700 flex flex-col items-center justify-center text-center p-1 cursor-pointer relative transition-colors",
-        isEmpty ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-900 hover:bg-gray-800',
-        isDragging || isBeingDragged ? 'opacity-30' : 'opacity-100',
-        isOver && 'bg-blue-500/20 border-blue-500'
+        "relative aspect-square flex flex-col items-center justify-center p-1 text-center font-bold rounded-md border-2 transition-all duration-200 w-full h-full cursor-grab active:cursor-grabbing",
+        isUnknown 
+          ? "bg-gray-800/20 border-gray-700/30 hover:border-sky-500/50"
+          : "border-gray-500/50 text-gray-300 bg-gray-900/30 hover:border-sky-500"
       )}
-      style={{ touchAction: 'none' }}
     >
-      {isEmpty ? (
-        <PlusCircle className="w-8 h-8 text-gray-500" />
-      ) : (
-        <>
-          <IconComponent className="w-8 h-8" />
-          <span className="text-xs mt-1 font-semibold">{cell.type}</span>
-          <span className="absolute top-1 right-1 text-xs text-gray-500">{cell.id}</span>
-        </>
-      )}
+      {IconComponent && <IconComponent className="w-1/3 h-1/3 mb-1" />}
+      {!isUnknown && <span className="text-[10px] leading-tight">{cell.type}</span>}
+      <span className={cn(
+        "absolute text-gray-500",
+        isUnknown ? "text-[10px] top-1/2 -translate-y-1/2" : "text-[8px] top-0 right-1"
+      )}>
+        ID:{cell.id}
+      </span>
     </div>
   );
 };
