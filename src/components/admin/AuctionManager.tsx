@@ -35,7 +35,7 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from('auctions')
-      .select('*, items(name, icon), auction_bids(amount, profiles(username))')
+      .select('*, items(name, icon), auction_bids(amount, profiles!inner(username))')
       .order('created_at', { ascending: false });
 
     if (error) {
