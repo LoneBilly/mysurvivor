@@ -26,7 +26,6 @@ import WorkbenchModal from "../WorkbenchModal";
 import MoreOptionsModal from "../MoreOptionsModal";
 import HotelModal from '../HotelModal';
 import CasinoModal from '../CasinoModal';
-import AuctionModal from "../AuctionModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -53,7 +52,6 @@ const GameUI = () => {
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const [isHotelOpen, setIsHotelOpen] = useState(false);
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
-  const [isAuctionOpen, setIsAuctionOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
 
   const [modalState, setModalState] = useState<{
@@ -146,8 +144,6 @@ const GameUI = () => {
             setIsCasinoOpen(true);
           } else if (type.toLowerCase().includes('hôtel')) {
             setIsHotelOpen(true);
-          } else if (type.toLowerCase().includes('enchères')) {
-            setIsAuctionOpen(true);
           } else if (id === 10) { // Marché
             setIsMarketOpen(true);
           } else if (id === 2) { // Commissariat
@@ -326,14 +322,6 @@ const GameUI = () => {
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Casino"}
-      />
-      <AuctionModal
-        isOpen={isAuctionOpen}
-        onClose={() => setIsAuctionOpen(false)}
-        credits={playerData.playerState.credits}
-        onUpdate={refreshPlayerData}
-        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
-        zoneName={selectedZoneForAction?.type || "Enchères"}
       />
       <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} />
     </div>
