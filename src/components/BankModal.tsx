@@ -1,103 +1,117 @@
-import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapCell } from "@/types/game";
-import { usePlayerState } from "@/hooks/usePlayerState";
-import { showSuccess, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowDown, ArrowUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from '@/integrations/supabase/client';
+import { showError, showSuccess } from '@/utils/toast';
+import { Loader2, Coins, Landmark, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 
 interface BankModalProps {
   isOpen: boolean;
   onClose: () => void;
-  zone: MapCell | null;
+  credits: number;
+  bankBalance: number;
+  onUpdate: () => void;
+  zoneName: string;
 }
 
-const BankModal = ({ isOpen, onClose, zone }: BankModalProps) => {
-  const { playerState, fetchPlayerState } = usePlayerState();
-  const [amount, setAmount] = useState(0);
+const BankModal = ({ isOpen, onClose, credits, bankBalance, onUpdate, zoneName }: BankModalProps) => {
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleTransaction = async (type: 'deposit' | 'withdraw') => {
-    if (amount <= 0) {
-      showError("Le montant doit être positif.");
+  useEffect(() => {
+    if (!isOpen) {
+      setDepositAmount('');
+      setWithdrawAmount('');
+    }
+  }, [isOpen]);
+
+  const handleDeposit = async () => {
+    const amount = parseInt(depositAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      showError("Montant de dépôt invalide.");
+      return;
+    }
+    if (credits < amount) {
+      showError("Crédits insuffisants.");
       return;
     }
     setLoading(true);
-    try {
-      const rpcName = type === 'deposit' ? 'deposit_credits' : 'withdraw_credits';
-      const { error } = await supabase.rpc(rpcName, { p_amount: amount });
-      if (error) throw error;
-      showSuccess("Transaction réussie !");
-      fetchPlayerState();
-      setAmount(0);
-    } catch (error: any) {
+    const { error } = await supabase.rpc('deposit_credits', { p_amount: amount });
+    setLoading(false);
+    if (error) {
       showError(error.message);
-    } finally {
-      setLoading(false);
+    } else {
+      showSuccess(`${amount} crédits déposés.`);
+      onUpdate();
+      setDepositAmount('');
     }
   };
 
-  if (!zone) return null;
+  const handleWithdraw = async () => {
+    const amount = parseInt(withdrawAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      showError("Montant de retrait invalide.");
+      return;
+    }
+    if (bankBalance < amount) {
+      showError("Fonds insuffisants en banque.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.rpc('withdraw_credits', { p_amount: amount });
+    setLoading(false);
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess(`Retrait effectué.`);
+      onUpdate();
+      setWithdrawAmount('');
+    }
+  };
+
+  const withdrawalFee = Math.floor(parseInt(withdrawAmount || '0', 10) * 0.05);
+  const netWithdrawal = parseInt(withdrawAmount || '0', 10) - withdrawalFee;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-        <DialogHeader>
-          <DialogTitle>{zone.id_name || zone.type}</DialogTitle>
-          <DialogDescription>
-            Gérez vos crédits en toute sécurité.
-          </DialogDescription>
+        <DialogHeader className="text-center">
+          <Landmark className="w-10 h-10 mx-auto text-white mb-2" />
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
+          <DialogDescription>Gérez vos finances en toute sécurité.</DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div>
-              <p className="text-sm text-gray-400">En poche</p>
-              <p className="text-lg font-bold text-yellow-400">{playerState?.credits ?? 0}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">En banque</p>
-              <p className="text-lg font-bold text-yellow-400">{playerState?.bank_balance ?? 0}</p>
-            </div>
-          </div>
-          <Tabs defaultValue="deposit" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="deposit">Dépôt</TabsTrigger>
-              <TabsTrigger value="withdraw">Retrait</TabsTrigger>
-            </TabsList>
-            <TabsContent value="deposit" className="pt-4">
-              <div className="flex items-center space-x-2">
-                <Input type="number" placeholder="Montant" value={amount || ''} onChange={e => setAmount(parseInt(e.target.value) || 0)} className="bg-white/5 border-white/20" />
-                <Button onClick={() => handleTransaction('deposit')} disabled={loading}>
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDown className="w-4 h-4" />}
-                </Button>
-              </div>
-            </TabsContent>
-            <TabsContent value="withdraw" className="pt-4">
-              <div className="flex items-center space-x-2">
-                <Input type="number" placeholder="Montant" value={amount || ''} onChange={e => setAmount(parseInt(e.target.value) || 0)} className="bg-white/5 border-white/20" />
-                <Button onClick={() => handleTransaction('withdraw')} disabled={loading}>
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
-                </Button>
-              </div>
-              <p className="text-xs text-gray-400 mt-2">Des frais de 5% s'appliquent aux retraits.</p>
-            </TabsContent>
-          </Tabs>
+        <div className="text-center my-4 p-3 bg-white/5 rounded-lg">
+          <p className="text-sm text-gray-400">Solde en main</p>
+          <p className="text-lg font-bold flex items-center justify-center gap-2">{credits} <Coins className="w-4 h-4 text-yellow-400" /></p>
+          <p className="text-sm text-gray-400 mt-2">Solde en banque</p>
+          <p className="text-lg font-bold flex items-center justify-center gap-2">{bankBalance} <Coins className="w-4 h-4 text-yellow-400" /></p>
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Fermer
-          </Button>
-        </DialogFooter>
+        <Tabs defaultValue="deposit" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="deposit"><ArrowUpFromLine className="w-4 h-4 mr-2" />Déposer</TabsTrigger>
+            <TabsTrigger value="withdraw"><ArrowDownToLine className="w-4 h-4 mr-2" />Retirer</TabsTrigger>
+          </TabsList>
+          <TabsContent value="deposit" className="mt-4 space-y-4">
+            <Input type="number" placeholder="Montant à déposer" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="bg-white/5 border-white/20" />
+            <Button onClick={handleDeposit} disabled={loading || !depositAmount} className="w-full">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Déposer'}
+            </Button>
+          </TabsContent>
+          <TabsContent value="withdraw" className="mt-4 space-y-4">
+            <Input type="number" placeholder="Montant à retirer" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="bg-white/5 border-white/20" />
+            {parseInt(withdrawAmount || '0', 10) > 0 && (
+              <div className="text-xs text-gray-400 text-center">
+                Frais (5%): {withdrawalFee} crédits. Vous recevrez: {netWithdrawal} crédits.
+              </div>
+            )}
+            <Button onClick={handleWithdraw} disabled={loading || !withdrawAmount} className="w-full">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Retirer'}
+            </Button>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

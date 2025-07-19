@@ -1,4 +1,5 @@
-import { useState } from "react";
+"use client";
+
 import {
   Dialog,
   DialogContent,
@@ -8,97 +9,116 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MapCell } from "@/types/game";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { usePlayerState } from "@/hooks/usePlayerState";
-import { Loader2, Dices, Gavel } from "lucide-react";
-import { showSuccess, showError } from "@/utils/toast";
-import { useNavigate } from "react-router-dom";
+import { showError } from "@/utils/toast";
+import CreditsInfo from "./CreditsInfo";
+import LootboxSpinner from "./LootboxSpinner";
+import { Loader2 } from "lucide-react";
 
 interface CasinoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  zone: MapCell | null;
+  credits: number;
+  onUpdate: () => void;
+  onPurchaseCredits: () => void;
+  zoneName: string;
 }
 
-const CasinoModal = ({ isOpen, onClose, zone }: CasinoModalProps) => {
+const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: CasinoModalProps) => {
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [result, setResult] = useState<{ winnings: number; label: string } | null>(null);
+  const [spinningResult, setSpinningResult] = useState<{ winnings: number; label: string } | null>(null);
   const [betAmount, setBetAmount] = useState(10);
-  const [loading, setLoading] = useState(false);
-  const { playerState, fetchPlayerState } = usePlayerState();
-  const navigate = useNavigate();
 
   const handlePlay = async () => {
-    if (!playerState || !betAmount || betAmount <= 0) {
-      showError("Montant de pari invalide.");
-      return;
-    }
-    if (playerState.credits < betAmount) {
-      showError("Crédits insuffisants.");
+    if (credits < betAmount) {
+      showError(`Crédits insuffisants pour parier ${betAmount}.`);
       return;
     }
 
-    setLoading(true);
+    setIsSpinning(true);
+    setResult(null);
+    setSpinningResult(null);
+
     try {
-      const { data, error } = await supabase.rpc("play_casino_game", {
-        p_bet_amount: betAmount,
-      });
+      const { data, error } = await supabase.rpc('play_casino_game', { p_bet_amount: betAmount });
+      if (error) throw new Error(error.message);
+      
+      setSpinningResult(data);
 
-      if (error) throw error;
-
-      const { winnings, label } = data;
-      if (winnings > 0) {
-        showSuccess(`Vous avez gagné ${winnings} crédits ! Résultat: ${label}`);
-      } else {
-        showError(`Vous avez perdu ${betAmount} crédits. Résultat: ${label}`);
-      }
-      fetchPlayerState();
     } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setLoading(false);
+      showError(`Erreur au casino: ${error.message}`);
+      setIsSpinning(false);
     }
   };
 
-  if (!zone) return null;
+  const handleSpinEnd = () => {
+    setResult(spinningResult);
+    setIsSpinning(false);
+    onUpdate();
+  };
+
+  const handleClose = () => {
+    if (isSpinning) return;
+    setResult(null);
+    setSpinningResult(null);
+    onClose();
+  };
+
+  const betOptions = [10, 50, 100, 500];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700"
-      >
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{zone.id_name || zone.type}</DialogTitle>
-          <DialogDescription>
-            Tentez votre chance et gagnez gros !
+          <DialogTitle>{zoneName}</DialogTitle>
+          <DialogDescription asChild>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <span>Tentez votre chance !</span>
+              <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
+            </div>
           </DialogDescription>
         </DialogHeader>
+        
         <div className="py-4 space-y-4">
-          <div className="text-center">
-            <p className="text-lg">Votre solde: <span className="font-bold text-yellow-400">{playerState?.credits} crédits</span></p>
+          <div className="h-32 w-full bg-black/20 rounded-lg relative overflow-hidden">
+            {isSpinning && spinningResult ? (
+              <LootboxSpinner resultLabel={spinningResult.label} onSpinEnd={handleSpinEnd} />
+            ) : result ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <p className="text-lg">Vous avez gagné</p>
+                <p className="text-4xl font-bold text-yellow-400 animate-pulse">{result.winnings} crédits</p>
+                <p className="text-sm text-gray-400">({result.label})</p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">
+                <p>Placez votre pari pour lancer la roue.</p>
+              </div>
+            )}
           </div>
-          <div className="flex items-center space-x-2">
-            <Input
-              type="number"
-              value={betAmount}
-              onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 1))}
-              className="bg-white/5 border-white/20"
-              min="1"
-            />
-            <Button onClick={handlePlay} disabled={loading} className="w-full">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Dices className="w-4 h-4 mr-2" />}
-              Parier
-            </Button>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-center">Montant du pari :</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {betOptions.map((amount) => (
+                <Button
+                  key={amount}
+                  variant={betAmount === amount ? "default" : "outline"}
+                  onClick={() => setBetAmount(amount)}
+                  disabled={isSpinning}
+                  className="flex-1"
+                >
+                  {amount}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
-        <DialogFooter className="sm:justify-between gap-2">
-          <Button variant="secondary" onClick={() => navigate('/game/auction')}>
-            <Gavel className="w-4 h-4 mr-2" />
-            Voir les enchères
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            Fermer
+
+        <DialogFooter>
+          <Button onClick={handlePlay} disabled={isSpinning || credits < betAmount} className="w-full bg-green-600 hover:bg-green-700">
+            {isSpinning ? <Loader2 className="w-5 h-5 animate-spin" /> : `Parier ${betAmount} crédits`}
           </Button>
         </DialogFooter>
       </DialogContent>
