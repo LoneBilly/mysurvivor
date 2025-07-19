@@ -135,14 +135,15 @@ const GameUI = () => {
     }
 
     if (isCurrentPosition) {
-      setSelectedZoneForAction(cell);
       switch (interaction_type) {
         case 'Action':
           if (id_name?.includes('metro')) {
             setIsMetroOpen(true);
           } else if (type.toLowerCase().includes('casino')) {
+            setSelectedZoneForAction(cell);
             setIsCasinoOpen(true);
-          } else if (type.toLowerCase().includes('hôtel')) {
+          } else if (type.toLowerCase().includes('hotel')) {
+            setSelectedZoneForAction(cell);
             setIsHotelOpen(true);
           } else if (id === 10) { // Marché
             setIsMarketOpen(true);
@@ -291,13 +292,13 @@ const GameUI = () => {
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
       <OptionsModal isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} />
       <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} inventory={playerData.inventory} unlockedSlots={playerData.playerState.unlocked_slots} onUpdate={refreshInventoryAndChests} />
-      <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Marché"} />
+      <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <PurchaseCreditsModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
-      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Faction Éclaireurs"} />
+      <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
       <ExplorationModal isOpen={isExplorationModalOpen} onClose={() => setIsExplorationModalOpen(false)} zone={selectedZoneForExploration} onUpdate={refreshPlayerData} onOpenInventory={() => setIsInventoryOpen(true)} />
-      <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Métro"} />
-      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshResources} zoneName={selectedZoneForAction?.type || "Banque"} />
-      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshResources} zoneName={selectedZoneForAction?.type || "Commissariat"} />
+      <MetroModal isOpen={isMetroOpen} onClose={() => setIsMetroOpen(false)} mapLayout={mapLayout} discoveredZones={playerData.playerState.zones_decouvertes} currentZoneId={currentZone?.id || 0} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} />
+      <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshResources} />
+      <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshResources} />
       <WorkbenchModal
         isOpen={!!inspectedConstruction}
         onClose={() => setInspectedConstruction(null)}
@@ -313,7 +314,6 @@ const GameUI = () => {
         credits={playerData.playerState.credits}
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
-        zoneName={selectedZoneForAction?.type || "Hôtel"}
       />
       <CasinoModal
         isOpen={isCasinoOpen}
@@ -321,7 +321,6 @@ const GameUI = () => {
         credits={playerData.playerState.credits}
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
-        zoneName={selectedZoneForAction?.type || "Casino"}
       />
       <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} />
     </div>

@@ -17,10 +17,9 @@ interface HotelModalProps {
   credits: number;
   onUpdate: () => void;
   onPurchaseCredits: () => void;
-  zoneName: string;
 }
 
-const HotelModal = ({ isOpen, onClose, zone, credits, onUpdate, onPurchaseCredits, zoneName }: HotelModalProps) => {
+const HotelModal = ({ isOpen, onClose, zone, credits, onUpdate, onPurchaseCredits }: HotelModalProps) => {
   const [loading, setLoading] = useState(false);
 
   const handleRest = async () => {
@@ -48,7 +47,7 @@ const HotelModal = ({ isOpen, onClose, zone, credits, onUpdate, onPurchaseCredit
       >
         <DialogHeader className="text-center">
           <BedDouble className="w-10 h-10 mx-auto text-white mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{zoneName}</DialogTitle>
+          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Hôtel</DialogTitle>
           <DialogDescription className="sr-only">Reposez-vous pour regagner de l'énergie.</DialogDescription>
           <CreditsInfo credits={credits} className="mt-1" onClick={onPurchaseCredits} />
         </DialogHeader>

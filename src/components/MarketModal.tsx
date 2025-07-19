@@ -64,10 +64,9 @@ interface MarketModalProps {
   saleSlots: number;
   onUpdate: () => Promise<void>;
   onPurchaseCredits: () => void;
-  zoneName: string;
 }
 
-const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate, onPurchaseCredits, zoneName }: MarketModalProps) => {
+const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate, onPurchaseCredits }: MarketModalProps) => {
   const { user } = useAuth();
   const { getIconUrl, refreshInventoryAndChests, refreshResources } = useGame();
   const [activeTab, setActiveTab] = useState('buy');
@@ -242,7 +241,7 @@ const MarketModal = ({ isOpen, onClose, inventory, credits, saleSlots, onUpdate,
         >
           <DialogHeader className="text-center flex-shrink-0">
             <Store className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">{zoneName}</DialogTitle>
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-2xl text-center">Marché</DialogTitle>
             <DialogDescription asChild>
               <CreditsInfo credits={credits} onClick={onPurchaseCredits} />
             </DialogDescription>
