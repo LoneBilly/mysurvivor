@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, GitBranch, Send, EyeOff, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-// Types (assuming these exist based on context)
 type PatchNote = {
   id: number;
   title: string;
@@ -20,14 +19,14 @@ type PatchNote = {
 type PatchNoteChange = {
   id: number;
   patch_note_id: number;
-  change_type: 'addition' | 'modification' | 'bugfix';
+  change_type: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'FIXED' | 'IMPROVED';
   entity_type: string;
   entity_name: string;
   description: string;
 };
 
 const changeTypeMap = {
-  addition: {
+  ADDED: {
     title: 'Ajouts',
     icon: CheckCircle,
     color: 'text-green-300',
@@ -35,7 +34,7 @@ const changeTypeMap = {
     bgColor: 'bg-green-500/10',
     iconColor: 'text-green-400',
   },
-  modification: {
+  MODIFIED: {
     title: 'Modifications',
     icon: AlertTriangle,
     color: 'text-yellow-300',
@@ -43,13 +42,29 @@ const changeTypeMap = {
     bgColor: 'bg-yellow-500/10',
     iconColor: 'text-yellow-400',
   },
-  bugfix: {
-    title: 'Correctifs',
-    icon: XCircle,
+  REMOVED: {
+    title: 'Suppressions',
+    icon: Trash2,
     color: 'text-red-300',
     borderColor: 'border-red-500/50',
     bgColor: 'bg-red-500/10',
     iconColor: 'text-red-400',
+  },
+  FIXED: {
+    title: 'Correctifs',
+    icon: XCircle,
+    color: 'text-blue-300',
+    borderColor: 'border-blue-500/50',
+    bgColor: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+  },
+  IMPROVED: {
+    title: 'Améliorations',
+    icon: GitBranch,
+    color: 'text-purple-300',
+    borderColor: 'border-purple-500/50',
+    bgColor: 'bg-purple-500/10',
+    iconColor: 'text-purple-400',
   },
 };
 
@@ -243,12 +258,12 @@ const PatchnoteManager = () => {
                 <h3 className="text-lg font-bold">{new Date(selectedPatchNote.created_at).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
                 <p className="text-gray-400">{selectedPatchNote.title}</p>
               </div>
-              <Button onClick={() => { setCurrentChange({ change_type: 'addition', entity_type: 'Général' }); setIsChangeModalOpen(true); }}>
+              <Button onClick={() => { setCurrentChange({ change_type: 'ADDED', entity_type: 'Général' }); setIsChangeModalOpen(true); }}>
                 <PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement
               </Button>
             </div>
             <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6">
-              {Object.keys(changeTypeMap).length > 0 && Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
+              {Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
               {Object.keys(changeTypeMap).map(type => {
                 const key = type as keyof typeof changeTypeMap;
                 if (groupedChanges[key] && groupedChanges[key].length > 0) {
@@ -322,15 +337,17 @@ const PatchnoteManager = () => {
           <div className="space-y-4">
             <Select
               value={currentChange.change_type}
-              onValueChange={(value: 'addition' | 'modification' | 'bugfix') => setCurrentChange({ ...currentChange, change_type: value })}
+              onValueChange={(value: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'FIXED' | 'IMPROVED') => setCurrentChange({ ...currentChange, change_type: value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Type de changement" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="addition">Ajout</SelectItem>
-                <SelectItem value="modification">Modification</SelectItem>
-                <SelectItem value="bugfix">Correctif</SelectItem>
+                <SelectItem value="ADDED">Ajout</SelectItem>
+                <SelectItem value="MODIFIED">Modification</SelectItem>
+                <SelectItem value="REMOVED">Suppression</SelectItem>
+                <SelectItem value="FIXED">Correctif</SelectItem>
+                <SelectItem value="IMPROVED">Amélioration</SelectItem>
               </SelectContent>
             </Select>
             <Input
