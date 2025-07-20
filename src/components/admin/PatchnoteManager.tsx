@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,29 +50,30 @@ const PatchnoteManager = () => {
 
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'note' | 'change'; item: PatchNote | PatchNoteChange | null }>({ isOpen: false, type: 'note', item: null });
 
-  useEffect(() => {
-    const initialFetch = async () => {
-      setLoading(true);
-      try {
-        const { data: notesData, error: notesError } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
-        if (notesError) throw notesError;
-        
-        const { data: changesData, error: changesError } = await supabase.from('patch_note_changes').select('*');
-        if (changesError) throw changesError;
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: notesData, error: notesError } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
+      if (notesError) throw notesError;
+      
+      const { data: changesData, error: changesError } = await supabase.from('patch_note_changes').select('*');
+      if (changesError) throw changesError;
 
-        setPatchNotes(notesData || []);
-        setChanges(changesData || []);
-        if (notesData && notesData.length > 0) {
-          setSelectedPatchNote(notesData[0]);
-        }
-      } catch (error: any) {
-        showError("Erreur de chargement des patchnotes.");
-      } finally {
-        setLoading(false);
+      setPatchNotes(notesData || []);
+      setChanges(changesData || []);
+      if (notesData && notesData.length > 0) {
+        setSelectedPatchNote(prev => prev || notesData[0]);
       }
-    };
-    initialFetch();
+    } catch (error: any) {
+      showError("Erreur de chargement des patchnotes.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSaveNote = async (e: FormEvent) => {
     e.preventDefault();
@@ -198,7 +199,10 @@ const PatchnoteManager = () => {
 
   const filteredChanges = changes.filter(c => c.patch_note_id === selectedPatchNote?.id);
   const groupedChanges = filteredChanges.reduce((acc, change) => {
-    (acc[change.change_type] = acc[change.change_type] || []).push(change);
+    if (change.change_type) {
+      (acc[change.change_type] = acc[change.change_type] || []).push(change);
+    }
+    return acc;
   }, {} as Record<string, PatchNoteChange[]>);
 
   if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
@@ -246,7 +250,7 @@ const PatchnoteManager = () => {
                 <Button size="sm" onClick={() => { setEditingChange({ change_type: 'ADDED', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement</Button>
               </div>
               <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6">
-                {Object.keys(changeTypeMap).length > 0 && Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
+                {Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
                 {Object.keys(changeTypeMap).map(type => {
                   const key = type as keyof typeof changeTypeMap;
                   return groupedChanges[key] && (
