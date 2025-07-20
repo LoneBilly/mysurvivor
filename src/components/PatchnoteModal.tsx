@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 
 interface PatchNote {
   id: number;
-  version: string;
   title: string;
   created_at: string;
   changes: PatchNoteChange[];
@@ -19,22 +18,16 @@ interface PatchNote {
 interface PatchNoteChange {
   id: number;
   patch_note_id: number;
-  change_type: 'Ajout' | 'Modification' | 'Suppression';
+  change_type: 'ajout' | 'modification' | 'suppression';
   entity_type: string;
   entity_name: string;
   description: string | null;
 }
 
-const changeTypeStyles = {
-  'Ajout': 'border-green-500/50 bg-green-500/10 text-green-300',
-  'Modification': 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300',
-  'Suppression': 'border-red-500/50 bg-red-500/10 text-red-300',
-};
-
-const changeTypeIcons = {
-  'Ajout': <CheckCircle className="w-5 h-5 text-green-400" />,
-  'Modification': <AlertTriangle className="w-5 h-5 text-yellow-400" />,
-  'Suppression': <XCircle className="w-5 h-5 text-red-400" />,
+const changeTypeMap = {
+  ajout: { label: 'Ajouts', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+  modification: { label: 'Modifications', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+  suppression: { label: 'Suppressions', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
 };
 
 const PatchnoteModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
@@ -66,8 +59,6 @@ const PatchnoteModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     fetchData();
   }, [isOpen]);
 
-  const changeTypes: ('Ajout' | 'Modification' | 'Suppression')[] = ['Ajout', 'Modification', 'Suppression'];
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-0 flex flex-col overflow-hidden">
@@ -88,23 +79,25 @@ const PatchnoteModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <AccordionItem key={note.id} value={`item-${note.id}`}>
                   <AccordionTrigger className="hover:no-underline">
                     <div className="text-left">
-                      <h3 className="text-lg font-bold">{note.version}</h3>
+                      <h3 className="text-lg font-bold">{new Date(note.created_at).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</h3>
                       <p className="text-sm text-gray-300">{note.title}</p>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="p-4 bg-black/20 rounded-b-lg">
                     <div className="space-y-6">
-                      {changeTypes.map(type => {
-                        const changesOfType = note.changes.filter(c => c.change_type === type);
+                      {Object.keys(changeTypeMap).map(type => {
+                        const key = type as keyof typeof changeTypeMap;
+                        const changesOfType = note.changes.filter(c => c.change_type === key);
                         if (changesOfType.length === 0) return null;
+                        const displayInfo = changeTypeMap[key];
                         return (
                           <div key={type}>
-                            <h4 className={cn("text-xl font-bold mb-3 flex items-center gap-2", changeTypeStyles[type].replace('bg-', 'text-').replace('/10', ''))}>
-                              {changeTypeIcons[type]} {type}s
+                            <h4 className={cn("text-xl font-bold mb-3 flex items-center gap-2", displayInfo.styles.replace('bg-', 'text-').replace('/10', ''))}>
+                              {displayInfo.icon} {displayInfo.label}
                             </h4>
                             <div className="space-y-3">
                               {changesOfType.map(change => (
-                                <div key={change.id} className={cn("p-3 rounded-lg border", changeTypeStyles[type])}>
+                                <div key={change.id} className={cn("p-3 rounded-lg border", displayInfo.styles)}>
                                   <span className="text-xs font-semibold uppercase bg-gray-500/20 px-2 py-1 rounded-full">{change.entity_type}</span>
                                   <p className="font-bold mt-2">{change.entity_name}</p>
                                   {change.description && (
