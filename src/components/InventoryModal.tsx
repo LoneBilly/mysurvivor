@@ -213,7 +213,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
     setDraggedItem(null);
     setIsDropModalOpen(false);
 
-    const { error } = await supabase.from('inventories').delete().eq('id', itemToDrop.id);
+    const { error } = await supabase.rpc('drop_inventory_item', { p_inventory_id: itemToDrop.id, p_quantity_to_drop: itemToDrop.quantity });
     if (error) {
       showError("Erreur lors de la suppression de l'objet.");
     } else {
@@ -240,7 +240,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
     const item = detailedItem.item;
     setDetailedItem(null);
 
-    const { error } = await supabase.from('inventories').delete().eq('id', item.id);
+    const { error } = await supabase.rpc('drop_inventory_item', { p_inventory_id: item.id, p_quantity_to_drop: item.quantity });
     if (error) showError(error.message);
     else {
       showSuccess("Pile d'objets jetée.");
