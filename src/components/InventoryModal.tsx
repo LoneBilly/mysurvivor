@@ -64,6 +64,19 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     setLoading(false);
   }, [inventory]);
 
+  useEffect(() => {
+    if (detailedItem) {
+      const updatedItem = inventory.find(i => i.id === detailedItem.id);
+      if (updatedItem) {
+        if (updatedItem.quantity !== detailedItem.quantity) {
+          setDetailedItem(updatedItem);
+        }
+      } else {
+        setDetailedItem(null);
+      }
+    }
+  }, [inventory, detailedItem]);
+
   const stopAutoScroll = useCallback(() => {
     if (scrollIntervalRef.current) {
       cancelAnimationFrame(scrollIntervalRef.current);

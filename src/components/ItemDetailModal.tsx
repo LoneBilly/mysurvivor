@@ -114,8 +114,9 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
       showError(error.message);
     } else {
       showSuccess(`${item.items?.name} utilisé !`);
-      if (onUpdate) onUpdate();
-      onClose();
+      if (onUpdate) {
+        await onUpdate();
+      }
     }
   };
 
