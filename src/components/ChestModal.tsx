@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, InventoryItem } from "@/types/game";
+import { BaseConstruction, InventoryItem, ChestItem as ChestItemType } from "@/types/game";
 import { Box, Trash2 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,8 +10,6 @@ import InventorySlot from "./InventorySlot";
 import ItemDetailModal from "./ItemDetailModal";
 
 const CHEST_SLOTS = 10;
-
-interface ChestItem extends InventoryItem {}
 
 interface ChestModalProps {
   isOpen: boolean;
@@ -23,7 +21,7 @@ interface ChestModalProps {
 
 const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
   const { playerData, setPlayerData, refreshInventoryAndChests } = useGame();
-  const [chestItems, setChestItems] = useState<ChestItem[]>([]);
+  const [chestItems, setChestItems] = useState<ChestItemType[]>([]);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
@@ -32,12 +30,10 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
   useEffect(() => {
     if (isOpen && construction) {
-      const itemsInChest = playerData.workbenchItems.filter(item => item.workbench_id === construction.id);
-      // This is a temporary fix, ideally chest items should be in their own state slice
-      // For now, we'll just cast it.
-      setChestItems(itemsInChest as ChestItem[]);
+      const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === construction.id) || [];
+      setChestItems(itemsInChest);
     }
-  }, [isOpen, construction, playerData.workbenchItems]);
+  }, [isOpen, construction, playerData.chestItems]);
 
 
   const handleDemolishClick = () => {
@@ -242,7 +238,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
+        <DialogContent className="max-w-3xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Box className="w-7 h-7 text-white" />
@@ -252,7 +248,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
               Stockez vos objets en sécurité.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
+          <div className="relative flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 min-h-0">
             {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>

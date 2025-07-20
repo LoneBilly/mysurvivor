@@ -124,8 +124,12 @@ export interface CraftingJob {
 }
 
 export interface ChestItem {
+  id: number;
+  chest_id: number;
   item_id: number;
   quantity: number;
+  slot_position: number | null;
+  items: ItemDetails | null;
 }
 
 export interface FullPlayerData {
