@@ -320,7 +320,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
               Stockez vos objets en sécurité.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 min-h-0">
+          <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
             {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
