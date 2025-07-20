@@ -16,7 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Item, CraftingRecipe } from '@/types/game';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Loader2, AlertCircle, CheckCircle, Trash2, Wrench } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Trash2, Wrench, PlusCircle } from 'lucide-react';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ActionModal from '../ActionModal';
 import RecipeEditorModal from './RecipeEditorModal';
@@ -29,6 +29,20 @@ interface ItemFormModalProps {
   allItems: Item[];
 }
 
+const PREDEFINED_EFFECTS = [
+  { key: 'ammo_item_id', label: 'Munition (Armes)', type: 'item_id' },
+  { key: 'slots_supplementaires', label: 'Slots supplémentaires (Sac à dos)', type: 'number' },
+  { key: 'reduction_cout_energie_deplacement_pourcentage', label: 'Réduction coût énergie déplacement %', type: 'number' },
+  { key: 'reduction_temps_exploration_pourcentage', label: 'Réduction temps exploration %', type: 'number' },
+  { key: 'bonus_recolte_bois_pourcentage', label: 'Bonus récolte bois %', type: 'number' },
+  { key: 'bonus_recolte_pierre_pourcentage', label: 'Bonus récolte pierre %', type: 'number' },
+  { key: 'bonus_recolte_viande_pourcentage', label: 'Bonus récolte viande %', type: 'number' },
+  { key: 'restaure_vie', label: 'Restaure Vie (Consommable)', type: 'number' },
+  { key: 'restaure_faim', label: 'Restaure Faim (Consommable)', type: 'number' },
+  { key: 'restaure_soif', label: 'Restaure Soif (Consommable)', type: 'number' },
+  { key: 'restaure_energie', label: 'Restaure Énergie (Consommable)', type: 'number' },
+];
+
 const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModalProps) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -36,7 +50,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
   const [stackable, setStackable] = useState(true);
   const [type, setType] = useState('Items divers');
   const [useActionText, setUseActionText] = useState('Utiliser');
-  const [effects, setEffects] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   
   const [nameExists, setNameExists] = useState(false);
@@ -53,7 +66,8 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
   const [isCraftable, setIsCraftable] = useState(false);
   const [recipeId, setRecipeId] = useState<number | null>(null);
   const [draftRecipe, setDraftRecipe] = useState<Partial<CraftingRecipe> | null>(null);
-  const [ammoItemId, setAmmoItemId] = useState<number | null>(null);
+  
+  const [effectsList, setEffectsList] = useState<{ id: number; key: string; value: any }[]>([]);
 
   const [availableIcons, setAvailableIcons] = useState<string[]>([]);
   const [fetchingIcons, setFetchingIcons] = useState(false);
@@ -69,8 +83,15 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
       setStackable(item?.stackable ?? true);
       setType(item?.type || 'Items divers');
       setUseActionText(item?.use_action_text || '');
-      setEffects(item?.effects || {});
-      setAmmoItemId(item?.effects?.ammo_item_id || null);
+      
+      const initialEffects = item?.effects || {};
+      const effectsArray = Object.entries(initialEffects).map(([key, value], index) => ({
+        id: index,
+        key,
+        value,
+      }));
+      setEffectsList(effectsArray);
+
       setNameExists(false);
       setPreviewUrl(null);
       setIconExists(null);
@@ -184,14 +205,31 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
     setUseActionText(value);
   };
 
-  const handleEffectChange = (key: string, value: string) => {
-    const numValue = parseFloat(value);
-    setEffects(prev => ({ ...prev, [key]: isNaN(numValue) ? undefined : numValue }));
+  const handleAddEffect = () => {
+    setEffectsList(prev => [...prev, { id: Date.now(), key: '', value: '' }]);
   };
 
-  const handleAmmoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value ? parseInt(e.target.value, 10) : null;
-    setAmmoItemId(value);
+  const handleEffectChange = (id: number, field: 'key' | 'value', newValue: any) => {
+    setEffectsList(prev => prev.map(effect => {
+      if (effect.id === id) {
+        const newEffect = { ...effect, [field]: newValue };
+        // Reset value if key changes to a different type
+        if (field === 'key') {
+          const newEffectConfig = PREDEFINED_EFFECTS.find(e => e.key === newValue);
+          if (newEffectConfig?.type === 'item_id') {
+            newEffect.value = '';
+          } else {
+            newEffect.value = 0;
+          }
+        }
+        return newEffect;
+      }
+      return effect;
+    }));
+  };
+
+  const handleRemoveEffect = (id: number) => {
+    setEffectsList(prev => prev.filter(effect => effect.id !== id));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -211,16 +249,17 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
 
     setLoading(true);
     
-    const finalEffects = { ...effects };
-    if (type === 'Armes') {
-      if (ammoItemId) {
-        finalEffects.ammo_item_id = ammoItemId;
-      } else {
-        delete finalEffects.ammo_item_id;
+    const finalEffects = effectsList.reduce((acc, effect) => {
+      if (effect.key.trim() !== '') {
+        const effectConfig = PREDEFINED_EFFECTS.find(e => e.key === effect.key);
+        const isNumeric = effectConfig ? effectConfig.type === 'number' || effectConfig.type === 'item_id' : !isNaN(Number(effect.value));
+        const value = isNumeric ? Number(effect.value) : effect.value;
+        if (value !== '' && value !== null && !isNaN(value)) {
+          acc[effect.key] = value;
+        }
       }
-    } else {
-      delete finalEffects.ammo_item_id;
-    }
+      return acc;
+    }, {} as Record<string, any>);
 
     if (!item) {
       const { error } = await supabase.rpc('create_item_and_recipe', {
@@ -306,27 +345,12 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
     created_at: new Date().toISOString(),
   };
 
-  const renderEffectFields = () => {
-    switch (type) {
-      case 'Sac à dos':
-        return <div><Label>Slots supplémentaires</Label><Input type="number" value={effects.extra_slots || ''} onChange={(e) => handleEffectChange('extra_slots', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      case 'Armure':
-        return <div><Label>Bonus de vie</Label><Input type="number" value={effects.hp_bonus || ''} onChange={(e) => handleEffectChange('hp_bonus', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      case 'Vehicule':
-        return <div><Label>Multiplicateur coût énergie (ex: 0.8)</Label><Input type="number" step="0.01" value={effects.energy_multiplier || ''} onChange={(e) => handleEffectChange('energy_multiplier', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      case 'Chaussures':
-        return <div><Label>Multiplicateur temps exploration (ex: 0.9)</Label><Input type="number" step="0.01" value={effects.exploration_multiplier || ''} onChange={(e) => handleEffectChange('exploration_multiplier', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      default:
-        return null;
-    }
-  };
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+          className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
         >
           <DialogHeader className="text-center">
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
@@ -374,24 +398,56 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
                 <option value="Items craftés">Items craftés</option>
               </select>
             </div>
-            {renderEffectFields()}
-            {type === 'Armes' && (
-              <div>
-                <Label htmlFor="ammo" className="text-gray-300 font-mono">Munition (optionnel)</Label>
-                <select
-                  id="ammo"
-                  value={ammoItemId || ''}
-                  onChange={handleAmmoChange}
-                  disabled={loading}
-                  className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
-                >
-                  <option value="">Aucune</option>
-                  {allItems.map(ammo => (
-                    <option key={ammo.id} value={ammo.id}>{ammo.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            
+            <div className="space-y-3 rounded-lg border border-slate-700 p-3">
+              <Label className="text-gray-300 font-mono">Effets</Label>
+              {effectsList.map((effect) => {
+                const effectConfig = PREDEFINED_EFFECTS.find(e => e.key === effect.key);
+                return (
+                  <div key={effect.id} className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs">Clé</Label>
+                      <select
+                        value={effect.key}
+                        onChange={(e) => handleEffectChange(effect.id, 'key', e.target.value)}
+                        className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white text-sm"
+                      >
+                        <option value="" disabled>Choisir un effet...</option>
+                        {PREDEFINED_EFFECTS.map(e => <option key={e.key} value={e.key}>{e.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-xs">Valeur</Label>
+                      {effectConfig?.type === 'item_id' ? (
+                        <select
+                          value={effect.value || ''}
+                          onChange={(e) => handleEffectChange(effect.id, 'value', e.target.value)}
+                          className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white text-sm"
+                        >
+                          <option value="" disabled>Choisir une munition...</option>
+                          {allItems.map(ammo => <option key={ammo.id} value={ammo.id}>{ammo.name}</option>)}
+                        </select>
+                      ) : (
+                        <Input
+                          type="number"
+                          value={effect.value || ''}
+                          onChange={(e) => handleEffectChange(effect.id, 'value', e.target.value)}
+                          className="bg-white/5 border-white/20"
+                          disabled={!effect.key}
+                        />
+                      )}
+                    </div>
+                    <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveEffect(effect.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+              <Button type="button" variant="outline" onClick={handleAddEffect} className="w-full mt-2">
+                <PlusCircle className="w-4 h-4 mr-2" /> Ajouter un effet
+              </Button>
+            </div>
+
             <div>
               <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
               <div className="flex items-center gap-2 mt-1">
