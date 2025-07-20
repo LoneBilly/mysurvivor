@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
 import { Label } from '@/components/ui/label';
 import MarkdownToolbar from './MarkdownToolbar';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 
 interface Chapter {
   id: number;
@@ -115,18 +116,18 @@ const GuideManager = () => {
   const filteredArticles = articles.filter(a => a.chapter_id === selectedChapter?.id);
 
   const ChapterList = (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gray-900/30">
       <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
         <h3 className="text-lg font-bold">Chapitres</h3>
         <Button size="sm" onClick={() => { setEditingChapter({ id: 0, title: '', order: 0 }); setIsChapterModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter</Button>
       </div>
       <div className="flex-grow overflow-y-auto no-scrollbar">
         {chapters.map(chapter => (
-          <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className={cn("cursor-pointer p-3 flex items-center justify-between border-b border-l-4 border-gray-700", selectedChapter?.id === chapter.id ? "bg-blue-500/10 border-l-blue-500" : "border-l-transparent hover:bg-gray-800/50")}>
+          <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className={cn("cursor-pointer p-3 flex items-center justify-between border-b border-l-4 border-gray-700", selectedChapter?.id === chapter.id ? "bg-blue-500/20 border-l-blue-500" : "border-l-transparent hover:bg-gray-800/50")}>
             <span className="font-semibold truncate">{chapter.title}</span>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingChapter(chapter); setIsChapterModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDeleteModal(chapter, 'chapter'); }}><Trash2 className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" title="Modifier" onClick={(e) => { e.stopPropagation(); setEditingChapter(chapter); setIsChapterModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" title="Supprimer" onClick={(e) => { e.stopPropagation(); openDeleteModal(chapter, 'chapter'); }}><Trash2 className="w-4 h-4" /></Button>
             </div>
           </div>
         ))}
@@ -135,7 +136,7 @@ const GuideManager = () => {
   );
 
   const ArticleView = (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gray-900/30">
       {selectedChapter ? (
         <>
           <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
@@ -147,10 +148,11 @@ const GuideManager = () => {
           </div>
           <div className="flex-grow overflow-y-auto no-scrollbar">
             {filteredArticles.map(article => (
-              <div key={article.id} onClick={() => { setEditingArticle(article); setIsArticleModalOpen(true); }} className="cursor-pointer p-3 flex items-center justify-between border-b border-gray-700 hover:bg-gray-800/50">
-                <span className="font-semibold truncate">{article.title}</span>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDeleteModal(article, 'article'); }}><Trash2 className="w-4 h-4" /></Button>
+              <div key={article.id} className="p-3 flex items-center justify-between border-b border-gray-700 hover:bg-gray-800/50">
+                <span className="font-semibold truncate flex-grow">{article.title}</span>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" title="Modifier" onClick={() => { setEditingArticle(article); setIsArticleModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" title="Supprimer" onClick={(e) => { e.stopPropagation(); openDeleteModal(article, 'article'); }}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             ))}
@@ -168,16 +170,24 @@ const GuideManager = () => {
 
   return (
     <>
-      <div className="flex h-full bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
-        {isMobile ? (
-          selectedChapter ? ArticleView : ChapterList
-        ) : (
-          <>
-            <div className="w-1/3 border-r border-gray-700">{ChapterList}</div>
-            <div className="w-2/3">{ArticleView}</div>
-          </>
-        )}
-      </div>
+      {isMobile ? (
+        <div className="flex h-full bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
+          {selectedChapter ? ArticleView : ChapterList}
+        </div>
+      ) : (
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="h-full bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden"
+        >
+          <ResizablePanel defaultSize={33} minSize={25}>
+            {ChapterList}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={67} minSize={30}>
+            {ArticleView}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
 
       <Dialog open={isChapterModalOpen} onOpenChange={setIsChapterModalOpen}>
         <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
