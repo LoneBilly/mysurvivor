@@ -199,7 +199,7 @@ const PatchnoteManager = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-      <div className="md:col-span-1 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg">
+      <div className="md:col-span-1 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
         <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
           <h3 className="text-lg font-bold">Versions</h3>
           <Button onClick={() => { setCurrentPatchNote({ title: '', is_published: false }); setIsPatchNoteModalOpen(true); }}>
@@ -235,7 +235,7 @@ const PatchnoteManager = () => {
         </div>
       </div>
 
-      <div className="md:col-span-2 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg">
+      <div className="md:col-span-2 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
         {selectedPatchNote ? (
           <>
             <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
