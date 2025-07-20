@@ -28,7 +28,7 @@ const TOTAL_SLOTS = 50;
 
 const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }: InventoryModalProps) => {
   const { user } = useAuth();
-  const { playerData } = useGame();
+  const { playerData, setPlayerData } = useGame();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -74,35 +74,74 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     if (!dragged || !over || !user) return;
 
+    // Prevent dropping on the same spot
+    if (dragged.source === 'inventory' && over.target === 'inventory' && dragged.item.slot_position === over.index) return;
+    if (dragged.source === 'equipment' && over.target === 'equipment' && (playerData.equipment as any)[over.type]?.id === dragged.item.id) return;
+
     setActionLoading(true);
+
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    let optimisticData = JSON.parse(JSON.stringify(playerData));
     let rpcPromise;
 
     try {
+      // --- Optimistic UI Update ---
       if (dragged.source === 'inventory' && over.target === 'inventory') {
-        if (dragged.item.slot_position === over.index) return;
+        const fromIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
+        const toItem = optimisticData.inventory.find((i: InventoryItem) => i.slot_position === over.index);
+        
+        if (fromIndex !== -1) {
+          if (toItem) {
+            const toIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
+            optimisticData.inventory[toIndex].slot_position = dragged.item.slot_position;
+          }
+          optimisticData.inventory[fromIndex].slot_position = over.index;
+        }
         rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: dragged.item.slot_position, p_to_slot: over.index });
-      }
+      } 
       else if (dragged.source === 'equipment' && over.target === 'inventory') {
+        const itemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
+        if (itemIndex !== -1) {
+          optimisticData.inventory[itemIndex].slot_position = over.index;
+          const equipmentSlot = Object.keys(optimisticData.equipment).find(key => (optimisticData.equipment as any)[key]?.id === dragged.item.id);
+          if (equipmentSlot) (optimisticData.equipment as any)[equipmentSlot] = null;
+        }
         rpcPromise = supabase.rpc('unequip_item_to_slot', { p_inventory_id: dragged.item.id, p_target_slot: over.index });
-      }
+      } 
       else if (dragged.source === 'inventory' && over.target === 'equipment') {
+        const itemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
+        const currentlyEquipped = optimisticData.equipment[over.type];
+        
+        if (itemIndex !== -1) {
+          optimisticData.inventory[itemIndex].slot_position = null;
+          optimisticData.equipment[over.type] = optimisticData.inventory[itemIndex];
+          if (currentlyEquipped) {
+            const oldEquipIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === currentlyEquipped.id);
+            if (oldEquipIndex !== -1) {
+              optimisticData.inventory[oldEquipIndex].slot_position = dragged.item.slot_position;
+            }
+          }
+        }
         rpcPromise = supabase.rpc('equip_item', { p_inventory_id: dragged.item.id, p_slot_type: over.type });
       }
-      else if (dragged.source === 'equipment' && over.target === 'equipment') {
-        rpcPromise = supabase.rpc('equip_item', { p_inventory_id: dragged.item.id, p_slot_type: over.type });
-      }
+      
+      setPlayerData(optimisticData);
 
+      // --- Server Call ---
       if (rpcPromise) {
         const { error } = await rpcPromise;
         if (error) throw error;
-        await onUpdate();
+        // Silent refresh on success to sync any server-side changes (like stat updates)
+        onUpdate();
       }
     } catch (error: any) {
       showError(error.message || "Erreur de mise à jour de l'inventaire.");
+      // Revert on error
+      setPlayerData(originalPlayerData);
     } finally {
       setActionLoading(false);
     }
-  }, [draggedItem, dragOver, user, onUpdate, stopAutoScroll]);
+  }, [draggedItem, dragOver, user, onUpdate, stopAutoScroll, playerData, setPlayerData]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
