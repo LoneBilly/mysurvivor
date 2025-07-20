@@ -1,38 +1,38 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from '@/contexts/AuthContext';
-import BannedOverlay from '@/components/BannedOverlay';
-
-import Landing from '@/pages/Landing';
-import Login from '@/pages/Login';
-import CreateProfile from '@/pages/CreateProfile';
-import Game from '@/pages/Game';
-import Admin from '@/pages/Admin';
-import NotFound from '@/pages/NotFound';
-
-import PublicRoute from '@/components/PublicRoute';
-import AdminRoute from '@/components/AdminRoute';
-import PrivateRoute from '@/components/PrivateRoute';
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { GameStateProvider } from "@/contexts/GameStateContext";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
+import AdminLayout from "@/layouts/AdminLayout";
+import GameLayout from "@/layouts/GameLayout";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import Index from "@/pages/Index";
+import Login from "@/pages/Login";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import "easymde/dist/easymde.min.css";
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          
-          <Route path="/create-profile" element={<PrivateRoute><CreateProfile /></PrivateRoute>} />
-          <Route path="/game" element={<PrivateRoute><Game /></PrivateRoute>} />
-          
-          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <BannedOverlay />
+        <GameStateProvider>
+          <WebSocketProvider>
+            <TooltipProvider>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<GameLayout />}>
+                  <Route index element={<Index />} />
+                </Route>
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                </Route>
+              </Routes>
+              <Toaster />
+            </TooltipProvider>
+          </WebSocketProvider>
+        </GameStateProvider>
       </AuthProvider>
-      <Toaster richColors position="top-right" />
-    </BrowserRouter>
+    </Router>
   );
 }
 
