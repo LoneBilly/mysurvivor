@@ -227,44 +227,49 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row gap-4">
-          <div className="flex flex-col items-center gap-4 w-full sm:w-auto">
-            <h3 className="text-lg font-bold font-mono">Équipement</h3>
-            <div className="flex sm:flex-col gap-2">
-              {equipmentSlotConfig.map(({ type, icon: Icon }) => {
-                const item = equipment[type];
-                return (
-                  <div key={type} data-slot-type={type} className="w-16 h-16">
-                    <InventorySlot
-                      item={item}
-                      index={-1} // Not a numeric index
-                      isUnlocked={true}
-                      onDragStart={(idx, node, e) => item && handleDragStart(item, 'equipment', type, node, e)}
-                      onItemClick={() => item && handleItemClick(item, 'equipment', type)}
-                      isBeingDragged={draggedItem?.source === 'equipment' && draggedItem?.sourceId === type}
-                      isDragOver={dragOver?.target === 'equipment' && dragOver?.targetId === type}
-                      placeholderIcon={<Icon className="w-6 h-6 text-slate-500" />}
-                    />
-                  </div>
-                );
-              })}
+        <DialogContent className="max-w-4xl w-full h-[90vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
+          <DialogHeader className="text-center flex-shrink-0">
+            <div className="flex items-center justify-center gap-3">
+              <Package className="w-7 h-7 text-white" />
+              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire & Équipement</DialogTitle>
             </div>
-            <div id="drop-zone" className={cn("w-16 h-16 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors", dragOver?.target === 'drop' ? "bg-red-500/20 border-red-500" : "border-slate-600")}>
-              <Trash2 className={cn("w-6 h-6 transition-colors", dragOver?.target === 'drop' ? "text-red-400" : "text-slate-500")} />
+          </DialogHeader>
+
+          {/* Equipment Section */}
+          <div className="flex-shrink-0 p-4 bg-slate-900/50 rounded-lg border border-slate-800">
+            <h3 className="text-center font-bold font-mono mb-3 text-gray-300">Équipement</h3>
+            <div className="flex justify-center items-center gap-4">
+              <div className="flex flex-wrap justify-center gap-2">
+                {equipmentSlotConfig.map(({ type, icon: Icon }) => {
+                  const item = equipment[type];
+                  return (
+                    <div key={type} data-slot-type={type} className="w-16 h-16">
+                      <InventorySlot
+                        item={item}
+                        index={-1}
+                        isUnlocked={true}
+                        onDragStart={(idx, node, e) => item && handleDragStart(item, 'equipment', type, node, e)}
+                        onItemClick={() => item && handleItemClick(item, 'equipment', type)}
+                        isBeingDragged={draggedItem?.source === 'equipment' && draggedItem?.sourceId === type}
+                        isDragOver={dragOver?.target === 'equipment' && dragOver?.targetId === type}
+                        placeholderIcon={<Icon className="w-6 h-6 text-slate-500" />}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div id="drop-zone" className={cn("w-16 h-16 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors flex-shrink-0", dragOver?.target === 'drop' ? "bg-red-500/20 border-red-500" : "border-slate-600")}>
+                <Trash2 className={cn("w-6 h-6 transition-colors", dragOver?.target === 'drop' ? "text-red-400" : "text-slate-500")} />
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0">
-            <DialogHeader className="text-center mb-4">
-              <div className="flex items-center justify-center gap-3">
-                <Package className="w-7 h-7 text-white" />
-                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire</DialogTitle>
-              </div>
-              <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
-                <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS DÉBLOQUÉS
-              </DialogDescription>
-            </DialogHeader>
-            <div ref={gridRef} className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 gap-2 p-2 bg-slate-900/50 rounded-lg border border-slate-800 flex-grow overflow-y-auto">
+          {/* Inventory Section */}
+          <div className="flex-1 flex flex-col min-h-0 p-4 bg-slate-900/50 rounded-lg border border-slate-800">
+            <h3 className="text-center font-bold font-mono mb-3 text-gray-300">
+              Inventaire <span className="text-white">({unlockedSlots} / {TOTAL_SLOTS})</span>
+            </h3>
+            <div ref={gridRef} className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 flex-grow overflow-y-auto pr-2">
               {loading ? (
                 <div className="h-full w-full flex items-center justify-center col-span-full row-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
               ) : (
