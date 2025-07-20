@@ -1,353 +1,327 @@
-"use client";
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { Plus, Trash2, Save, X, Edit, Eye, EyeOff } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, PlusCircle, Edit, Trash2, GitBranch, CheckCircle, AlertTriangle, XCircle, Send, EyeOff, Wrench, TrendingUp } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
+import ActionModal from '../ActionModal';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface PatchNote {
   id: number;
   title: string;
   created_at: string;
   is_published: boolean;
-  patch_note_changes: PatchNoteChange[];
 }
 
 interface PatchNoteChange {
   id: number;
   patch_note_id: number;
-  change_type: string;
+  change_type: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'FIXED' | 'IMPROVED';
   entity_type: string;
   entity_name: string;
   description: string | null;
-  created_at: string;
 }
 
-const PatchnoteManager: React.FC = () => {
+const changeTypeMap = {
+  ADDED: { label: 'Ajout', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+  MODIFIED: { label: 'Modification', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+  REMOVED: { label: 'Suppression', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  FIXED: { label: 'Correction', styles: 'border-blue-500/50 bg-blue-500/10 text-blue-300', icon: <Wrench className="w-5 h-5 text-blue-400" /> },
+  IMPROVED: { label: 'Amélioration', styles: 'border-purple-500/50 bg-purple-500/10 text-purple-300', icon: <TrendingUp className="w-5 h-5 text-purple-400" /> },
+};
+
+const PatchnoteManager = () => {
   const [patchNotes, setPatchNotes] = useState<PatchNote[]>([]);
+  const [changes, setChanges] = useState<PatchNoteChange[]>([]);
   const [selectedPatchNote, setSelectedPatchNote] = useState<PatchNote | null>(null);
-  const [newPatchNoteTitle, setNewPatchNoteTitle] = useState('');
-  const [isNewPatchNotePublished, setIsNewPatchNotePublished] = useState(false);
-  const [newChangeType, setNewChangeType] = useState('');
-  const [newEntityType, setNewEntityType] = useState('');
-  const [newEntityName, setNewEntityName] = useState('');
-  const [newChangeDescription, setNewChangeDescription] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [publishingId, setPublishingId] = useState<number | null>(null);
+
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Partial<PatchNote> | null>(null);
+  
+  const [isChangeModalOpen, setIsChangeModalOpen] = useState(false);
+  const [editingChange, setEditingChange] = useState<Partial<PatchNoteChange> | null>(null);
+
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'note' | 'change'; item: PatchNote | PatchNoteChange | null }>({ isOpen: false, type: 'note', item: null });
 
   useEffect(() => {
-    fetchPatchNotes();
+    const initialFetch = async () => {
+      setLoading(true);
+      try {
+        const { data: notesData, error: notesError } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
+        if (notesError) throw notesError;
+        
+        const { data: changesData, error: changesError } = await supabase.from('patch_note_changes').select('*');
+        if (changesError) throw changesError;
+
+        setPatchNotes(notesData || []);
+        setChanges(changesData || []);
+        if (notesData && notesData.length > 0) {
+          setSelectedPatchNote(prev => prev || notesData[0]);
+        }
+      } catch (error: any) {
+        showError("Erreur de chargement des patchnotes.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    initialFetch();
   }, []);
 
-  const fetchPatchNotes = async () => {
-    const { data, error } = await supabase
-      .from('patch_notes')
-      .select(`
-        *,
-        patch_note_changes (
-          id, change_type, entity_type, entity_name, description, created_at
-        )
-      `)
-      .order('created_at', { ascending: false });
+  const handleSaveNote = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingNote || !editingNote.title?.trim()) return;
 
-    if (error) {
-      toast.error('Error fetching patch notes: ' + error.message);
-    } else {
-      setPatchNotes(data || []);
+    setIsSubmitting(true);
+    try {
+      const { id, ...dataToSave } = editingNote;
+      if (id) {
+        const { data: updatedNote, error } = await supabase.from('patch_notes').update(dataToSave).eq('id', id).select().single();
+        if (error) throw error;
+        const updatedNotes = patchNotes.map(p => p.id === id ? updatedNote : p);
+        setPatchNotes(updatedNotes);
+        if (selectedPatchNote && selectedPatchNote.id === id) {
+          setSelectedPatchNote(updatedNote);
+        }
+        showSuccess(`Patchnote mis à jour.`);
+      } else {
+        const { data: newNote, error } = await supabase.from('patch_notes').insert(dataToSave).select().single();
+        if (error) throw error;
+        const updatedNotes = [newNote, ...patchNotes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setPatchNotes(updatedNotes);
+        setSelectedPatchNote(newNote);
+        showSuccess(`Patchnote créé.`);
+      }
+      setIsNoteModalOpen(false);
+      setEditingNote(null);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleCreatePatchNote = async () => {
-    if (!newPatchNoteTitle.trim()) {
-      toast.error('Patch note title cannot be empty.');
-      return;
-    }
+  const handleSaveChange = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingChange || !editingChange.entity_name?.trim() || !selectedPatchNote) return;
 
-    const { data, error } = await supabase
-      .from('patch_notes')
-      .insert({ title: newPatchNoteTitle, is_published: isNewPatchNotePublished })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error('Error creating patch note: ' + error.message);
-    } else {
-      toast.success('Patch note created successfully!');
-      setNewPatchNoteTitle('');
-      setIsNewPatchNotePublished(false);
-      fetchPatchNotes();
-      setSelectedPatchNote(data);
-    }
-  };
-
-  const handleUpdatePatchNote = async () => {
-    if (!selectedPatchNote) return;
-
-    const { error } = await supabase
-      .from('patch_notes')
-      .update({ title: selectedPatchNote.title, is_published: selectedPatchNote.is_published })
-      .eq('id', selectedPatchNote.id);
-
-    if (error) {
-      toast.error('Error updating patch note: ' + error.message);
-    } else {
-      toast.success('Patch note updated successfully!');
-      fetchPatchNotes();
-    }
-  };
-
-  const handleDeletePatchNote = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this patch note and all its changes?')) return;
-
-    const { error } = await supabase
-      .from('patch_notes')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast.error('Error deleting patch note: ' + error.message);
-    } else {
-      toast.success('Patch note deleted successfully!');
-      setSelectedPatchNote(null);
-      fetchPatchNotes();
-    }
-  };
-
-  const handleAddChange = async () => {
-    if (!selectedPatchNote) return;
-    if (!newChangeType || !newEntityType || !newEntityName) {
-      toast.error('Change type, entity type, and entity name cannot be empty.');
-      return;
-    }
-
-    const { error } = await supabase
-      .from('patch_note_changes')
-      .insert({
+    setIsSubmitting(true);
+    try {
+      const dataToSave = { 
+        ...editingChange, 
         patch_note_id: selectedPatchNote.id,
-        change_type: newChangeType,
-        entity_type: newEntityType,
-        entity_name: newEntityName,
-        description: newChangeDescription || null,
-      });
+        change_type: editingChange.change_type || 'ADDED'
+      };
+      const { id, ...finalData } = dataToSave;
 
-    if (error) {
-      toast.error('Error adding change: ' + error.message);
-    } else {
-      toast.success('Change added successfully!');
-      setNewChangeType('');
-      setNewEntityType('');
-      setNewEntityName('');
-      setNewChangeDescription('');
-      fetchPatchNotes(); // Re-fetch to update selectedPatchNote with new changes
-      // Find and update the selected patch note in state to reflect the new change immediately
-      setSelectedPatchNote(prev => {
-        if (prev) {
-          return {
-            ...prev,
-            patch_note_changes: [...prev.patch_note_changes, {
-              id: Date.now(), // Temp ID for immediate display
-              patch_note_id: prev.id,
-              change_type: newChangeType,
-              entity_type: newEntityType,
-              entity_name: newEntityName,
-              description: newChangeDescription || null,
-              created_at: new Date().toISOString(),
-            }],
-          };
-        }
-        return null;
-      });
+      if (id) {
+        const { data: updatedChange, error } = await supabase.from('patch_note_changes').update(finalData).eq('id', id).select().single();
+        if (error) throw error;
+        setChanges(prev => prev.map(c => c.id === id ? updatedChange : c));
+        showSuccess(`Changement mis à jour.`);
+      } else {
+        const { data: newChange, error } = await supabase.from('patch_note_changes').insert(finalData).select().single();
+        if (error) throw error;
+        setChanges(prev => [...prev, newChange]);
+        showSuccess(`Changement ajouté.`);
+      }
+      setIsChangeModalOpen(false);
+      setEditingChange(null);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDeleteChange = async (changeId: number) => {
-    if (!window.confirm('Are you sure you want to delete this change?')) return;
+  const handleDelete = async () => {
+    if (!deleteModal.item) return;
+    setIsSubmitting(true);
+    try {
+      const fromTable = deleteModal.type === 'note' ? 'patch_notes' : 'patch_note_changes';
+      const { error } = await supabase.from(fromTable).delete().eq('id', deleteModal.item.id);
+      if (error) throw error;
 
-    const { error } = await supabase
-      .from('patch_note_changes')
-      .delete()
-      .eq('id', changeId);
-
-    if (error) {
-      toast.error('Error deleting change: ' + error.message);
-    } else {
-      toast.success('Change deleted successfully!');
-      fetchPatchNotes(); // Re-fetch to update selectedPatchNote
-      setSelectedPatchNote(prev => {
-        if (prev) {
-          return {
-            ...prev,
-            patch_note_changes: prev.patch_note_changes.filter(change => change.id !== changeId),
-          };
+      showSuccess(`${deleteModal.type === 'note' ? 'Patchnote' : 'Changement'} supprimé.`);
+      
+      if (deleteModal.type === 'note') {
+        const newNotes = patchNotes.filter(p => p.id !== deleteModal.item!.id);
+        setPatchNotes(newNotes);
+        if (selectedPatchNote?.id === deleteModal.item.id) {
+          setSelectedPatchNote(newNotes.length > 0 ? newNotes[0] : null);
         }
-        return null;
-      });
+      } else {
+        setChanges(prev => prev.filter(c => c.id !== deleteModal.item!.id));
+      }
+      
+      setDeleteModal({ isOpen: false, type: 'note', item: null });
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const handleTogglePublish = async (noteToToggle: PatchNote) => {
+    const newStatus = !noteToToggle.is_published;
+    setPublishingId(noteToToggle.id);
+    try {
+        const { data, error } = await supabase
+            .from('patch_notes')
+            .update({ is_published: newStatus })
+            .eq('id', noteToToggle.id)
+            .select()
+            .single();
+        if (error) throw error;
+        showSuccess(`Patchnote ${newStatus ? 'publié' : 'mis en brouillon'}.`);
+        const updatedNotes = patchNotes.map(p => p.id === data.id ? data : p);
+        setPatchNotes(updatedNotes);
+        if (selectedPatchNote?.id === data.id) {
+            setSelectedPatchNote(data);
+        }
+    } catch (error: any) {
+        showError(error.message);
+    } finally {
+        setPublishingId(null);
+    }
+  };
+
+  const openDeleteModal = (item: PatchNote | PatchNoteChange, type: 'note' | 'change') => {
+    setDeleteModal({ isOpen: true, item, type });
+  };
+
+  const filteredChanges = changes.filter(c => c.patch_note_id === selectedPatchNote?.id);
+  const groupedChanges = filteredChanges.reduce((acc, change) => {
+    if (change.change_type) {
+      (acc[change.change_type] = acc[change.change_type] || []).push(change);
+    }
+    return acc;
+  }, {} as Record<string, PatchNoteChange[]>);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-      {/* Left Panel: Patch Notes List */}
-      <div className="w-1/3 border-r border-gray-700 p-4 flex flex-col">
-        <h2 className="text-xl font-bold mb-4">Patch Notes</h2>
-        <div className="mb-4">
-          <Input
-            placeholder="New patch note title"
-            value={newPatchNoteTitle}
-            onChange={(e) => setNewPatchNoteTitle(e.target.value)}
-            className="mb-2 bg-gray-800 border-gray-700 text-white"
-          />
-          <div className="flex items-center space-x-2 mb-2">
-            <Checkbox
-              id="new-published"
-              checked={isNewPatchNotePublished}
-              onCheckedChange={(checked) => setIsNewPatchNotePublished(checked as boolean)}
-              className="border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
-            />
-            <Label htmlFor="new-published">Published</Label>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+        <div className="md:col-span-1 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg">
+          <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
+            <h3 className="text-lg font-bold">Versions</h3>
+            <Button size="sm" onClick={() => { setEditingNote({ title: '' }); setIsNoteModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Créer</Button>
           </div>
-          <Button onClick={handleCreatePatchNote} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="mr-2 h-4 w-4" /> Create Patch Note
-          </Button>
-        </div>
-        <div className="flex-grow overflow-y-auto no-scrollbar">
-          {patchNotes.map(note => (
-            <div key={note.id} className={cn("p-3 border-b border-gray-700 hover:bg-gray-800/50", selectedPatchNote?.id === note.id ? 'bg-slate-700' : '')}>
-              <div className="flex items-center justify-between">
-                <span
-                  className="cursor-pointer flex-grow"
-                  onClick={() => setSelectedPatchNote(note)}
-                >
-                  {note.title}
-                </span>
-                <div className="flex items-center space-x-2">
-                  {note.is_published ? (
-                    <Eye className="h-4 w-4 text-green-500" title="Published" />
-                  ) : (
-                    <EyeOff className="h-4 w-4 text-yellow-500" title="Draft" />
-                  )}
-                  <Button variant="ghost" size="icon" onClick={() => handleDeletePatchNote(note.id)} className="text-red-500 hover:text-red-600">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+          <div className="flex-grow overflow-y-auto no-scrollbar max-h-full">
+            {patchNotes.map(note => (
+              <div key={note.id} className={cn("p-3 border-b border-gray-700 hover:bg-gray-800/50", selectedPatchNote?.id === note.id ? 'bg-slate-700' : '')}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 cursor-pointer flex-grow" onClick={() => setSelectedPatchNote(note)}>
+                        <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", note.is_published ? 'bg-green-400' : 'bg-yellow-400')} title={note.is_published ? 'Publié' : 'Brouillon'}></div>
+                        <GitBranch className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                        <div className="truncate">
+                            <p className="font-semibold truncate">{new Date(note.created_at).toLocaleDateString('fr-FR')}</p>
+                            <p className="text-sm text-gray-400 truncate">{note.title}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                        <Button size="icon" variant={note.is_published ? "secondary" : "default"} onClick={() => handleTogglePublish(note)} disabled={publishingId === note.id} title={note.is_published ? 'Dépublier' : 'Publier'}>
+                            {publishingId === note.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (note.is_published ? <EyeOff className="w-4 h-4" /> : <Send className="w-4 h-4" />)}
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingNote(note); setIsNoteModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDeleteModal(note, 'note')}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                    </div>
                 </div>
               </div>
-              <p className="text-sm text-gray-400">{new Date(note.created_at).toLocaleDateString()}</p>
+            ))}
+          </div>
+        </div>
+        <div className="md:col-span-2 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg">
+          {selectedPatchNote ? (
+            <>
+              <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold">{new Date(selectedPatchNote.created_at).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+                  <p className="text-gray-400">{selectedPatchNote.title}</p>
+                </div>
+                <Button size="sm" onClick={() => { setEditingChange({ change_type: 'ADDED', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement</Button>
+              </div>
+              <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6 max-h-full">
+                {Object.keys(changeTypeMap).length > 0 && Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
+                {Object.keys(changeTypeMap).map(type => {
+                  const key = type as keyof typeof changeTypeMap;
+                  return groupedChanges[key] && (
+                    <div key={type}>
+                      <h4 className={cn("text-xl font-bold mb-3 flex items-center gap-2", changeTypeMap[key].styles.replace('bg-', 'text-').replace('/10', ''))}>
+                        {changeTypeMap[key].icon} {changeTypeMap[key].label}s
+                      </h4>
+                      <div className="space-y-3">
+                        {groupedChanges[key].map(change => (
+                          <div key={change.id} className={cn("p-3 rounded-lg border", changeTypeMap[key].styles)}>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-xs font-semibold uppercase bg-gray-500/20 px-2 py-1 rounded-full">{change.entity_type}</span>
+                                <p className="font-bold mt-1">{change.entity_name}</p>
+                                <div className="prose prose-sm prose-invert text-gray-300 mt-1">
+                                  <p>{change.description}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => { setEditingChange(change); setIsChangeModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => openDeleteModal(change, 'change')}><Trash2 className="w-4 h-4" /></Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              <p>Sélectionnez ou créez une version pour commencer.</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
-      {/* Right Panel: Patch Note Details */}
-      <div className="w-2/3 p-4 flex flex-col">
-        {selectedPatchNote ? (
-          <>
-            <div className="mb-4">
-              <Input
-                value={selectedPatchNote.title}
-                onChange={(e) => setSelectedPatchNote({ ...selectedPatchNote, title: e.target.value })}
-                className="text-2xl font-bold mb-2 bg-gray-800 border-gray-700 text-white"
-              />
-              <div className="flex items-center space-x-2 mb-4">
-                <Checkbox
-                  id="published"
-                  checked={selectedPatchNote.is_published}
-                  onCheckedChange={(checked) => setSelectedPatchNote({ ...selectedPatchNote, is_published: checked as boolean })}
-                  className="border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
-                />
-                <Label htmlFor="published">Published</Label>
-                <Button onClick={handleUpdatePatchNote} className="ml-auto bg-green-600 hover:bg-green-700 text-white">
-                  <Save className="mr-2 h-4 w-4" /> Save Patch Note
-                </Button>
-              </div>
-            </div>
+      <Dialog open={isNoteModalOpen} onOpenChange={(isOpen) => { setIsNoteModalOpen(isOpen); if (!isOpen) setEditingNote(null); }}>
+        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+          <DialogHeader><DialogTitle>{editingNote?.id ? 'Modifier' : 'Nouvelle'} Version</DialogTitle></DialogHeader>
+          <form onSubmit={handleSaveNote} className="py-4 space-y-4">
+            <div><Label>Titre de la version</Label><Input value={editingNote?.title || ''} onChange={(e) => setEditingNote(prev => prev ? {...prev, title: e.target.value} : null)} required disabled={isSubmitting} /></div>
+            <DialogFooter><Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-            <h3 className="text-xl font-bold mb-3">Changes</h3>
-            <div className="space-y-2 mb-4 flex-grow overflow-y-auto no-scrollbar">
-              {selectedPatchNote.patch_note_changes.length === 0 ? (
-                <p className="text-gray-400">No changes for this patch note yet.</p>
-              ) : (
-                selectedPatchNote.patch_note_changes.map(change => (
-                  <div key={change.id} className="bg-gray-800 p-3 rounded-md flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{change.change_type}: {change.entity_type} - {change.entity_name}</p>
-                      {change.description && <p className="text-sm text-gray-400">{change.description}</p>}
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteChange(change.id)} className="text-red-500 hover:text-red-600">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))
-              )}
+      <Dialog open={isChangeModalOpen} onOpenChange={(isOpen) => { setIsChangeModalOpen(isOpen); if (!isOpen) setEditingChange(null); }}>
+        <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+          <DialogHeader><DialogTitle>{editingChange?.id ? 'Modifier' : 'Nouveau'} Changement</DialogTitle></DialogHeader>
+          <form onSubmit={handleSaveChange} className="py-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'ADDED'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{Object.entries(changeTypeMap).map(([value, {label}]) => <option key={value} value={value}>{label}</option>)}</select></div>
+              <div><Label>Type d'entité</Label><select value={editingChange?.entity_type || 'Fonctionnalité'} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_type: e.target.value} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{['Fonctionnalité', 'Item', 'Bâtiment', 'Zone', 'Correction', 'Équilibrage'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             </div>
+            <div><Label>Nom de l'entité</Label><Input value={editingChange?.entity_name || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_name: e.target.value} : null)} required disabled={isSubmitting} /></div>
+            <div><Label>Description</Label><Textarea value={editingChange?.description || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, description: e.target.value} : null)} rows={5} disabled={isSubmitting} /></div>
+            <DialogFooter><Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-            <div className="border-t border-gray-700 pt-4">
-              <h4 className="text-lg font-bold mb-3">Add New Change</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                <Select value={newChangeType} onValueChange={setNewChangeType}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Change Type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="Added">Added</SelectItem>
-                    <SelectItem value="Updated">Updated</SelectItem>
-                    <SelectItem value="Removed">Removed</SelectItem>
-                    <SelectItem value="Fixed">Fixed</SelectItem>
-                    <SelectItem value="Improved">Improved</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={newEntityType} onValueChange={setNewEntityType}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Entity Type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="Item">Item</SelectItem>
-                    <SelectItem value="Recipe">Recipe</SelectItem>
-                    <SelectItem value="Building">Building</SelectItem>
-                    <SelectItem value="Zone">Zone</SelectItem>
-                    <SelectItem value="Player">Player</SelectItem>
-                    <SelectItem value="System">System</SelectItem>
-                    <SelectItem value="UI">UI</SelectItem>
-                    <SelectItem value="Bug">Bug</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input
-                placeholder="Entity Name (e.g., 'Wooden Axe', 'Crafting Table')"
-                value={newEntityName}
-                onChange={(e) => setNewEntityName(e.target.value)}
-                className="mb-3 bg-gray-800 border-gray-700 text-white"
-              />
-              <Textarea
-                placeholder="Description (optional)"
-                value={newChangeDescription}
-                onChange={(e) => setNewChangeDescription(e.target.value)}
-                className="mb-3 bg-gray-800 border-gray-700 text-white"
-              />
-              <Button onClick={handleAddChange} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="mr-2 h-4 w-4" /> Add Change
-              </Button>
-            </div>
-          </>
-        ) : (
-          <p className="text-gray-400">Select a patch note to view/edit its details.</p>
-        )}
-      </div>
-    </div>
+      <ActionModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, type: 'note', item: null })}
+        title={`Supprimer ${deleteModal.type === 'note' ? 'la version' : 'le changement'}`}
+        description={`Êtes-vous sûr de vouloir supprimer "${deleteModal.item?.title || (deleteModal.item as PatchNoteChange)?.entity_name}" ? Cette action est irréversible.`}
+        actions={[{ label: "Supprimer", onClick: handleDelete, variant: "destructive", disabled: isSubmitting }, { label: "Annuler", onClick: () => setDeleteModal({ isOpen: false, type: 'note', item: null }), variant: "secondary" }]}
+      />
+    </>
   );
 };
 
