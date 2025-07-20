@@ -48,8 +48,15 @@ const GuideManager = () => {
     if (chaptersError || articlesError) {
       showError("Erreur de chargement des données du guide.");
     } else {
-      setChapters(chaptersData || []);
+      const loadedChapters = chaptersData || [];
+      setChapters(loadedChapters);
       setArticles(articlesData || []);
+      
+      setSelectedChapter(currentSelected => {
+        if (loadedChapters.length === 0) return null;
+        if (currentSelected && loadedChapters.some(c => c.id === currentSelected.id)) return currentSelected;
+        return loadedChapters[0];
+      });
     }
     setLoading(false);
   }, []);
@@ -141,9 +148,9 @@ const GuideManager = () => {
           <Button variant="ghost" size="icon" onClick={() => setSelectedChapter(null)} title="Retour aux chapitres">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h3 className="text-lg font-bold truncate">{selectedChapter!.title}</h3>
+          <h3 className="text-lg font-bold truncate">{selectedChapter?.title || 'Chapitre'}</h3>
         </div>
-        <Button size="sm" onClick={() => { setEditingArticle({ id: 0, chapter_id: selectedChapter!.id, title: '', content: '', order: filteredArticles.length }); setIsArticleModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un article</Button>
+        <Button size="sm" onClick={() => { setEditingArticle({ id: 0, chapter_id: selectedChapter?.id || 0, title: '', content: '', order: filteredArticles.length }); setIsArticleModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un article</Button>
       </div>
       <div className="flex-grow overflow-y-auto no-scrollbar">
         {filteredArticles.length > 0 ? filteredArticles.map(article => (
