@@ -200,9 +200,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       } else if (source === 'inventory' && target === 'chest') {
         if (!fromItemInv || !construction) return;
         if (toItemChest) {
-            if (fromItemInv.item_id === toItemChest.item_id && fromItemInv.items?.stackable) {
-                toItemChest.quantity += fromItemInv.quantity;
-                optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
+            if (fromItemInv.items?.stackable) {
+                if (fromItemInv.item_id === toItemChest.item_id) {
+                    toItemChest.quantity += fromItemInv.quantity;
+                    optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
+                } else {
+                    showError("Impossible d'échanger des objets empilables.");
+                    return;
+                }
             } else {
                 const fromInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === fromItemInv.id);
                 const toChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === toItemChest.id);
@@ -217,9 +222,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       } else if (source === 'chest' && target === 'inventory') {
         if (!fromItemChest) return;
         if (toItemInv) {
-            if (fromItemChest.item_id === toItemInv.item_id && fromItemChest.items?.stackable) {
-                toItemInv.quantity += fromItemChest.quantity;
-                optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
+            if (fromItemChest.items?.stackable) {
+                if (fromItemChest.item_id === toItemInv.item_id) {
+                    toItemInv.quantity += fromItemChest.quantity;
+                    optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
+                } else {
+                    showError("Impossible d'échanger des objets empilables.");
+                    return;
+                }
             } else {
                 const fromChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === fromItemChest.id);
                 const toInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItemInv.id);
@@ -276,7 +286,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     return (
       <div className="flex flex-col min-h-0">
         <h3 className="text-center font-bold mb-2 flex-shrink-0">{title}</h3>
-        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))] gap-2 content-start overflow-y-auto no-scrollbar flex-1">
+        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto no-scrollbar flex-1">
           {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
