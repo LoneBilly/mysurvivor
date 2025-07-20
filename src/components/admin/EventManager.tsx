@@ -12,7 +12,7 @@ import { Item } from '@/types/admin';
 import * as LucideIcons from "lucide-react";
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { Slider } from '@/components/ui/slider';
 
 interface Event {
@@ -265,11 +265,9 @@ const EventManager = ({ mapLayout, events, allItems, onEventsUpdate }: EventMana
 
   const EventList = (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-gray-700 flex-shrink-0">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input type="text" placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-gray-900 border-gray-700" /></div>
-          <Button onClick={handleCreateNew} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" />Créer</Button>
-        </div>
+      <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
+        <h3 className="text-lg font-bold">Événements</h3>
+        <Button size="sm" onClick={handleCreateNew}><PlusCircle className="w-4 h-4 mr-2" />Créer</Button>
       </div>
       <div className="flex-grow overflow-y-auto no-scrollbar">
         {filteredEvents.map(event => {

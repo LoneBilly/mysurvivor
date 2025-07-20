@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Loader2, PlusCircle, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
 

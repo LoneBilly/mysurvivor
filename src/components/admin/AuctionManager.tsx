@@ -9,7 +9,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import AuctionFormModal from './AuctionFormModal';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ItemIcon from '../ItemIcon';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import AuctionBidsModal from './AuctionBidsModal';
 import ActionModal from '../ActionModal';
 
