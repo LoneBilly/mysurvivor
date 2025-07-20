@@ -216,9 +216,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     });
 
     return (
-      <div className="flex flex-col min-h-0">
-        <h3 className="text-center font-bold mb-2 flex-shrink-0">{title}</h3>
-        <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid [grid-template-columns:repeat(auto-fill,minmax(4rem,1fr))] gap-2 content-start overflow-y-auto no-scrollbar">
+      <div className="flex flex-col">
+        <h3 className="text-center font-bold mb-2">{title}</h3>
+        <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start">
           {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
