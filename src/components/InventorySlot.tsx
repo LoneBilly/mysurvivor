@@ -21,10 +21,9 @@ interface InventorySlotProps {
   isDragOver: boolean;
   isLocked?: boolean;
   onRemove?: (item: InventoryItem) => void;
-  placeholderIcon?: React.ReactNode;
 }
 
-const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver, isLocked = false, onRemove, placeholderIcon }: InventorySlotProps) => {
+const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver, isLocked = false, onRemove }: InventorySlotProps) => {
   const { getIconUrl } = useGame();
   const interactionState = useRef<{
     startPos: { x: number, y: number };
@@ -129,7 +128,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
           </Tooltip>
         </TooltipProvider>
       ) : (
-        placeholderIcon || <div className="w-full h-full" />
+        <div className="w-full h-full" />
       )}
     </div>
   );
