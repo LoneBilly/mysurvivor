@@ -214,7 +214,7 @@ const PatchnoteManager = () => {
             <h3 className="text-lg font-bold">Versions</h3>
             <Button size="sm" onClick={() => { setEditingNote({ title: '' }); setIsNoteModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Créer</Button>
           </div>
-          <div className="flex-grow overflow-y-auto no-scrollbar max-h-full">
+          <div className="flex-grow overflow-y-auto no-scrollbar">
             {patchNotes.map(note => (
               <div key={note.id} className={cn("p-3 border-b border-gray-700 hover:bg-gray-800/50", selectedPatchNote?.id === note.id ? 'bg-slate-700' : '')}>
                 <div className="flex items-center justify-between">
@@ -248,7 +248,7 @@ const PatchnoteManager = () => {
                 </div>
                 <Button size="sm" onClick={() => { setEditingChange({ change_type: 'ADDED', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement</Button>
               </div>
-              <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6 max-h-full">
+              <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6">
                 {Object.keys(changeTypeMap).length > 0 && Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
                 {Object.keys(changeTypeMap).map(type => {
                   const key = type as keyof typeof changeTypeMap;
