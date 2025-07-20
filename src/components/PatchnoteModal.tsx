@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, GitBranch, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { Loader2, GitBranch, CheckCircle, AlertTriangle, XCircle, Wrench, TrendingUp } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { showError } from '@/utils/toast';
 import Markdown from 'react-markdown';
@@ -18,16 +18,18 @@ interface PatchNote {
 interface PatchNoteChange {
   id: number;
   patch_note_id: number;
-  change_type: 'ajout' | 'modification' | 'suppression';
+  change_type: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'FIXED' | 'IMPROVED';
   entity_type: string;
   entity_name: string;
   description: string | null;
 }
 
 const changeTypeMap = {
-  ajout: { label: 'Ajouts', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
-  modification: { label: 'Modifications', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
-  suppression: { label: 'Suppressions', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  ADDED: { label: 'Ajouts', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+  MODIFIED: { label: 'Modifications', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+  REMOVED: { label: 'Suppressions', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  FIXED: { label: 'Corrections', styles: 'border-blue-500/50 bg-blue-500/10 text-blue-300', icon: <Wrench className="w-5 h-5 text-blue-400" /> },
+  IMPROVED: { label: 'Améliorations', styles: 'border-purple-500/50 bg-purple-500/10 text-purple-300', icon: <TrendingUp className="w-5 h-5 text-purple-400" /> },
 };
 
 const PatchnoteModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
@@ -72,7 +74,7 @@ const PatchnoteModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <DialogTitle className="text-2xl font-bold text-center text-white">Patchnotes</DialogTitle>
           </div>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto no-scrollbar p-4">
+        <div className="flex-grow overflow-y-auto no-scrollbar p-4 max-h-full">
           {loading ? (
             <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>
           ) : patchNotes.length === 0 ? (
