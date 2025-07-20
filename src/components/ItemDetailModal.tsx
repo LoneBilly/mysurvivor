@@ -15,7 +15,7 @@ import { Label } from "./ui/label";
 import { Slider } from "./ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
-import { Heart, Utensils, Droplets, Zap } from "lucide-react";
+import { Heart, Utensils, Droplets, Zap, PackagePlus, Footprints, Clock, Axe, Pickaxe, CookingPot } from "lucide-react";
 
 interface ItemDetailModalProps {
   isOpen: boolean;
@@ -37,6 +37,15 @@ const effectIcons = {
   restaure_faim: { icon: Utensils, label: "Faim", color: "text-orange-400", statKey: 'faim' as keyof import('@/types/game').PlayerState },
   restaure_soif: { icon: Droplets, label: "Soif", color: "text-blue-400", statKey: 'soif' as keyof import('@/types/game').PlayerState },
   restaure_energie: { icon: Zap, label: "Énergie", color: "text-yellow-400", statKey: 'energie' as keyof import('@/types/game').PlayerState },
+};
+
+const passiveEffectIcons = {
+  slots_supplementaires: { icon: PackagePlus, label: "Slots inventaire", unit: '', color: 'text-purple-400' },
+  reduction_cout_energie_deplacement_pourcentage: { icon: Footprints, label: "Coût déplacement", unit: '%', color: 'text-green-400' },
+  reduction_temps_exploration_pourcentage: { icon: Clock, label: "Temps exploration", unit: '%', color: 'text-green-400' },
+  bonus_recolte_bois_pourcentage: { icon: Axe, label: "Récolte bois", unit: '%', color: 'text-teal-400' },
+  bonus_recolte_pierre_pourcentage: { icon: Pickaxe, label: "Récolte pierre", unit: '%', color: 'text-teal-400' },
+  bonus_recolte_viande_pourcentage: { icon: CookingPot, label: "Récolte viande", unit: '%', color: 'text-teal-400' },
 };
 
 const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
@@ -129,6 +138,9 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
 
   const itemEffects = item.items?.effects ? Object.entries(item.items.effects)
     .filter(([key]) => effectIcons[key as keyof typeof effectIcons]) : [];
+  
+  const passiveItemEffects = item.items?.effects ? Object.entries(item.items.effects)
+    .filter(([key]) => passiveEffectIcons[key as keyof typeof passiveEffectIcons]) : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -164,7 +176,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
           {ammoItemId && (
             <p className="text-gray-400">Munitions: <span className="font-bold text-white">{ammoCount}</span></p>
           )}
-          {itemEffects.length > 0 && (
+          {(itemEffects.length > 0 || passiveItemEffects.length > 0) && (
             <div className="space-y-2 pt-2 border-t border-slate-700">
               <h4 className="font-semibold text-gray-300">Effets:</h4>
               <div className="grid grid-cols-2 gap-2">
@@ -180,6 +192,21 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
                       <span className="text-gray-300">{effectInfo.label}:</span>
                       <span className="font-bold text-white">
                         +{value} <span className="text-gray-400 font-normal">→ {newStatValue}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+                {passiveItemEffects.map(([key, value]) => {
+                  const effectInfo = passiveEffectIcons[key as keyof typeof passiveEffectIcons];
+                  if (!effectInfo) return null;
+                  const Icon = effectInfo.icon;
+                  const sign = key.startsWith('reduction') ? '-' : '+';
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-sm bg-white/5 p-2 rounded-md">
+                      <Icon className={`w-4 h-4 ${effectInfo.color}`} />
+                      <span className="text-gray-300">{effectInfo.label}:</span>
+                      <span className="font-bold text-white">
+                        {sign}{value}{effectInfo.unit}
                       </span>
                     </div>
                   );
