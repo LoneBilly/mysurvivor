@@ -3,23 +3,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, PlusCircle, Gavel, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Gavel, Trash2, Eye } from 'lucide-react';
 import { Item } from '@/types/admin';
 import { showError, showSuccess } from '@/utils/toast';
 import AuctionFormModal from './AuctionFormModal';
 import { getPublicIconUrl } from '@/utils/imageUrls';
 import ItemIcon from '../ItemIcon';
 import { useIsMobile } from '@/hooks/use-is-mobile';
-import AuctionBidsModal from './AuctionBidsModal';
 import ActionModal from '../ActionModal';
+import AuctionDetailModal from './AuctionDetailModal';
 
-interface Auction {
+export interface Auction {
   id: number;
   created_at: string;
   ends_at: string;
   item_id: number;
   item_quantity: number;
-  status: 'active' | 'completed';
+  status: 'active' | 'completed' | 'awarded' | 'cancelled' | 'claimed';
   description: string | null;
   items: { name: string; icon: string | null };
   auction_bids: { amount: number, profiles: { username: string | null } }[];
@@ -34,12 +34,14 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [isBidsModalOpen, setIsBidsModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
   const [actionModal, setActionModal] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; variant?: "default" | "destructive" }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const isMobile = useIsMobile();
 
   const fetchAuctions = useCallback(async () => {
     setLoading(true);
+    await supabase.rpc('process_expired_auctions');
     const { data, error } = await supabase
       .from('auctions')
       .select('*, items(name, icon), auction_bids(amount, profiles(username))')
@@ -48,7 +50,7 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
     if (error) {
       showError("Impossible de charger les enchères.");
     } else {
-      setAuctions(data as Auction[]);
+      setAuctions(data as any[]);
     }
     setLoading(false);
   }, []);
@@ -89,14 +91,9 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
       <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
         <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
           <h2 className="text-xl font-bold flex items-center gap-2"><Gavel /> Gestion des Enchères</h2>
-          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-            <Button onClick={() => setIsBidsModalOpen(true)} variant="outline" className="w-full">
-              Voir l'historique
-            </Button>
-            <Button onClick={() => setIsFormModalOpen(true)} className="w-full">
-              <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
-            </Button>
-          </div>
+          <Button onClick={() => setIsFormModalOpen(true)} className="w-full sm:w-auto">
+            <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
+          </Button>
         </div>
         <div className="flex-grow overflow-y-auto">
           {loading ? (
@@ -117,15 +114,20 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                           <p className="text-xs text-gray-400 truncate max-w-[200px]">{auction.description}</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteAuction(auction)}>
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => { setSelectedAuction(auction); setIsDetailModalOpen(true); }}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteAuction(auction)}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-3 pt-0 space-y-2 text-sm">
                       <div>
                         <span className="text-gray-400">Statut: </span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${auction.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>
-                          {auction.status === 'active' ? 'Active' : 'Terminée'}
+                        <span className={`px-2 py-1 text-xs rounded-full capitalize ${auction.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>
+                          {auction.status}
                         </span>
                       </div>
                       <div><span className="text-gray-400">Fin le: </span>{new Date(auction.ends_at).toLocaleString('fr-FR')}</div>
@@ -143,7 +145,7 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                   <TableHead>Fin le</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Gagnant / Offre max</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[100px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -162,14 +164,17 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                       </TableCell>
                       <TableCell>{new Date(auction.ends_at).toLocaleString()}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 text-xs rounded-full ${auction.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>
-                          {auction.status === 'active' ? 'Active' : 'Terminée'}
+                        <span className={`px-2 py-1 text-xs rounded-full capitalize ${auction.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>
+                          {auction.status}
                         </span>
                       </TableCell>
                       <TableCell>
                         {auction.status === 'completed' ? `${winningBid.username} (${winningBid.amount} crédits)` : `${winningBid.amount} crédits`}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => { setSelectedAuction(auction); setIsDetailModalOpen(true); }}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteAuction(auction)}>
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>
@@ -191,9 +196,10 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
         }}
         allItems={allItems}
       />
-      <AuctionBidsModal
-        isOpen={isBidsModalOpen}
-        onClose={() => setIsBidsModalOpen(false)}
+      <AuctionDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        auction={selectedAuction}
       />
       <ActionModal
         isOpen={actionModal.isOpen}

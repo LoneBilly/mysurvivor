@@ -4,24 +4,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Loader2, Coins, Gavel, Clock, ArrowLeft, Dice5 } from 'lucide-react';
+import { Loader2, Coins, Gavel, Clock, ArrowLeft, Dice5, Trophy, Gift } from 'lucide-react';
 import ItemIcon from './ItemIcon';
 import { useGame } from '@/contexts/GameContext';
 import CreditsInfo from './CreditsInfo';
 import ActionModal from './ActionModal';
-import { Card, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import LootboxSpinner from "./LootboxSpinner";
 import { useAuth } from '@/contexts/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // --- Types ---
-interface Auction {
+interface ActiveAuction {
   id: number;
-  ends_at: string;
-  item_id: number;
+  item_name: string;
+  item_icon: string | null;
   item_quantity: number;
-  description: string;
-  items: { name: string; icon: string | null };
-  auction_bids: { amount: number; player_id: string }[];
+  ends_at: string;
+  highest_bid: number;
+}
+
+interface WonAuction {
+  id: number;
+  item_name: string;
+  item_icon: string | null;
+  item_quantity: number;
+  amount: number;
 }
 
 interface CasinoModalProps {
@@ -31,6 +39,7 @@ interface CasinoModalProps {
   onUpdate: () => void;
   onPurchaseCredits: () => void;
   zoneName: string;
+  onOpenInventory: () => void;
 }
 
 // --- Sub-components ---
@@ -54,7 +63,7 @@ const Countdown = ({ endTime }: { endTime: string }) => {
 };
 
 // --- Main Component ---
-const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName }: CasinoModalProps) => {
+const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zoneName, onOpenInventory }: CasinoModalProps) => {
   const { user } = useAuth();
   const [activeGame, setActiveGame] = useState<'lobby' | 'roulette' | 'auction'>('lobby');
   
@@ -66,15 +75,16 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
 
   // States for Auction
   const { getIconUrl } = useGame();
-  const [auctions, setAuctions] = useState<Auction[]>([]);
+  const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
+  const [wonAuctions, setWonAuctions] = useState<WonAuction[]>([]);
   const [loadingAuctions, setLoadingAuctions] = useState(true);
-  const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
+  const [selectedAuction, setSelectedAuction] = useState<ActiveAuction | null>(null);
   const [bidAmountAuction, setBidAmountAuction] = useState('');
   const [actionModal, setActionModal] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: React.ReactNode; variant?: "default" | "destructive" }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
+  const [inventoryFullModal, setInventoryFullModal] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
-      // Reset all states on close
       setTimeout(() => {
         setActiveGame('lobby');
         setIsSpinning(false);
@@ -113,23 +123,30 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
   };
 
   // --- Auction Logic ---
-  const fetchAuctions = useCallback(async () => {
+  const fetchActiveAuctions = useCallback(async () => {
     setLoadingAuctions(true);
-    const { data, error } = await supabase
-      .from('auctions')
-      .select('*, items(name, icon), auction_bids(amount, player_id)')
-      .eq('status', 'active');
-      
+    await supabase.rpc('process_expired_auctions');
+    const { data, error } = await supabase.rpc('get_active_auctions_with_bids');
     if (error) showError("Impossible de charger les enchères.");
-    else setAuctions(data as Auction[]);
+    else setActiveAuctions(data || []);
     setLoadingAuctions(false);
   }, []);
 
+  const fetchWonAuctions = useCallback(async () => {
+    if (!user) return;
+    setLoadingAuctions(true);
+    const { data, error } = await supabase.rpc('get_won_auctions', { p_user_id: user.id });
+    if (error) showError("Impossible de charger vos gains.");
+    else setWonAuctions(data || []);
+    setLoadingAuctions(false);
+  }, [user]);
+
   useEffect(() => {
     if (isOpen && activeGame === 'auction') {
-      fetchAuctions();
+      fetchActiveAuctions();
+      fetchWonAuctions();
     }
-  }, [isOpen, activeGame, fetchAuctions]);
+  }, [isOpen, activeGame, fetchActiveAuctions, fetchWonAuctions]);
 
   const handlePlaceBid = async () => {
     if (!selectedAuction || !user) return;
@@ -149,9 +166,24 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
     } else {
       showSuccess("Enchère mise à jour !");
       onUpdate();
-      fetchAuctions();
+      fetchActiveAuctions();
       setSelectedAuction(null);
       setBidAmountAuction('');
+    }
+  };
+
+  const handleClaimAuction = async (auctionId: number) => {
+    const { error } = await supabase.rpc('claim_won_auction', { p_auction_id: auctionId });
+    if (error) {
+      if (error.message.includes("Votre inventaire est plein")) {
+        setInventoryFullModal(true);
+      } else {
+        showError(error.message);
+      }
+    } else {
+      showSuccess("Objet réclamé !");
+      onUpdate();
+      fetchWonAuctions();
     }
   };
 
@@ -212,37 +244,45 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
         );
       case 'auction':
         return (
-          <div className="py-4 max-h-[60vh] overflow-y-auto space-y-3">
-            {loadingAuctions ? <div className="flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
-            : auctions.length > 0 ? auctions.map(auction => {
-              const userBid = auction.auction_bids.find(b => b.player_id === user?.id)?.amount;
-              return (
+          <Tabs defaultValue="active" className="w-full mt-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="active"><Gavel className="w-4 h-4 mr-2" />Enchères</TabsTrigger>
+              <TabsTrigger value="won"><Trophy className="w-4 h-4 mr-2" />Mes Gains</TabsTrigger>
+            </TabsList>
+            <TabsContent value="active" className="mt-4 max-h-[50vh] overflow-y-auto space-y-3">
+              {loadingAuctions ? <div className="flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
+              : activeAuctions.length > 0 ? activeAuctions.map(auction => (
                 <div key={auction.id} className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-4">
                   <div className="w-16 h-16 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                    <ItemIcon iconName={getIconUrl(auction.items.icon) || auction.items.icon} alt={auction.items.name} />
+                    <ItemIcon iconName={getIconUrl(auction.item_icon) || auction.item_icon} alt={auction.item_name} />
                   </div>
                   <div className="flex-grow">
-                    <p className="font-bold">{auction.items.name} x{auction.item_quantity}</p>
-                    <p className="text-xs text-gray-400">{auction.description}</p>
+                    <p className="font-bold">{auction.item_name} x{auction.item_quantity}</p>
                     <p className="text-xs text-gray-300 flex items-center gap-1 mt-1"><Clock size={12} /> <Countdown endTime={auction.ends_at} /></p>
                   </div>
                   <div className="text-center flex-shrink-0">
-                    {userBid && (
-                      <p className="text-xs text-gray-400 mb-1">
-                        Votre enchère: <span className="font-bold text-yellow-400">{userBid}</span>
-                      </p>
-                    )}
-                    <Button size="sm" onClick={() => {
-                      setSelectedAuction(auction);
-                      setBidAmountAuction(userBid ? String(userBid) : '');
-                    }}>
-                      {userBid ? "Modifier" : "Enchérir"}
-                    </Button>
+                    <p className="text-xs text-gray-400 mb-1">Offre max: <span className="font-bold text-yellow-400">{auction.highest_bid || 0}</span></p>
+                    <Button size="sm" onClick={() => { setSelectedAuction(auction); setBidAmountAuction(''); }}>Enchérir</Button>
                   </div>
                 </div>
-              )
-            }) : <p className="text-center text-gray-400">Aucune enchère en cours.</p>}
-          </div>
+              )) : <p className="text-center text-gray-400">Aucune enchère en cours.</p>}
+            </TabsContent>
+            <TabsContent value="won" className="mt-4 max-h-[50vh] overflow-y-auto space-y-3">
+              {loadingAuctions ? <div className="flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
+              : wonAuctions.length > 0 ? wonAuctions.map(auction => (
+                <div key={auction.id} className="p-3 bg-green-500/10 rounded-lg border border-green-500/30 flex items-center gap-4">
+                  <div className="w-16 h-16 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                    <ItemIcon iconName={getIconUrl(auction.item_icon) || auction.item_icon} alt={auction.item_name} />
+                  </div>
+                  <div className="flex-grow">
+                    <p className="font-bold text-green-200">{auction.item_name} x{auction.item_quantity}</p>
+                    <p className="text-xs text-gray-300">Remporté pour {auction.amount} crédits</p>
+                  </div>
+                  <Button size="sm" onClick={() => handleClaimAuction(auction.id)}><Gift className="w-4 h-4 mr-2" />Réclamer</Button>
+                </div>
+              )) : <p className="text-center text-gray-400">Vous n'avez remporté aucune enchère.</p>}
+            </TabsContent>
+          </Tabs>
         );
       case 'lobby':
       default:
@@ -258,7 +298,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
             <Card onClick={() => setActiveGame('auction')} className="bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer transition-colors">
               <CardHeader className="flex flex-row items-center gap-4 space-y-0 p-4">
                 <Gavel className="w-8 h-8 text-white" />
-                <div><CardTitle className="text-lg">Encan du Bric-à-Brac</CardTitle><p className="text-sm text-gray-400">Enchérissez à l'aveugle sur des colis mystères.</p></div>
+                <div><CardTitle className="text-lg">Encan du Bric-à-Brac</CardTitle><p className="text-sm text-gray-400">Enchérissez sur des objets rares.</p></div>
               </CardHeader>
             </Card>
           </div>
@@ -277,10 +317,10 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
       <ActionModal
         isOpen={!!selectedAuction}
         onClose={() => setSelectedAuction(null)}
-        title={`Enchérir sur ${selectedAuction?.items.name}`}
+        title={`Enchérir sur ${selectedAuction?.item_name}`}
         description={
           <div className="space-y-2 mt-4 text-left">
-            <p className="text-sm text-gray-300">Votre enchère est secrète. Le plus offrant à la fin du temps imparti remporte l'objet. Toutes les mises sont conservées par la maison.</p>
+            <p className="text-sm text-gray-300">Le plus offrant à la fin du temps imparti remporte l'objet. Si vous perdez, vous êtes remboursé.</p>
             <div className="relative">
               <Input type="number" placeholder="Votre mise" value={bidAmountAuction} onChange={(e) => setBidAmountAuction(e.target.value)} className="pl-8" />
               <Coins className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
@@ -290,6 +330,16 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
         actions={[
           { label: "Confirmer l'enchère", onClick: handlePlaceBid, variant: "default" },
           { label: "Annuler", onClick: () => setSelectedAuction(null), variant: "secondary" },
+        ]}
+      />
+      <ActionModal
+        isOpen={inventoryFullModal}
+        onClose={() => setInventoryFullModal(false)}
+        title="Inventaire plein"
+        description="Votre inventaire est plein. Veuillez faire de la place pour réclamer votre objet."
+        actions={[
+          { label: "Ouvrir l'inventaire", onClick: () => { setInventoryFullModal(false); onOpenInventory(); }, variant: "default" },
+          { label: "Fermer", onClick: () => setInventoryFullModal(false), variant: "secondary" },
         ]}
       />
     </>

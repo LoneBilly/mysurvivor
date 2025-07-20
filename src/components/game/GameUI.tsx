@@ -336,6 +336,7 @@ const GameUI = () => {
         onUpdate={refreshPlayerData}
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Casino"}
+        onOpenInventory={() => setIsInventoryOpen(true)}
       />
       <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} onOpenGuide={() => setIsGuideOpen(true)} onOpenPatchnotes={() => setIsPatchnoteOpen(true)} />
       <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />

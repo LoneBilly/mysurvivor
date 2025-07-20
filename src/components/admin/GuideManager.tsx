@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Book, FileText, ChevronDown } from 'lucide-react';
+import MarkdownToolbar from './MarkdownToolbar';
 
 type Chapter = {
   id: number;
@@ -30,6 +31,7 @@ const GuideManager = () => {
   const [currentChapter, setCurrentChapter] = useState<Partial<Chapter>>({});
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const articleContentRef = useRef<HTMLTextAreaElement>(null);
 
   const fetchChapters = useCallback(async () => {
     setIsLoading(true);
@@ -212,11 +214,18 @@ const GuideManager = () => {
             </div>
             <div>
               <label htmlFor="article-content" className="block text-sm font-medium text-gray-300 mb-1">Contenu (Markdown)</label>
-              <Textarea id="article-content" value={currentArticle.content || ''} onChange={e => setCurrentArticle({ ...currentArticle, content: e.target.value })} rows={15} className="bg-gray-900/70 border-gray-700" />
+              <MarkdownToolbar textareaRef={articleContentRef} onContentChange={(value) => setCurrentArticle({ ...currentArticle, content: value })} />
+              <Textarea
+                id="article-content"
+                ref={articleContentRef}
+                value={currentArticle.content || ''}
+                onChange={e => setCurrentArticle({ ...currentArticle, content: e.target.value })}
+                rows={15}
+                className="bg-gray-900/70 border-gray-700 rounded-t-none"
+              />
             </div>
           </div>
           <DialogFooter className="pt-4 flex-shrink-0 border-t border-gray-700">
-            <Button variant="outline" onClick={() => setIsArticleModalOpen(false)}>Annuler</Button>
             <Button onClick={handleSaveArticle}>Sauvegarder</Button>
           </DialogFooter>
         </DialogContent>
