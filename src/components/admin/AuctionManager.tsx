@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,12 +30,21 @@ interface AuctionManagerProps {
   onUpdate: () => void;
 }
 
+const statuses: { key: Auction['status'] | 'all', label: string }[] = [
+    { key: 'active', label: 'Actives' },
+    { key: 'awarded', label: 'Adjugées' },
+    { key: 'claimed', label: 'Réclamées' },
+    { key: 'cancelled', label: 'Annulées' },
+    { key: 'all', label: 'Toutes' },
+];
+
 const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
+  const [statusFilter, setStatusFilter] = useState<Auction['status'] | 'all'>('active');
   const [actionModal, setActionModal] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; description: string; variant?: "default" | "destructive" }>({ isOpen: false, onConfirm: () => {}, title: '', description: '' });
   const isMobile = useIsMobile();
 
@@ -58,6 +67,11 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   useEffect(() => {
     fetchAuctions();
   }, [fetchAuctions]);
+
+  const filteredAuctions = useMemo(() => {
+    if (statusFilter === 'all') return auctions;
+    return auctions.filter(auction => auction.status === statusFilter);
+  }, [auctions, statusFilter]);
 
   const getWinningBid = (bids: { amount: number, profiles: { username: string | null } }[]) => {
     if (!bids || bids.length === 0) return { amount: 0, username: 'N/A' };
@@ -89,18 +103,27 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
   return (
     <>
       <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
-        <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-          <h2 className="text-xl font-bold flex items-center gap-2"><Gavel /> Gestion des Enchères</h2>
-          <Button onClick={() => setIsFormModalOpen(true)} className="w-full sm:w-auto">
-            <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
-          </Button>
+        <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <h2 className="text-xl font-bold flex items-center gap-2"><Gavel /> Gestion des Enchères</h2>
+            <Button onClick={() => setIsFormModalOpen(true)} className="w-full sm:w-auto">
+              <PlusCircle className="w-4 h-4 mr-2" /> Créer une enchère
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {statuses.map(status => (
+              <Button key={status.key} size="sm" variant={statusFilter === status.key ? 'default' : 'outline'} onClick={() => setStatusFilter(status.key)}>
+                {status.label}
+              </Button>
+            ))}
+          </div>
         </div>
         <div className="flex-grow overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
           ) : isMobile ? (
             <div className="p-4 space-y-3">
-              {auctions.map(auction => {
+              {filteredAuctions.map(auction => {
                 const winningBid = getWinningBid(auction.auction_bids);
                 return (
                   <Card key={auction.id} className="bg-gray-800/60 border-gray-700">
@@ -149,7 +172,7 @@ const AuctionManager = ({ allItems, onUpdate }: AuctionManagerProps) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {auctions.map(auction => {
+                {filteredAuctions.map(auction => {
                   const winningBid = getWinningBid(auction.auction_bids);
                   return (
                     <TableRow key={auction.id} className="border-gray-700">
