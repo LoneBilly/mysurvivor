@@ -68,6 +68,8 @@ const changeTypeMap = {
   },
 };
 
+const entityTypes = ['Général', 'Item', 'Zone', 'Bâtiment', 'UI', 'Système', 'Événement', 'Recette'];
+
 const PatchnoteManager = () => {
   const [patchNotes, setPatchNotes] = useState<PatchNote[]>([]);
   const [selectedPatchNote, setSelectedPatchNote] = useState<PatchNote | null>(null);
@@ -78,24 +80,27 @@ const PatchnoteManager = () => {
   const [currentChange, setCurrentChange] = useState<Partial<PatchNoteChange>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchPatchNotes = useCallback(async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from('patch_notes')
-      .select('*')
-      .order('created_at', { ascending: false });
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('patch_notes')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      toast.error('Erreur lors de la récupération des patchnotes.');
-      console.error(error);
-    } else {
-      setPatchNotes(data || []);
-      if (data && data.length > 0 && !selectedPatchNote) {
-        setSelectedPatchNote(data[0]);
+      if (error) {
+        toast.error('Erreur lors de la récupération des patchnotes.');
+        console.error(error);
+      } else {
+        setPatchNotes(data || []);
+        if (data && data.length > 0) {
+          setSelectedPatchNote(data[0]);
+        }
       }
-    }
-    setIsLoading(false);
-  }, [selectedPatchNote]);
+      setIsLoading(false);
+    };
+    fetchInitialData();
+  }, []);
 
   const fetchChanges = useCallback(async () => {
     if (!selectedPatchNote) {
@@ -117,60 +122,68 @@ const PatchnoteManager = () => {
   }, [selectedPatchNote]);
 
   useEffect(() => {
-    fetchPatchNotes();
-  }, [fetchPatchNotes]);
-
-  useEffect(() => {
     fetchChanges();
-  }, [selectedPatchNote, fetchChanges]);
+  }, [fetchChanges]);
 
   const handleSavePatchNote = async () => {
     const { id, ...patchNoteData } = currentPatchNote;
     const query = id
-      ? supabase.from('patch_notes').update(patchNoteData).eq('id', id)
-      : supabase.from('patch_notes').insert(patchNoteData as any);
+      ? supabase.from('patch_notes').update(patchNoteData).eq('id', id).select().single()
+      : supabase.from('patch_notes').insert(patchNoteData as any).select().single();
 
-    const { error } = await query;
+    const { data: savedPatchNote, error } = await query;
+
     if (error) {
       toast.error('Erreur lors de la sauvegarde du patchnote.');
-    } else {
+    } else if (savedPatchNote) {
       toast.success('Patchnote sauvegardé.');
       setIsPatchNoteModalOpen(false);
-      fetchPatchNotes();
+      if (id) {
+        setPatchNotes(prev => prev.map(pn => (pn.id === id ? savedPatchNote : pn)));
+        if (selectedPatchNote?.id === id) {
+          setSelectedPatchNote(savedPatchNote);
+        }
+      } else {
+        setPatchNotes(prev => [savedPatchNote, ...prev]);
+        setSelectedPatchNote(savedPatchNote);
+      }
     }
   };
 
   const handleDeletePatchNote = async (patchNoteId: number) => {
     if (window.confirm('Voulez-vous vraiment supprimer ce patchnote et tous ses changements ?')) {
-      const { error: changesError } = await supabase.from('patch_note_changes').delete().eq('patch_note_id', patchNoteId);
-      if (changesError) {
-        toast.error("Erreur lors de la suppression des changements associés.");
-        return;
-      }
+      await supabase.from('patch_note_changes').delete().eq('patch_note_id', patchNoteId);
       const { error } = await supabase.from('patch_notes').delete().eq('id', patchNoteId);
       if (error) {
         toast.error('Erreur lors de la suppression du patchnote.');
       } else {
         toast.success('Patchnote supprimé.');
+        const newPatchNotes = patchNotes.filter(p => p.id !== patchNoteId);
+        setPatchNotes(newPatchNotes);
         if (selectedPatchNote?.id === patchNoteId) {
-          setSelectedPatchNote(patchNotes.length > 1 ? patchNotes.filter(p => p.id !== patchNoteId)[0] : null);
+          setSelectedPatchNote(newPatchNotes.length > 0 ? newPatchNotes[0] : null);
         }
-        fetchPatchNotes();
       }
     }
   };
-  
+
   const handleTogglePublish = async (patchNote: PatchNote) => {
-    const { error } = await supabase
+    const newStatus = !patchNote.is_published;
+    const { data: updatedPatchNote, error } = await supabase
       .from('patch_notes')
-      .update({ is_published: !patchNote.is_published })
-      .eq('id', patchNote.id);
+      .update({ is_published: newStatus })
+      .eq('id', patchNote.id)
+      .select()
+      .single();
 
     if (error) {
       toast.error('Erreur lors du changement de statut.');
-    } else {
-      toast.success(`Patchnote ${patchNote.is_published ? 'dépublié' : 'publié'}.`);
-      fetchPatchNotes();
+    } else if (updatedPatchNote) {
+      toast.success(`Patchnote ${newStatus ? 'publié' : 'dépublié'}.`);
+      setPatchNotes(prev => prev.map(pn => (pn.id === patchNote.id ? updatedPatchNote : pn)));
+      if (selectedPatchNote?.id === patchNote.id) {
+        setSelectedPatchNote(updatedPatchNote);
+      }
     }
   };
 
@@ -178,16 +191,21 @@ const PatchnoteManager = () => {
     if (!selectedPatchNote) return;
     const { id, ...changeData } = { ...currentChange, patch_note_id: selectedPatchNote.id };
     const query = id
-      ? supabase.from('patch_note_changes').update(changeData).eq('id', id)
-      : supabase.from('patch_note_changes').insert(changeData as any);
+      ? supabase.from('patch_note_changes').update(changeData).eq('id', id).select().single()
+      : supabase.from('patch_note_changes').insert(changeData as any).select().single();
 
-    const { error } = await query;
+    const { data: savedChange, error } = await query;
+
     if (error) {
       toast.error('Erreur lors de la sauvegarde du changement.');
-    } else {
+    } else if (savedChange) {
       toast.success('Changement sauvegardé.');
       setIsChangeModalOpen(false);
-      fetchChanges();
+      if (id) {
+        setChanges(prev => prev.map(c => (c.id === id ? savedChange : c)));
+      } else {
+        setChanges(prev => [savedChange, ...prev]);
+      }
     }
   };
 
@@ -198,7 +216,7 @@ const PatchnoteManager = () => {
         toast.error('Erreur lors de la suppression du changement.');
       } else {
         toast.success('Changement supprimé.');
-        fetchChanges();
+        setChanges(prev => prev.filter(c => c.id !== changeId));
       }
     }
   };
@@ -225,7 +243,7 @@ const PatchnoteManager = () => {
           {patchNotes.map(pn => (
             <div key={pn.id} className={`p-3 border-b border-gray-700 hover:bg-gray-800/50 ${selectedPatchNote?.id === pn.id ? 'bg-slate-700' : ''}`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 cursor-pointer flex-grow" onClick={() => setSelectedPatchNote(pn)}>
+                <div className="flex items-center gap-3 cursor-pointer flex-grow min-w-0" onClick={() => setSelectedPatchNote(pn)}>
                   <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${pn.is_published ? 'bg-green-400' : 'bg-yellow-400'}`} title={pn.is_published ? 'Publié' : 'Brouillon'}></div>
                   <GitBranch className="w-5 h-5 text-gray-300 flex-shrink-0" />
                   <div className="truncate">
@@ -277,14 +295,14 @@ const PatchnoteManager = () => {
                         {groupedChanges[key].map(change => (
                           <div key={change.id} className={`p-3 rounded-lg border ${borderColor} ${bgColor} ${color}`}>
                             <div className="flex justify-between items-start">
-                              <div>
+                              <div className="min-w-0">
                                 <span className="text-xs font-semibold uppercase bg-gray-500/20 px-2 py-1 rounded-full">{change.entity_type}</span>
-                                <p className="font-bold mt-1">{change.entity_name}</p>
+                                <p className="font-bold mt-1 truncate">{change.entity_name}</p>
                                 <div className="prose prose-sm prose-invert text-gray-300 mt-1">
                                   <ReactMarkdown>{change.description}</ReactMarkdown>
                                 </div>
                               </div>
-                              <div className="flex gap-1">
+                              <div className="flex gap-1 flex-shrink-0 ml-2">
                                 <Button size="icon" variant="ghost" onClick={() => { setCurrentChange(change); setIsChangeModalOpen(true); }}>
                                   <Edit className="w-4 h-4" />
                                 </Button>
@@ -315,7 +333,7 @@ const PatchnoteManager = () => {
           <DialogHeader>
             <DialogTitle>{currentPatchNote.id ? 'Modifier' : 'Créer'} un patchnote</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <Input
               placeholder="Titre du patchnote"
               value={currentPatchNote.title || ''}
@@ -334,7 +352,7 @@ const PatchnoteManager = () => {
           <DialogHeader>
             <DialogTitle>{currentChange.id ? 'Modifier' : 'Ajouter'} un changement</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <Select
               value={currentChange.change_type}
               onValueChange={(value: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'FIXED' | 'IMPROVED') => setCurrentChange({ ...currentChange, change_type: value })}
@@ -343,18 +361,24 @@ const PatchnoteManager = () => {
                 <SelectValue placeholder="Type de changement" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ADDED">Ajout</SelectItem>
-                <SelectItem value="MODIFIED">Modification</SelectItem>
-                <SelectItem value="REMOVED">Suppression</SelectItem>
-                <SelectItem value="FIXED">Correctif</SelectItem>
-                <SelectItem value="IMPROVED">Amélioration</SelectItem>
+                {Object.entries(changeTypeMap).map(([key, { title }]) => (
+                  <SelectItem key={key} value={key}>{title}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Input
-              placeholder="Type d'entité (ex: Item, Zone, UI)"
-              value={currentChange.entity_type || ''}
-              onChange={e => setCurrentChange({ ...currentChange, entity_type: e.target.value })}
-            />
+            <Select
+              value={currentChange.entity_type}
+              onValueChange={(value: string) => setCurrentChange({ ...currentChange, entity_type: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Type d'entité" />
+              </SelectTrigger>
+              <SelectContent>
+                {entityTypes.map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               placeholder="Nom de l'entité (ex: Hache en fer)"
               value={currentChange.entity_name || ''}
@@ -364,6 +388,7 @@ const PatchnoteManager = () => {
               placeholder="Description (supporte le Markdown)"
               value={currentChange.description || ''}
               onChange={e => setCurrentChange({ ...currentChange, description: e.target.value })}
+              rows={5}
             />
           </div>
           <DialogFooter>
