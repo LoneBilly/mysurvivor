@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, GitBranch, Send, EyeOff, CheckCircle, AlertTriangle, XCircle, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 type PatchNote = {
   id: number;
@@ -225,48 +226,80 @@ const PatchnoteManager = () => {
     return acc;
   }, {} as Record<string, PatchNoteChange[]>);
 
+  const versionsList = patchNotes.map(pn => (
+    <div key={pn.id} className={`p-3 border-b border-gray-700 hover:bg-gray-800/50 ${selectedPatchNote?.id === pn.id ? 'bg-slate-700' : ''}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 cursor-pointer flex-grow min-w-0" onClick={() => setSelectedPatchNote(pn)}>
+          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${pn.is_published ? 'bg-green-400' : 'bg-yellow-400'}`} title={pn.is_published ? 'Publié' : 'Brouillon'}></div>
+          <GitBranch className="w-5 h-5 text-gray-300 flex-shrink-0" />
+          <div className="truncate">
+            <p className="font-semibold truncate">{new Date(pn.created_at).toLocaleDateString('fr-FR')}</p>
+            <p className="text-sm text-gray-400 truncate">{pn.title}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+          <Button size="icon" variant={pn.is_published ? "secondary" : "default"} onClick={() => handleTogglePublish(pn)} title={pn.is_published ? 'Dépublier' : 'Publier'}>
+            {pn.is_published ? <EyeOff className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => { setCurrentPatchNote(pn); setIsPatchNoteModalOpen(true); }}>
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => handleDeletePatchNote(pn.id)}>
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  ));
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-full"><p>Chargement...</p></div>;
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-      <div className="md:col-span-1 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
-        <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
-          <h3 className="text-lg font-bold">Versions</h3>
-          <Button onClick={() => { setCurrentPatchNote({ title: '', is_published: false }); setIsPatchNoteModalOpen(true); }}>
-            <PlusCircle className="w-4 h-4 mr-2" />Créer
-          </Button>
-        </div>
-        <div className="flex-grow overflow-y-auto no-scrollbar">
-          {patchNotes.map(pn => (
-            <div key={pn.id} className={`p-3 border-b border-gray-700 hover:bg-gray-800/50 ${selectedPatchNote?.id === pn.id ? 'bg-slate-700' : ''}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 cursor-pointer flex-grow min-w-0" onClick={() => setSelectedPatchNote(pn)}>
-                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${pn.is_published ? 'bg-green-400' : 'bg-yellow-400'}`} title={pn.is_published ? 'Publié' : 'Brouillon'}></div>
-                  <GitBranch className="w-5 h-5 text-gray-300 flex-shrink-0" />
-                  <div className="truncate">
-                    <p className="font-semibold truncate">{new Date(pn.created_at).toLocaleDateString('fr-FR')}</p>
-                    <p className="text-sm text-gray-400 truncate">{pn.title}</p>
+      {/* Versions Column */}
+      <div className="md:col-span-1 md:flex md:flex-col md:h-full">
+        {/* Mobile Accordion */}
+        <div className="md:hidden bg-gray-800/50 border border-gray-700 rounded-lg">
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1" className="border-b-0">
+              <AccordionTrigger className="p-4 hover:no-underline flex justify-between w-full">
+                <div className="flex items-center gap-3">
+                  <GitBranch className="w-5 h-5 text-gray-300" />
+                  <div className="text-left">
+                    <p className="font-semibold">Versions</p>
+                    {selectedPatchNote && <p className="text-sm text-gray-400 truncate">{selectedPatchNote.title}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                  <Button size="icon" variant={pn.is_published ? "secondary" : "default"} onClick={() => handleTogglePublish(pn)} title={pn.is_published ? 'Dépublier' : 'Publier'}>
-                    {pn.is_published ? <EyeOff className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => { setCurrentPatchNote(pn); setIsPatchNoteModalOpen(true); }}>
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => handleDeletePatchNote(pn.id)}>
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
+                <Button size="sm" className="flex-shrink-0 mr-2" onClick={(e) => { e.stopPropagation(); setCurrentPatchNote({ title: '', is_published: false }); setIsPatchNoteModalOpen(true); }}>
+                  <PlusCircle className="w-4 h-4" />
+                </Button>
+              </AccordionTrigger>
+              <AccordionContent className="border-t border-gray-700">
+                <div className="max-h-60 overflow-y-auto no-scrollbar">
+                  {versionsList}
                 </div>
-              </div>
-            </div>
-          ))}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+
+        {/* Desktop Sidebar */}
+        <div className="hidden md:flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
+          <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
+            <h3 className="text-lg font-bold">Versions</h3>
+            <Button onClick={() => { setCurrentPatchNote({ title: '', is_published: false }); setIsPatchNoteModalOpen(true); }}>
+              <PlusCircle className="w-4 h-4 mr-2" />Créer
+            </Button>
+          </div>
+          <div className="flex-grow overflow-y-auto no-scrollbar">
+            {versionsList}
+          </div>
         </div>
       </div>
 
+      {/* Details Column */}
       <div className="md:col-span-2 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
         {selectedPatchNote ? (
           <>

@@ -1,273 +1,227 @@
-import { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, PlusCircle, Edit, Trash2, ArrowLeft, BookHeart, BookOpen, FileText } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast';
-import ActionModal from '../ActionModal';
-import { Label } from '@/components/ui/label';
-import MarkdownToolbar from './MarkdownToolbar';
-import ZoneIconEditorModal from './ZoneIconEditorModal';
-import * as LucideIcons from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { PlusCircle, Edit, Trash2, Book, FileText, ChevronDown } from 'lucide-react';
 
-interface Chapter {
+type Chapter = {
   id: number;
   title: string;
-  order: number;
-  icon: string | null;
-}
+  icon: string;
+};
 
-interface Article {
+type Article = {
   id: number;
   chapter_id: number;
   title: string;
-  content: string | null;
-  order: number;
-  icon: string | null;
-}
-
-const getIconComponent = (iconName: string | null, fallback: React.ElementType) => {
-  if (!iconName) return fallback;
-  const Icon = (LucideIcons as any)[iconName];
-  return Icon && typeof Icon.render === 'function' ? Icon : fallback;
+  content: string;
+  icon: string;
 };
 
 const GuideManager = () => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
-  const [loading, setLoading] = useState(true);
-  
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
-  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
-  
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
-  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
-  const articleTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [currentChapter, setCurrentChapter] = useState<Partial<Chapter>>({});
+  const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'chapter' | 'article'; item: Chapter | Article | null }>({ isOpen: false, type: 'chapter', item: null });
-  
-  const [isIconEditorOpen, setIsIconEditorOpen] = useState(false);
-  const [editingIconFor, setEditingIconFor] = useState<'chapter' | 'article' | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const { data: chaptersData, error: chaptersError } = await supabase.from('guide_chapters').select('*').order('order');
-    const { data: articlesData, error: articlesError } = await supabase.from('guide_articles').select('*').order('order');
-    
-    if (chaptersError || articlesError) {
-      showError("Erreur de chargement des données du guide.");
+  const fetchChapters = useCallback(async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('guide_chapters').select('*').order('order');
+    if (error) {
+      toast.error("Erreur lors de la récupération des chapitres.");
     } else {
-      setChapters(chaptersData || []);
-      setArticles(articlesData || []);
+      setChapters(data);
+      if (data.length > 0 && !selectedChapter) {
+        setSelectedChapter(data[0]);
+      }
     }
-    setLoading(false);
-  }, []);
+    setIsLoading(false);
+  }, [selectedChapter]);
+
+  const fetchArticles = useCallback(async () => {
+    if (!selectedChapter) {
+      setArticles([]);
+      return;
+    }
+    const { data, error } = await supabase.from('guide_articles').select('*').eq('chapter_id', selectedChapter.id).order('order');
+    if (error) {
+      toast.error("Erreur lors de la récupération des articles.");
+    } else {
+      setArticles(data);
+    }
+  }, [selectedChapter]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchChapters();
+  }, [fetchChapters]);
 
-  const handleSaveChapter = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingChapter || !editingChapter.title.trim()) return;
+  useEffect(() => {
+    fetchArticles();
+  }, [fetchArticles]);
 
-    const { id, ...dataToSave } = editingChapter;
-    const promise = id ? supabase.from('guide_chapters').update(dataToSave).eq('id', id) : supabase.from('guide_chapters').insert(dataToSave);
-    
-    const { error } = await promise;
-    if (error) showError(error.message);
-    else {
-      showSuccess(`Chapitre ${id ? 'mis à jour' : 'créé'}.`);
+  const handleSaveChapter = async () => {
+    const { id, ...chapterData } = currentChapter;
+    const query = id ? supabase.from('guide_chapters').update(chapterData).eq('id', id) : supabase.from('guide_chapters').insert(chapterData as any);
+    const { error } = await query;
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde du chapitre.");
+    } else {
+      toast.success("Chapitre sauvegardé.");
       setIsChapterModalOpen(false);
-      setEditingChapter(null);
-      fetchData();
+      fetchChapters();
     }
   };
 
-  const handleSaveArticle = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingArticle || !editingArticle.title.trim() || !selectedChapter) return;
-
-    const { id, ...dataToSave } = { ...editingArticle, chapter_id: selectedChapter.id };
-    const promise = id ? supabase.from('guide_articles').update(dataToSave).eq('id', id) : supabase.from('guide_articles').insert(dataToSave);
-    
-    const { error } = await promise;
-    if (error) showError(error.message);
-    else {
-      showSuccess(`Article ${id ? 'mis à jour' : 'créé'}.`);
+  const handleSaveArticle = async () => {
+    const { id, ...articleData } = currentArticle;
+    const query = id ? supabase.from('guide_articles').update(articleData).eq('id', id) : supabase.from('guide_articles').insert(articleData as any);
+    const { error } = await query;
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde de l'article.");
+    } else {
+      toast.success("Article sauvegardé.");
       setIsArticleModalOpen(false);
-      setEditingArticle(null);
-      fetchData();
+      fetchArticles();
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteModal.item) return;
-    const fromTable = deleteModal.type === 'chapter' ? 'guide_chapters' : 'guide_articles';
-    const { error } = await supabase.from(fromTable).delete().eq('id', deleteModal.item.id);
-    
-    if (error) showError(error.message);
-    else {
-      showSuccess(`${deleteModal.type === 'chapter' ? 'Chapitre' : 'Article'} supprimé.`);
-      if (deleteModal.type === 'chapter' && selectedChapter?.id === deleteModal.item.id) {
-        setSelectedChapter(null);
+  const handleDelete = async (type: 'chapter' | 'article', id: number) => {
+    const table = type === 'chapter' ? 'guide_chapters' : 'guide_articles';
+    const confirmation = window.confirm(`Voulez-vous vraiment supprimer cet élément ?`);
+    if (confirmation) {
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) {
+        toast.error("Erreur lors de la suppression.");
+      } else {
+        toast.success("Élément supprimé.");
+        if (type === 'chapter') {
+          setSelectedChapter(null);
+          fetchChapters();
+        } else {
+          fetchArticles();
+        }
       }
-      setDeleteModal({ isOpen: false, type: 'chapter', item: null });
-      fetchData();
     }
   };
-
-  const openDeleteModal = (item: Chapter | Article, type: 'chapter' | 'article') => {
-    setDeleteModal({ isOpen: true, item, type });
-  };
-
-  const filteredArticles = articles.filter(a => a.chapter_id === selectedChapter?.id);
-
-  const ChapterList = (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
-        <h3 className="text-lg font-bold">Chapitres</h3>
-        <Button size="sm" onClick={() => { setEditingChapter({ id: 0, title: '', order: chapters.length, icon: 'BookOpen' }); setIsChapterModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter</Button>
-      </div>
-      <div className="flex-grow overflow-y-auto no-scrollbar">
-        {chapters.map(chapter => {
-          const Icon = getIconComponent(chapter.icon, BookOpen);
-          return (
-            <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className="cursor-pointer p-3 flex items-center justify-between border-b border-gray-700 hover:bg-gray-800/50">
-              <div className="flex items-center gap-3">
-                <Icon className="w-8 h-8 text-gray-300" />
-                <span className="font-semibold truncate">{chapter.title}</span>
-              </div>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="icon" title="Modifier" onClick={(e) => { e.stopPropagation(); setEditingChapter(chapter); setIsChapterModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
-                <Button variant="ghost" size="icon" title="Supprimer" onClick={(e) => { e.stopPropagation(); openDeleteModal(chapter, 'chapter'); }}><Trash2 className="w-4 h-4" /></Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  const ArticleView = (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setSelectedChapter(null)} title="Retour aux chapitres">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h3 className="text-lg font-bold truncate">{selectedChapter?.title || 'Chapitre'}</h3>
-        </div>
-        <Button size="sm" onClick={() => { setEditingArticle({ id: 0, chapter_id: selectedChapter!.id, title: '', content: '', order: filteredArticles.length, icon: 'FileText' }); setIsArticleModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un article</Button>
-      </div>
-      <div className="flex-grow overflow-y-auto no-scrollbar">
-        {filteredArticles.length > 0 ? filteredArticles.map(article => {
-          const Icon = getIconComponent(article.icon, FileText);
-          return (
-            <div key={article.id} className="p-3 flex items-center justify-between border-b border-gray-700 hover:bg-gray-800/50">
-              <div className="flex items-center gap-3 flex-grow truncate">
-                <Icon className="w-6 h-6 text-gray-400" />
-                <span className="font-semibold truncate">{article.title}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" title="Modifier" onClick={() => { setEditingArticle(article); setIsArticleModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
-                <Button variant="ghost" size="icon" title="Supprimer" onClick={(e) => { e.stopPropagation(); openDeleteModal(article, 'article'); }}><Trash2 className="w-4 h-4" /></Button>
-              </div>
-            </div>
-          );
-        }) : (
-          <div className="p-4 text-center text-gray-400">Aucun article dans ce chapitre.</div>
-        )}
-      </div>
-    </div>
-  );
-
-  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
 
   return (
-    <>
-      <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
-        {chapters.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-4">
-            <BookHeart className="w-16 h-16 text-gray-500 mb-4" />
-            <h2 className="text-2xl font-bold">Gestion du Guide</h2>
-            <p className="mt-2 text-gray-400">Commencez par créer votre premier chapitre.</p>
-            <Button className="mt-4" onClick={() => { setEditingChapter({ id: 0, title: '', order: 0, icon: 'BookOpen' }); setIsChapterModalOpen(true); }}>
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Créer un chapitre
-            </Button>
-          </div>
-        ) : selectedChapter ? (
-          ArticleView
-        ) : (
-          ChapterList
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+      <div className="md:col-span-1 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
+        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+          <h3 className="text-lg font-bold">Chapitres</h3>
+          <Button onClick={() => { setCurrentChapter({}); setIsChapterModalOpen(true); }}>
+            <PlusCircle className="w-4 h-4 mr-2" />Créer
+          </Button>
+        </div>
+        <div className="flex-grow overflow-y-auto no-scrollbar">
+          {chapters.map(c => (
+            <div key={c.id} onClick={() => setSelectedChapter(c)} className={`p-3 border-b border-gray-700 cursor-pointer hover:bg-gray-800/50 ${selectedChapter?.id === c.id ? 'bg-slate-700' : ''}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Book className="w-5 h-5 text-gray-300" />
+                  <span>{c.title}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setCurrentChapter(c); setIsChapterModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); handleDelete('chapter', c.id); }}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="md:col-span-2 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
+        {selectedChapter && (
+          <>
+            <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+              <h3 className="text-lg font-bold">Articles de: {selectedChapter.title}</h3>
+              <Button onClick={() => { setCurrentArticle({ chapter_id: selectedChapter.id }); setIsArticleModalOpen(true); }}>
+                <PlusCircle className="w-4 h-4 mr-2" />Créer
+              </Button>
+            </div>
+            <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-2">
+              {articles.map(a => (
+                <div key={a.id} className="p-3 rounded-lg border border-gray-700 bg-gray-900/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-gray-300" />
+                      <span>{a.title}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setCurrentArticle(a); setIsArticleModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDelete('article', a.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {articles.length === 0 && <p className="text-gray-500 text-center mt-8">Aucun article dans ce chapitre.</p>}
+            </div>
+          </>
         )}
       </div>
 
-      <Dialog open={isChapterModalOpen} onOpenChange={(isOpen) => { setIsChapterModalOpen(isOpen); if (!isOpen) setEditingChapter(null); }}>
-        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-          <DialogHeader><DialogTitle>{editingChapter?.id ? 'Modifier' : 'Nouveau'} Chapitre</DialogTitle></DialogHeader>
-          <form onSubmit={handleSaveChapter} className="py-4 space-y-4">
-            <div><Label>Titre</Label><Input value={editingChapter?.title || ''} onChange={(e) => setEditingChapter(prev => prev ? {...prev, title: e.target.value} : null)} required /></div>
+      <Dialog open={isChapterModalOpen} onOpenChange={setIsChapterModalOpen}>
+        <DialogContent className="sm:max-w-md bg-gray-800/90 border-gray-700 text-white backdrop-blur-sm">
+          <DialogHeader><DialogTitle>{currentChapter.id ? 'Modifier' : 'Créer'} un chapitre</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-4">
             <div>
-              <Label>Icône</Label>
-              <div className="flex items-center gap-2">
-                <Input value={editingChapter?.icon || ''} onChange={(e) => setEditingChapter(prev => prev ? {...prev, icon: e.target.value} : null)} placeholder="BookOpen" />
-                <Button type="button" variant="outline" onClick={() => { setEditingIconFor('chapter'); setIsIconEditorOpen(true); }}>Choisir</Button>
-              </div>
+              <label htmlFor="chapter-title" className="block text-sm font-medium text-gray-300 mb-1">Titre</label>
+              <Input id="chapter-title" value={currentChapter.title || ''} onChange={e => setCurrentChapter({ ...currentChapter, title: e.target.value })} className="bg-gray-900/70 border-gray-700" />
             </div>
-            <DialogFooter><Button type="submit">Sauvegarder</Button></DialogFooter>
-          </form>
+            <div>
+              <label htmlFor="chapter-icon" className="block text-sm font-medium text-gray-300 mb-1">Icône (Lucide)</label>
+              <Input id="chapter-icon" value={currentChapter.icon || ''} onChange={e => setCurrentChapter({ ...currentChapter, icon: e.target.value })} className="bg-gray-900/70 border-gray-700" />
+            </div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setIsChapterModalOpen(false)}>Annuler</Button><Button onClick={handleSaveChapter}>Sauvegarder</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isArticleModalOpen} onOpenChange={(isOpen) => { setIsArticleModalOpen(isOpen); if (!isOpen) setEditingArticle(null); }}>
-        <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-          <DialogHeader><DialogTitle>{editingArticle?.id ? 'Modifier' : 'Nouvel'} Article</DialogTitle></DialogHeader>
-          <form onSubmit={handleSaveArticle} className="py-4 space-y-4">
-            <div><Label>Titre</Label><Input value={editingArticle?.title || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, title: e.target.value} : null)} required /></div>
+      <Dialog open={isArticleModalOpen} onOpenChange={setIsArticleModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col bg-gray-800/90 border-gray-700 text-white backdrop-blur-sm">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">{currentArticle.id ? 'Modifier' : 'Créer'} un article</DialogTitle>
+          </DialogHeader>
+          <div className="flex-grow overflow-y-auto space-y-4 py-4 pr-4 -mr-4">
             <div>
-              <Label>Icône</Label>
-              <div className="flex items-center gap-2">
-                <Input value={editingArticle?.icon || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, icon: e.target.value} : null)} placeholder="FileText" />
-                <Button type="button" variant="outline" onClick={() => { setEditingIconFor('article'); setIsIconEditorOpen(true); }}>Choisir</Button>
+              <label htmlFor="article-title" className="block text-sm font-medium text-gray-300 mb-1">Titre</label>
+              <Input id="article-title" value={currentArticle.title || ''} onChange={e => setCurrentArticle({ ...currentArticle, title: e.target.value })} className="bg-gray-900/70 border-gray-700" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="article-chapter" className="block text-sm font-medium text-gray-300 mb-1">Chapitre</label>
+                <div className="relative">
+                  <select id="article-chapter" value={currentArticle.chapter_id || ''} onChange={e => setCurrentArticle({ ...currentArticle, chapter_id: Number(e.target.value) })} className="w-full appearance-none bg-gray-900/70 border border-gray-700 rounded-md h-10 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="article-icon" className="block text-sm font-medium text-gray-300 mb-1">Icône (Lucide)</label>
+                <Input id="article-icon" value={currentArticle.icon || ''} onChange={e => setCurrentArticle({ ...currentArticle, icon: e.target.value })} className="bg-gray-900/70 border-gray-700" />
               </div>
             </div>
             <div>
-              <Label>Contenu (Markdown)</Label>
-              <MarkdownToolbar textareaRef={articleTextareaRef} onContentChange={(value) => setEditingArticle(prev => prev ? {...prev, content: value} : null)} />
-              <Textarea ref={articleTextareaRef} value={editingArticle?.content || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, content: e.target.value} : null)} rows={15} className="rounded-t-none border-gray-700" />
+              <label htmlFor="article-content" className="block text-sm font-medium text-gray-300 mb-1">Contenu (Markdown)</label>
+              <Textarea id="article-content" value={currentArticle.content || ''} onChange={e => setCurrentArticle({ ...currentArticle, content: e.target.value })} rows={15} className="bg-gray-900/70 border-gray-700" />
             </div>
-            <DialogFooter><Button type="submit">Sauvegarder</Button></DialogFooter>
-          </form>
+          </div>
+          <DialogFooter className="pt-4 flex-shrink-0 border-t border-gray-700">
+            <Button variant="outline" onClick={() => setIsArticleModalOpen(false)}>Annuler</Button>
+            <Button onClick={handleSaveArticle}>Sauvegarder</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ZoneIconEditorModal
-        isOpen={isIconEditorOpen}
-        onClose={() => setIsIconEditorOpen(false)}
-        currentIcon={(editingIconFor === 'chapter' ? editingChapter?.icon : editingArticle?.icon) || null}
-        onSave={(iconName) => {
-          if (editingIconFor === 'chapter' && editingChapter) {
-            setEditingChapter({ ...editingChapter, icon: iconName });
-          } else if (editingIconFor === 'article' && editingArticle) {
-            setEditingArticle({ ...editingArticle, icon: iconName });
-          }
-          setIsIconEditorOpen(false);
-        }}
-      />
-
-      <ActionModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, type: 'chapter', item: null })}
-        title={`Supprimer ${deleteModal.type === 'chapter' ? 'le chapitre' : 'l\'article'}`}
-        description={`Êtes-vous sûr de vouloir supprimer "${deleteModal.item?.title}" ? Cette action est irréversible.`}
-        actions={[{ label: "Supprimer", onClick: handleDelete, variant: "destructive" }, { label: "Annuler", onClick: () => setDeleteModal({ isOpen: false, type: 'chapter', item: null }), variant: "secondary" }]}
-      />
-    </>
+    </div>
   );
 };
 
