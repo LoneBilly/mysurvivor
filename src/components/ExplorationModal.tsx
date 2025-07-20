@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Loader2, Search, Shield, Package, Check, X, AlertTriangle, Castle } from 'lucide-react';
-import { MapCell, InventoryItem } from '@/types/game';
+import { MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import * as LucideIcons from "lucide-react";
 import { useGame } from '@/contexts/GameContext';
@@ -61,7 +61,7 @@ interface ExplorationModalProps {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, refreshPlayerData, playerData } = useGame();
+  const { getIconUrl, refreshPlayerData } = useGame();
   const [activeTab, setActiveTab] = useState('exploration');
   const [potentialLoot, setPotentialLoot] = useState<PotentialInfo[]>([]);
   const [potentialEvents, setPotentialEvents] = useState<PotentialInfo[]>([]);
@@ -247,45 +247,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     setEventResult(null);
   };
 
-  const activeBoosts = useMemo(() => {
-    const boosts: Record<string, { total: number; sources: string[] }> = {};
-    const boostMap: Record<string, string> = {
-      'bonus_recolte_bois_pourcentage': 'Bois',
-      'bonus_recolte_pierre_pourcentage': 'Pierre',
-      'bonus_recolte_viande_pourcentage': 'Viande',
-    };
-
-    const allPlayerItems = [
-      ...playerData.inventory,
-      playerData.equipment.armor,
-      playerData.equipment.backpack,
-      playerData.equipment.shoes,
-      playerData.equipment.vehicle,
-    ].filter((item): item is InventoryItem => item !== null);
-
-    for (const item of allPlayerItems) {
-      if (item.items?.effects) {
-        for (const [effectKey, effectValue] of Object.entries(item.items.effects)) {
-          const resourceName = boostMap[effectKey];
-          if (resourceName && typeof effectValue === 'number') {
-            if (!boosts[resourceName]) boosts[resourceName] = { total: 0, sources: [] };
-            boosts[resourceName].total += effectValue;
-            if (!boosts[resourceName].sources.includes(item.items.name)) {
-              boosts[resourceName].sources.push(item.items.name);
-            }
-          }
-        }
-      }
-    }
-
-    return Object.entries(boosts)
-      .map(([resource, data]) => {
-        const hasLoot = potentialLoot.some(loot => loot.name === resource);
-        return hasLoot ? { resource, ...data } : null;
-      })
-      .filter((boost): boost is { resource: string; total: number; sources: string[] } => boost !== null && boost.total > 0);
-  }, [playerData.inventory, playerData.equipment, potentialLoot]);
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -410,16 +371,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                       </div>
                     )}
                   </div>
-                  {activeBoosts.length > 0 && (
-                    <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-sm text-green-300 space-y-1">
-                      <p className="font-bold">Bonus actifs dans cette zone :</p>
-                      {activeBoosts.map(boost => (
-                        <p key={boost.resource}>
-                          +{boost.total}% de {boost.resource} (via {boost.sources.join(', ')})
-                        </p>
-                      ))}
-                    </div>
-                  )}
                   <Button onClick={handleStartExploration} className="w-full" disabled={!canExplore}>
                     {canExplore ? `Lancer l'exploration (${EXPLORATION_COST} énergie, ${EXPLORATION_DURATION_S}s)` : "Exploration indisponible"}
                   </Button>
