@@ -85,7 +85,7 @@ const WorkbenchInventorySelectorModal = ({ isOpen, onClose, onSelectItem, invent
             </div>
           </div>
         ) : (
-          <div className="py-4 max-h-[60vh] overflow-y-auto grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+          <div className="py-4 max-h-[60vh] overflow-y-auto grid [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))] gap-2">
             {availableInventory.length > 0 ? (
               availableInventory.map(item => (
                 <button
