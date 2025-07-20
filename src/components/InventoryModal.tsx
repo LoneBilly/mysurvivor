@@ -332,15 +332,17 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
         <div className="flex justify-center gap-2 sm:gap-4 mb-6 relative">
           {equipmentSlots.map(slot => (
-            <EquipmentSlot
-              key={slot.type}
-              slotType={slot.type}
-              label={slot.label}
-              item={slot.item}
-              onDragStart={(item, node, e) => handleDragStart(item, 'equipment', node, e)}
-              isDragOver={dragOver?.target === 'equipment' && dragOver.type === slot.type}
-              onItemClick={handleItemClick}
-            />
+            <div key={slot.type} className="flex flex-col items-center gap-2">
+              <EquipmentSlot
+                slotType={slot.type}
+                label={slot.label}
+                item={slot.item}
+                onDragStart={(item, node, e) => handleDragStart(item, 'equipment', node, e)}
+                isDragOver={dragOver?.target === 'equipment' && dragOver.type === slot.type}
+                onItemClick={handleItemClick}
+              />
+              <p className="text-xs text-gray-400 font-mono">{slot.label}</p>
+            </div>
           ))}
         </div>
 
