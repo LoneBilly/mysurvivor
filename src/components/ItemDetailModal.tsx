@@ -82,8 +82,54 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
     }
   };
 
+  const handleApplyEffects = async () => {
+    const { error } = await supabase.rpc('use_item', { p_inventory_id: item.id });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess(`${item.items?.name} utilisé !`);
+      if (onUpdate) onUpdate();
+      onClose();
+    }
+  };
+
+  const renderEffectsDescription = () => {
+    if (!item.items?.effects) return null;
+
+    const descriptions = Object.entries(item.items.effects).map(([key, value]) => {
+      switch (key) {
+        case 'restaure_vie': return `Restaure ${value} points de vie.`;
+        case 'restaure_faim': return `Restaure ${value} points de faim.`;
+        case 'restaure_soif': return `Restaure ${value} points de soif.`;
+        case 'restaure_energie': return `Restaure ${value} points d'énergie.`;
+        case 'slots_supplementaires': return `Ajoute ${value} emplacements d'inventaire.`;
+        case 'reduction_cout_energie_deplacement_pourcentage': return `Réduit le coût des déplacements de ${value}%.`;
+        case 'reduction_temps_exploration_pourcentage': return `Réduit le temps d'exploration de ${value}%.`;
+        case 'bonus_recolte_bois_pourcentage': return `Augmente la récolte de bois de ${value}%.`;
+        case 'bonus_recolte_pierre_pourcentage': return `Augmente la récolte de pierre de ${value}%.`;
+        case 'bonus_recolte_viande_pourcentage': return `Augmente la récolte de viande de ${value}%.`;
+        case 'ammo_item_id': {
+          const ammoItem = allItems.find(i => i.id === value);
+          return `Utilise "${ammoItem?.name || 'Inconnu'}" comme munitions.`;
+        }
+        default: return null;
+      }
+    }).filter(Boolean);
+
+    if (descriptions.length === 0) return null;
+
+    return (
+      <div className="text-sm text-green-300 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+        <ul className="list-disc list-inside space-y-1">
+          {descriptions.map((desc, index) => <li key={index}>{desc}</li>)}
+        </ul>
+      </div>
+    );
+  };
+
   const useActionText = source === 'output' ? 'Récupérer' : item.items?.use_action_text;
   const isBlueprint = item.items?.use_action_text === 'Lire';
+  const isConsumable = item.items?.effects && (item.items.effects.restaure_vie || item.items.effects.restaure_faim || item.items.effects.restaure_soif || item.items.effects.restaure_energie);
   const iconUrl = getIconUrl(item.items?.icon || null);
   const canUse = (source !== 'chest' && useActionText) || source === 'output';
   const canTransfer = !!onTransfer && (source === 'inventory' || source === 'chest');
@@ -98,6 +144,8 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
     }
     if (isBlueprint) {
       handleReadBlueprint();
+    } else if (isConsumable) {
+      handleApplyEffects();
     } else {
       onUse();
     }
@@ -141,6 +189,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
           {item.items?.description && (
             <p className="text-gray-300">{item.items.description}</p>
           )}
+          {renderEffectsDescription()}
           <p className="text-gray-400">Quantité: <span className="font-bold text-white">{item.quantity}</span></p>
           {ammoItemId && (
             <p className="text-gray-400">Munitions: <span className="font-bold text-white">{ammoCount}</span></p>
