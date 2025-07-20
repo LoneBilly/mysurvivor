@@ -31,7 +31,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   const { playerData, setPlayerData } = useGame();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   
   const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'equipment' } | null>(null);
@@ -77,8 +76,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     // Prevent dropping on the same spot
     if (dragged.source === 'inventory' && over.target === 'inventory' && dragged.item.slot_position === over.index) return;
     if (dragged.source === 'equipment' && over.target === 'equipment' && (playerData.equipment as any)[over.type]?.id === dragged.item.id) return;
-
-    setActionLoading(true);
 
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
     let optimisticData = JSON.parse(JSON.stringify(playerData));
@@ -138,8 +135,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
       showError(error.message || "Erreur de mise à jour de l'inventaire.");
       // Revert on error
       setPlayerData(originalPlayerData);
-    } finally {
-      setActionLoading(false);
     }
   }, [draggedItem, dragOver, user, onUpdate, stopAutoScroll, playerData, setPlayerData]);
 
@@ -263,7 +258,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   const handleSplitItem = async (item: InventoryItem, quantity: number) => {
     if (!item) return;
     setDetailedItem(null);
-    setActionLoading(true);
   
     const { error } = await supabase.rpc('split_inventory_item', {
       p_inventory_id: item.id,
@@ -276,7 +270,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
       showSuccess("La pile d'objets a été divisée.");
       await onUpdate();
     }
-    setActionLoading(false);
   };
 
   useEffect(() => {
@@ -355,11 +348,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           ref={gridRef}
           className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[50vh] overflow-y-auto relative"
         >
-          {actionLoading && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-lg">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </div>
-          )}
           {loading ? (
             <div className="h-full w-full flex items-center justify-center col-span-full row-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (
