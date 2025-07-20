@@ -74,6 +74,8 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
     }
   };
 
+  const availableInventory = inventory.filter(item => item.slot_position !== null);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
@@ -94,9 +96,9 @@ const ListItemModal = ({ isOpen, onClose, inventory, onItemListed }: ListItemMod
         
         {isSelecting ? (
           <div className="max-h-[50vh] overflow-y-auto grid grid-cols-5 gap-2 p-1">
-            {inventory.length > 0 ? inventory
+            {availableInventory.length > 0 ? availableInventory
               .filter(item => item.items?.name)
-              .sort((a, b) => a.slot_position - b.slot_position)
+              .sort((a, b) => (a.slot_position || 0) - (b.slot_position || 0))
               .map(item => (
               <button 
                 key={item.id} 

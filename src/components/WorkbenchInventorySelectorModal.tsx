@@ -41,6 +41,8 @@ const WorkbenchInventorySelectorModal = ({ isOpen, onClose, onSelectItem, invent
     }
   };
 
+  const availableInventory = inventory.filter(item => item.slot_position !== null);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
@@ -84,8 +86,8 @@ const WorkbenchInventorySelectorModal = ({ isOpen, onClose, onSelectItem, invent
           </div>
         ) : (
           <div className="py-4 max-h-[60vh] overflow-y-auto grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2">
-            {inventory.length > 0 ? (
-              inventory.map(item => (
+            {availableInventory.length > 0 ? (
+              availableInventory.map(item => (
                 <button
                   key={item.id}
                   onClick={() => setSelectedItem(item)}
