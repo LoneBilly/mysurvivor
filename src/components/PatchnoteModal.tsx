@@ -18,16 +18,16 @@ interface PatchNote {
 interface PatchNoteChange {
   id: number;
   patch_note_id: number;
-  change_type: 'Ajout' | 'Modification' | 'Suppression';
+  change_type: 'ajout' | 'modification' | 'suppression';
   entity_type: string;
   entity_name: string;
   description: string | null;
 }
 
 const changeTypeMap = {
-  Ajout: { label: 'Ajouts', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
-  Modification: { label: 'Modifications', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
-  Suppression: { label: 'Suppressions', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  ajout: { label: 'Ajouts', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+  modification: { label: 'Modifications', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+  suppression: { label: 'Suppressions', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
 };
 
 const PatchnoteModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
