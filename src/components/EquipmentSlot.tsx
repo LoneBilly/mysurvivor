@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { InventoryItem } from "@/types/game";
 import ItemIcon from "./ItemIcon";
 import { useGame } from "@/contexts/GameContext";
-import { Shield, Backpack, Sword, Footprints, Car } from "lucide-react";
+import { Shield, Backpack, Footprints, Car } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useRef } from "react";
 
-export type EquipmentSlotType = 'armor' | 'backpack' | 'weapon' | 'shoes' | 'vehicle';
+export type EquipmentSlotType = 'armor' | 'backpack' | 'shoes' | 'vehicle';
 
 interface EquipmentSlotProps {
   slotType: EquipmentSlotType;
@@ -25,7 +25,6 @@ interface EquipmentSlotProps {
 const slotIcons = {
   armor: Shield,
   backpack: Backpack,
-  weapon: Sword,
   shoes: Footprints,
   vehicle: Car,
 };
@@ -102,17 +101,13 @@ const EquipmentSlot = ({ slotType, label, item, onDragStart, isDragOver, onItemC
             )}
           </div>
         </TooltipTrigger>
-        <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20 font-mono rounded-lg shadow-lg p-3">
-          <p className="font-bold text-lg text-white">{label}</p>
-          {item ? (
-            <>
-              <p className="text-sm text-gray-300 max-w-xs mt-1">{item.items?.name}</p>
-              <p className="text-xs text-gray-500 mt-2 uppercase tracking-wider">{item.items?.type || 'Objet'}</p>
-            </>
-          ) : (
-            <p className="text-sm text-gray-400">Vide</p>
-          )}
-        </TooltipContent>
+        {item && (
+          <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20 font-mono rounded-lg shadow-lg p-3">
+            <p className="font-bold text-lg text-white">{item.items?.name}</p>
+            {item.items?.description && <p className="text-sm text-gray-300 max-w-xs mt-1">{item.items.description}</p>}
+            <p className="text-xs text-gray-500 mt-2 uppercase tracking-wider">{item.items?.type || 'Objet'}</p>
+          </TooltipContent>
+        )}
       </Tooltip>
     </TooltipProvider>
   );

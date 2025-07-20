@@ -30,7 +30,6 @@ export interface InventoryItem {
 export interface Equipment {
   armor: InventoryItem | null;
   backpack: InventoryItem | null;
-  weapon: InventoryItem | null;
   shoes: InventoryItem | null;
   vehicle: InventoryItem | null;
 }
