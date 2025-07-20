@@ -73,7 +73,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     if (!dragged || !over || !user) return;
 
-    // Prevent dropping on the same spot
     if (dragged.source === 'inventory' && over.target === 'inventory' && dragged.item.slot_position === over.index) return;
     if (dragged.source === 'equipment' && over.target === 'equipment' && (playerData.equipment as any)[over.type]?.id === dragged.item.id) return;
 
@@ -82,21 +81,27 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     let rpcPromise;
 
     try {
-      // --- Optimistic UI Update ---
       if (dragged.source === 'inventory' && over.target === 'inventory') {
-        const fromIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
+        const fromItem = optimisticData.inventory.find((i: InventoryItem) => i.id === dragged.item.id);
         const toItem = optimisticData.inventory.find((i: InventoryItem) => i.slot_position === over.index);
-        
-        if (fromIndex !== -1) {
-          if (toItem) {
-            const toIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
-            optimisticData.inventory[toIndex].slot_position = dragged.item.slot_position;
+
+        if (fromItem && toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+          const toItemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
+          optimisticData.inventory[toItemIndex].quantity += fromItem.quantity;
+          optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItem.id);
+          rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromItem.slot_position, p_to_slot: toItem.slot_position });
+        } else {
+          const fromIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
+          if (fromIndex !== -1) {
+            if (toItem) {
+              const toIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
+              optimisticData.inventory[toIndex].slot_position = dragged.item.slot_position;
+            }
+            optimisticData.inventory[fromIndex].slot_position = over.index;
           }
-          optimisticData.inventory[fromIndex].slot_position = over.index;
+          rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: dragged.item.slot_position, p_to_slot: over.index });
         }
-        rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: dragged.item.slot_position, p_to_slot: over.index });
-      } 
-      else if (dragged.source === 'equipment' && over.target === 'inventory') {
+      } else if (dragged.source === 'equipment' && over.target === 'inventory') {
         const itemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
         if (itemIndex !== -1) {
           optimisticData.inventory[itemIndex].slot_position = over.index;
@@ -104,8 +109,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           if (equipmentSlot) (optimisticData.equipment as any)[equipmentSlot] = null;
         }
         rpcPromise = supabase.rpc('unequip_item_to_slot', { p_inventory_id: dragged.item.id, p_target_slot: over.index });
-      } 
-      else if (dragged.source === 'inventory' && over.target === 'equipment') {
+      } else if (dragged.source === 'inventory' && over.target === 'equipment') {
         const itemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
         const currentlyEquipped = optimisticData.equipment[over.type];
         
@@ -124,16 +128,13 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
       
       setPlayerData(optimisticData);
 
-      // --- Server Call ---
       if (rpcPromise) {
         const { error } = await rpcPromise;
         if (error) throw error;
-        // Silent refresh on success to sync any server-side changes (like stat updates)
         onUpdate();
       }
     } catch (error: any) {
       showError(error.message || "Erreur de mise à jour de l'inventaire.");
-      // Revert on error
       setPlayerData(originalPlayerData);
     }
   }, [draggedItem, dragOver, user, onUpdate, stopAutoScroll, playerData, setPlayerData]);
@@ -258,7 +259,40 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   const handleSplitItem = async (item: InventoryItem, quantity: number) => {
     if (!item) return;
     setDetailedItem(null);
-  
+
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    
+    const usedSlots = new Set(playerData.inventory.map(i => i.slot_position));
+    let nextEmptySlot = -1;
+    for (let i = 0; i < unlockedSlots; i++) {
+      if (!usedSlots.has(i)) {
+        nextEmptySlot = i;
+        break;
+      }
+    }
+
+    if (nextEmptySlot === -1) {
+      showError("Inventaire plein, impossible de diviser.");
+      return;
+    }
+
+    const newPlayerData = JSON.parse(JSON.stringify(originalPlayerData));
+    const itemToSplitIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === item.id);
+    
+    if (itemToSplitIndex === -1) return;
+
+    newPlayerData.inventory[itemToSplitIndex].quantity -= quantity;
+
+    const newItem: InventoryItem = {
+      ...newPlayerData.inventory[itemToSplitIndex],
+      id: Date.now(),
+      quantity: quantity,
+      slot_position: nextEmptySlot,
+    };
+    newPlayerData.inventory.push(newItem);
+
+    setPlayerData(newPlayerData);
+
     const { error } = await supabase.rpc('split_inventory_item', {
       p_inventory_id: item.id,
       p_split_quantity: quantity,
@@ -266,6 +300,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   
     if (error) {
       showError(error.message || "Erreur lors de la division de l'objet.");
+      setPlayerData(originalPlayerData);
     } else {
       showSuccess("La pile d'objets a été divisée.");
       await onUpdate();
