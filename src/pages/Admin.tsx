@@ -7,14 +7,15 @@ import PlayerManager from "@/components/admin/PlayerManager";
 import ItemManager from "@/components/admin/ItemManager";
 import EventManager from "@/components/admin/EventManager";
 import BuildingManager from "@/components/admin/BuildingManager";
-import AuctionManager from "@/components/admin/AuctionManager"; // Importation du nouveau composant
+import AuctionManager from "@/components/admin/AuctionManager";
+import GuideManager from "@/components/admin/GuideManager";
 import { MapCell } from "@/types/game";
 import { Item } from "@/types/admin";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { Loader2, ArrowLeft, Map, Users, Package, Zap, Wrench, Gavel } from "lucide-react"; // Ajout de l'icône Gavel
+import { Loader2, ArrowLeft, Map, Users, Package, Zap, Wrench, Gavel, BookText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -22,7 +23,6 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('map');
   
-  // Centralized data states
   const [mapLayout, setMapLayout] = useState<MapCell[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -77,7 +77,7 @@ const Admin = () => {
   const handleZoneSelect = (zone: MapCell) => setSelectedZone(zone);
   const handleBackToGrid = () => {
     setSelectedZone(null);
-    fetchAdminData(); // Refresh data when coming back
+    fetchAdminData();
   };
 
   if (loading) {
@@ -106,6 +106,8 @@ const Admin = () => {
         return <BuildingManager buildings={buildings} onBuildingsUpdate={fetchAdminData} />;
       case 'auctions':
         return <AuctionManager allItems={items} onUpdate={fetchAdminData} />;
+      case 'guide':
+        return <GuideManager />;
       default:
         return null;
     }
@@ -140,6 +142,7 @@ const Admin = () => {
                 <option value="events">Events</option>
                 <option value="buildings">Bâtiments</option>
                 <option value="auctions">Enchères</option>
+                <option value="guide">Guide</option>
               </select>
             </div>
             <div className="flex-1 min-h-0">
@@ -149,13 +152,14 @@ const Admin = () => {
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
             <div className="flex justify-center mb-4">
-              <TabsList className="grid w-full grid-cols-6 max-w-5xl flex-shrink-0">
+              <TabsList className="grid w-full grid-cols-7 max-w-6xl flex-shrink-0">
                 <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
                 <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
                 <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
                 <TabsTrigger value="events"><Zap className="w-4 h-4 mr-2" />Events</TabsTrigger>
                 <TabsTrigger value="buildings"><Wrench className="w-4 h-4 mr-2" />Bâtiments</TabsTrigger>
                 <TabsTrigger value="auctions"><Gavel className="w-4 h-4 mr-2" />Enchères</TabsTrigger>
+                <TabsTrigger value="guide"><BookText className="w-4 h-4 mr-2" />Guide</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="map" className="flex-1 min-h-0">
@@ -181,6 +185,9 @@ const Admin = () => {
             </TabsContent>
             <TabsContent value="auctions" className="flex-1 min-h-0">
               <AuctionManager allItems={items} onUpdate={fetchAdminData} />
+            </TabsContent>
+            <TabsContent value="guide" className="flex-1 min-h-0">
+              <GuideManager />
             </TabsContent>
           </Tabs>
         )}

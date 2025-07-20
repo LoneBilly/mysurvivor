@@ -6,11 +6,17 @@ import { BookText, Compass, LifeBuoy } from 'lucide-react';
 interface MoreOptionsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenGuide: () => void;
 }
 
-const MoreOptionsModal = ({ isOpen, onClose }: MoreOptionsModalProps) => {
+const MoreOptionsModal = ({ isOpen, onClose, onOpenGuide }: MoreOptionsModalProps) => {
   const handleOptionClick = (optionName: string) => {
     showInfo(`La section "${optionName}" sera bientôt disponible !`);
+    onClose();
+  };
+
+  const handleGuideClick = () => {
+    onOpenGuide();
     onClose();
   };
 
@@ -35,7 +41,7 @@ const MoreOptionsModal = ({ isOpen, onClose }: MoreOptionsModalProps) => {
           <Button onClick={() => handleOptionClick("Patchnotes")} className="w-full flex items-center justify-start gap-3">
             <BookText className="w-5 h-5" /> Patchnotes
           </Button>
-          <Button onClick={() => handleOptionClick("Guide")} className="w-full flex items-center justify-start gap-3">
+          <Button onClick={handleGuideClick} className="w-full flex items-center justify-start gap-3">
             <Compass className="w-5 h-5" /> Guide du Survivant
           </Button>
           <Button onClick={() => handleOptionClick("Support")} className="w-full flex items-center justify-start gap-3">

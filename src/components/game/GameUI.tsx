@@ -8,7 +8,7 @@ import BaseHeader from "../BaseHeader";
 import LeaderboardModal from "../LeaderboardModal";
 import OptionsModal from "../OptionsModal";
 import InventoryModal from "../InventoryModal";
-import { showSuccess, showError } from "@/utils/toast";
+import { showSuccess, showError, showInfo } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { FullPlayerData, MapCell, BaseConstruction } from "@/types/game";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ import WorkbenchModal from "../WorkbenchModal";
 import MoreOptionsModal from "../MoreOptionsModal";
 import HotelModal from '../HotelModal';
 import CasinoModal from '../CasinoModal';
+import GuideModal from "../GuideModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -50,6 +51,7 @@ const GameUI = () => {
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isBountyOpen, setIsBountyOpen] = useState(false);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isHotelOpen, setIsHotelOpen] = useState(false);
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
@@ -333,7 +335,8 @@ const GameUI = () => {
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Casino"}
       />
-      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} />
+      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} onOpenGuide={() => setIsGuideOpen(true)} />
+      <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
     </div>
   );
 };
