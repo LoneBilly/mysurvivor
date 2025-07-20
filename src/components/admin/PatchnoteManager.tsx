@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, PlusCircle, Edit, Trash2, ArrowLeft, GitBranch, FileText, CheckCircle, AlertTriangle, XCircle, Send, EyeOff } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, GitBranch, CheckCircle, AlertTriangle, XCircle, Send, EyeOff } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '../ActionModal';
 import { Label } from '@/components/ui/label';
@@ -20,16 +20,16 @@ interface PatchNote {
 interface PatchNoteChange {
   id: number;
   patch_note_id: number;
-  change_type: 'Ajout' | 'Modification' | 'Suppression';
+  change_type: 'ajout' | 'modification' | 'suppression';
   entity_type: string;
   entity_name: string;
   description: string | null;
 }
 
 const changeTypeMap = {
-  Ajout: { label: 'Ajout', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
-  Modification: { label: 'Modification', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
-  Suppression: { label: 'Suppression', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  ajout: { label: 'Ajout', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+  modification: { label: 'Modification', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+  suppression: { label: 'Suppression', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
 };
 
 const PatchnoteManager = () => {
@@ -38,6 +38,7 @@ const PatchnoteManager = () => {
   const [selectedPatchNote, setSelectedPatchNote] = useState<PatchNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [publishingId, setPublishingId] = useState<number | null>(null);
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Partial<PatchNote> | null>(null);
@@ -58,12 +59,15 @@ const PatchnoteManager = () => {
 
       setPatchNotes(notesData || []);
       setChanges(changesData || []);
+      if (notesData && notesData.length > 0 && !selectedPatchNote) {
+        setSelectedPatchNote(notesData[0]);
+      }
     } catch (error: any) {
       showError("Erreur de chargement des patchnotes.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedPatchNote]);
 
   useEffect(() => {
     fetchData();
@@ -79,28 +83,17 @@ const PatchnoteManager = () => {
       if (id) {
         const { data: updatedNote, error } = await supabase.from('patch_notes').update(dataToSave).eq('id', id).select().single();
         if (error) throw error;
-        setPatchNotes(prev => prev.map(p => p.id === id ? updatedNote : p));
+        const updatedNotes = patchNotes.map(p => p.id === id ? updatedNote : p);
+        setPatchNotes(updatedNotes);
         if (selectedPatchNote && selectedPatchNote.id === id) {
           setSelectedPatchNote(updatedNote);
         }
         showSuccess(`Patchnote mis à jour.`);
       } else {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
-
-        const { data: existing, error: checkError } = await supabase.from('patch_notes').select('id').gte('created_at', todayStart.toISOString()).lte('created_at', todayEnd.toISOString());
-        if (checkError) throw checkError;
-        if (existing && existing.length > 0) {
-          showError("Un patchnote pour aujourd'hui existe déjà.");
-          setIsSubmitting(false);
-          return;
-        }
-
         const { data: newNote, error } = await supabase.from('patch_notes').insert(dataToSave).select().single();
         if (error) throw error;
-        setPatchNotes(prev => [newNote, ...prev].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        const updatedNotes = [newNote, ...patchNotes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setPatchNotes(updatedNotes);
         setSelectedPatchNote(newNote);
         showSuccess(`Patchnote créé.`);
       }
@@ -122,7 +115,7 @@ const PatchnoteManager = () => {
       const dataToSave = { 
         ...editingChange, 
         patch_note_id: selectedPatchNote.id,
-        change_type: editingChange.change_type || 'Ajout'
+        change_type: editingChange.change_type || 'ajout'
       };
       const { id, ...finalData } = dataToSave;
 
@@ -157,9 +150,10 @@ const PatchnoteManager = () => {
       showSuccess(`${deleteModal.type === 'note' ? 'Patchnote' : 'Changement'} supprimé.`);
       
       if (deleteModal.type === 'note') {
-        setPatchNotes(prev => prev.filter(p => p.id !== deleteModal.item!.id));
+        const newNotes = patchNotes.filter(p => p.id !== deleteModal.item!.id);
+        setPatchNotes(newNotes);
         if (selectedPatchNote?.id === deleteModal.item.id) {
-          setSelectedPatchNote(null);
+          setSelectedPatchNote(newNotes.length > 0 ? newNotes[0] : null);
         }
       } else {
         setChanges(prev => prev.filter(c => c.id !== deleteModal.item!.id));
@@ -173,30 +167,32 @@ const PatchnoteManager = () => {
     }
   };
 
-  const openDeleteModal = (item: PatchNote | PatchNoteChange, type: 'note' | 'change') => {
-    setDeleteModal({ isOpen: true, item, type });
-  };
-
-  const handleTogglePublish = async () => {
-    if (!selectedPatchNote) return;
-    const newStatus = !selectedPatchNote.is_published;
-    setIsSubmitting(true);
+  const handleTogglePublish = async (noteToToggle: PatchNote) => {
+    const newStatus = !noteToToggle.is_published;
+    setPublishingId(noteToToggle.id);
     try {
         const { data, error } = await supabase
             .from('patch_notes')
             .update({ is_published: newStatus })
-            .eq('id', selectedPatchNote.id)
+            .eq('id', noteToToggle.id)
             .select()
             .single();
         if (error) throw error;
-        showSuccess(`Patchnote ${newStatus ? 'publié' : 'dépublié'}.`);
-        setSelectedPatchNote(data);
-        setPatchNotes(prev => prev.map(p => p.id === data.id ? data : p));
+        showSuccess(`Patchnote ${newStatus ? 'publié' : 'mis en brouillon'}.`);
+        const updatedNotes = patchNotes.map(p => p.id === data.id ? data : p);
+        setPatchNotes(updatedNotes);
+        if (selectedPatchNote?.id === data.id) {
+            setSelectedPatchNote(data);
+        }
     } catch (error: any) {
         showError(error.message);
     } finally {
-        setIsSubmitting(false);
+        setPublishingId(null);
     }
+  };
+
+  const openDeleteModal = (item: PatchNote | PatchNoteChange, type: 'note' | 'change') => {
+    setDeleteModal({ isOpen: true, item, type });
   };
 
   const filteredChanges = changes.filter(c => c.patch_note_id === selectedPatchNote?.id);
@@ -212,19 +208,28 @@ const PatchnoteManager = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
         <div className="md:col-span-1 h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg">
           <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
-            <h3 className="text-lg font-bold">Patchnotes</h3>
-            <Button size="sm" onClick={() => { setEditingNote({ id: 0, title: '', created_at: '' }); setIsNoteModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Créer</Button>
+            <h3 className="text-lg font-bold">Versions</h3>
+            <Button size="sm" onClick={() => { setEditingNote({ title: '' }); setIsNoteModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Créer</Button>
           </div>
           <div className="flex-grow overflow-y-auto no-scrollbar">
             {patchNotes.map(note => (
-              <div key={note.id} onClick={() => setSelectedPatchNote(note)} className="cursor-pointer p-3 flex items-center justify-between border-b border-gray-700 hover:bg-gray-800/50">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${note.is_published ? 'bg-green-400' : 'bg-yellow-400'}`} title={note.is_published ? 'Publié' : 'Brouillon'}></div>
-                  <GitBranch className="w-5 h-5 text-gray-300" />
-                  <div>
-                    <p className="font-semibold truncate">{new Date(note.created_at).toLocaleDateString('fr-FR')}</p>
-                    <p className="text-sm text-gray-400 truncate">{note.title}</p>
-                  </div>
+              <div key={note.id} className={cn("p-3 border-b border-gray-700 hover:bg-gray-800/50", selectedPatchNote?.id === note.id ? 'bg-slate-700' : '')}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 cursor-pointer flex-grow" onClick={() => setSelectedPatchNote(note)}>
+                        <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", note.is_published ? 'bg-green-400' : 'bg-yellow-400')} title={note.is_published ? 'Publié' : 'Brouillon'}></div>
+                        <GitBranch className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                        <div className="truncate">
+                            <p className="font-semibold truncate">{new Date(note.created_at).toLocaleDateString('fr-FR')}</p>
+                            <p className="text-sm text-gray-400 truncate">{note.title}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                        <Button size="icon" variant={note.is_published ? "secondary" : "default"} onClick={() => handleTogglePublish(note)} disabled={publishingId === note.id} title={note.is_published ? 'Dépublier' : 'Publier'}>
+                            {publishingId === note.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (note.is_published ? <EyeOff className="w-4 h-4" /> : <Send className="w-4 h-4" />)}
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingNote(note); setIsNoteModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDeleteModal(note, 'note')}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                    </div>
                 </div>
               </div>
             ))}
@@ -238,15 +243,10 @@ const PatchnoteManager = () => {
                   <h3 className="text-lg font-bold">{new Date(selectedPatchNote.created_at).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
                   <p className="text-gray-400">{selectedPatchNote.title}</p>
                 </div>
-                <div className="flex gap-2 items-center">
-                  <Button onClick={handleTogglePublish} variant={selectedPatchNote.is_published ? "secondary" : "default"} disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (selectedPatchNote.is_published ? <><EyeOff className="w-4 h-4 mr-2" />Dépublier</> : <><Send className="w-4 h-4 mr-2" />Publier</>)}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => { setEditingNote(selectedPatchNote); setIsNoteModalOpen(true); }}><Edit className="w-4 h-4 mr-2" />Modifier</Button>
-                  <Button size="sm" onClick={() => { setEditingChange({ change_type: 'Ajout', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter</Button>
-                </div>
+                <Button size="sm" onClick={() => { setEditingChange({ change_type: 'ajout', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement</Button>
               </div>
               <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6">
+                {Object.keys(changeTypeMap).length > 0 && Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
                 {Object.keys(changeTypeMap).map(type => {
                   const key = type as keyof typeof changeTypeMap;
                   return groupedChanges[key] && (
@@ -280,7 +280,7 @@ const PatchnoteManager = () => {
             </>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
-              <p>Sélectionnez un patchnote pour voir les changements.</p>
+              <p>Sélectionnez ou créez une version pour commencer.</p>
             </div>
           )}
         </div>
@@ -288,9 +288,9 @@ const PatchnoteManager = () => {
 
       <Dialog open={isNoteModalOpen} onOpenChange={(isOpen) => { setIsNoteModalOpen(isOpen); if (!isOpen) setEditingNote(null); }}>
         <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-          <DialogHeader><DialogTitle>{editingNote?.id ? 'Modifier' : 'Nouveau'} Patchnote</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingNote?.id ? 'Modifier' : 'Nouvelle'} Version</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveNote} className="py-4 space-y-4">
-            <div><Label>Titre</Label><Input value={editingNote?.title || ''} onChange={(e) => setEditingNote(prev => prev ? {...prev, title: e.target.value} : null)} required disabled={isSubmitting} /></div>
+            <div><Label>Titre de la version</Label><Input value={editingNote?.title || ''} onChange={(e) => setEditingNote(prev => prev ? {...prev, title: e.target.value} : null)} required disabled={isSubmitting} /></div>
             <DialogFooter><Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
           </form>
         </DialogContent>
@@ -301,7 +301,7 @@ const PatchnoteManager = () => {
           <DialogHeader><DialogTitle>{editingChange?.id ? 'Modifier' : 'Nouveau'} Changement</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveChange} className="py-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'Ajout'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{Object.entries(changeTypeMap).map(([value, {label}]) => <option key={value} value={value}>{label}</option>)}</select></div>
+              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'ajout'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{Object.entries(changeTypeMap).map(([value, {label}]) => <option key={value} value={value}>{label}</option>)}</select></div>
               <div><Label>Type d'entité</Label><select value={editingChange?.entity_type || 'Fonctionnalité'} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_type: e.target.value} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{['Fonctionnalité', 'Item', 'Bâtiment', 'Zone', 'Correction', 'Équilibrage'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             </div>
             <div><Label>Nom de l'entité</Label><Input value={editingChange?.entity_name || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_name: e.target.value} : null)} required disabled={isSubmitting} /></div>
@@ -314,8 +314,8 @@ const PatchnoteManager = () => {
       <ActionModal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, type: 'note', item: null })}
-        title={`Supprimer ${deleteModal.type === 'note' ? 'le patchnote' : 'le changement'}`}
-        description={`Êtes-vous sûr de vouloir supprimer "${deleteModal.item?.title || (deleteModal.item as PatchNoteChange)?.entity_name}" ?`}
+        title={`Supprimer ${deleteModal.type === 'note' ? 'la version' : 'le changement'}`}
+        description={`Êtes-vous sûr de vouloir supprimer "${deleteModal.item?.title || (deleteModal.item as PatchNoteChange)?.entity_name}" ? Cette action est irréversible.`}
         actions={[{ label: "Supprimer", onClick: handleDelete, variant: "destructive", disabled: isSubmitting }, { label: "Annuler", onClick: () => setDeleteModal({ isOpen: false, type: 'note', item: null }), variant: "secondary" }]}
       />
     </>
