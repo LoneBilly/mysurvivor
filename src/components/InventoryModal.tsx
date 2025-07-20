@@ -40,6 +40,12 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   const scrollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (isOpen) {
+      onUpdate();
+    }
+  }, [isOpen, onUpdate]);
+
+  useEffect(() => {
     setLoading(true);
     const newSlots = Array(TOTAL_SLOTS).fill(null);
     inventory.forEach((item) => {
