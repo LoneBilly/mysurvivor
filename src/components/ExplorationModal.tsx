@@ -60,8 +60,14 @@ interface ExplorationModalProps {
   onOpenInventory: () => void;
 }
 
+const resourceToEffectMap: { [key: string]: string } = {
+  'Bois': 'bonus_recolte_bois_pourcentage',
+  'Pierre': 'bonus_recolte_pierre_pourcentage',
+  'Viande': 'bonus_recolte_viande_pourcentage',
+};
+
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, refreshPlayerData } = useGame();
+  const { getIconUrl, refreshPlayerData, playerData } = useGame();
   const [activeTab, setActiveTab] = useState('exploration');
   const [potentialLoot, setPotentialLoot] = useState<PotentialInfo[]>([]);
   const [potentialEvents, setPotentialEvents] = useState<PotentialInfo[]>([]);
@@ -74,6 +80,22 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [inventoryFullError, setInventoryFullError] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
   const [detailedInfo, setDetailedInfo] = useState<PotentialInfo | null>(null);
+
+  const resourceBoosts = useMemo(() => {
+    const boosts: Record<string, number> = {};
+    const allPlayerItems = [...playerData.inventory, ...Object.values(playerData.equipment).filter(Boolean)];
+
+    for (const item of allPlayerItems) {
+      if (item?.items?.effects) {
+        for (const [effectKey, effectValue] of Object.entries(item.items.effects)) {
+          if (effectKey.startsWith('bonus_recolte')) {
+            boosts[effectKey] = (boosts[effectKey] || 0) + (effectValue as number);
+          }
+        }
+      }
+    }
+    return boosts;
+  }, [playerData.inventory, playerData.equipment]);
 
   const fetchZoneInfo = useCallback(async () => {
     if (!zone) return;
@@ -329,20 +351,29 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                     <h4 className="font-semibold mb-2">Butin potentiel :</h4>
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                       <div className="flex flex-wrap gap-2">
-                        {potentialLoot.length > 0 ? potentialLoot.map((item, index) => (
-                          <TooltipProvider key={`${item.name}-${index}`} delayDuration={100}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button onClick={() => setDetailedInfo(item)} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
-                                  <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
-                                <p>{item.name}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )) : (
+                        {potentialLoot.length > 0 ? potentialLoot.map((item, index) => {
+                          const effectKey = resourceToEffectMap[item.name];
+                          const boost = effectKey ? resourceBoosts[effectKey] : 0;
+                          return (
+                            <TooltipProvider key={`${item.name}-${index}`} delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button onClick={() => setDetailedInfo(item)} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
+                                    <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
+                                    {boost > 0 && (
+                                      <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
+                                        +{boost}%
+                                      </span>
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
+                                  <p>{item.name}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }) : (
                           <span className="text-gray-400 text-sm">Aucun objet disponible dans cette zone</span>
                         )}
                       </div>

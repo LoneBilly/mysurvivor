@@ -33,10 +33,10 @@ interface ItemDetailModalProps {
 }
 
 const effectIcons = {
-  restaure_vie: { icon: Heart, label: "Vie", color: "text-red-400" },
-  restaure_faim: { icon: Utensils, label: "Faim", color: "text-orange-400" },
-  restaure_soif: { icon: Droplets, label: "Soif", color: "text-blue-400" },
-  restaure_energie: { icon: Zap, label: "Énergie", color: "text-yellow-400" },
+  restaure_vie: { icon: Heart, label: "Vie", color: "text-red-400", statKey: 'vie' as keyof import('@/types/game').PlayerState },
+  restaure_faim: { icon: Utensils, label: "Faim", color: "text-orange-400", statKey: 'faim' as keyof import('@/types/game').PlayerState },
+  restaure_soif: { icon: Droplets, label: "Soif", color: "text-blue-400", statKey: 'soif' as keyof import('@/types/game').PlayerState },
+  restaure_energie: { icon: Zap, label: "Énergie", color: "text-yellow-400", statKey: 'energie' as keyof import('@/types/game').PlayerState },
 };
 
 const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
@@ -172,11 +172,15 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
                   const effectInfo = effectIcons[key as keyof typeof effectIcons];
                   if (!effectInfo) return null;
                   const Icon = effectInfo.icon;
+                  const currentStatValue = playerData.playerState[effectInfo.statKey] as number;
+                  const newStatValue = Math.min(100, currentStatValue + value);
                   return (
                     <div key={key} className="flex items-center gap-2 text-sm bg-white/5 p-2 rounded-md">
                       <Icon className={`w-4 h-4 ${effectInfo.color}`} />
                       <span className="text-gray-300">{effectInfo.label}:</span>
-                      <span className="font-bold text-white">+{value}</span>
+                      <span className="font-bold text-white">
+                        +{value} <span className="text-gray-400 font-normal">→ {newStatValue}</span>
+                      </span>
                     </div>
                   );
                 })}
