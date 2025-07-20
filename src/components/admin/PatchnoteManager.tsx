@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, PlusCircle, Edit, Trash2, GitBranch, CheckCircle, AlertTriangle, XCircle, Send, EyeOff } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, GitBranch, CheckCircle, AlertTriangle, XCircle, Send, EyeOff, Wrench, TrendingUp } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '../ActionModal';
 import { Label } from '@/components/ui/label';
@@ -20,16 +20,18 @@ interface PatchNote {
 interface PatchNoteChange {
   id: number;
   patch_note_id: number;
-  change_type: 'AJOUT' | 'MODIFICATION' | 'SUPPRESSION';
+  change_type: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'FIXED' | 'IMPROVED';
   entity_type: string;
   entity_name: string;
   description: string | null;
 }
 
 const changeTypeMap = {
-  AJOUT: { label: 'Ajout', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
-  MODIFICATION: { label: 'Modification', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
-  SUPPRESSION: { label: 'Suppression', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  ADDED: { label: 'Ajout', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+  MODIFIED: { label: 'Modification', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+  REMOVED: { label: 'Suppression', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  FIXED: { label: 'Correction', styles: 'border-blue-500/50 bg-blue-500/10 text-blue-300', icon: <Wrench className="w-5 h-5 text-blue-400" /> },
+  IMPROVED: { label: 'Amélioration', styles: 'border-purple-500/50 bg-purple-500/10 text-purple-300', icon: <TrendingUp className="w-5 h-5 text-purple-400" /> },
 };
 
 const PatchnoteManager = () => {
@@ -114,7 +116,7 @@ const PatchnoteManager = () => {
       const dataToSave = { 
         ...editingChange, 
         patch_note_id: selectedPatchNote.id,
-        change_type: editingChange.change_type || 'AJOUT'
+        change_type: editingChange.change_type || 'ADDED'
       };
       const { id, ...finalData } = dataToSave;
 
@@ -241,7 +243,7 @@ const PatchnoteManager = () => {
                   <h3 className="text-lg font-bold">{new Date(selectedPatchNote.created_at).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
                   <p className="text-gray-400">{selectedPatchNote.title}</p>
                 </div>
-                <Button size="sm" onClick={() => { setEditingChange({ change_type: 'AJOUT', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement</Button>
+                <Button size="sm" onClick={() => { setEditingChange({ change_type: 'ADDED', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement</Button>
               </div>
               <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6">
                 {Object.keys(changeTypeMap).length > 0 && Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
@@ -299,7 +301,7 @@ const PatchnoteManager = () => {
           <DialogHeader><DialogTitle>{editingChange?.id ? 'Modifier' : 'Nouveau'} Changement</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveChange} className="py-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'AJOUT'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{Object.entries(changeTypeMap).map(([value, {label}]) => <option key={value} value={value}>{label}</option>)}</select></div>
+              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'ADDED'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{Object.entries(changeTypeMap).map(([value, {label}]) => <option key={value} value={value}>{label}</option>)}</select></div>
               <div><Label>Type d'entité</Label><select value={editingChange?.entity_type || 'Fonctionnalité'} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_type: e.target.value} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{['Fonctionnalité', 'Item', 'Bâtiment', 'Zone', 'Correction', 'Équilibrage'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             </div>
             <div><Label>Nom de l'entité</Label><Input value={editingChange?.entity_name || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_name: e.target.value} : null)} required disabled={isSubmitting} /></div>
