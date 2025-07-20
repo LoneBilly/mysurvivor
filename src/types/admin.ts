@@ -8,7 +8,10 @@ export interface Item {
   stackable: boolean;
   type: string;
   use_action_text: string;
-  effects?: Record<string, any>;
+  effects?: {
+    ammo_item_id?: number;
+    [key: string]: any;
+  };
 }
 
 export interface ZoneItem {

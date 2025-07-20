@@ -26,9 +26,10 @@ interface ItemFormModalProps {
   onClose: () => void;
   item?: Item | null;
   onSave: () => void;
+  allItems: Item[];
 }
 
-const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) => {
+const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModalProps) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('');
@@ -52,6 +53,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [isCraftable, setIsCraftable] = useState(false);
   const [recipeId, setRecipeId] = useState<number | null>(null);
   const [draftRecipe, setDraftRecipe] = useState<Partial<CraftingRecipe> | null>(null);
+  const [ammoItemId, setAmmoItemId] = useState<number | null>(null);
 
   const [availableIcons, setAvailableIcons] = useState<string[]>([]);
   const [fetchingIcons, setFetchingIcons] = useState(false);
@@ -68,6 +70,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setType(item?.type || 'Items divers');
       setUseActionText(item?.use_action_text || '');
       setEffects(item?.effects || {});
+      setAmmoItemId(item?.effects?.ammo_item_id || null);
       setNameExists(false);
       setPreviewUrl(null);
       setIconExists(null);
@@ -186,6 +189,11 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     setEffects(prev => ({ ...prev, [key]: isNaN(numValue) ? undefined : numValue }));
   };
 
+  const handleAmmoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value ? parseInt(e.target.value, 10) : null;
+    setAmmoItemId(value);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (nameExists) {
@@ -203,6 +211,17 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
 
     setLoading(true);
     
+    const finalEffects = { ...effects };
+    if (type === 'Armes') {
+      if (ammoItemId) {
+        finalEffects.ammo_item_id = ammoItemId;
+      } else {
+        delete finalEffects.ammo_item_id;
+      }
+    } else {
+      delete finalEffects.ammo_item_id;
+    }
+
     if (!item) {
       const { error } = await supabase.rpc('create_item_and_recipe', {
         p_name: name,
@@ -212,7 +231,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         p_type: type,
         p_use_action_text: useActionText || null,
         p_is_craftable: isCraftable,
-        p_effects: effects,
+        p_effects: finalEffects,
         p_recipe_result_quantity: draftRecipe?.result_quantity || 1,
         p_recipe_slot1_item_id: draftRecipe?.slot1_item_id || null,
         p_recipe_slot1_quantity: draftRecipe?.slot1_quantity || null,
@@ -238,7 +257,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         stackable,
         type,
         use_action_text: useActionText || null,
-        effects,
+        effects: finalEffects,
         recipe_id: isCraftable ? recipeId : null,
       };
 
@@ -356,6 +375,23 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               </select>
             </div>
             {renderEffectFields()}
+            {type === 'Armes' && (
+              <div>
+                <Label htmlFor="ammo" className="text-gray-300 font-mono">Munition (optionnel)</Label>
+                <select
+                  id="ammo"
+                  value={ammoItemId || ''}
+                  onChange={handleAmmoChange}
+                  disabled={loading}
+                  className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
+                >
+                  <option value="">Aucune</option>
+                  {allItems.map(ammo => (
+                    <option key={ammo.id} value={ammo.id}>{ammo.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
               <div className="flex items-center gap-2 mt-1">

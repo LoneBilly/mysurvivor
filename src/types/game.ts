@@ -12,7 +12,10 @@ export interface ItemDetails {
   type?: string;
   use_action_text: string;
   stackable: boolean;
-  effects?: Record<string, any>;
+  effects?: {
+    ammo_item_id?: number;
+    [key: string]: any;
+  };
 }
 
 export interface InventoryItem {

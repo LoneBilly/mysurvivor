@@ -32,7 +32,7 @@ interface ItemDetailModalProps {
 }
 
 const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
-  const { getIconUrl } = useGame();
+  const { getIconUrl, playerData } = useGame();
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [workbenchTransferQuantity, setWorkbenchTransferQuantity] = useState(1);
   const [splitQuantity, setSplitQuantity] = useState(1);
@@ -103,6 +103,14 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
     }
   };
 
+  const ammoItemId = item.items?.effects?.ammo_item_id;
+  let ammoCount = 0;
+  if (ammoItemId) {
+    ammoCount = playerData.inventory
+      .filter(invItem => invItem.item_id === ammoItemId)
+      .reduce((sum, invItem) => sum + invItem.quantity, 0);
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
@@ -134,6 +142,9 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
             <p className="text-gray-300">{item.items.description}</p>
           )}
           <p className="text-gray-400">Quantité: <span className="font-bold text-white">{item.quantity}</span></p>
+          {ammoItemId && (
+            <p className="text-gray-400">Munitions: <span className="font-bold text-white">{ammoCount}</span></p>
+          )}
         </div>
 
         {canTransfer && (
