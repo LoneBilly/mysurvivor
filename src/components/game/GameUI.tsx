@@ -27,7 +27,7 @@ import MoreOptionsModal from "../MoreOptionsModal";
 import HotelModal from '../HotelModal';
 import CasinoModal from '../CasinoModal';
 
-const formatZoneName = (name: string | null): string => {
+const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
@@ -139,11 +139,11 @@ const GameUI = () => {
       setSelectedZoneForAction(cell);
       switch (interaction_type) {
         case 'Action':
-          if (id_name?.toLowerCase().includes('metro') || type?.toLowerCase().includes('métro')) {
+          if (id_name?.toLowerCase().includes('metro') || type.toLowerCase().includes('métro')) {
             setIsMetroOpen(true);
-          } else if (type?.toLowerCase().includes('casino')) {
+          } else if (type.toLowerCase().includes('casino')) {
             setIsCasinoOpen(true);
-          } else if (type?.toLowerCase().includes('hôtel')) {
+          } else if (type.toLowerCase().includes('hôtel')) {
             setIsHotelOpen(true);
           } else if (id === 10) { // Marché
             setIsMarketOpen(true);
@@ -151,7 +151,7 @@ const GameUI = () => {
             setIsBountyOpen(true);
           } else if (id === 12) { // Faction: Scouts
             setIsFactionScoutsModalOpen(true);
-          } else if (type?.toLowerCase().includes('banque')) { // Bank (still using type for generic bank)
+          } else if (type.toLowerCase().includes('banque')) { // Bank (still using type for generic bank)
             setIsBankOpen(true);
           } else {
             setModalState({
@@ -300,7 +300,7 @@ const GameUI = () => {
       <ActionModal isOpen={modalState.isOpen} onClose={closeModal} title={modalState.title} description={modalState.description} actions={modalState.actions} />
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
       <OptionsModal isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} />
-      <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} />
+      <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} inventory={playerData.inventory} unlockedSlots={playerData.playerState.unlocked_slots} onUpdate={refreshInventoryAndChests} />
       <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} inventory={playerData.inventory} credits={playerData.playerState.credits} saleSlots={playerData.playerState.sale_slots} onUpdate={refreshPlayerData} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Marché"} />
       <PurchaseCreditsModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
       <FactionScoutsModal isOpen={isFactionScoutsModalOpen} onClose={() => setIsFactionScoutsModalOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshPlayerData} scoutingMissions={scoutingMissions} loading={false} refreshScoutingData={() => refreshPlayerData()} onPurchaseCredits={() => setIsPurchaseModalOpen(true)} zoneName={selectedZoneForAction?.type || "Faction Éclaireurs"} />

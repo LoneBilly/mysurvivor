@@ -15,7 +15,7 @@ interface InventorySlotProps {
   item: InventoryItem | null;
   index: number;
   isUnlocked: boolean;
-  onDragStart: (node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => void;
+  onDragStart: (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => void;
   onItemClick: (item: InventoryItem | null) => void;
   isBeingDragged: boolean;
   isDragOver: boolean;
@@ -48,7 +48,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
 
       if (dx > 5 || dy > 5) { // Threshold for movement
         interactionState.current.isDragging = true;
-        onDragStart(e.currentTarget, e);
+        onDragStart(index, e.currentTarget, e);
       }
     }
   };
