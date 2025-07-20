@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
-import { Loader2, Search, Shield, Package, Check, X, AlertTriangle, Castle } from 'lucide-react';
-import { MapCell } from '@/types/game';
+import { Loader2, Search, Shield, Package, Check, X, AlertTriangle, Castle, TreeDeciduous, Mountain } from 'lucide-react';
+import { InventoryItem, MapCell } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import * as LucideIcons from "lucide-react";
 import { useGame } from '@/contexts/GameContext';
@@ -61,7 +61,7 @@ interface ExplorationModalProps {
 }
 
 const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: ExplorationModalProps) => {
-  const { getIconUrl, refreshPlayerData } = useGame();
+  const { getIconUrl, refreshPlayerData, playerData } = useGame();
   const [activeTab, setActiveTab] = useState('exploration');
   const [potentialLoot, setPotentialLoot] = useState<PotentialInfo[]>([]);
   const [potentialEvents, setPotentialEvents] = useState<PotentialInfo[]>([]);
@@ -74,6 +74,46 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [inventoryFullError, setInventoryFullError] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
   const [detailedInfo, setDetailedInfo] = useState<PotentialInfo | null>(null);
+
+  const resourceBoosts = useMemo(() => {
+    const boosts = {
+      bonus_recolte_bois_pourcentage: 0,
+      bonus_recolte_pierre_pourcentage: 0,
+      bonus_recolte_viande_pourcentage: 0,
+    };
+
+    const allPlayerItems = [
+      ...playerData.inventory,
+      ...Object.values(playerData.equipment).filter(Boolean) as InventoryItem[]
+    ];
+
+    for (const item of allPlayerItems) {
+      if (item?.items?.effects) {
+        for (const key in boosts) {
+          if (item.items.effects[key]) {
+            boosts[key as keyof typeof boosts] += Number(item.items.effects[key]);
+          }
+        }
+      }
+    }
+    return boosts;
+  }, [playerData.inventory, playerData.equipment]);
+
+  const activeBoosts = useMemo(() => {
+    const active: { label: string; value: number; icon: React.ElementType }[] = [];
+    if (!potentialLoot) return active;
+
+    const lootNames = potentialLoot.map(loot => loot.name.toLowerCase());
+
+    if (resourceBoosts.bonus_recolte_bois_pourcentage > 0 && lootNames.includes('bois')) {
+      active.push({ label: 'Bois', value: resourceBoosts.bonus_recolte_bois_pourcentage, icon: TreeDeciduous });
+    }
+    if (resourceBoosts.bonus_recolte_pierre_pourcentage > 0 && lootNames.includes('pierre')) {
+      active.push({ label: 'Pierre', value: resourceBoosts.bonus_recolte_pierre_pourcentage, icon: Mountain });
+    }
+    // Add other resources like viande if needed
+    return active;
+  }, [potentialLoot, resourceBoosts]);
 
   const fetchZoneInfo = useCallback(async () => {
     if (!zone) return;
@@ -371,6 +411,19 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                       </div>
                     )}
                   </div>
+                  {activeBoosts.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Bonus actifs :</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {activeBoosts.map(boost => (
+                          <div key={boost.label} className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-300 text-sm px-3 py-1 rounded-full">
+                            <boost.icon className="w-4 h-4" />
+                            <span>{boost.label}: +{boost.value}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <Button onClick={handleStartExploration} className="w-full" disabled={!canExplore}>
                     {canExplore ? `Lancer l'exploration (${EXPLORATION_COST} énergie, ${EXPLORATION_DURATION_S}s)` : "Exploration indisponible"}
                   </Button>

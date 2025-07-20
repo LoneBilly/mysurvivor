@@ -274,6 +274,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
         onUpdate={refreshInventoryAndChests}
+        playerStats={playerData.playerState}
       />
     </>
   );

@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import ItemIcon from "./ItemIcon";
-import { InventoryItem } from "@/types/game";
+import { InventoryItem, PlayerState } from "@/types/game";
 import { useGame } from "@/contexts/GameContext";
 import { useState, useEffect } from "react";
 import { Label } from "./ui/label";
@@ -30,6 +30,7 @@ interface ItemDetailModalProps {
   onTransferFromWorkbench?: (item: InventoryItem, quantity: number) => void;
   onSplit?: (item: InventoryItem, quantity: number) => void;
   onUpdate?: () => Promise<void>;
+  playerStats: PlayerState;
 }
 
 const effectIcons = {
@@ -39,7 +40,7 @@ const effectIcons = {
   restaure_energie: { icon: Zap, label: "Énergie", color: "text-yellow-400" },
 };
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate, playerStats }: ItemDetailModalProps) => {
   const { getIconUrl, playerData } = useGame();
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [workbenchTransferQuantity, setWorkbenchTransferQuantity] = useState(1);
@@ -172,11 +173,17 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
                   const effectInfo = effectIcons[key as keyof typeof effectIcons];
                   if (!effectInfo) return null;
                   const Icon = effectInfo.icon;
+                  const statKey = key.replace('restaure_', '') as keyof PlayerState;
+                  const currentStatValue = playerStats ? (playerStats as any)[statKey] : null;
+
                   return (
                     <div key={key} className="flex items-center gap-2 text-sm bg-white/5 p-2 rounded-md">
                       <Icon className={`w-4 h-4 ${effectInfo.color}`} />
                       <span className="text-gray-300">{effectInfo.label}:</span>
                       <span className="font-bold text-white">+{value}</span>
+                      {currentStatValue !== null && typeof currentStatValue !== 'undefined' && (
+                        <span className="text-xs text-gray-400 ml-auto">({currentStatValue}/100)</span>
+                      )}
                     </div>
                   );
                 })}
