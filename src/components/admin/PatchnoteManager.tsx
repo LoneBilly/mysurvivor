@@ -50,30 +50,29 @@ const PatchnoteManager = () => {
 
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'note' | 'change'; item: PatchNote | PatchNoteChange | null }>({ isOpen: false, type: 'note', item: null });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: notesData, error: notesError } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
-      if (notesError) throw notesError;
-      
-      const { data: changesData, error: changesError } = await supabase.from('patch_note_changes').select('*');
-      if (changesError) throw changesError;
-
-      setPatchNotes(notesData || []);
-      setChanges(changesData || []);
-      if (notesData && notesData.length > 0) {
-        setSelectedPatchNote(prev => prev || notesData[0]);
-      }
-    } catch (error: any) {
-      showError("Erreur de chargement des patchnotes.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const initialFetch = async () => {
+      setLoading(true);
+      try {
+        const { data: notesData, error: notesError } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
+        if (notesError) throw notesError;
+        
+        const { data: changesData, error: changesError } = await supabase.from('patch_note_changes').select('*');
+        if (changesError) throw changesError;
+
+        setPatchNotes(notesData || []);
+        setChanges(changesData || []);
+        if (notesData && notesData.length > 0) {
+          setSelectedPatchNote(prev => prev || notesData[0]);
+        }
+      } catch (error: any) {
+        showError("Erreur de chargement des patchnotes.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    initialFetch();
+  }, []);
 
   const handleSaveNote = async (e: FormEvent) => {
     e.preventDefault();
@@ -86,7 +85,7 @@ const PatchnoteManager = () => {
         const { data: updatedNote, error } = await supabase.from('patch_notes').update(dataToSave).eq('id', id).select().single();
         if (error) throw error;
         const updatedNotes = patchNotes.map(p => p.id === id ? updatedNote : p);
-        setPatchNotes(updatedUpdatedNotes);
+        setPatchNotes(updatedNotes);
         if (selectedPatchNote && selectedPatchNote.id === id) {
           setSelectedPatchNote(updatedNote);
         }
@@ -215,7 +214,7 @@ const PatchnoteManager = () => {
             <h3 className="text-lg font-bold">Versions</h3>
             <Button size="sm" onClick={() => { setEditingNote({ title: '' }); setIsNoteModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Créer</Button>
           </div>
-          <div className="flex-grow overflow-y-auto no-scrollbar">
+          <div className="flex-grow overflow-y-auto no-scrollbar max-h-full">
             {patchNotes.map(note => (
               <div key={note.id} className={cn("p-3 border-b border-gray-700 hover:bg-gray-800/50", selectedPatchNote?.id === note.id ? 'bg-slate-700' : '')}>
                 <div className="flex items-center justify-between">
@@ -249,8 +248,8 @@ const PatchnoteManager = () => {
                 </div>
                 <Button size="sm" onClick={() => { setEditingChange({ change_type: 'ADDED', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter un changement</Button>
               </div>
-              <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6">
-                {Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
+              <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6 max-h-full">
+                {Object.keys(changeTypeMap).length > 0 && Object.keys(groupedChanges).length === 0 && <p className="text-gray-500 text-center mt-8">Aucun changement pour cette version.</p>}
                 {Object.keys(changeTypeMap).map(type => {
                   const key = type as keyof typeof changeTypeMap;
                   return groupedChanges[key] && (
