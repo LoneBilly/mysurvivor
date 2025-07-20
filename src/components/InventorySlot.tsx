@@ -1,136 +1,68 @@
-import { cn } from "@/lib/utils";
-import { Lock, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ItemIcon from "./ItemIcon";
 import { InventoryItem } from "@/types/game";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
+import { cn } from "@/lib/utils";
 
 interface InventorySlotProps {
   item: InventoryItem | null;
-  index: number;
-  isUnlocked: boolean;
-  onDragStart: (index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => void;
-  onItemClick: (item: InventoryItem | null) => void;
-  isBeingDragged: boolean;
-  isDragOver: boolean;
-  isLocked?: boolean;
-  onRemove?: (item: InventoryItem) => void;
+  onClick: () => void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragEnd: (e: React.DragEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  isSelected?: boolean;
 }
 
-const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver, isLocked = false, onRemove }: InventorySlotProps) => {
+const InventorySlot = ({ item, onClick, onDragStart, onDrop, onDragOver, onDragEnd, onContextMenu, isSelected }: InventorySlotProps) => {
   const { getIconUrl } = useGame();
-  const interactionState = useRef<{
-    startPos: { x: number, y: number };
-    isDragging: boolean;
-  } | null>(null);
-
-  const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (isUnlocked && !isBeingDragged && !isLocked) {
-      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-      interactionState.current = {
-        startPos: { x: clientX, y: clientY },
-        isDragging: false,
-      };
-    }
-  };
-
-  const handleInteractionMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (item && interactionState.current && !interactionState.current.isDragging) {
-      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
-      const dx = Math.abs(clientX - interactionState.current.startPos.x);
-      const dy = Math.abs(clientY - interactionState.current.startPos.y);
-
-      if (dx > 5 || dy > 5) { // Threshold for movement
-        interactionState.current.isDragging = true;
-        onDragStart(index, e.currentTarget, e);
-      }
-    }
-  };
-
-  const handleInteractionEnd = () => {
-    if (isUnlocked && !isLocked && interactionState.current && !interactionState.current.isDragging) {
-      onItemClick(item);
-    }
-    interactionState.current = null;
-  };
-
-  if (!isUnlocked) {
-    return (
-      <div className="relative w-full aspect-square flex items-center justify-center rounded-lg bg-black/20 border border-dashed border-slate-600 cursor-not-allowed">
-        <Lock className="w-5 h-5 text-slate-500" />
-      </div>
-    );
-  }
-
-  const iconUrl = item ? getIconUrl(item.items?.icon) : null;
+  const iconUrl = item ? getIconUrl(item.items?.icon || null) : null;
 
   return (
-    <div
-      data-slot-index={index}
-      onMouseDown={handleInteractionStart}
-      onTouchStart={handleInteractionStart}
-      onMouseMove={handleInteractionMove}
-      onTouchMove={handleInteractionMove}
-      onMouseUp={handleInteractionEnd}
-      onTouchEnd={handleInteractionEnd}
-      onMouseLeave={() => { interactionState.current = null; }}
-      style={{ touchAction: 'none' }}
-      className={cn(
-        "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
-        "bg-slate-700/50 border-slate-600",
-        isDragOver && "bg-slate-600/70 ring-2 ring-slate-400 border-slate-400",
-        isBeingDragged && "bg-transparent border-dashed border-slate-500",
-        !isLocked && "cursor-grab active:cursor-grabbing hover:bg-slate-700/80 hover:border-slate-500",
-        isLocked && "cursor-not-allowed opacity-60"
-      )}
-    >
-      {isLocked && <Lock className="absolute w-4 h-4 text-white z-20" />}
-      {item && onRemove && !isLocked && !isBeingDragged && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (item) onRemove(item);
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onMouseUp={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchEnd={(e) => e.stopPropagation()}
-          className="absolute top-[-8px] right-[-8px] w-5 h-5 flex items-center justify-center bg-red-600 text-white rounded-full hover:bg-red-700 z-20 shadow-lg transition-transform hover:scale-110"
-          aria-label="Retirer l'objet"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      )}
-      {item ? (
-        <TooltipProvider delayDuration={200}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className={cn("absolute inset-0 item-visual", isBeingDragged && "opacity-0")}>
-                <ItemIcon iconName={iconUrl || item.items?.icon} alt={item.items?.name || 'Objet'} />
-                {item.quantity > 0 && (
-                  <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white z-10" style={{ textShadow: '1px 1px 2px black' }}>
-                    x{item.quantity}
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            onClick={onClick}
+            onDragStart={onDragStart}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragEnd={onDragEnd}
+            onContextMenu={onContextMenu}
+            className={cn(
+              "w-20 h-20",
+              "bg-slate-800/50 border-2 border-slate-700 rounded-lg",
+              "flex items-center justify-center cursor-pointer transition-all duration-200",
+              "hover:bg-slate-700/70 hover:border-yellow-500/50",
+              isSelected ? "border-yellow-400 ring-2 ring-yellow-400/50" : "",
+              item ? "draggable" : ""
+            )}
+            draggable={!!item}
+          >
+            {item && iconUrl ? (
+              <div className="relative w-full h-full p-2">
+                <ItemIcon iconName={iconUrl} alt={item.items?.name || 'Objet'} />
+                {item.quantity > 1 && (
+                  <span className="absolute bottom-1 right-1 text-xs font-bold text-white bg-slate-900/70 px-1.5 py-0.5 rounded">
+                    {item.quantity}
                   </span>
                 )}
               </div>
-            </TooltipTrigger>
-            <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20 font-mono rounded-lg shadow-lg p-3">
-              <p className="font-bold text-lg text-white">{item.items?.name}</p>
-              {item.items?.description && <p className="text-sm text-gray-300 max-w-xs mt-1">{item.items.description}</p>}
-              <p className="text-xs text-gray-500 mt-2 uppercase tracking-wider">{item.items?.type || 'Objet'}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
-        <div className="w-full h-full" />
-      )}
-    </div>
+            ) : (
+              <div className="w-full h-full" />
+            )}
+          </div>
+        </TooltipTrigger>
+        {item && (
+          <TooltipContent side="top" className="bg-slate-900/80 backdrop-blur-sm text-white border-slate-700">
+            <p className="font-bold">{item.items?.name}</p>
+            <p className="text-sm text-gray-400">{item.items?.description}</p>
+            <p className="text-xs text-gray-500 italic mt-1">{item.items?.type}</p>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
