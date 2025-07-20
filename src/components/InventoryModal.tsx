@@ -9,19 +9,16 @@ import { InventoryItem, Equipment } from '@/types/game';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { getPublicIconUrl } from '@/utils/imageUrls';
-import { Backpack, Shield, Sword, Footprints, Car, Trash2, GitCommitHorizontal, MoveUp, MoveDown, X } from 'lucide-react';
+import { Backpack, Shield, Sword, Footprints, Car, Trash2 } from 'lucide-react';
 import ItemTooltip from './ItemTooltip';
 import ActionModal from './ActionModal';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 
 const ItemTypes = {
   INVENTORY_ITEM: 'inventoryItem',
   EQUIPMENT_ITEM: 'equipmentItem',
 };
-
-interface DraggableItemProps {
-  item: InventoryItem;
-  onDrop: (item: InventoryItem, targetSlot: number | string) => void;
-}
 
 const DraggableItem = ({ item }: { item: InventoryItem }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
@@ -113,7 +110,7 @@ const EquipmentSlot = ({ type, item, onDrop }: EquipmentSlotProps) => {
 };
 
 const InventoryModal = () => {
-  const { isInventoryOpen, closeInventory, playerData, refreshPlayerData } = useGame();
+  const { isInventoryOpen, closeInventory, playerData, setPlayerData, refreshPlayerData } = useGame();
   const gridRef = useRef<HTMLDivElement>(null);
   const [isDropModalOpen, setIsDropModalOpen] = useState(false);
   const [itemToDrop, setItemToDrop] = useState<InventoryItem | null>(null);
@@ -132,20 +129,28 @@ const InventoryModal = () => {
   const unlockedSlots = playerState.unlocked_slots;
 
   const handleDrop = async (draggedItem: InventoryItem, target: number | string) => {
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    let rpcPromise;
+
     if (typeof target === 'number') { // Dropped on inventory slot
-      if (draggedItem.slot_position === target) return; // Dropped on itself
+      if (draggedItem.slot_position === target) return;
 
       if (draggedItem.slot_position !== null) { // inventory -> inventory
-        const { error } = await supabase.rpc('swap_inventory_items', { p_from_slot: draggedItem.slot_position, p_to_slot: target });
-        if (error) showError(error.message);
+        rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: draggedItem.slot_position, p_to_slot: target });
       } else { // equipment -> inventory
-        const { error } = await supabase.rpc('unequip_item_to_slot', { p_inventory_id: draggedItem.id, p_target_slot: target });
-        if (error) showError(error.message);
+        rpcPromise = supabase.rpc('unequip_item_to_slot', { p_inventory_id: draggedItem.id, p_target_slot: target });
       }
     } else if (typeof target === 'string') { // Dropped on equipment slot
-      if (draggedItem.slot_position === null) return; // equipment -> equipment (not allowed)
-      const { error } = await supabase.rpc('equip_item', { p_inventory_id: draggedItem.id, p_slot_type: target });
-      if (error) showError(error.message);
+      if (draggedItem.slot_position === null) return;
+      rpcPromise = supabase.rpc('equip_item', { p_inventory_id: draggedItem.id, p_slot_type: target });
+    }
+
+    if (!rpcPromise) return;
+
+    // No optimistic update for now, just refresh
+    const { error } = await rpcPromise;
+    if (error) {
+      showError(error.message);
     }
     await refreshPlayerData();
   };
@@ -157,11 +162,13 @@ const InventoryModal = () => {
 
   const confirmDrop = async () => {
     if (!itemToDrop) return;
-    const { error } = await supabase.rpc('split_inventory_item', { p_inventory_id: itemToDrop.id, p_split_quantity: itemToDrop.quantity - dropQuantity });
+    
+    const { error } = await supabase.from('inventories').delete().eq('id', itemToDrop.id);
+
     if (error) {
       showError(error.message);
     } else {
-      showSuccess(`${dropQuantity} ${itemToDrop.items?.name}(s) jeté(s).`);
+      showSuccess(`${itemToDrop.items?.name} jeté.`);
     }
     setIsDropModalOpen(false);
     setItemToDrop(null);
@@ -213,24 +220,11 @@ const InventoryModal = () => {
         title={`Jeter ${itemToDrop?.items?.name}`}
         description={
           <div>
-            <p>Combien voulez-vous en jeter ?</p>
-            <div className="flex items-center gap-2 my-4">
-              <Button onClick={() => setDropQuantity(1)} variant="outline">1</Button>
-              <Input 
-                type="range" 
-                min="1" 
-                max={itemToDrop?.quantity} 
-                value={dropQuantity} 
-                onChange={(e) => setDropQuantity(parseInt(e.target.value))}
-                className="w-full"
-              />
-              <Button onClick={() => setDropQuantity(itemToDrop?.quantity || 1)} variant="outline">Max</Button>
-            </div>
-            <p className="text-center font-bold text-lg">{dropQuantity}</p>
+            <p>Êtes-vous sûr de vouloir jeter cet objet ? Cette action est irréversible.</p>
           </div>
         }
         actions={[
-          { label: `Jeter ${dropQuantity}`, onClick: confirmDrop, variant: "destructive" },
+          { label: `Jeter`, onClick: confirmDrop, variant: "destructive" },
           { label: "Annuler", onClick: () => setIsDropModalOpen(false), variant: "secondary" },
         ]}
       />
