@@ -85,25 +85,28 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   } | null>(null);
 
   const detailedResourceBoosts = useMemo(() => {
-    const boosts: Record<string, { total: number; sources: string[] }> = {};
+    const maxBoosts: Record<string, { total: number; sources: string[] }> = {};
     const allPlayerItems = [...playerData.inventory, ...Object.values(playerData.equipment).filter(Boolean)];
 
     for (const item of allPlayerItems) {
       if (item?.items?.effects) {
         for (const [effectKey, effectValue] of Object.entries(item.items.effects)) {
           if (effectKey.startsWith('bonus_recolte')) {
-            if (!boosts[effectKey]) {
-              boosts[effectKey] = { total: 0, sources: [] };
-            }
-            boosts[effectKey].total += (effectValue as number);
-            if (!boosts[effectKey].sources.includes(item.items.name)) {
-                boosts[effectKey].sources.push(item.items.name);
+            const currentMax = maxBoosts[effectKey]?.total || 0;
+            const bonusValue = effectValue as number;
+
+            if (bonusValue > currentMax) {
+              maxBoosts[effectKey] = { total: bonusValue, sources: [item.items.name] };
+            } else if (bonusValue === currentMax && bonusValue > 0) {
+              if (!maxBoosts[effectKey].sources.includes(item.items.name)) {
+                maxBoosts[effectKey].sources.push(item.items.name);
+              }
             }
           }
         }
       }
     }
-    return boosts;
+    return maxBoosts;
   }, [playerData.inventory, playerData.equipment]);
 
   const fetchZoneInfo = useCallback(async () => {
