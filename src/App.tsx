@@ -1,38 +1,26 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from '@/contexts/AuthContext';
-import BannedOverlay from '@/components/BannedOverlay';
+import { GameProvider } from "./hooks/useGame";
+import Index from "./pages/Index";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { SessionContextProvider } from "@supabase/auth-helpers-react";
+import { createClient } from "@supabase/supabase-js";
 
-import Landing from '@/pages/Landing';
-import Login from '@/pages/Login';
-import CreateProfile from '@/pages/CreateProfile';
-import Game from '@/pages/Game';
-import Admin from '@/pages/Admin';
-import NotFound from '@/pages/NotFound';
-
-import PublicRoute from '@/components/PublicRoute';
-import AdminRoute from '@/components/AdminRoute';
-import PrivateRoute from '@/components/PrivateRoute';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          
-          <Route path="/create-profile" element={<PrivateRoute><CreateProfile /></PrivateRoute>} />
-          <Route path="/game" element={<PrivateRoute><Game /></PrivateRoute>} />
-          
-          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <BannedOverlay />
-      </AuthProvider>
-      <Toaster richColors position="top-right" />
-    </BrowserRouter>
+    <SessionContextProvider supabaseClient={supabase}>
+      <GameProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+          </Routes>
+        </BrowserRouter>
+        <Toaster richColors closeButton />
+      </GameProvider>
+    </SessionContextProvider>
   );
 }
 
