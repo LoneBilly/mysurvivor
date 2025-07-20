@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, Book, FileText, ChevronDown } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, FileText, ChevronDown } from 'lucide-react';
 import MarkdownToolbar from './MarkdownToolbar';
+import DynamicIcon from '../DynamicIcon';
 
 type Chapter = {
   id: number;
@@ -127,7 +128,7 @@ const GuideManager = () => {
             <div key={c.id} onClick={() => setSelectedChapter(c)} className={`p-3 border-b border-gray-700 cursor-pointer hover:bg-gray-800/50 ${selectedChapter?.id === c.id ? 'bg-slate-700' : ''}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Book className="w-5 h-5 text-gray-300" />
+                  <DynamicIcon name={c.icon} className="w-5 h-5 text-gray-300" />
                   <span>{c.title}</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -154,7 +155,7 @@ const GuideManager = () => {
                 <div key={a.id} className="p-3 rounded-lg border border-gray-700 bg-gray-900/50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-gray-300" />
+                      <DynamicIcon name={a.icon} fallback={FileText} className="w-5 h-5 text-gray-300" />
                       <span>{a.title}</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -180,7 +181,12 @@ const GuideManager = () => {
             </div>
             <div>
               <label htmlFor="chapter-icon" className="block text-sm font-medium text-gray-300 mb-1">Icône (Lucide)</label>
-              <Input id="chapter-icon" value={currentChapter.icon || ''} onChange={e => setCurrentChapter({ ...currentChapter, icon: e.target.value })} className="bg-gray-900/70 border-gray-700" />
+              <div className="flex items-center gap-2">
+                <Input id="chapter-icon" value={currentChapter.icon || ''} onChange={e => setCurrentChapter({ ...currentChapter, icon: e.target.value })} className="bg-gray-900/70 border-gray-700 flex-grow" />
+                <div className="w-10 h-10 bg-gray-900/70 border border-gray-700 rounded-md flex items-center justify-center">
+                  <DynamicIcon name={currentChapter.icon} className="w-5 h-5 text-gray-300" />
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setIsChapterModalOpen(false)}>Annuler</Button><Button onClick={handleSaveChapter}>Sauvegarder</Button></DialogFooter>
@@ -209,7 +215,12 @@ const GuideManager = () => {
               </div>
               <div>
                 <label htmlFor="article-icon" className="block text-sm font-medium text-gray-300 mb-1">Icône (Lucide)</label>
-                <Input id="article-icon" value={currentArticle.icon || ''} onChange={e => setCurrentArticle({ ...currentArticle, icon: e.target.value })} className="bg-gray-900/70 border-gray-700" />
+                <div className="flex items-center gap-2">
+                  <Input id="article-icon" value={currentArticle.icon || ''} onChange={e => setCurrentArticle({ ...currentArticle, icon: e.target.value })} className="bg-gray-900/70 border-gray-700 flex-grow" />
+                  <div className="w-10 h-10 bg-gray-900/70 border border-gray-700 rounded-md flex items-center justify-center">
+                    <DynamicIcon name={currentArticle.icon} fallback={FileText} className="w-5 h-5 text-gray-300" />
+                  </div>
+                </div>
               </div>
             </div>
             <div>
