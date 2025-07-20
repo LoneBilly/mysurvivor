@@ -157,30 +157,78 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   
     if (source === target && fromIndex === toIndex) return;
   
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    let optimisticData = JSON.parse(JSON.stringify(playerData));
     let rpcPromise;
   
-    if (source === 'inventory' && target === 'inventory') {
-      rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
-    } else if (source === 'chest' && target === 'chest') {
-      if (!construction) return;
-      rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
-    } else if (source === 'inventory' && target === 'chest') {
-      const itemToMove = playerData.inventory.find(i => i.slot_position === fromIndex);
-      if (!itemToMove || !construction) return;
-      rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: itemToMove.id, p_chest_id: construction.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
-    } else if (source === 'chest' && target === 'inventory') {
-      const itemToMove = chestItems.find(i => i.slot_position === fromIndex);
-      if (!itemToMove) return;
-      rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: itemToMove.id, p_quantity_to_move: itemToMove.quantity, p_target_slot: toIndex });
-    }
+    const fromItemInv = source === 'inventory' ? optimisticData.inventory.find((i: InventoryItem) => i.slot_position === fromIndex) : null;
+    const fromItemChest = source === 'chest' ? optimisticData.chestItems.find((i: ChestItemType) => i.chest_id === construction?.id && i.slot_position === fromIndex) : null;
+    const toItemInv = target === 'inventory' ? optimisticData.inventory.find((i: InventoryItem) => i.slot_position === toIndex) : null;
+    const toItemChest = target === 'chest' ? optimisticData.chestItems.find((i: ChestItemType) => i.chest_id === construction?.id && i.slot_position === toIndex) : null;
   
-    if (rpcPromise) {
-      const { error } = await rpcPromise;
-      if (error) {
-        showError(error.message || "Erreur de transfert.");
-      } else {
+    try {
+      if (source === 'inventory' && target === 'inventory') {
+        if (fromItemInv) {
+          if (toItemInv) {
+            if (fromItemInv.item_id === toItemInv.item_id && fromItemInv.items?.stackable) {
+              toItemInv.quantity += fromItemInv.quantity;
+              optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
+            } else {
+              toItemInv.slot_position = fromIndex;
+              fromItemInv.slot_position = toIndex;
+            }
+          } else {
+            fromItemInv.slot_position = toIndex;
+          }
+        }
+        rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
+      } else if (source === 'chest' && target === 'chest') {
+        if (fromItemChest) {
+          if (toItemChest) {
+            if (fromItemChest.item_id === toItemChest.item_id && fromItemChest.items?.stackable) {
+              toItemChest.quantity += fromItemChest.quantity;
+              optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
+            } else {
+              toItemChest.slot_position = fromIndex;
+              fromItemChest.slot_position = toIndex;
+            }
+          } else {
+            fromItemChest.slot_position = toIndex;
+          }
+        }
+        rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
+      } else if (source === 'inventory' && target === 'chest') {
+        if (fromItemInv) {
+          optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
+          if (toItemChest) {
+            optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== toItemChest.id);
+            optimisticData.inventory.push({ ...toItemChest, slot_position: fromIndex });
+          }
+          optimisticData.chestItems.push({ ...fromItemInv, slot_position: toIndex, chest_id: construction.id });
+        }
+        rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: fromItemInv.id, p_chest_id: construction.id, p_quantity_to_move: fromItemInv.quantity, p_target_slot: toIndex });
+      } else if (source === 'chest' && target === 'inventory') {
+        if (fromItemChest) {
+          optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
+          if (toItemInv) {
+            optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== toItemInv.id);
+            optimisticData.chestItems.push({ ...toItemInv, slot_position: fromIndex, chest_id: construction.id });
+          }
+          optimisticData.inventory.push({ ...fromItemChest, slot_position: toIndex });
+        }
+        rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: fromItemChest.id, p_quantity_to_move: fromItemChest.quantity, p_target_slot: toIndex });
+      }
+  
+      setPlayerData(optimisticData);
+  
+      if (rpcPromise) {
+        const { error } = await rpcPromise;
+        if (error) throw error;
         await refreshInventoryAndChests();
       }
+    } catch (error: any) {
+      showError(error.message || "Erreur de transfert.");
+      setPlayerData(originalPlayerData);
     }
   };
 
@@ -212,9 +260,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     });
 
     return (
-      <div className="flex flex-col">
-        <h3 className="text-center font-bold mb-2">{title}</h3>
-        <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start">
+      <div className="flex flex-col min-h-0">
+        <h3 className="text-center font-bold mb-2 flex-shrink-0">{title}</h3>
+        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto no-scrollbar flex-1">
           {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
@@ -248,7 +296,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
               Stockez vos objets en sécurité.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 min-h-0">
+          <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
             {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
