@@ -3,10 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, GitBranch, Send, EyeOff, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GitBranch, Send, EyeOff, CheckCircle, AlertTriangle, XCircle, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 type PatchNote = {
@@ -329,16 +328,23 @@ const PatchnoteManager = () => {
       </div>
 
       <Dialog open={isPatchNoteModalOpen} onOpenChange={setIsPatchNoteModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md bg-gray-800/90 border-gray-700 text-white backdrop-blur-sm">
           <DialogHeader>
-            <DialogTitle>{currentPatchNote.id ? 'Modifier' : 'Créer'} un patchnote</DialogTitle>
+            <DialogTitle className="text-xl font-bold">{currentPatchNote.id ? 'Modifier' : 'Créer'} un patchnote</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Input
-              placeholder="Titre du patchnote"
-              value={currentPatchNote.title || ''}
-              onChange={e => setCurrentPatchNote({ ...currentPatchNote, title: e.target.value })}
-            />
+            <div>
+              <label htmlFor="patchnote-title" className="block text-sm font-medium text-gray-300 mb-1">
+                Titre du patchnote
+              </label>
+              <Input
+                id="patchnote-title"
+                placeholder="Ex: Mise à jour v1.2.3"
+                value={currentPatchNote.title || ''}
+                onChange={e => setCurrentPatchNote({ ...currentPatchNote, title: e.target.value })}
+                className="bg-gray-900/70 border-gray-700"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPatchNoteModalOpen(false)}>Annuler</Button>
@@ -348,48 +354,76 @@ const PatchnoteManager = () => {
       </Dialog>
 
       <Dialog open={isChangeModalOpen} onOpenChange={setIsChangeModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg bg-gray-800/90 border-gray-700 text-white backdrop-blur-sm">
           <DialogHeader>
-            <DialogTitle>{currentChange.id ? 'Modifier' : 'Ajouter'} un changement</DialogTitle>
+            <DialogTitle className="text-xl font-bold">
+              {currentChange.id ? 'Modifier un changement' : 'Ajouter un changement'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Select
-              value={currentChange.change_type}
-              onValueChange={(value: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'FIXED' | 'IMPROVED') => setCurrentChange({ ...currentChange, change_type: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Type de changement" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(changeTypeMap).map(([key, { title }]) => (
-                  <SelectItem key={key} value={key}>{title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={currentChange.entity_type}
-              onValueChange={(value: string) => setCurrentChange({ ...currentChange, entity_type: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Type d'entité" />
-              </SelectTrigger>
-              <SelectContent>
-                {entityTypes.map(type => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              placeholder="Nom de l'entité (ex: Hache en fer)"
-              value={currentChange.entity_name || ''}
-              onChange={e => setCurrentChange({ ...currentChange, entity_name: e.target.value })}
-            />
-            <Textarea
-              placeholder="Description (supporte le Markdown)"
-              value={currentChange.description || ''}
-              onChange={e => setCurrentChange({ ...currentChange, description: e.target.value })}
-              rows={5}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="change-type" className="block text-sm font-medium text-gray-300 mb-1">
+                  Type de changement
+                </label>
+                <div className="relative">
+                  <select
+                    id="change-type"
+                    value={currentChange.change_type || 'ADDED'}
+                    onChange={(e) => setCurrentChange({ ...currentChange, change_type: e.target.value as PatchNoteChange['change_type'] })}
+                    className="w-full appearance-none bg-gray-900/70 border border-gray-700 rounded-md h-10 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {Object.entries(changeTypeMap).map(([key, { title }]) => (
+                      <option key={key} value={key}>{title}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="entity-type" className="block text-sm font-medium text-gray-300 mb-1">
+                  Type d'entité
+                </label>
+                <div className="relative">
+                  <select
+                    id="entity-type"
+                    value={currentChange.entity_type || 'Général'}
+                    onChange={(e) => setCurrentChange({ ...currentChange, entity_type: e.target.value })}
+                    className="w-full appearance-none bg-gray-900/70 border border-gray-700 rounded-md h-10 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {entityTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="entity-name" className="block text-sm font-medium text-gray-300 mb-1">
+                Nom de l'entité
+              </label>
+              <Input
+                id="entity-name"
+                placeholder="Ex: Hache en fer, Zone de départ..."
+                value={currentChange.entity_name || ''}
+                onChange={e => setCurrentChange({ ...currentChange, entity_name: e.target.value })}
+                className="bg-gray-900/70 border-gray-700"
+              />
+            </div>
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
+                Description
+              </label>
+              <Textarea
+                id="description"
+                placeholder="Décrivez le changement en détail. Le Markdown est supporté."
+                value={currentChange.description || ''}
+                onChange={e => setCurrentChange({ ...currentChange, description: e.target.value })}
+                rows={6}
+                className="bg-gray-900/70 border-gray-700"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsChangeModalOpen(false)}>Annuler</Button>
