@@ -26,12 +26,12 @@ interface InventoryModalProps {
 
 const TOTAL_SLOTS = 50;
 
-const equipmentSlotConfig: { type: EquipmentSlotType; icon: React.ElementType }[] = [
-  { type: 'weapon', icon: Sword },
-  { type: 'armor', icon: Shield },
-  { type: 'backpack', icon: Backpack },
-  { type: 'shoes', icon: Footprints },
-  { type: 'vehicle', icon: Car },
+const equipmentSlotConfig: { type: EquipmentSlotType; icon: React.ElementType; label: string }[] = [
+  { type: 'weapon', icon: Sword, label: 'Arme' },
+  { type: 'armor', icon: Shield, label: 'Armure' },
+  { type: 'backpack', icon: Backpack, label: 'Sac' },
+  { type: 'shoes', icon: Footprints, label: 'Chaussures' },
+  { type: 'vehicle', icon: Car, label: 'Véhicule' },
 ];
 
 const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, onUpdate }: InventoryModalProps) => {
@@ -322,20 +322,23 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
             <h3 className="text-center font-bold font-mono mb-3 text-gray-300">Équipement</h3>
             <div className="flex justify-center items-center gap-4">
               <div className="flex flex-wrap justify-center gap-2">
-                {equipmentSlotConfig.map(({ type, icon: Icon }) => {
+                {equipmentSlotConfig.map(({ type, icon: Icon, label }) => {
                   const item = localEquipment[type];
                   return (
-                    <div key={type} data-slot-type={type} className="w-16 h-16">
-                      <InventorySlot
-                        item={item}
-                        index={-1}
-                        isUnlocked={true}
-                        onDragStart={(idx, node, e) => item && handleDragStart(item, 'equipment', type, node, e)}
-                        onItemClick={() => item && handleItemClick(item, 'equipment', type)}
-                        isBeingDragged={draggedItem?.source === 'equipment' && draggedItem?.sourceId === type}
-                        isDragOver={dragOver?.target === 'equipment' && dragOver?.targetId === type}
-                        placeholderIcon={<Icon className="w-6 h-6 text-slate-500" />}
-                      />
+                    <div key={type} className="flex flex-col items-center gap-1">
+                      <div data-slot-type={type} className="w-16 h-16">
+                        <InventorySlot
+                          item={item}
+                          index={-1}
+                          isUnlocked={true}
+                          onDragStart={(idx, node, e) => item && handleDragStart(item, 'equipment', type, node, e)}
+                          onItemClick={() => item && handleItemClick(item, 'equipment', type)}
+                          isBeingDragged={draggedItem?.source === 'equipment' && draggedItem?.sourceId === type}
+                          isDragOver={dragOver?.target === 'equipment' && dragOver?.targetId === type}
+                          placeholderIcon={<Icon className="w-6 h-6 text-slate-500" />}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-400 font-mono">{label}</p>
                     </div>
                   );
                 })}
@@ -348,7 +351,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
 
           <div className="flex-1 flex flex-col min-h-0 p-4 bg-slate-900/50 rounded-lg border border-slate-800">
             <h3 className="text-center font-bold font-mono mb-3 text-gray-300">
-              Inventaire <span className="text-white">({slots.filter(Boolean).length} / {unlockedSlots})</span>
+              Inventaire <span className="text-white">({inventory.length} / {unlockedSlots})</span>
             </h3>
             <div ref={gridRef} className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 flex-grow overflow-y-auto pr-2">
               {loading ? (
