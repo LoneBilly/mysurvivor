@@ -1,19 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, ArrowLeft, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
-import { Loader2, BookOpen, ArrowLeft, FileText, ChevronRight } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-is-mobile';
-import { cn } from '@/lib/utils';
-import ReactMarkdown from 'react-markdown';
+import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Button } from './ui/button';
-import { ScrollArea } from './ui/scroll-area';
 
 interface Chapter {
   id: number;
   title: string;
-  order: number;
+  icon: string | null;
 }
 
 interface Article {
@@ -21,108 +18,113 @@ interface Article {
   chapter_id: number;
   title: string;
   content: string | null;
-  order: number;
+  icon: string | null;
 }
 
-interface GuideModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const GuideModal = ({ isOpen, onClose }: GuideModalProps) => {
-  const isMobile = useIsMobile();
+const GuideModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const { data: chaptersData, error: chaptersError } = await supabase.from('guide_chapters').select('*').order('order');
-    const { data: articlesData, error: articlesError } = await supabase.from('guide_articles').select('*').order('order');
-    
-    if (chaptersError || articlesError) {
-      showError("Erreur de chargement du guide.");
-    } else {
-      setChapters(chaptersData || []);
-      setArticles(articlesData || []);
-      if (chaptersData && chaptersData.length > 0) {
-        setSelectedChapter(chaptersData[0]);
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchData = async () => {
+      setLoading(true);
+      const { data: chaptersData, error: chaptersError } = await supabase
+        .from('guide_chapters')
+        .select('id, title, icon')
+        .order('order');
+      
+      const { data: articlesData, error: articlesError } = await supabase
+        .from('guide_articles')
+        .select('id, chapter_id, title, content, icon')
+        .order('order');
+
+      if (chaptersError || articlesError) {
+        showError("Erreur de chargement du guide.");
+      } else {
+        setChapters(chaptersData || []);
+        setArticles(articlesData || []);
       }
-    }
-    setLoading(false);
-  }, []);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchData();
-    } else {
-      setSelectedChapter(null);
-      setSelectedArticle(null);
+    if (!isOpen) {
+      setTimeout(() => {
+        setSelectedChapter(null);
+        setSelectedArticle(null);
+      }, 200);
     }
-  }, [isOpen, fetchData]);
+  }, [isOpen]);
 
   const filteredArticles = articles.filter(a => a.chapter_id === selectedChapter?.id);
 
-  const ChapterList = (
-    <div className="flex flex-col h-full">
-      <h3 className="text-lg font-bold p-4 border-b border-slate-700 flex-shrink-0 text-center font-mono uppercase tracking-wider">Chapitres</h3>
-      <ScrollArea className="flex-grow">
-        <div className="p-2">
-          {chapters.map(chapter => (
-            <button key={chapter.id} onClick={() => { setSelectedChapter(chapter); setSelectedArticle(null); }} className={cn(
-              "w-full text-left cursor-pointer p-3 rounded-lg flex items-center justify-between transition-colors",
-              selectedChapter?.id === chapter.id ? "bg-white/10" : "hover:bg-white/5"
-            )}>
-              <div className="flex items-center gap-3">
-                <BookOpen className="w-5 h-5 text-sky-400 flex-shrink-0" />
-                <span className="font-semibold truncate">{chapter.title}</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            </button>
-          ))}
+  const ChapterList = () => (
+    <div className="space-y-3 p-4">
+      {chapters.map(chapter => (
+        <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 flex items-center cursor-pointer hover:bg-gray-700/50 transition-colors duration-200">
+          <img src={`/icons/zones/${chapter.icon || 'book.webp'}`} alt={chapter.title} className="w-10 h-10 mr-4" />
+          <h3 className="text-xl font-bold text-white">{chapter.title}</h3>
         </div>
-      </ScrollArea>
+      ))}
     </div>
   );
 
-  const ArticleView = (
-    <div className="flex flex-col h-full">
-      {selectedArticle ? (
-        <>
-          <div className="p-4 border-b border-slate-700 flex-shrink-0 flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedArticle(null)}><ArrowLeft className="w-5 h-5" /></Button>
-            <h3 className="text-lg font-bold truncate">{selectedArticle.title}</h3>
+  const ArticleList = () => (
+    <div className="p-4">
+      <Button onClick={() => setSelectedChapter(null)} variant="ghost" className="mb-4 text-white">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Retour aux chapitres
+      </Button>
+      <h2 className="text-3xl font-bold text-center text-white mb-4">{selectedChapter?.title}</h2>
+      <div className="space-y-3">
+        {filteredArticles.map(article => (
+          <div key={article.id} onClick={() => setSelectedArticle(article)} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 flex items-center cursor-pointer hover:bg-gray-700/50 transition-colors duration-200">
+            <img src={`/icons/zones/${article.icon || 'scroll.webp'}`} alt={article.title} className="w-8 h-8 mr-3" />
+            <h4 className="text-lg text-white">{article.title}</h4>
           </div>
-          <ScrollArea className="flex-grow">
-            <article className="prose prose-invert prose-sm sm:prose-base max-w-none p-4 prose-headings:text-white prose-p:text-gray-300 prose-a:text-sky-400 prose-strong:text-white prose-ul:list-disc prose-ol:list-decimal prose-li:text-gray-300">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {selectedArticle.content || "Contenu non disponible."}
-              </ReactMarkdown>
-            </article>
-          </ScrollArea>
-        </>
-      ) : (
-        <>
-          <div className="p-4 border-b border-slate-700 flex-shrink-0 flex items-center gap-2">
-            {isMobile && selectedChapter && <Button variant="ghost" size="icon" onClick={() => setSelectedChapter(null)}><ArrowLeft className="w-5 h-5" /></Button>}
-            <h3 className="text-lg font-bold truncate">{selectedChapter?.title || "Articles"}</h3>
-          </div>
-          <ScrollArea className="flex-grow">
-            <div className="p-2 space-y-2">
-              {filteredArticles.map(article => (
-                <button key={article.id} onClick={() => setSelectedArticle(article)} className="w-full text-left cursor-pointer p-3 rounded-lg flex items-center gap-3 transition-colors hover:bg-white/5 border border-slate-700 bg-white/5">
-                  <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                  <span className="font-semibold truncate">{article.title}</span>
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
-        </>
-      )}
+        ))}
+      </div>
     </div>
   );
+
+  const ArticleView = () => (
+    <div className="p-4 md:p-6">
+      <Button onClick={() => setSelectedArticle(null)} variant="ghost" className="mb-4 text-white">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Retour aux articles
+      </Button>
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">{selectedArticle?.title}</h2>
+      <div className="prose prose-invert max-w-none text-gray-300 prose-p:text-gray-300 prose-headings:text-white">
+        <Markdown remarkPlugins={[remarkGfm]}>
+          {selectedArticle?.content || "Contenu non disponible."}
+        </Markdown>
+      </div>
+    </div>
+  );
+
+  const renderContent = () => {
+    if (loading) {
+      return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>;
+    }
+    if (chapters.length === 0) {
+      return (
+        <div className="flex flex-col justify-center items-center h-full text-white text-center p-4">
+          <BookOpen className="h-16 w-16 mb-4 text-gray-500" />
+          <h2 className="text-2xl font-bold">Le guide est en cours d'écriture...</h2>
+          <p className="text-gray-400">Revenez bientôt pour découvrir tous les secrets du jeu !</p>
+        </div>
+      );
+    }
+    if (selectedArticle) return <ArticleView />;
+    if (selectedChapter) return <ArticleList />;
+    return <ChapterList />;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -130,25 +132,12 @@ const GuideModal = ({ isOpen, onClose }: GuideModalProps) => {
         <DialogHeader className="p-4 border-b border-slate-700 flex-shrink-0">
           <div className="flex items-center justify-center gap-3">
             <BookOpen className="w-7 h-7 text-white" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Guide du Survivant</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-center text-white">Guide du Survivant</DialogTitle>
           </div>
         </DialogHeader>
-        {loading ? (
-          <div className="flex-grow flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>
-        ) : (
-          <div className="flex flex-grow min-h-0">
-            {isMobile ? (
-              <div className="w-full h-full">
-                {!selectedChapter ? ChapterList : ArticleView}
-              </div>
-            ) : (
-              <>
-                <div className="w-1/3 border-r border-slate-700 flex-shrink-0">{ChapterList}</div>
-                <div className="w-2/3">{ArticleView}</div>
-              </>
-            )}
-          </div>
-        )}
+        <div className="flex-grow overflow-y-auto no-scrollbar">
+          {renderContent()}
+        </div>
       </DialogContent>
     </Dialog>
   );
