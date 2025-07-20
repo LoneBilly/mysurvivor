@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Book, FileText, ChevronDown } from 'lucide-react';
-import SimpleMdeReact from 'react-simplemde-editor';
 
 type Chapter = {
   id: number;
@@ -111,14 +110,6 @@ const GuideManager = () => {
       }
     }
   };
-  
-  const mdeOptions = useMemo(() => {
-    return {
-      autofocus: true,
-      spellChecker: false,
-      toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|", "link", "image", "|", "preview", "side-by-side", "fullscreen", "|", "guide"],
-    };
-  }, []);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
@@ -190,12 +181,12 @@ const GuideManager = () => {
               <Input id="chapter-icon" value={currentChapter.icon || ''} onChange={e => setCurrentChapter({ ...currentChapter, icon: e.target.value })} className="bg-gray-900/70 border-gray-700" />
             </div>
           </div>
-          <DialogFooter><Button onClick={handleSaveChapter}>Sauvegarder</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setIsChapterModalOpen(false)}>Annuler</Button><Button onClick={handleSaveChapter}>Sauvegarder</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isArticleModalOpen} onOpenChange={setIsArticleModalOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col bg-gray-800/90 border-gray-700 text-white backdrop-blur-sm">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col bg-gray-800/90 border-gray-700 text-white backdrop-blur-sm">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">{currentArticle.id ? 'Modifier' : 'Créer'} un article</DialogTitle>
           </DialogHeader>
@@ -221,17 +212,11 @@ const GuideManager = () => {
             </div>
             <div>
               <label htmlFor="article-content" className="block text-sm font-medium text-gray-300 mb-1">Contenu (Markdown)</label>
-              <div className="prose-invert">
-                <SimpleMdeReact
-                  id="article-content"
-                  value={currentArticle.content || ''}
-                  onChange={value => setCurrentArticle({ ...currentArticle, content: value })}
-                  options={mdeOptions}
-                />
-              </div>
+              <Textarea id="article-content" value={currentArticle.content || ''} onChange={e => setCurrentArticle({ ...currentArticle, content: e.target.value })} rows={15} className="bg-gray-900/70 border-gray-700" />
             </div>
           </div>
           <DialogFooter className="pt-4 flex-shrink-0 border-t border-gray-700">
+            <Button variant="outline" onClick={() => setIsArticleModalOpen(false)}>Annuler</Button>
             <Button onClick={handleSaveArticle}>Sauvegarder</Button>
           </DialogFooter>
         </DialogContent>
