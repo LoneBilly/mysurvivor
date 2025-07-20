@@ -2,15 +2,14 @@ import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, PlusCircle, Edit, Trash2, ArrowLeft, Book, FileText, GripVertical } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
-import { Label } from '@/components/ui/label';
-import RichTextEditor from './RichTextEditor';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label'; // Added this import
 
 interface Chapter {
   id: number;
@@ -115,22 +114,21 @@ const GuideManager = () => {
 
   const ChapterList = (
     <div className="flex flex-col h-full">
-      <CardHeader className="flex-row items-center justify-between p-4 flex-shrink-0">
-        <CardTitle className="flex items-center gap-2 text-lg"><Book className="w-5 h-5" /> Chapitres</CardTitle>
+      <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
+        <h3 className="text-lg font-bold">Chapitres</h3>
         <Button size="sm" onClick={() => { setEditingChapter({ id: 0, title: '', order: 0 }); setIsChapterModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter</Button>
-      </CardHeader>
-      <CardContent className="p-0 flex-grow overflow-y-auto no-scrollbar">
+      </div>
+      <div className="flex-grow overflow-y-auto no-scrollbar">
         {chapters.map(chapter => (
-          <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className={cn("cursor-pointer p-3 flex items-center gap-3 border-b border-l-4 border-gray-700", selectedChapter?.id === chapter.id ? "bg-blue-500/10 border-l-blue-500" : "border-l-transparent hover:bg-gray-800/50")}>
-            <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <span className="font-semibold truncate flex-1">{chapter.title}</span>
+          <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className={cn("cursor-pointer p-3 flex items-center justify-between border-b border-l-4 border-gray-700", selectedChapter?.id === chapter.id ? "bg-blue-500/10 border-l-blue-500" : "border-l-transparent hover:bg-gray-800/50")}>
+            <span className="font-semibold truncate">{chapter.title}</span>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setEditingChapter(chapter); setIsChapterModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDeleteModal(chapter, 'chapter'); }}><Trash2 className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingChapter(chapter); setIsChapterModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDeleteModal(chapter, 'chapter'); }}><Trash2 className="w-4 h-4" /></Button>
             </div>
           </div>
         ))}
-      </CardContent>
+      </div>
     </div>
   );
 
@@ -138,25 +136,23 @@ const GuideManager = () => {
     <div className="flex flex-col h-full">
       {selectedChapter ? (
         <>
-          <CardHeader className="flex-row items-center justify-between p-4 flex-shrink-0">
-            <CardTitle className="flex items-center gap-2 text-lg">
+          <div className="p-4 border-b border-gray-700 flex-shrink-0 flex justify-between items-center">
+            <div className="flex items-center gap-2">
               {isMobile && <Button variant="ghost" size="icon" onClick={() => setSelectedChapter(null)}><ArrowLeft className="w-5 h-5" /></Button>}
-              <FileText className="w-5 h-5" />
-              <span className="truncate">{selectedChapter.title}</span>
-            </CardTitle>
+              <h3 className="text-lg font-bold truncate">{selectedChapter.title}</h3>
+            </div>
             <Button size="sm" onClick={() => { setEditingArticle({ id: 0, chapter_id: selectedChapter.id, title: '', content: '', order: 0 }); setIsArticleModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter</Button>
-          </CardHeader>
-          <CardContent className="p-0 flex-grow overflow-y-auto no-scrollbar">
+          </div>
+          <div className="flex-grow overflow-y-auto no-scrollbar">
             {filteredArticles.map(article => (
-              <div key={article.id} onClick={() => { setEditingArticle(article); setIsArticleModalOpen(true); }} className="cursor-pointer p-3 flex items-center gap-3 border-b border-gray-700 hover:bg-gray-800/50">
-                <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                <span className="font-semibold truncate flex-1">{article.title}</span>
+              <div key={article.id} onClick={() => { setEditingArticle(article); setIsArticleModalOpen(true); }} className="cursor-pointer p-3 flex items-center justify-between border-b border-gray-700 hover:bg-gray-800/50">
+                <span className="font-semibold truncate">{article.title}</span>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDeleteModal(article, 'article'); }}><Trash2 className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDeleteModal(article, 'article'); }}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             ))}
-          </CardContent>
+          </div>
         </>
       ) : (
         <div className="flex items-center justify-center h-full text-gray-500">
@@ -170,49 +166,34 @@ const GuideManager = () => {
 
   return (
     <>
-      <div className="flex h-full bg-transparent rounded-lg overflow-hidden gap-6">
+      <div className="flex h-full bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
         {isMobile ? (
-          <Card className="w-full bg-gray-800/50 border-gray-700 text-white">
-            {selectedChapter ? ArticleView : ChapterList}
-          </Card>
+          selectedChapter ? ArticleView : ChapterList
         ) : (
           <>
-            <Card className="w-1/3 bg-gray-800/50 border-gray-700 text-white flex flex-col">{ChapterList}</Card>
-            <Card className="w-2/3 bg-gray-800/50 border-gray-700 text-white flex flex-col">{ArticleView}</Card>
+            <div className="w-1/3 border-r border-gray-700">{ChapterList}</div>
+            <div className="w-2/3">{ArticleView}</div>
           </>
         )}
       </div>
 
       <Dialog open={isChapterModalOpen} onOpenChange={setIsChapterModalOpen}>
-        <DialogContent className="sm:max-w-md bg-slate-900/80 backdrop-blur-lg text-white border border-slate-700">
+        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
           <DialogHeader><DialogTitle>{editingChapter?.id ? 'Modifier' : 'Nouveau'} Chapitre</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveChapter} className="py-4 space-y-4">
-            <div><Label htmlFor="chapterTitle">Titre</Label><Input id="chapterTitle" value={editingChapter?.title || ''} onChange={(e) => setEditingChapter(prev => prev ? {...prev, title: e.target.value} : null)} required /></div>
+            <div><Label>Titre</Label><Input value={editingChapter?.title || ''} onChange={(e) => setEditingChapter(prev => prev ? {...prev, title: e.target.value} : null)} required /></div>
             <DialogFooter><Button type="submit">Sauvegarder</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isArticleModalOpen} onOpenChange={setIsArticleModalOpen}>
-        <DialogContent className="max-w-4xl w-full h-[90vh] bg-slate-900/80 backdrop-blur-lg text-white border border-slate-700 flex flex-col">
+        <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
           <DialogHeader><DialogTitle>{editingArticle?.id ? 'Modifier' : 'Nouvel'} Article</DialogTitle></DialogHeader>
-          <form onSubmit={handleSaveArticle} className="flex-1 flex flex-col gap-4 overflow-hidden p-4">
-            <div className="flex-shrink-0">
-              <Label htmlFor="articleTitle">Titre</Label>
-              <Input id="articleTitle" value={editingArticle?.title || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, title: e.target.value} : null)} required />
-            </div>
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <Label className="flex-shrink-0 mb-2">Contenu</Label>
-              <div className="flex-1 overflow-y-auto no-scrollbar -mr-4 pr-4">
-                <RichTextEditor
-                  value={editingArticle?.content || ''}
-                  onChange={(content) => setEditingArticle(prev => prev ? { ...prev, content } : null)}
-                />
-              </div>
-            </div>
-            <DialogFooter className="flex-shrink-0 pt-4">
-              <Button type="submit">Sauvegarder</Button>
-            </DialogFooter>
+          <form onSubmit={handleSaveArticle} className="py-4 space-y-4">
+            <div><Label>Titre</Label><Input value={editingArticle?.title || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, title: e.target.value} : null)} required /></div>
+            <div><Label>Contenu (Markdown)</Label><Textarea value={editingArticle?.content || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, content: e.target.value} : null)} rows={15} /></div>
+            <DialogFooter><Button type="submit">Sauvegarder</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
