@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, ArrowLeft, BookOpen } from 'lucide-react';
+import { Loader2, ArrowLeft, BookOpen, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import * as LucideIcons from "lucide-react";
 
 interface Chapter {
   id: number;
@@ -20,6 +21,12 @@ interface Article {
   content: string | null;
   icon: string | null;
 }
+
+const getIconComponent = (iconName: string | null, fallback: React.ElementType) => {
+  if (!iconName) return fallback;
+  const Icon = (LucideIcons as any)[iconName];
+  return Icon && typeof Icon.render === 'function' ? Icon : fallback;
+};
 
 const GuideModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -68,12 +75,15 @@ const GuideModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 
   const ChapterList = () => (
     <div className="space-y-3 p-4">
-      {chapters.map(chapter => (
-        <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 flex items-center cursor-pointer hover:bg-gray-700/50 transition-colors duration-200">
-          <img src={`/icons/zones/${chapter.icon || 'book.webp'}`} alt={chapter.title} className="w-10 h-10 mr-4" />
-          <h3 className="text-xl font-bold text-white">{chapter.title}</h3>
-        </div>
-      ))}
+      {chapters.map(chapter => {
+        const Icon = getIconComponent(chapter.icon, BookOpen);
+        return (
+          <div key={chapter.id} onClick={() => setSelectedChapter(chapter)} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 flex items-center cursor-pointer hover:bg-gray-700/50 transition-colors duration-200">
+            <Icon className="w-10 h-10 mr-4 text-gray-300" />
+            <h3 className="text-xl font-bold text-white">{chapter.title}</h3>
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -84,12 +94,15 @@ const GuideModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
       </Button>
       <h2 className="text-3xl font-bold text-center text-white mb-4">{selectedChapter?.title}</h2>
       <div className="space-y-3">
-        {filteredArticles.map(article => (
-          <div key={article.id} onClick={() => setSelectedArticle(article)} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 flex items-center cursor-pointer hover:bg-gray-700/50 transition-colors duration-200">
-            <img src={`/icons/zones/${article.icon || 'scroll.webp'}`} alt={article.title} className="w-8 h-8 mr-3" />
-            <h4 className="text-lg text-white">{article.title}</h4>
-          </div>
-        ))}
+        {filteredArticles.map(article => {
+          const Icon = getIconComponent(article.icon, FileText);
+          return (
+            <div key={article.id} onClick={() => setSelectedArticle(article)} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 flex items-center cursor-pointer hover:bg-gray-700/50 transition-colors duration-200">
+              <Icon className="w-8 h-8 mr-3 text-gray-400" />
+              <h4 className="text-lg text-white">{article.title}</h4>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
