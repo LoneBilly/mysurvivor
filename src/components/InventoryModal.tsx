@@ -118,17 +118,23 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
       } else if (dragged.source === 'equipment' && over.target === 'inventory') {
         const extraSlots = dragged.item.items?.effects?.extra_slots || 0;
         if (extraSlots > 0) {
-          const currentUnlockedSlots = playerData.playerState.unlocked_slots;
-          const newUnlockedSlots = currentUnlockedSlots - extraSlots;
-          const highestOccupiedSlot = Math.max(-1, ...playerData.inventory
-            .filter(i => i.slot_position !== null && i.id !== dragged.item.id)
-            .map(i => i.slot_position as number)
-          );
-          
-          if (highestOccupiedSlot >= newUnlockedSlots) {
-            showError("Impossible de déséquiper : des objets se trouvent dans des emplacements qui seraient verrouillés.");
-            return;
-          }
+            const currentUnlockedSlots = playerData.playerState.unlocked_slots;
+            const newUnlockedSlots = currentUnlockedSlots - extraSlots;
+
+            if (over.index >= newUnlockedSlots) {
+                showError("Vous ne pouvez pas placer cet objet dans un emplacement qui sera verrouillé.");
+                return;
+            }
+
+            const highestOccupiedSlot = Math.max(-1, ...playerData.inventory
+                .filter(i => i.slot_position !== null && i.id !== dragged.item.id)
+                .map(i => i.slot_position as number)
+            );
+            
+            if (highestOccupiedSlot >= newUnlockedSlots) {
+                showError("Impossible de déséquiper : des objets se trouvent dans des emplacements qui seraient verrouillés.");
+                return;
+            }
         }
 
         const itemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
