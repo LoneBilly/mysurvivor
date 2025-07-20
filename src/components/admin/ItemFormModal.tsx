@@ -35,7 +35,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [stackable, setStackable] = useState(true);
   const [type, setType] = useState('Items divers');
   const [useActionText, setUseActionText] = useState('Utiliser');
-  const [effects, setEffects] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   
   const [nameExists, setNameExists] = useState(false);
@@ -51,7 +50,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isCraftable, setIsCraftable] = useState(false);
   const [recipeId, setRecipeId] = useState<number | null>(null);
-  const [draftRecipe, setDraftRecipe] = useState<Partial<CraftingRecipe> | null>(null);
+  const [draftRecipe, setDraftRecipe] = useState<Partial<CraftingRecipe> | null>(null); // New state for draft recipe
 
   const [availableIcons, setAvailableIcons] = useState<string[]>([]);
   const [fetchingIcons, setFetchingIcons] = useState(false);
@@ -67,7 +66,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setStackable(item?.stackable ?? true);
       setType(item?.type || 'Items divers');
       setUseActionText(item?.use_action_text || '');
-      setEffects(item?.effects || {});
       setNameExists(false);
       setPreviewUrl(null);
       setIconExists(null);
@@ -79,18 +77,18 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           if (data) {
             setRecipeId(data.id);
             setIsCraftable(true);
-            setDraftRecipe(null);
+            setDraftRecipe(null); // Clear draft if it's an existing item
           } else {
             setRecipeId(null);
             setIsCraftable(false);
-            setDraftRecipe(null);
+            setDraftRecipe(null); // Clear draft if it's an existing item without a recipe
           }
         };
         fetchRecipe();
       } else {
         setRecipeId(null);
         setIsCraftable(false);
-        setDraftRecipe(null);
+        setDraftRecipe(null); // Ensure draft is null for new items initially
       }
 
       if (initialIcon) {
@@ -165,7 +163,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       setIsValidatingIcon(true);
       const url = getPublicIconUrl(debouncedIcon);
       setPreviewUrl(url);
-      setIconExists(!!url);
+      setIconExists(!!url); // Set to true if URL exists, false otherwise
       setIsValidatingIcon(false);
     };
 
@@ -181,11 +179,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     setUseActionText(value);
   };
 
-  const handleEffectChange = (key: string, value: string) => {
-    const numValue = parseFloat(value);
-    setEffects(prev => ({ ...prev, [key]: isNaN(numValue) ? undefined : numValue }));
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (nameExists) {
@@ -196,15 +189,15 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       showError("L'icône spécifiée n'existe pas dans le stockage.");
       return;
     }
-    if (isCraftable && !draftRecipe && !item) {
+    if (isCraftable && !draftRecipe && !item) { // If new item is craftable but no recipe defined yet
       showError("Veuillez définir un blueprint pour cet objet craftable.");
       return;
     }
 
     setLoading(true);
     
-    if (!item) {
-      const { error } = await supabase.rpc('create_item_and_recipe', {
+    if (!item) { // Creating a new item
+      const { data, error } = await supabase.rpc('create_item_and_recipe', {
         p_name: name,
         p_description: description,
         p_icon: icon || null,
@@ -212,7 +205,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         p_type: type,
         p_use_action_text: useActionText || null,
         p_is_craftable: isCraftable,
-        p_effects: effects,
         p_recipe_result_quantity: draftRecipe?.result_quantity || 1,
         p_recipe_slot1_item_id: draftRecipe?.slot1_item_id || null,
         p_recipe_slot1_quantity: draftRecipe?.slot1_quantity || null,
@@ -230,7 +222,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
       }
       showSuccess(`Objet créé !`);
 
-    } else {
+    } else { // Updating an existing item
       const itemDataToUpdate = {
         name,
         description,
@@ -238,8 +230,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         stackable,
         type,
         use_action_text: useActionText || null,
-        effects,
-        recipe_id: isCraftable ? recipeId : null,
+        recipe_id: isCraftable ? recipeId : null, // Keep existing recipeId or set to null if no longer craftable
       };
 
       const { error: updateItemError } = await supabase.from('items').update(itemDataToUpdate).eq('id', item.id);
@@ -249,6 +240,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
         return;
       }
 
+      // If item is no longer craftable, remove its recipe
       if (!isCraftable && item.recipe_id) {
         await supabase.from('items').update({ recipe_id: null }).eq('id', item.id);
         await supabase.from('crafting_recipes').delete().eq('result_item_id', item.id);
@@ -276,8 +268,9 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     setLoading(false);
   };
 
+  // Create a dummy item object for RecipeEditorModal if it's a new item
   const currentItemForRecipeEditor: Item = item || {
-    id: -1,
+    id: -1, // Temporary ID, will be replaced by RPC
     name: name || 'Nouvel Objet',
     description: description || '',
     icon: icon || null,
@@ -285,21 +278,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
     type: type,
     use_action_text: useActionText || '',
     created_at: new Date().toISOString(),
-  };
-
-  const renderEffectFields = () => {
-    switch (type) {
-      case 'Sac à dos':
-        return <div><Label>Slots supplémentaires</Label><Input type="number" value={effects.extra_slots || ''} onChange={(e) => handleEffectChange('extra_slots', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      case 'Armure':
-        return <div><Label>Bonus de vie</Label><Input type="number" value={effects.hp_bonus || ''} onChange={(e) => handleEffectChange('hp_bonus', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      case 'Vehicule':
-        return <div><Label>Multiplicateur coût énergie (ex: 0.8)</Label><Input type="number" step="0.01" value={effects.energy_multiplier || ''} onChange={(e) => handleEffectChange('energy_multiplier', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      case 'Chaussures':
-        return <div><Label>Multiplicateur temps exploration (ex: 0.9)</Label><Input type="number" step="0.01" value={effects.exploration_multiplier || ''} onChange={(e) => handleEffectChange('exploration_multiplier', e.target.value)} className="mt-1 bg-white/5 border-white/20" /></div>;
-      default:
-        return null;
-    }
   };
 
   return (
@@ -343,19 +321,14 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
               >
                 <option value="Ressources">Ressources</option>
                 <option value="Armes">Armes</option>
-                <option value="Armure">Armure</option>
-                <option value="Sac à dos">Sac à dos</option>
-                <option value="Chaussures">Chaussures</option>
-                <option value="Vehicule">Vehicule</option>
                 <option value="Nourriture">Nourriture</option>
                 <option value="Soins">Soins</option>
                 <option value="Outils">Outils</option>
-                <option value="Équipements">Équipements</option>
+                <option value="Équipements">Équipements</option> {/* Added 'Équipements' */}
                 <option value="Items divers">Items divers</option>
                 <option value="Items craftés">Items craftés</option>
               </select>
             </div>
-            {renderEffectFields()}
             <div>
               <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
               <div className="flex items-center gap-2 mt-1">
@@ -444,12 +417,13 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave }: ItemFormModalProps) =>
           onSave={(recipeData) => {
             setDraftRecipe(recipeData);
             setIsRecipeModalOpen(false);
+            // If it's an existing item and a recipe was just saved, update recipeId state
             if (item && recipeData.id) {
               setRecipeId(recipeData.id as number);
             }
           }}
           isNewItem={!item}
-          initialRecipeData={draftRecipe}
+          initialRecipeData={draftRecipe} // Pass draft recipe data
         />
       )}
     </>

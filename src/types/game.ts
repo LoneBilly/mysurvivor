@@ -12,24 +12,15 @@ export interface ItemDetails {
   type?: string;
   use_action_text: string;
   stackable: boolean;
-  effects?: Record<string, any>;
 }
 
 export interface InventoryItem {
   id: number;
   item_id: number;
   quantity: number;
-  slot_position: number | null;
+  slot_position: number;
   items: ItemDetails | null;
   workbench_id?: number;
-}
-
-export interface Equipment {
-  armor: InventoryItem | null;
-  backpack: InventoryItem | null;
-  weapon: InventoryItem | null;
-  shoes: InventoryItem | null;
-  vehicle: InventoryItem | null;
 }
 
 export interface BaseConstruction {
@@ -129,7 +120,6 @@ export interface ChestItem {
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
-  equipment: Equipment;
   baseConstructions: BaseConstruction[];
   scoutingMissions: ScoutingMission[];
   constructionJobs?: ConstructionJob[];
@@ -142,7 +132,7 @@ export interface MapCell {
   id: number;
   x: number;
   y: number;
-  type: string | null;
+  type: string;
   icon: string | null;
   interaction_type: 'Ressource' | 'Action' | 'Non défini';
 }
@@ -156,7 +146,6 @@ export interface Item {
   icon: string | null;
   type: string;
   use_action_text: string;
-  effects?: Record<string, any>;
 }
 
 export interface MarketListing {

@@ -1,251 +1,330 @@
-import { useState, useRef, useEffect } from 'react';
-import { useGame } from '@/contexts/GameContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import { TouchBackend } from 'react-dnd-touch-backend';
-import { isMobile } from 'react-device-detect';
-import { InventoryItem, Equipment } from '@/types/game';
-import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
-import { getPublicIconUrl } from '@/utils/imageUrls';
-import { Backpack, Shield, Sword, Footprints, Car, Trash2 } from 'lucide-react';
-import ItemTooltip from './ItemTooltip';
-import ActionModal from './ActionModal';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
+import {
+  Dialog,
+  CustomDialogContent as DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/CustomDialog";
+import { Package, Loader2 } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import InventorySlot from "./InventorySlot";
+import { showError, showSuccess } from "@/utils/toast";
+import { InventoryItem } from "@/types/game";
+import ItemDetailModal from "./ItemDetailModal";
+import { useAuth } from "@/contexts/AuthContext";
 
-const ItemTypes = {
-  INVENTORY_ITEM: 'inventoryItem',
-  EQUIPMENT_ITEM: 'equipmentItem',
-};
-
-const DraggableItem = ({ item }: { item: InventoryItem }) => {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: item.slot_position !== null ? ItemTypes.INVENTORY_ITEM : ItemTypes.EQUIPMENT_ITEM,
-    item: { ...item },
-    collect: (monitor) => ({
-      isDragging: !!monitor.isDragging(),
-    }),
-  }));
-
-  if (!item.items) return null;
-
-  return (
-    <div
-      ref={drag}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
-      className="w-full h-full cursor-grab active:cursor-grabbing flex items-center justify-center relative"
-    >
-      <ItemTooltip item={item}>
-        <div className="relative w-full h-full flex items-center justify-center">
-          <img src={getPublicIconUrl(item.items.icon)} alt={item.items.name} className="max-w-full max-h-full object-contain p-1" />
-          {item.quantity > 1 && (
-            <span className="absolute bottom-0 right-0 text-xs font-bold bg-slate-800/80 text-white rounded-full px-1.5 py-0.5 leading-none">
-              {item.quantity}
-            </span>
-          )}
-        </div>
-      </ItemTooltip>
-    </div>
-  );
-};
-
-interface InventorySlotProps {
-  slot: number;
-  item: InventoryItem | undefined;
-  onDrop: (item: InventoryItem, targetSlot: number) => void;
+interface InventoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  inventory: InventoryItem[];
+  unlockedSlots: number;
+  onUpdate: () => Promise<void>;
 }
 
-const InventorySlot = ({ slot, item, onDrop }: InventorySlotProps) => {
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: [ItemTypes.INVENTORY_ITEM, ItemTypes.EQUIPMENT_ITEM],
-    drop: (draggedItem: InventoryItem) => onDrop(draggedItem, slot),
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-    }),
-  }));
+const TOTAL_SLOTS = 50;
 
-  return (
-    <div
-      ref={drop}
-      className={`aspect-square rounded-lg border ${isOver ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700'} bg-slate-800/50 flex items-center justify-center transition-colors duration-200`}
-    >
-      {item && <DraggableItem item={item} />}
-    </div>
-  );
-};
-
-interface EquipmentSlotProps {
-  type: keyof Equipment;
-  item: InventoryItem | null;
-  onDrop: (item: InventoryItem, targetSlot: string) => void;
-}
-
-const EquipmentSlot = ({ type, item, onDrop }: EquipmentSlotProps) => {
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: ItemTypes.INVENTORY_ITEM,
-    drop: (draggedItem: InventoryItem) => onDrop(draggedItem, type),
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-    }),
-  }));
-
-  const icons = {
-    backpack: <Backpack className="w-8 h-8 text-slate-600" />,
-    armor: <Shield className="w-8 h-8 text-slate-600" />,
-    weapon: <Sword className="w-8 h-8 text-slate-600" />,
-    shoes: <Footprints className="w-8 h-8 text-slate-600" />,
-    vehicle: <Car className="w-8 h-8 text-slate-600" />,
-  };
-
-  return (
-    <div
-      ref={drop}
-      className={`w-full aspect-square rounded-lg border-2 ${isOver ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700'} bg-slate-800/50 flex items-center justify-center transition-colors duration-200`}
-    >
-      {item ? <DraggableItem item={item} /> : icons[type]}
-    </div>
-  );
-};
-
-const InventoryModal = () => {
-  const { isInventoryOpen, closeInventory, playerData, setPlayerData, refreshPlayerData } = useGame();
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [isDropModalOpen, setIsDropModalOpen] = useState(false);
-  const [itemToDrop, setItemToDrop] = useState<InventoryItem | null>(null);
-  const [dropQuantity, setDropQuantity] = useState(1);
+const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }: InventoryModalProps) => {
+  const { user } = useAuth();
+  const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
+  const [loading, setLoading] = useState(true);
+  const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
+  
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (itemToDrop) {
-      setDropQuantity(itemToDrop.quantity);
-    }
-  }, [itemToDrop]);
-
-  if (!playerData) return null;
-
-  const { inventory, equipment, playerState } = playerData;
-  const inventoryItems = inventory.filter(item => item.slot_position !== null);
-  const unlockedSlots = playerState.unlocked_slots;
-
-  const handleDrop = async (draggedItem: InventoryItem, target: number | string) => {
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-    let rpcPromise;
-
-    if (typeof target === 'number') { // Dropped on inventory slot
-      if (draggedItem.slot_position === target) return;
-
-      if (draggedItem.slot_position !== null) { // inventory -> inventory
-        rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: draggedItem.slot_position, p_to_slot: target });
-      } else { // equipment -> inventory
-        rpcPromise = supabase.rpc('unequip_item_to_slot', { p_inventory_id: draggedItem.id, p_target_slot: target });
+    setLoading(true);
+    const newSlots = Array(TOTAL_SLOTS).fill(null);
+    inventory.forEach((item) => {
+      if (item.slot_position !== null && item.slot_position < TOTAL_SLOTS) {
+        newSlots[item.slot_position] = item;
       }
-    } else if (typeof target === 'string') { // Dropped on equipment slot
-      if (draggedItem.slot_position === null) return;
-      rpcPromise = supabase.rpc('equip_item', { p_inventory_id: draggedItem.id, p_slot_type: target });
+    });
+    setSlots(newSlots);
+    setLoading(false);
+  }, [inventory]);
+
+  const stopAutoScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(async () => {
+    stopAutoScroll();
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
     }
 
-    if (!rpcPromise) return;
+    const fromIndex = draggedItemIndex;
+    const toIndex = dragOverIndex;
 
-    // No optimistic update for now, just refresh
-    const { error } = await rpcPromise;
-    if (error) {
-      showError(error.message);
+    setDraggedItemIndex(null);
+    setDragOverIndex(null);
+
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex || !user) return;
+    if (toIndex >= unlockedSlots) {
+      showError("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
+      return;
     }
-    await refreshPlayerData();
-  };
 
-  const handleDropOnTrash = async (item: InventoryItem) => {
-    setItemToDrop(item);
-    setIsDropModalOpen(true);
-  };
-
-  const confirmDrop = async () => {
-    if (!itemToDrop) return;
+    const originalSlots = [...slots];
+    const newSlots = [...slots];
+    const fromItem = newSlots[fromIndex];
     
-    const { error } = await supabase.from('inventories').delete().eq('id', itemToDrop.id);
+    if (!fromItem) return;
+
+    const toItem = newSlots[toIndex];
+
+    // Optimistic update
+    if (toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+      const fromItemInArr = newSlots[fromIndex]!;
+      const toItemInArr = newSlots[toIndex]!;
+      toItemInArr.quantity += fromItemInArr.quantity;
+      newSlots[fromIndex] = null;
+    } else {
+      const fromItemInArr = newSlots[fromIndex];
+      const toItemInArr = newSlots[toIndex];
+      newSlots[fromIndex] = toItemInArr;
+      newSlots[toIndex] = fromItemInArr;
+      if (fromItemInArr) fromItemInArr.slot_position = toIndex;
+      if (toItemInArr) toItemInArr.slot_position = fromIndex;
+    }
+    setSlots(newSlots);
+
+    const { error } = await supabase.rpc('swap_inventory_items', {
+        p_from_slot: fromIndex,
+        p_to_slot: toIndex
+    });
 
     if (error) {
-      showError(error.message);
+        showError("Erreur de mise à jour de l'inventaire.");
+        console.error(error);
+        setSlots(originalSlots);
     } else {
-      showSuccess(`${itemToDrop.items?.name} jeté.`);
+        onUpdate();
     }
-    setIsDropModalOpen(false);
-    setItemToDrop(null);
-    await refreshPlayerData();
+  }, [draggedItemIndex, dragOverIndex, slots, unlockedSlots, stopAutoScroll, user, onUpdate]);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    let newDragOverIndex: number | null = null;
+    if (gridRef.current) {
+      const slotElements = Array.from(gridRef.current.children);
+      for (const slot of slotElements) {
+        const rect = slot.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          const potentialIndex = parseInt((slot as HTMLElement).dataset.slotIndex || '-1', 10);
+          if (potentialIndex !== -1 && potentialIndex < unlockedSlots) newDragOverIndex = potentialIndex;
+          break;
+        }
+      }
+    }
+    setDragOverIndex(newDragOverIndex);
+
+    const gridEl = gridRef.current;
+    if (!gridEl) return;
+    const rect = gridEl.getBoundingClientRect();
+    const scrollThreshold = 60;
+
+    stopAutoScroll();
+
+    if (clientY < rect.top + scrollThreshold) {
+      const scroll = () => {
+        gridEl.scrollTop -= 10;
+        scrollIntervalRef.current = requestAnimationFrame(scroll);
+      };
+      scroll();
+    } else if (clientY > rect.bottom - scrollThreshold) {
+      const scroll = () => {
+        gridEl.scrollTop += 10;
+        scrollIntervalRef.current = requestAnimationFrame(scroll);
+      };
+      scroll();
+    }
+  }, [unlockedSlots, stopAutoScroll]);
+
+  const handleDragStart = useCallback((index: number, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItemIndex(index);
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  }, [handleDragMove]);
+
+  const handleItemClick = (item: InventoryItem) => {
+    setDetailedItem(item);
   };
 
-  const slots = Array.from({ length: unlockedSlots }, (_, i) => i);
+  const handleUseItem = () => {
+    showError("Cette fonctionnalité n'est pas encore disponible.");
+  };
 
-  const backend = isMobile ? TouchBackend : HTML5Backend;
+  const handleDropOneItem = async () => {
+    if (!detailedItem) return;
+
+    let error;
+    if (detailedItem.quantity > 1) {
+      ({ error } = await supabase
+        .from('inventories')
+        .update({ quantity: detailedItem.quantity - 1 })
+        .eq('id', detailedItem.id));
+    } else {
+      ({ error } = await supabase
+        .from('inventories')
+        .delete()
+        .eq('id', detailedItem.id));
+    }
+
+    if (error) {
+      showError("Erreur lors de la suppression de l'objet.");
+    } else {
+      showSuccess("Objet jeté.");
+      setDetailedItem(null);
+      onUpdate();
+    }
+  };
+
+  const handleDropAllItems = async () => {
+    if (!detailedItem) return;
+
+    const { error } = await supabase
+      .from('inventories')
+      .delete()
+      .eq('id', detailedItem.id);
+
+    if (error) {
+      showError("Erreur lors de la suppression des objets.");
+    } else {
+      showSuccess("Objets jetés.");
+      setDetailedItem(null);
+      onUpdate();
+    }
+  };
+
+  const handleSplitItem = async (item: InventoryItem, quantity: number) => {
+    if (!item) return;
+    setDetailedItem(null);
+  
+    const { error } = await supabase.rpc('split_inventory_item', {
+      p_inventory_id: item.id,
+      p_split_quantity: quantity,
+    });
+  
+    if (error) {
+      showError(error.message || "Erreur lors de la division de l'objet.");
+    } else {
+      showSuccess("La pile d'objets a été divisée.");
+      onUpdate();
+    }
+  };
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItemIndex !== null) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+      stopAutoScroll();
+    };
+  }, [draggedItemIndex, handleDragMove, handleDragEnd, stopAutoScroll]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (draggedItemNode.current) {
+        document.body.removeChild(draggedItemNode.current);
+        draggedItemNode.current = null;
+      }
+      setDraggedItemIndex(null);
+      setDragOverIndex(null);
+      stopAutoScroll();
+    }
+  }, [isOpen, stopAutoScroll]);
 
   return (
-    <>
-      <Dialog open={isInventoryOpen} onOpenChange={closeInventory}>
-        <DialogContent className="max-w-4xl bg-slate-900/80 backdrop-blur-lg text-white border-slate-700 shadow-2xl rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-white font-mono tracking-wider uppercase">Inventaire</DialogTitle>
-            <DialogDescription className="sr-only">Gérez votre inventaire et votre équipement.</DialogDescription>
-          </DialogHeader>
-          <DndProvider backend={backend} options={{ enableMouseEvents: true }}>
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-4 p-1">
-              <div>
-                <h3 className="font-bold text-lg mb-2 text-slate-300">Contenu du sac</h3>
-                <div
-                  ref={gridRef}
-                  className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[50vh] overflow-y-auto"
-                >
-                  {slots.map(slotIndex => {
-                    const itemInSlot = inventoryItems.find(i => i.slot_position === slotIndex);
-                    return <InventorySlot key={slotIndex} slot={slotIndex} item={itemInSlot} onDrop={handleDrop} />;
-                  })}
-                </div>
-              </div>
-              <div className="flex flex-col gap-4">
-                <h3 className="font-bold text-lg mb-2 text-slate-300">Équipement</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(equipment) as Array<keyof Equipment>).map(type => (
-                    <EquipmentSlot key={type} type={type} item={equipment[type]} onDrop={handleDrop} />
-                  ))}
-                </div>
-                <TrashDropZone onDrop={handleDropOnTrash} />
-              </div>
-            </div>
-          </DndProvider>
-        </DialogContent>
-      </Dialog>
-      <ActionModal
-        isOpen={isDropModalOpen}
-        onClose={() => setIsDropModalOpen(false)}
-        title={`Jeter ${itemToDrop?.items?.name}`}
-        description={
-          <div>
-            <p>Êtes-vous sûr de vouloir jeter cet objet ? Cette action est irréversible.</p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent 
+        className="max-w-3xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6"
+      >
+        <DialogHeader className="text-center mb-4">
+          <div className="flex items-center justify-center gap-3">
+            <Package className="w-7 h-7 text-white" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Inventaire</DialogTitle>
           </div>
-        }
-        actions={[
-          { label: `Jeter`, onClick: confirmDrop, variant: "destructive" },
-          { label: "Annuler", onClick: () => setIsDropModalOpen(false), variant: "secondary" },
-        ]}
-      />
-    </>
-  );
-};
-
-const TrashDropZone = ({ onDrop }: { onDrop: (item: InventoryItem) => void }) => {
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: [ItemTypes.INVENTORY_ITEM, ItemTypes.EQUIPMENT_ITEM],
-    drop: (item: InventoryItem) => onDrop(item),
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-    }),
-  }));
-
-  return (
-    <div ref={drop} className={`mt-auto p-4 rounded-lg border-2 ${isOver ? 'border-red-500 bg-red-500/20' : 'border-dashed border-slate-700'} flex flex-col items-center justify-center gap-2 text-slate-500 transition-colors`}>
-      <Trash2 className="w-8 h-8" />
-      <span>Jeter l'objet</span>
-    </div>
+          <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
+            <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS DÉBLOQUÉS
+          </DialogDescription>
+        </DialogHeader>
+        <div
+          ref={gridRef}
+          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[60vh] overflow-y-auto"
+        >
+          {loading ? (
+            <div className="h-full w-full flex items-center justify-center col-span-full row-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+          ) : (
+            slots.map((item, index) => (
+              <InventorySlot
+                key={index}
+                item={item}
+                index={index}
+                isUnlocked={index < unlockedSlots}
+                onDragStart={handleDragStart}
+                onItemClick={handleItemClick}
+                isBeingDragged={draggedItemIndex === index}
+                isDragOver={dragOverIndex === index}
+              />
+            ))
+          )}
+        </div>
+        <ItemDetailModal
+          isOpen={!!detailedItem}
+          onClose={() => setDetailedItem(null)}
+          item={detailedItem}
+          onUse={handleUseItem}
+          onDropOne={handleDropOneItem}
+          onDropAll={handleDropAllItems}
+          onSplit={handleSplitItem}
+          source="inventory"
+          onUpdate={onUpdate}
+        />
+      </DialogContent>
+    </Dialog>
   );
 };
 
