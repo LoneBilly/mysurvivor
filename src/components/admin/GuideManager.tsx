@@ -9,6 +9,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
+import { Label } from '@/components/ui/label'; // Added this import
 
 interface Chapter {
   id: number;
