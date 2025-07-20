@@ -79,7 +79,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     try {
       const newPlayerData = JSON.parse(JSON.stringify(playerData));
 
-      // --- INVENTORY to INVENTORY (SWAP/MOVE) ---
+      // --- INVENTORY to INVENTORY (SWAP/MOVE/MERGE) ---
       if (dragged.source === 'inventory' && over.target === 'inventory') {
         if (dragged.item.slot_position === over.index) return;
 
@@ -88,12 +88,21 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
         
         if (fromItemIndex === -1) throw new Error("Dragged item not found");
 
-        if (toItem) { // Swap
-          const toItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
-          newPlayerData.inventory[fromItemIndex].slot_position = over.index;
-          newPlayerData.inventory[toItemIndex].slot_position = dragged.item.slot_position;
-        } else { // Move to empty slot
-          newPlayerData.inventory[fromItemIndex].slot_position = over.index;
+        // MERGE logic
+        if (toItem && toItem.item_id === dragged.item.item_id && toItem.items?.stackable) {
+            const toItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
+            newPlayerData.inventory[toItemIndex].quantity += dragged.item.quantity;
+            newPlayerData.inventory.splice(fromItemIndex, 1);
+        } 
+        // SWAP/MOVE logic
+        else {
+            if (toItem) { // Swap
+                const toItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
+                newPlayerData.inventory[fromItemIndex].slot_position = over.index;
+                newPlayerData.inventory[toItemIndex].slot_position = dragged.item.slot_position;
+            } else { // Move to empty slot
+                newPlayerData.inventory[fromItemIndex].slot_position = over.index;
+            }
         }
         
         setPlayerData(newPlayerData);
@@ -301,6 +310,46 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
     if (!item) return;
     setDetailedItem(null);
   
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+  
+    // --- Optimistic Update ---
+    try {
+      const newPlayerData = JSON.parse(JSON.stringify(playerData));
+      
+      const usedSlots = new Set(newPlayerData.inventory.map((i: InventoryItem) => i.slot_position));
+      let nextEmptySlot = -1;
+      for (let i = 0; i < newPlayerData.playerState.unlocked_slots; i++) {
+        if (!usedSlots.has(i)) {
+          nextEmptySlot = i;
+          break;
+        }
+      }
+  
+      if (nextEmptySlot === -1) {
+        showError("Votre inventaire est plein. Impossible de diviser l'objet.");
+        return;
+      }
+  
+      const originalItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === item.id);
+      if (originalItemIndex === -1) throw new Error("Item not found");
+      newPlayerData.inventory[originalItemIndex].quantity -= quantity;
+  
+      const newItem: InventoryItem = {
+        ...newPlayerData.inventory[originalItemIndex],
+        id: Date.now(), // Temporary client-side ID
+        quantity: quantity,
+        slot_position: nextEmptySlot,
+      };
+      newPlayerData.inventory.push(newItem);
+  
+      setPlayerData(newPlayerData);
+    } catch (e) {
+      console.error("Optimistic split failed", e);
+      setPlayerData(originalPlayerData);
+      return;
+    }
+    // --- End Optimistic Update ---
+  
     const { error } = await supabase.rpc('split_inventory_item', {
       p_inventory_id: item.id,
       p_split_quantity: quantity,
@@ -308,9 +357,10 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   
     if (error) {
       showError(error.message || "Erreur lors de la division de l'objet.");
+      setPlayerData(originalPlayerData);
     } else {
       showSuccess("La pile d'objets a été divisée.");
-      onUpdate();
+      await onUpdate();
     }
   };
 
