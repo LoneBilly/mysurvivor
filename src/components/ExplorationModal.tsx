@@ -52,12 +52,11 @@ interface PotentialInfo {
   description: string | null;
 }
 
-interface ExplorationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  zone: MapCell | null;
-  onUpdate: () => void;
-  onOpenInventory: () => void;
+interface DetailedInfoData extends PotentialInfo {
+  bonus?: {
+    total: number;
+    sources: { name: string; icon: string | null }[];
+  };
 }
 
 const resourceToEffectMap: { [key: string]: string } = {
@@ -79,7 +78,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [eventResult, setEventResult] = useState<EventResult | null>(null);
   const [inventoryFullError, setInventoryFullError] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
-  const [detailedInfo, setDetailedInfo] = useState<PotentialInfo | null>(null);
+  const [detailedInfo, setDetailedInfo] = useState<DetailedInfoData | null>(null);
 
   const resourceBoosts = useMemo(() => {
     const boosts: Record<string, number> = {};
@@ -95,6 +94,31 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       }
     }
     return boosts;
+  }, [playerData.inventory, playerData.equipment]);
+
+  const getBoostDetails = useCallback((resourceName: string): DetailedInfoData['bonus'] | undefined => {
+    const effectKey = resourceToEffectMap[resourceName];
+    if (!effectKey) return undefined;
+
+    const allPlayerItems = [...playerData.inventory, ...Object.values(playerData.equipment).filter(Boolean)];
+    let totalBonus = 0;
+    const sources: { name: string; icon: string | null }[] = [];
+
+    for (const playerItem of allPlayerItems) {
+      if (playerItem?.items?.effects && playerItem.items.effects[effectKey]) {
+        const bonusValue = playerItem.items.effects[effectKey] as number;
+        totalBonus += bonusValue;
+        sources.push({ name: playerItem.items.name, icon: playerItem.items.icon });
+      }
+    }
+
+    if (totalBonus > 0) {
+      return {
+        total: totalBonus,
+        sources: sources,
+      };
+    }
+    return undefined;
   }, [playerData.inventory, playerData.equipment]);
 
   const fetchZoneInfo = useCallback(async () => {
@@ -358,7 +382,10 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                             <TooltipProvider key={`${item.name}-${index}`} delayDuration={100}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button onClick={() => setDetailedInfo(item)} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
+                                  <button onClick={() => {
+                                    const bonusDetails = getBoostDetails(item.name);
+                                    setDetailedInfo({ ...item, bonus: bonusDetails });
+                                  }} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
                                     <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
                                     {boost > 0 && (
                                       <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
@@ -432,6 +459,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         title={detailedInfo?.name || ''}
         description={detailedInfo?.description || null}
         icon={detailedInfo?.icon || null}
+        bonus={detailedInfo?.bonus}
       />
     </>
   );

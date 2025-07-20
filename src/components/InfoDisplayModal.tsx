@@ -1,9 +1,13 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import ItemIcon from "./ItemIcon";
 import { useGame } from "@/contexts/GameContext";
-import { DiscoverableZone } from "@/types/game";
-import { cn } from "@/lib/utils";
-import * as LucideIcons from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface InfoDisplayModalProps {
   isOpen: boolean;
@@ -11,12 +15,14 @@ interface InfoDisplayModalProps {
   title: string;
   description: string | null;
   icon: string | null;
-  adjacentZones?: DiscoverableZone[] | null;
+  bonus?: {
+    total: number;
+    sources: { name: string; icon: string | null }[];
+  };
 }
 
-const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZones }: InfoDisplayModalProps) => {
+const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, bonus }: InfoDisplayModalProps) => {
   const { getIconUrl } = useGame();
-  const iconUrl = getIconUrl(icon);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -24,37 +30,46 @@ const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZ
         <DialogHeader>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-lg bg-slate-700/50 border-slate-600 flex-shrink-0 relative p-1">
-              <ItemIcon iconName={iconUrl || icon} alt={title} />
+              <ItemIcon iconName={getIconUrl(icon) || icon} alt={title} />
             </div>
             <div>
-              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">{title}</DialogTitle>
+              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+                {title}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Détails pour {title}.
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
-        <div className="py-4">
-          {description ? (
+        <div className="py-4 space-y-4">
+          {description && (
             <p className="text-gray-300">{description}</p>
-          ) : (
-            <p className="text-gray-400 italic">Aucune description disponible.</p>
-          )}
-          {adjacentZones && (
-            <div className="mt-4">
-              <h4 className="font-semibold mb-2">Zones adjacentes potentiellement découvertes :</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {adjacentZones.map(zone => {
-                  const Icon = (LucideIcons as any)[zone.icon || 'MapPin'];
-                  return (
-                    <div key={zone.id} className={cn("p-2 rounded-md flex flex-col items-center", zone.is_discovered ? "bg-green-500/20 border border-green-500/30" : "bg-blue-500/20 border-blue-500/30")}>
-                      <Icon className="w-6 h-6 mb-1" />
-                      <span className="text-xs text-center">{zone.type}</span>
-                      {zone.is_discovered && <span className="text-xs text-green-300">(Déjà découvert)</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           )}
         </div>
+        {bonus && bonus.total > 0 && (
+          <div className="mt-2 pt-4 border-t border-slate-600">
+            <h4 className="font-semibold text-lg text-green-400 mb-2">Bonus de Récolte</h4>
+            <p className="text-2xl font-bold text-white mb-3">+{bonus.total}%</p>
+            <p className="text-sm text-gray-400 mb-2">Grâce à :</p>
+            <div className="flex flex-wrap gap-2">
+              {bonus.sources.map((source, index) => (
+                <TooltipProvider key={index} delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600">
+                        <ItemIcon iconName={getIconUrl(source.icon) || source.icon} alt={source.name} />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
+                      <p>{source.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ))}
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
