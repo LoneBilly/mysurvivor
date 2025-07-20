@@ -28,9 +28,10 @@ const TOTAL_SLOTS = 50;
 
 const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }: InventoryModalProps) => {
   const { user } = useAuth();
-  const { playerData, setPlayerData } = useGame();
+  const { playerData } = useGame();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   
   const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'equipment' } | null>(null);
@@ -73,108 +74,21 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
     if (!dragged || !over || !user) return;
 
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    setActionLoading(true);
     let rpcPromise;
 
     try {
-      const newPlayerData = JSON.parse(JSON.stringify(playerData));
-
-      // --- INVENTORY to INVENTORY (SWAP/MOVE/MERGE) ---
       if (dragged.source === 'inventory' && over.target === 'inventory') {
         if (dragged.item.slot_position === over.index) return;
-
-        const fromItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === dragged.item.id);
-        const toItem = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === over.index);
-        
-        if (fromItemIndex === -1) throw new Error("Dragged item not found");
-
-        // MERGE logic
-        if (toItem && toItem.item_id === dragged.item.item_id && toItem.items?.stackable) {
-            const toItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
-            newPlayerData.inventory[toItemIndex].quantity += dragged.item.quantity;
-            newPlayerData.inventory.splice(fromItemIndex, 1);
-        } 
-        // SWAP/MOVE logic
-        else {
-            if (toItem) { // Swap
-                const toItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === toItem.id);
-                newPlayerData.inventory[fromItemIndex].slot_position = over.index;
-                newPlayerData.inventory[toItemIndex].slot_position = dragged.item.slot_position;
-            } else { // Move to empty slot
-                newPlayerData.inventory[fromItemIndex].slot_position = over.index;
-            }
-        }
-        
-        setPlayerData(newPlayerData);
         rpcPromise = supabase.rpc('swap_inventory_items', { p_from_slot: dragged.item.slot_position, p_to_slot: over.index });
       }
-      // --- EQUIPMENT to INVENTORY (UNEQUIP/SWAP) ---
       else if (dragged.source === 'equipment' && over.target === 'inventory') {
-        const itemToUnequip = dragged.item;
-        const itemInTargetSlot = newPlayerData.inventory.find((i: InventoryItem) => i.slot_position === over.index);
-        
-        const unequippedSlots = itemToUnequip.items?.effects?.extra_slots || 0;
-        const equippedSlots = itemInTargetSlot?.items?.effects?.extra_slots || 0;
-        newPlayerData.playerState.unlocked_slots += equippedSlots - unequippedSlots;
-
-        const slotType = (Object.keys(newPlayerData.equipment) as EquipmentSlotType[]).find(
-            key => newPlayerData.equipment[key]?.id === itemToUnequip.id
-        );
-        if (!slotType) throw new Error("Equipped item slot not found");
-
-        const itemToUnequipIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === itemToUnequip.id);
-        newPlayerData.inventory[itemToUnequipIndex].slot_position = over.index;
-
-        if (itemInTargetSlot) { // Swap
-            const itemInTargetSlotIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === itemInTargetSlot.id);
-            newPlayerData.inventory[itemInTargetSlotIndex].slot_position = null;
-            newPlayerData.equipment[slotType] = itemInTargetSlot;
-        } else { // Unequip to empty slot
-            newPlayerData.equipment[slotType] = null;
-        }
-
-        setPlayerData(newPlayerData);
         rpcPromise = supabase.rpc('unequip_item_to_slot', { p_inventory_id: dragged.item.id, p_target_slot: over.index });
       }
-      // --- INVENTORY to EQUIPMENT (EQUIP/SWAP) ---
       else if (dragged.source === 'inventory' && over.target === 'equipment') {
-        const itemToEquip = dragged.item;
-        const itemInTargetSlot = newPlayerData.equipment[over.type];
-
-        const equippedSlots = itemToEquip.items?.effects?.extra_slots || 0;
-        const unequippedSlots = itemInTargetSlot?.items?.effects?.extra_slots || 0;
-        newPlayerData.playerState.unlocked_slots += equippedSlots - unequippedSlots;
-
-        const itemToEquipIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === itemToEquip.id);
-        newPlayerData.inventory[itemToEquipIndex].slot_position = null;
-        
-        if (itemInTargetSlot) { // Swap
-            const itemInTargetSlotIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === itemInTargetSlot.id);
-            newPlayerData.inventory[itemInTargetSlotIndex].slot_position = itemToEquip.slot_position;
-        }
-        
-        newPlayerData.equipment[over.type] = itemToEquip;
-
-        setPlayerData(newPlayerData);
         rpcPromise = supabase.rpc('equip_item', { p_inventory_id: dragged.item.id, p_slot_type: over.type });
       }
-      // --- EQUIPMENT to EQUIPMENT (SWAP) ---
       else if (dragged.source === 'equipment' && over.target === 'equipment') {
-        const fromSlotType = (Object.keys(newPlayerData.equipment) as EquipmentSlotType[]).find(
-            key => newPlayerData.equipment[key]?.id === dragged.item.id
-        );
-        if (!fromSlotType) throw new Error("Source equipment slot not found");
-
-        const itemToUnequip = newPlayerData.equipment[over.type];
-        
-        newPlayerData.equipment[over.type] = dragged.item;
-        newPlayerData.equipment[fromSlotType] = itemToUnequip;
-
-        const newSlots = dragged.item.items?.effects?.extra_slots || 0;
-        const oldSlots = itemToUnequip?.items?.effects?.extra_slots || 0;
-        newPlayerData.playerState.unlocked_slots += newSlots - oldSlots;
-
-        setPlayerData(newPlayerData);
         rpcPromise = supabase.rpc('equip_item', { p_inventory_id: dragged.item.id, p_slot_type: over.type });
       }
 
@@ -185,9 +99,10 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
       }
     } catch (error: any) {
       showError(error.message || "Erreur de mise à jour de l'inventaire.");
-      setPlayerData(originalPlayerData);
+    } finally {
+      setActionLoading(false);
     }
-  }, [draggedItem, dragOver, user, onUpdate, stopAutoScroll, playerData, setPlayerData]);
+  }, [draggedItem, dragOver, user, onUpdate, stopAutoScroll]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
@@ -309,46 +224,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   const handleSplitItem = async (item: InventoryItem, quantity: number) => {
     if (!item) return;
     setDetailedItem(null);
-  
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-  
-    // --- Optimistic Update ---
-    try {
-      const newPlayerData = JSON.parse(JSON.stringify(playerData));
-      
-      const usedSlots = new Set(newPlayerData.inventory.map((i: InventoryItem) => i.slot_position));
-      let nextEmptySlot = -1;
-      for (let i = 0; i < newPlayerData.playerState.unlocked_slots; i++) {
-        if (!usedSlots.has(i)) {
-          nextEmptySlot = i;
-          break;
-        }
-      }
-  
-      if (nextEmptySlot === -1) {
-        showError("Votre inventaire est plein. Impossible de diviser l'objet.");
-        return;
-      }
-  
-      const originalItemIndex = newPlayerData.inventory.findIndex((i: InventoryItem) => i.id === item.id);
-      if (originalItemIndex === -1) throw new Error("Item not found");
-      newPlayerData.inventory[originalItemIndex].quantity -= quantity;
-  
-      const newItem: InventoryItem = {
-        ...newPlayerData.inventory[originalItemIndex],
-        id: Date.now(), // Temporary client-side ID
-        quantity: quantity,
-        slot_position: nextEmptySlot,
-      };
-      newPlayerData.inventory.push(newItem);
-  
-      setPlayerData(newPlayerData);
-    } catch (e) {
-      console.error("Optimistic split failed", e);
-      setPlayerData(originalPlayerData);
-      return;
-    }
-    // --- End Optimistic Update ---
+    setActionLoading(true);
   
     const { error } = await supabase.rpc('split_inventory_item', {
       p_inventory_id: item.id,
@@ -357,11 +233,11 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
   
     if (error) {
       showError(error.message || "Erreur lors de la division de l'objet.");
-      setPlayerData(originalPlayerData);
     } else {
       showSuccess("La pile d'objets a été divisée.");
       await onUpdate();
     }
+    setActionLoading(false);
   };
 
   useEffect(() => {
@@ -438,8 +314,13 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
 
         <div
           ref={gridRef}
-          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[50vh] overflow-y-auto"
+          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 max-h-[50vh] overflow-y-auto relative"
         >
+          {actionLoading && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-lg">
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+          )}
           {loading ? (
             <div className="h-full w-full flex items-center justify-center col-span-full row-span-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (
