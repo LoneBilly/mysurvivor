@@ -1,124 +1,115 @@
-import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
-import ItemIcon from './ItemIcon';
-import { useGame } from '@/contexts/GameContext';
-import { InventoryItem, WorkbenchItem } from '@/types/game';
+import { InventoryItem } from "@/types/game";
+import { useGame } from "@/contexts/GameContext";
+import ItemIcon from "./ItemIcon";
+import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { Button } from "./ui/button";
+import { Slider } from "./ui/slider";
+import { Label } from "./ui/label";
 
 interface WorkbenchInventorySelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workbenchId: number;
-  workbenchItems: WorkbenchItem[];
-  onItemsMoved: () => void;
+  onSelectItem: (item: InventoryItem, quantity: number) => void;
+  inventory: InventoryItem[];
 }
 
-const WorkbenchInventorySelectorModal = ({ isOpen, onClose, workbenchId, workbenchItems, onItemsMoved }: WorkbenchInventorySelectorModalProps) => {
-  const { playerData, getIconUrl, refreshPlayerData } = useGame();
-  const [loading, setLoading] = useState(false);
+const WorkbenchInventorySelectorModal = ({ isOpen, onClose, onSelectItem, inventory }: WorkbenchInventorySelectorModalProps) => {
+  const { getIconUrl } = useGame();
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
-  const handleMoveToWorkbench = async (item: InventoryItem) => {
-    setLoading(true);
-    // We need to find an available slot in the workbench (0, 1, 2)
-    const usedSlots = workbenchItems.map(i => i.slot_position);
-    let targetSlot = -1;
-    for (let i = 0; i < 3; i++) {
-      if (!usedSlots.includes(i)) {
-        targetSlot = i;
-        break;
-      }
+  useEffect(() => {
+    if (!isOpen) {
+      setTimeout(() => {
+        setSelectedItem(null);
+        setQuantity(1);
+      }, 200);
     }
+  }, [isOpen]);
 
-    if (targetSlot === -1) {
-      showError("L'établi est plein.");
-      setLoading(false);
-      return;
+  useEffect(() => {
+    if (selectedItem) {
+      setQuantity(1);
     }
+  }, [selectedItem]);
 
-    const { error } = await supabase.rpc('move_item_to_workbench', {
-      p_inventory_id: item.id,
-      p_workbench_id: workbenchId,
-      p_quantity_to_move: item.quantity,
-      p_target_slot: targetSlot
-    });
-
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Objet déplacé vers l'établi.");
-      await refreshPlayerData();
-      onItemsMoved();
+  const handleConfirmSelection = () => {
+    if (selectedItem) {
+      onSelectItem(selectedItem, quantity);
     }
-    setLoading(false);
-  };
-
-  const handleMoveToInventory = async (item: WorkbenchItem) => {
-    setLoading(true);
-    const { error } = await supabase.rpc('move_item_from_workbench_to_inventory', {
-      p_workbench_item_id: item.id,
-      p_quantity_to_move: item.quantity
-    });
-
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Objet déplacé vers l'inventaire.");
-      await refreshPlayerData();
-      onItemsMoved();
-    }
-    setLoading(false);
-  };
-
-  const renderGrid = (items: (InventoryItem | WorkbenchItem)[], type: 'inventory' | 'workbench') => {
-    return (
-      <div className="py-4 max-h-[60vh] overflow-y-auto grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2">
-        {items.length > 0 ? (
-          items.map(item => (
-            <button
-              key={`${type}-${item.id}`}
-              onClick={() => type === 'inventory' ? handleMoveToWorkbench(item as InventoryItem) : handleMoveToInventory(item as WorkbenchItem)}
-              className="aspect-square bg-slate-700/50 rounded-md flex items-center justify-center relative border border-slate-600 hover:bg-slate-700 transition-colors"
-              disabled={loading}
-            >
-              <ItemIcon iconName={getIconUrl(item.items.icon)} alt={item.items.name} />
-              {item.quantity > 1 && (
-                <span className="absolute bottom-0 right-1 text-xs font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
-                  {item.quantity}
-                </span>
-              )}
-            </button>
-          ))
-        ) : (
-          <p className="col-span-full text-center text-gray-400">Vide</p>
-        )}
-      </div>
-    );
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+      <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
         <DialogHeader>
-          <DialogTitle>Transférer des objets</DialogTitle>
-          <DialogDescription>Déplacez les objets entre votre inventaire et l'établi.</DialogDescription>
+          <DialogTitle>{selectedItem ? `Choisir la quantité` : 'Choisir un objet'}</DialogTitle>
+          <DialogDescription>
+            {selectedItem ? `Ajustez la quantité de ${selectedItem.items?.name} à transférer.` : 'Sélectionnez un objet de votre inventaire.'}
+          </DialogDescription>
         </DialogHeader>
-        {loading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="w-8 h-8 animate-spin" /></div>}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div>
-            <h3 className="font-bold text-lg text-center mb-2">Inventaire</h3>
-            {renderGrid(playerData.inventory, 'inventory')}
+        
+        {selectedItem ? (
+          <div className="py-4 space-y-4">
+            <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+              <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                <ItemIcon iconName={getIconUrl(selectedItem.items?.icon) || selectedItem.items?.icon} alt={selectedItem.items?.name || ''} />
+              </div>
+              <div className="flex-grow">
+                <p className="font-bold">{selectedItem.items?.name}</p>
+                <p className="text-xs text-gray-400">En stock: {selectedItem.quantity}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="quantity-slider">Quantité à transférer</Label>
+                <span className="font-mono text-lg font-bold">{quantity}</span>
+              </div>
+              <Slider
+                id="quantity-slider"
+                value={[quantity]}
+                onValueChange={(value) => setQuantity(value[0])}
+                min={1}
+                max={selectedItem.quantity}
+                step={1}
+                disabled={selectedItem.quantity <= 1}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button variant="secondary" onClick={() => setSelectedItem(null)}>Retour</Button>
+              <Button onClick={handleConfirmSelection} className="flex-1">Transférer</Button>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-lg text-center mb-2">Établi</h3>
-            {renderGrid(workbenchItems, 'workbench')}
+        ) : (
+          <div className="py-4 max-h-[60vh] overflow-y-auto grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2">
+            {inventory.length > 0 ? (
+              inventory.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedItem(item)}
+                  className={cn(
+                    "relative w-full aspect-square rounded-lg border transition-all duration-200 flex items-center justify-center",
+                    "bg-slate-700/50 border-slate-600",
+                    "hover:bg-slate-700/80 hover:border-slate-500 cursor-pointer"
+                  )}
+                >
+                  <div className="absolute inset-0">
+                    <ItemIcon iconName={getIconUrl(item.items?.icon) || item.items?.icon} alt={item.items?.name || ''} />
+                    {item.quantity > 0 && (
+                      <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>
+                        x{item.quantity}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <p className="col-span-full text-center text-gray-400 py-8">Votre inventaire est vide.</p>
+            )}
           </div>
-        </div>
-        <div className="flex justify-center mt-4">
-          <Button onClick={onClose}>Fermer</Button>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
