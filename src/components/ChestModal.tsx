@@ -50,21 +50,85 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     if (!construction) return;
     setDetailedItem(null);
 
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    let optimisticData = JSON.parse(JSON.stringify(playerData));
     let rpcName: string;
     let rpcParams: any;
 
     if (source === 'inventory') {
-      rpcName = 'move_item_to_chest';
-      rpcParams = { p_inventory_id: item.id, p_chest_id: construction.id, p_quantity_to_move: quantity, p_target_slot: null };
-    } else {
-      rpcName = 'move_item_from_chest';
-      rpcParams = { p_chest_item_id: item.id, p_quantity_to_move: quantity, p_target_slot: null };
+        rpcName = 'move_item_to_chest';
+        rpcParams = { p_inventory_id: item.id, p_chest_id: construction.id, p_quantity_to_move: quantity, p_target_slot: null };
+        
+        const invItemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === item.id);
+        if (invItemIndex > -1) {
+            const invItem = optimisticData.inventory[invItemIndex];
+            if (invItem.quantity > quantity) {
+                invItem.quantity -= quantity;
+            } else {
+                optimisticData.inventory.splice(invItemIndex, 1);
+            }
+
+            const chestItem = { ...invItem, quantity, slot_position: null, chest_id: construction.id };
+            const existingStackIndex = optimisticData.chestItems.findIndex((ci: ChestItemType) => ci.item_id === chestItem.item_id && ci.items?.stackable);
+            if (existingStackIndex > -1) {
+                optimisticData.chestItems[existingStackIndex].quantity += quantity;
+            } else {
+                const usedSlots = new Set(optimisticData.chestItems.filter((ci: ChestItemType) => ci.chest_id === construction.id).map((ci: ChestItemType) => ci.slot_position));
+                let nextEmptySlot = -1;
+                for (let i = 0; i < CHEST_SLOTS; i++) {
+                    if (!usedSlots.has(i)) {
+                        nextEmptySlot = i;
+                        break;
+                    }
+                }
+                if (nextEmptySlot !== -1) {
+                    chestItem.slot_position = nextEmptySlot;
+                    optimisticData.chestItems.push(chestItem);
+                }
+            }
+            setPlayerData(optimisticData);
+        }
+
+    } else { // source === 'chest'
+        rpcName = 'move_item_from_chest';
+        rpcParams = { p_chest_item_id: item.id, p_quantity_to_move: quantity, p_target_slot: null };
+
+        const chestItemIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === item.id);
+        if (chestItemIndex > -1) {
+            const chestItem = optimisticData.chestItems[chestItemIndex];
+            if (chestItem.quantity > quantity) {
+                chestItem.quantity -= quantity;
+            } else {
+                optimisticData.chestItems.splice(chestItemIndex, 1);
+            }
+
+            const invItem = { ...chestItem, quantity, slot_position: null };
+            const existingStackIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.item_id === invItem.item_id && i.items?.stackable);
+            if (existingStackIndex > -1) {
+                optimisticData.inventory[existingStackIndex].quantity += quantity;
+            } else {
+                const usedSlots = new Set(optimisticData.inventory.map((i: InventoryItem) => i.slot_position));
+                let nextEmptySlot = -1;
+                for (let i = 0; i < optimisticData.playerState.unlocked_slots; i++) {
+                    if (!usedSlots.has(i)) {
+                        nextEmptySlot = i;
+                        break;
+                    }
+                }
+                if (nextEmptySlot !== -1) {
+                    invItem.slot_position = nextEmptySlot;
+                    optimisticData.inventory.push(invItem);
+                }
+            }
+            setPlayerData(optimisticData);
+        }
     }
 
     const { error } = await supabase.rpc(rpcName, rpcParams);
 
     if (error) {
       showError(error.message || "Erreur de transfert.");
+      setPlayerData(originalPlayerData);
     } else {
       showSuccess("Transfert réussi.");
       await refreshInventoryAndChests();
@@ -90,6 +154,23 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       showError(error.message);
     } else {
       showSuccess("Objet jeté.");
+      await refreshInventoryAndChests();
+    }
+  };
+
+  const handleSplitItem = async (item: InventoryItem, quantity: number) => {
+    if (!item) return;
+    setDetailedItem(null);
+
+    const { error } = await supabase.rpc('split_chest_item', {
+      p_chest_item_id: item.id,
+      p_split_quantity: quantity,
+    });
+  
+    if (error) {
+      showError(error.message || "Erreur lors de la division de l'objet.");
+    } else {
+      showSuccess("La pile d'objets a été divisée.");
       await refreshInventoryAndChests();
     }
   };
@@ -331,6 +412,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
         onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
+        onSplit={detailedItem?.source === 'chest' ? handleSplitItem : undefined}
         onUpdate={refreshInventoryAndChests}
       />
     </>

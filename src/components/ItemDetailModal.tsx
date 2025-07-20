@@ -127,7 +127,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   const canTransfer = !!onTransfer && (source === 'inventory' || source === 'chest');
   const canTransferToWorkbench = !!onTransferToWorkbench && source === 'inventory';
   const canTransferFromWorkbench = !!onTransferFromWorkbench && source === 'crafting';
-  const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
+  const canSplit = (source === 'inventory' || source === 'chest') && item.quantity > 1 && onSplit;
 
   const ammoItemId = item.items?.effects?.ammo_item_id;
   let ammoCount = 0;
