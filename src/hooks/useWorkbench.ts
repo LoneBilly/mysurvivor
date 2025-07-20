@@ -319,8 +319,51 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
     if (!itemToMove) return;
 
     setPlayerData(prev => {
-      const newWorkbenchItems = prev.workbenchItems.filter(item => item.id !== workbenchItemId);
-      const newInventory = [...prev.inventory, { ...itemToMove, slot_position: -1 }];
+      // Correctly remove item/quantity from workbench
+      const newWorkbenchItems = prev.workbenchItems.map(item => {
+        if (item.id === workbenchItemId) {
+          return { ...item, quantity: item.quantity - quantity };
+        }
+        return item;
+      }).filter(item => item.quantity > 0);
+
+      let newInventory = [...prev.inventory];
+      const itemDetails = itemToMove.items;
+      let itemAdded = false;
+
+      // Try to stack if possible
+      if (itemDetails?.stackable) {
+        const existingStackIndex = newInventory.findIndex(invItem => invItem.item_id === itemToMove.item_id && invItem.slot_position !== null);
+        if (existingStackIndex > -1) {
+          newInventory[existingStackIndex].quantity += quantity;
+          itemAdded = true;
+        }
+      }
+
+      // If not stacked, add to an empty slot
+      if (!itemAdded) {
+        const usedSlots = new Set(newInventory.map(i => i.slot_position).filter(p => p !== null));
+        let nextEmptySlot = -1;
+        for (let i = 0; i < prev.playerState.unlocked_slots; i++) {
+          if (!usedSlots.has(i)) {
+            nextEmptySlot = i;
+            break;
+          }
+        }
+
+        if (nextEmptySlot !== -1) {
+          newInventory.push({
+            ...itemToMove,
+            id: Date.now(), // temp id for react key
+            quantity: quantity,
+            slot_position: nextEmptySlot,
+          });
+        } else {
+          // Inventory is full. The server call will fail and state will be reverted.
+          // We don't add it to the inventory optimistically to avoid visual glitches.
+        }
+      }
+
       return { ...prev, workbenchItems: newWorkbenchItems, inventory: newInventory };
     });
 
