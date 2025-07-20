@@ -15,12 +15,13 @@ import { Label } from "./ui/label";
 import { Slider } from "./ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
+import { Heart, Utensils, Droplets, Zap } from "lucide-react";
 
 interface ItemDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: InventoryItem | null;
-  onUse: () => void;
+  onUse: (item: InventoryItem) => void;
   onDropOne: () => void;
   onDropAll: () => void;
   source?: 'inventory' | 'chest' | 'crafting' | 'output';
@@ -30,6 +31,13 @@ interface ItemDetailModalProps {
   onSplit?: (item: InventoryItem, quantity: number) => void;
   onUpdate?: () => Promise<void>;
 }
+
+const effectIcons = {
+  restaure_vie: { icon: Heart, label: "Vie", color: "text-red-400" },
+  restaure_faim: { icon: Utensils, label: "Faim", color: "text-orange-400" },
+  restaure_soif: { icon: Droplets, label: "Soif", color: "text-blue-400" },
+  restaure_energie: { icon: Zap, label: "Énergie", color: "text-yellow-400" },
+};
 
 const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
   const { getIconUrl, playerData } = useGame();
@@ -82,6 +90,26 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
     }
   };
 
+  const handleUseClick = async () => {
+    if (source === 'output') {
+      onUse(item);
+      return;
+    }
+    if (isBlueprint) {
+      await handleReadBlueprint();
+      return;
+    }
+    
+    const { error } = await supabase.rpc('use_item', { p_inventory_id: item.id });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess(`${item.items?.name} utilisé !`);
+      if (onUpdate) onUpdate();
+      onClose();
+    }
+  };
+
   const useActionText = source === 'output' ? 'Récupérer' : item.items?.use_action_text;
   const isBlueprint = item.items?.use_action_text === 'Lire';
   const iconUrl = getIconUrl(item.items?.icon || null);
@@ -91,18 +119,6 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
   const canTransferFromWorkbench = !!onTransferFromWorkbench && source === 'crafting';
   const canSplit = source === 'inventory' && item.quantity > 1 && onSplit;
 
-  const handleUseClick = () => {
-    if (source === 'output') {
-      onUse();
-      return;
-    }
-    if (isBlueprint) {
-      handleReadBlueprint();
-    } else {
-      onUse();
-    }
-  };
-
   const ammoItemId = item.items?.effects?.ammo_item_id;
   let ammoCount = 0;
   if (ammoItemId) {
@@ -110,6 +126,9 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
       .filter(invItem => invItem.item_id === ammoItemId)
       .reduce((sum, invItem) => sum + invItem.quantity, 0);
   }
+
+  const itemEffects = item.items?.effects ? Object.entries(item.items.effects)
+    .filter(([key]) => effectIcons[key as keyof typeof effectIcons]) : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -144,6 +163,25 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
           <p className="text-gray-400">Quantité: <span className="font-bold text-white">{item.quantity}</span></p>
           {ammoItemId && (
             <p className="text-gray-400">Munitions: <span className="font-bold text-white">{ammoCount}</span></p>
+          )}
+          {itemEffects.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-slate-700">
+              <h4 className="font-semibold text-gray-300">Effets:</h4>
+              <div className="grid grid-cols-2 gap-2">
+                {itemEffects.map(([key, value]) => {
+                  const effectInfo = effectIcons[key as keyof typeof effectIcons];
+                  if (!effectInfo) return null;
+                  const Icon = effectInfo.icon;
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-sm bg-white/5 p-2 rounded-md">
+                      <Icon className={`w-4 h-4 ${effectInfo.color}`} />
+                      <span className="text-gray-300">{effectInfo.label}:</span>
+                      <span className="font-bold text-white">+{value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
 
