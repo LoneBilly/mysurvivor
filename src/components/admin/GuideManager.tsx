@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,8 @@ import { showSuccess, showError } from '@/utils/toast';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { cn } from '@/lib/utils';
 import ActionModal from '../ActionModal';
-import { Label } from '@/components/ui/label'; // Added this import
+import { Label } from '@/components/ui/label';
+import MarkdownToolbar from './MarkdownToolbar';
 
 interface Chapter {
   id: number;
@@ -37,6 +38,7 @@ const GuideManager = () => {
   
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const articleTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'chapter' | 'article'; item: Chapter | Article | null }>({ isOpen: false, type: 'chapter', item: null });
 
@@ -192,7 +194,11 @@ const GuideManager = () => {
           <DialogHeader><DialogTitle>{editingArticle?.id ? 'Modifier' : 'Nouvel'} Article</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveArticle} className="py-4 space-y-4">
             <div><Label>Titre</Label><Input value={editingArticle?.title || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, title: e.target.value} : null)} required /></div>
-            <div><Label>Contenu (Markdown)</Label><Textarea value={editingArticle?.content || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, content: e.target.value} : null)} rows={15} /></div>
+            <div>
+              <Label>Contenu (Markdown)</Label>
+              <MarkdownToolbar textareaRef={articleTextareaRef} onContentChange={(value) => setEditingArticle(prev => prev ? {...prev, content: value} : null)} />
+              <Textarea ref={articleTextareaRef} value={editingArticle?.content || ''} onChange={(e) => setEditingArticle(prev => prev ? {...prev, content: e.target.value} : null)} rows={15} className="rounded-t-none border-gray-700" />
+            </div>
             <DialogFooter><Button type="submit">Sauvegarder</Button></DialogFooter>
           </form>
         </DialogContent>

@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
-import { Loader2, BookOpen, ArrowLeft } from 'lucide-react';
+import { Loader2, BookOpen, ArrowLeft, FileText, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from './ui/button';
+import { ScrollArea } from './ui/scroll-area';
 
 interface Chapter {
   id: number;
@@ -66,14 +67,23 @@ const GuideModal = ({ isOpen, onClose }: GuideModalProps) => {
 
   const ChapterList = (
     <div className="flex flex-col h-full">
-      <h3 className="text-lg font-bold p-4 border-b border-slate-700 flex-shrink-0">Chapitres</h3>
-      <div className="flex-grow overflow-y-auto no-scrollbar">
-        {chapters.map(chapter => (
-          <button key={chapter.id} onClick={() => { setSelectedChapter(chapter); setSelectedArticle(null); }} className={cn("w-full text-left cursor-pointer p-3 border-b border-l-4 border-slate-700", selectedChapter?.id === chapter.id ? "bg-white/10 border-l-sky-400" : "border-l-transparent hover:bg-white/5")}>
-            <span className="font-semibold truncate">{chapter.title}</span>
-          </button>
-        ))}
-      </div>
+      <h3 className="text-lg font-bold p-4 border-b border-slate-700 flex-shrink-0 text-center font-mono uppercase tracking-wider">Chapitres</h3>
+      <ScrollArea className="flex-grow">
+        <div className="p-2">
+          {chapters.map(chapter => (
+            <button key={chapter.id} onClick={() => { setSelectedChapter(chapter); setSelectedArticle(null); }} className={cn(
+              "w-full text-left cursor-pointer p-3 rounded-lg flex items-center justify-between transition-colors",
+              selectedChapter?.id === chapter.id ? "bg-white/10" : "hover:bg-white/5"
+            )}>
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                <span className="font-semibold truncate">{chapter.title}</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0" />
+            </button>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 
@@ -85,13 +95,13 @@ const GuideModal = ({ isOpen, onClose }: GuideModalProps) => {
             <Button variant="ghost" size="icon" onClick={() => setSelectedArticle(null)}><ArrowLeft className="w-5 h-5" /></Button>
             <h3 className="text-lg font-bold truncate">{selectedArticle.title}</h3>
           </div>
-          <div className="flex-grow overflow-y-auto no-scrollbar p-4">
-            <article className="prose prose-invert prose-sm sm:prose-base max-w-none prose-headings:text-white prose-p:text-gray-300 prose-a:text-sky-400 prose-strong:text-white">
+          <ScrollArea className="flex-grow">
+            <article className="prose prose-invert prose-sm sm:prose-base max-w-none p-4 prose-headings:text-white prose-p:text-gray-300 prose-a:text-sky-400 prose-strong:text-white prose-ul:list-disc prose-ol:list-decimal prose-li:text-gray-300">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {selectedArticle.content || "Contenu non disponible."}
               </ReactMarkdown>
             </article>
-          </div>
+          </ScrollArea>
         </>
       ) : (
         <>
@@ -99,13 +109,16 @@ const GuideModal = ({ isOpen, onClose }: GuideModalProps) => {
             {isMobile && selectedChapter && <Button variant="ghost" size="icon" onClick={() => setSelectedChapter(null)}><ArrowLeft className="w-5 h-5" /></Button>}
             <h3 className="text-lg font-bold truncate">{selectedChapter?.title || "Articles"}</h3>
           </div>
-          <div className="flex-grow overflow-y-auto no-scrollbar">
-            {filteredArticles.map(article => (
-              <button key={article.id} onClick={() => setSelectedArticle(article)} className="w-full text-left cursor-pointer p-3 border-b border-slate-700 hover:bg-white/5">
-                <span className="font-semibold truncate">{article.title}</span>
-              </button>
-            ))}
-          </div>
+          <ScrollArea className="flex-grow">
+            <div className="p-2 space-y-2">
+              {filteredArticles.map(article => (
+                <button key={article.id} onClick={() => setSelectedArticle(article)} className="w-full text-left cursor-pointer p-3 rounded-lg flex items-center gap-3 transition-colors hover:bg-white/5 border border-slate-700 bg-white/5">
+                  <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <span className="font-semibold truncate">{article.title}</span>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
         </>
       )}
     </div>
