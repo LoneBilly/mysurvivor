@@ -79,17 +79,26 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [eventResult, setEventResult] = useState<EventResult | null>(null);
   const [inventoryFullError, setInventoryFullError] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
-  const [detailedInfo, setDetailedInfo] = useState<PotentialInfo | null>(null);
+  const [detailedInfo, setDetailedInfo] = useState<{
+    info: PotentialInfo;
+    boost?: { total: number; sources: string[] };
+  } | null>(null);
 
-  const resourceBoosts = useMemo(() => {
-    const boosts: Record<string, number> = {};
+  const detailedResourceBoosts = useMemo(() => {
+    const boosts: Record<string, { total: number; sources: string[] }> = {};
     const allPlayerItems = [...playerData.inventory, ...Object.values(playerData.equipment).filter(Boolean)];
 
     for (const item of allPlayerItems) {
       if (item?.items?.effects) {
         for (const [effectKey, effectValue] of Object.entries(item.items.effects)) {
           if (effectKey.startsWith('bonus_recolte')) {
-            boosts[effectKey] = (boosts[effectKey] || 0) + (effectValue as number);
+            if (!boosts[effectKey]) {
+              boosts[effectKey] = { total: 0, sources: [] };
+            }
+            boosts[effectKey].total += (effectValue as number);
+            if (!boosts[effectKey].sources.includes(item.items.name)) {
+                boosts[effectKey].sources.push(item.items.name);
+            }
           }
         }
       }
@@ -353,12 +362,13 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                       <div className="flex flex-wrap gap-2">
                         {potentialLoot.length > 0 ? potentialLoot.map((item, index) => {
                           const effectKey = resourceToEffectMap[item.name];
-                          const boost = effectKey ? resourceBoosts[effectKey] : 0;
+                          const boostInfo = effectKey ? detailedResourceBoosts[effectKey] : undefined;
+                          const boost = boostInfo ? boostInfo.total : 0;
                           return (
                             <TooltipProvider key={`${item.name}-${index}`} delayDuration={100}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button onClick={() => setDetailedInfo(item)} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
+                                  <button onClick={() => setDetailedInfo({ info: item, boost: boostInfo })} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
                                     <ItemIcon iconName={getIconUrl(item.icon) || item.icon} alt={item.name} />
                                     {boost > 0 && (
                                       <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
@@ -387,7 +397,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                           <TooltipProvider key={`${event.name}-${index}`} delayDuration={100}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <button onClick={() => setDetailedInfo(event)} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
+                                <button onClick={() => setDetailedInfo({ info: event })} className="relative w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
                                   <ItemIcon iconName={event.icon} alt={event.name} />
                                 </button>
                               </TooltipTrigger>
@@ -429,9 +439,10 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       <InfoDisplayModal
         isOpen={!!detailedInfo}
         onClose={() => setDetailedInfo(null)}
-        title={detailedInfo?.name || ''}
-        description={detailedInfo?.description || null}
-        icon={detailedInfo?.icon || null}
+        title={detailedInfo?.info.name || ''}
+        description={detailedInfo?.info.description || null}
+        icon={detailedInfo?.info.icon || null}
+        boostInfo={detailedInfo?.boost}
       />
     </>
   );

@@ -12,9 +12,10 @@ interface InfoDisplayModalProps {
   description: string | null;
   icon: string | null;
   adjacentZones?: DiscoverableZone[] | null;
+  boostInfo?: { total: number; sources: string[] } | null;
 }
 
-const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZones }: InfoDisplayModalProps) => {
+const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZones, boostInfo }: InfoDisplayModalProps) => {
   const { getIconUrl } = useGame();
   const iconUrl = getIconUrl(icon);
 
@@ -36,6 +37,12 @@ const InfoDisplayModal = ({ isOpen, onClose, title, description, icon, adjacentZ
             <p className="text-gray-300">{description}</p>
           ) : (
             <p className="text-gray-400 italic">Aucune description disponible.</p>
+          )}
+          {boostInfo && boostInfo.total > 0 && (
+            <div className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <p className="font-bold text-green-300">Bonus de récolte : +{boostInfo.total}%</p>
+              <p className="text-sm text-gray-400">Grâce à : {boostInfo.sources.join(', ')}</p>
+            </div>
           )}
           {adjacentZones && (
             <div className="mt-4">
