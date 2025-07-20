@@ -19,29 +19,34 @@ interface ChestModalProps {
   onUpdate: () => void;
 }
 
-type DraggableItem = InventoryItem | ChestItemType;
-
-const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalProps) => {
-  const { playerData, refreshInventoryAndChests } = useGame();
-  const [detailedItem, setDetailedItem] = useState<{ item: DraggableItem; source: 'inventory' | 'chest' } | null>(null);
+const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
+  const { playerData, setPlayerData, refreshInventoryAndChests } = useGame();
+  const [chestItems, setChestItems] = useState<ChestItemType[]>([]);
+  const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
-  const chestItems = (playerData.chestItems || []).filter(item => item.chest_id === construction?.id);
+  useEffect(() => {
+    if (isOpen && construction) {
+      const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === construction.id) || [];
+      setChestItems(itemsInChest);
+    }
+  }, [isOpen, construction, playerData.chestItems]);
+
 
   const handleDemolishClick = () => {
     onDemolish(construction!);
   };
 
-  const handleItemClick = (item: DraggableItem, source: 'inventory' | 'chest') => {
+  const handleItemClick = (item: InventoryItem, source: 'inventory' | 'chest') => {
     if (item) {
       setDetailedItem({ item, source });
     }
   };
 
-  const handleTransfer = async (item: DraggableItem, quantity: number, source: 'inventory' | 'chest') => {
+  const handleTransfer = async (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => {
     if (!construction) return;
     setDetailedItem(null);
 
@@ -66,13 +71,18 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalPro
     }
   };
 
-  const handleDrop = async (item: DraggableItem, source: 'inventory' | 'chest', quantity: number) => {
+  const handleDrop = async (item: InventoryItem, source: 'inventory' | 'chest', quantity: number) => {
     setDetailedItem(null);
     let rpcPromise;
     if (source === 'chest') {
       rpcPromise = supabase.rpc('drop_chest_item', { p_chest_item_id: item.id, p_quantity_to_drop: quantity });
     } else {
-      rpcPromise = supabase.rpc('drop_inventory_item', { p_inventory_id: item.id, p_quantity_to_drop: quantity });
+      const action = item.quantity > quantity ? 'update' : 'delete';
+      if (action === 'delete') {
+        rpcPromise = supabase.from('inventories').delete().eq('id', item.id);
+      } else {
+        rpcPromise = supabase.from('inventories').update({ quantity: item.quantity - quantity }).eq('id', item.id);
+      }
     }
     
     const { error } = await rpcPromise;
@@ -127,7 +137,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalPro
     setDragOver(null);
   }, []);
 
-  const handleDragEnd = useCallback(async () => {
+  const handleDragEnd = async () => {
     if (draggedItemNode.current) {
       document.body.removeChild(draggedItemNode.current);
       draggedItemNode.current = null;
@@ -172,7 +182,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalPro
         await refreshInventoryAndChests();
       }
     }
-  }, [draggedItem, dragOver, construction, playerData.inventory, chestItems, refreshInventoryAndChests]);
+  };
 
   useEffect(() => {
     const moveHandler = (e: MouseEvent | TouchEvent) => {
@@ -196,15 +206,15 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalPro
     };
   }, [draggedItem, handleDragMove, handleDragEnd]);
 
-  const renderGrid = (title: string, items: DraggableItem[], totalSlots: number, type: 'inventory' | 'chest') => {
+  const renderGrid = (title: string, items: (InventoryItem | null)[], totalSlots: number, type: 'inventory' | 'chest') => {
     const slots = Array.from({ length: totalSlots }).map((_, index) => {
       return items.find(i => i?.slot_position === index) || null;
     });
 
     return (
-      <div className="flex flex-col min-h-0">
-        <h3 className="text-center font-bold mb-2 shrink-0">{title}</h3>
-        <div className="flex-1 bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto">
+      <div className="flex flex-col">
+        <h3 className="text-center font-bold mb-2">{title}</h3>
+        <div className="flex-grow bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start">
           {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
@@ -253,7 +263,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish }: ChestModalPro
       <ItemDetailModal
         isOpen={!!detailedItem}
         onClose={() => setDetailedItem(null)}
-        item={detailedItem?.item as InventoryItem | null}
+        item={detailedItem?.item || null}
         source={detailedItem?.source}
         onTransfer={handleTransfer}
         onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
