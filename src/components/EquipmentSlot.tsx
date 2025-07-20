@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useRef } from "react";
 
 export type EquipmentSlotType = 'armor' | 'backpack' | 'weapon' | 'shoes' | 'vehicle';
 
@@ -32,11 +33,39 @@ const slotIcons = {
 const EquipmentSlot = ({ slotType, label, item, onDragStart, isDragOver, onItemClick }: EquipmentSlotProps) => {
   const { getIconUrl } = useGame();
   const Icon = slotIcons[slotType];
+  const interactionState = useRef<{
+    startPos: { x: number, y: number };
+    isDragging: boolean;
+  } | null>(null);
 
   const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (item) {
-      onDragStart(item, e.currentTarget as HTMLDivElement, e);
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      interactionState.current = {
+        startPos: { x: clientX, y: clientY },
+        isDragging: false,
+      };
     }
+  };
+
+  const handleInteractionMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (item && interactionState.current && !interactionState.current.isDragging) {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      const dx = Math.abs(clientX - interactionState.current.startPos.x);
+      const dy = Math.abs(clientY - interactionState.current.startPos.y);
+
+      if (dx > 5 || dy > 5) {
+        interactionState.current.isDragging = true;
+        onDragStart(item, e.currentTarget as HTMLDivElement, e);
+      }
+    }
+  };
+
+  const handleInteractionEnd = () => {
+    if (item && interactionState.current && !interactionState.current.isDragging) {
+      onItemClick(item);
+    }
+    interactionState.current = null;
   };
 
   return (
@@ -50,15 +79,22 @@ const EquipmentSlot = ({ slotType, label, item, onDragStart, isDragOver, onItemC
               isDragOver ? "bg-sky-500/20 border-sky-500" : "bg-black/20 border-slate-600",
               item ? "cursor-grab active:cursor-grabbing" : "cursor-default"
             )}
-            onClick={() => item && onItemClick(item)}
+            onMouseDown={handleInteractionStart}
+            onTouchStart={handleInteractionStart}
+            onMouseMove={handleInteractionMove}
+            onTouchMove={handleInteractionMove}
+            onMouseUp={handleInteractionEnd}
+            onTouchEnd={handleInteractionEnd}
+            onMouseLeave={() => { interactionState.current = null; }}
+            onClick={() => {
+              if (interactionState.current && !interactionState.current.isDragging) {
+                handleInteractionEnd();
+              }
+            }}
           >
             {!item && <Icon className="w-6 h-6 sm:w-8 sm:h-8 text-slate-500" />}
             {item && (
-              <div
-                className="w-full h-full"
-                onMouseDown={handleInteractionStart}
-                onTouchStart={handleInteractionStart}
-              >
+              <div className="w-full h-full">
                 <div className="absolute inset-0 item-visual">
                   <ItemIcon iconName={getIconUrl(item.items?.icon) || item.items?.icon} alt={item.items?.name || 'Objet'} />
                 </div>
