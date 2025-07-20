@@ -4,32 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, PlusCircle, Edit, Trash2, ArrowLeft, GitBranch, FileText, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, ArrowLeft, GitBranch, FileText, CheckCircle, AlertTriangle, XCircle, Send, EyeOff } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '../ActionModal';
 import { Label } from '@/components/ui/label';
-import MarkdownToolbar from './MarkdownToolbar';
 import { cn } from '@/lib/utils';
 
 interface PatchNote {
   id: number;
   title: string;
   created_at: string;
+  is_published: boolean;
 }
 
 interface PatchNoteChange {
   id: number;
   patch_note_id: number;
-  change_type: 'ajout' | 'modification' | 'suppression';
+  change_type: 'Ajout' | 'Modification' | 'Suppression';
   entity_type: string;
   entity_name: string;
   description: string | null;
 }
 
 const changeTypeMap = {
-  ajout: { label: 'Ajout', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
-  modification: { label: 'Modification', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
-  suppression: { label: 'Suppression', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+  Ajout: { label: 'Ajout', styles: 'border-green-500/50 bg-green-500/10 text-green-300', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+  Modification: { label: 'Modification', styles: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300', icon: <AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+  Suppression: { label: 'Suppression', styles: 'border-red-500/50 bg-red-500/10 text-red-300', icon: <XCircle className="w-5 h-5 text-red-400" /> },
 };
 
 const PatchnoteManager = () => {
@@ -44,7 +44,6 @@ const PatchnoteManager = () => {
   
   const [isChangeModalOpen, setIsChangeModalOpen] = useState(false);
   const [editingChange, setEditingChange] = useState<Partial<PatchNoteChange> | null>(null);
-  const changeTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'note' | 'change'; item: PatchNote | PatchNoteChange | null }>({ isOpen: false, type: 'note', item: null });
 
@@ -123,7 +122,7 @@ const PatchnoteManager = () => {
       const dataToSave = { 
         ...editingChange, 
         patch_note_id: selectedPatchNote.id,
-        change_type: editingChange.change_type || 'ajout'
+        change_type: editingChange.change_type || 'Ajout'
       };
       const { id, ...finalData } = dataToSave;
 
@@ -178,6 +177,28 @@ const PatchnoteManager = () => {
     setDeleteModal({ isOpen: true, item, type });
   };
 
+  const handleTogglePublish = async () => {
+    if (!selectedPatchNote) return;
+    const newStatus = !selectedPatchNote.is_published;
+    setIsSubmitting(true);
+    try {
+        const { data, error } = await supabase
+            .from('patch_notes')
+            .update({ is_published: newStatus })
+            .eq('id', selectedPatchNote.id)
+            .select()
+            .single();
+        if (error) throw error;
+        showSuccess(`Patchnote ${newStatus ? 'publié' : 'dépublié'}.`);
+        setSelectedPatchNote(data);
+        setPatchNotes(prev => prev.map(p => p.id === data.id ? data : p));
+    } catch (error: any) {
+        showError(error.message);
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
   const filteredChanges = changes.filter(c => c.patch_note_id === selectedPatchNote?.id);
   const groupedChanges = filteredChanges.reduce((acc, change) => {
     (acc[change.change_type] = acc[change.change_type] || []).push(change);
@@ -198,6 +219,7 @@ const PatchnoteManager = () => {
             {patchNotes.map(note => (
               <div key={note.id} onClick={() => setSelectedPatchNote(note)} className="cursor-pointer p-3 flex items-center justify-between border-b border-gray-700 hover:bg-gray-800/50">
                 <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${note.is_published ? 'bg-green-400' : 'bg-yellow-400'}`} title={note.is_published ? 'Publié' : 'Brouillon'}></div>
                   <GitBranch className="w-5 h-5 text-gray-300" />
                   <div>
                     <p className="font-semibold truncate">{new Date(note.created_at).toLocaleDateString('fr-FR')}</p>
@@ -216,9 +238,12 @@ const PatchnoteManager = () => {
                   <h3 className="text-lg font-bold">{new Date(selectedPatchNote.created_at).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
                   <p className="text-gray-400">{selectedPatchNote.title}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <Button onClick={handleTogglePublish} variant={selectedPatchNote.is_published ? "secondary" : "default"} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (selectedPatchNote.is_published ? <><EyeOff className="w-4 h-4 mr-2" />Dépublier</> : <><Send className="w-4 h-4 mr-2" />Publier</>)}
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => { setEditingNote(selectedPatchNote); setIsNoteModalOpen(true); }}><Edit className="w-4 h-4 mr-2" />Modifier</Button>
-                  <Button size="sm" onClick={() => { setEditingChange({ change_type: 'ajout', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter</Button>
+                  <Button size="sm" onClick={() => { setEditingChange({ change_type: 'Ajout', entity_type: 'Fonctionnalité' }); setIsChangeModalOpen(true); }}><PlusCircle className="w-4 h-4 mr-2" />Ajouter</Button>
                 </div>
               </div>
               <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-6">
@@ -276,7 +301,7 @@ const PatchnoteManager = () => {
           <DialogHeader><DialogTitle>{editingChange?.id ? 'Modifier' : 'Nouveau'} Changement</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveChange} className="py-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'ajout'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{Object.entries(changeTypeMap).map(([value, {label}]) => <option key={value} value={value}>{label}</option>)}</select></div>
+              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'Ajout'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{Object.entries(changeTypeMap).map(([value, {label}]) => <option key={value} value={value}>{label}</option>)}</select></div>
               <div><Label>Type d'entité</Label><select value={editingChange?.entity_type || 'Fonctionnalité'} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_type: e.target.value} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{['Fonctionnalité', 'Item', 'Bâtiment', 'Zone', 'Correction', 'Équilibrage'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             </div>
             <div><Label>Nom de l'entité</Label><Input value={editingChange?.entity_name || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_name: e.target.value} : null)} required disabled={isSubmitting} /></div>
