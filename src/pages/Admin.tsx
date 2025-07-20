@@ -9,7 +9,6 @@ import EventManager from "@/components/admin/EventManager";
 import BuildingManager from "@/components/admin/BuildingManager";
 import AuctionManager from "@/components/admin/AuctionManager";
 import GuideManager from "@/components/admin/GuideManager";
-import PatchnoteManager from "@/components/admin/PatchnoteManager";
 import { MapCell } from "@/types/game";
 import { Item } from "@/types/admin";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,8 +108,6 @@ const Admin = () => {
         return <AuctionManager allItems={items} onUpdate={fetchAdminData} />;
       case 'guide':
         return <GuideManager />;
-      case 'patchnotes':
-        return <PatchnoteManager />;
       default:
         return null;
     }
@@ -146,7 +143,6 @@ const Admin = () => {
                 <option value="buildings">Bâtiments</option>
                 <option value="auctions">Enchères</option>
                 <option value="guide">Guide</option>
-                <option value="patchnotes">Patchnotes</option>
               </select>
             </div>
             <div className="flex-1 min-h-0">
@@ -156,7 +152,7 @@ const Admin = () => {
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
             <div className="flex justify-center mb-4">
-              <TabsList className="grid w-full grid-cols-8 max-w-6xl flex-shrink-0">
+              <TabsList className="grid w-full grid-cols-7 max-w-6xl flex-shrink-0">
                 <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Carte</TabsTrigger>
                 <TabsTrigger value="players"><Users className="w-4 h-4 mr-2" />Joueurs</TabsTrigger>
                 <TabsTrigger value="items"><Package className="w-4 h-4 mr-2" />Items</TabsTrigger>
@@ -164,7 +160,6 @@ const Admin = () => {
                 <TabsTrigger value="buildings"><Wrench className="w-4 h-4 mr-2" />Bâtiments</TabsTrigger>
                 <TabsTrigger value="auctions"><Gavel className="w-4 h-4 mr-2" />Enchères</TabsTrigger>
                 <TabsTrigger value="guide"><BookText className="w-4 h-4 mr-2" />Guide</TabsTrigger>
-                <TabsTrigger value="patchnotes"><BookText className="w-4 h-4 mr-2" />Patchnotes</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="map" className="flex-1 min-h-0">
@@ -193,9 +188,6 @@ const Admin = () => {
             </TabsContent>
             <TabsContent value="guide" className="flex-1 min-h-0">
               <GuideManager />
-            </TabsContent>
-            <TabsContent value="patchnotes" className="flex-1 min-h-0">
-              <PatchnoteManager />
             </TabsContent>
           </Tabs>
         )}

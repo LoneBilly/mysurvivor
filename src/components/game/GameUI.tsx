@@ -27,7 +27,6 @@ import MoreOptionsModal from "../MoreOptionsModal";
 import HotelModal from '../HotelModal';
 import CasinoModal from '../CasinoModal';
 import GuideModal from "../GuideModal";
-import PatchnoteModal from "../PatchnoteModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -53,7 +52,6 @@ const GameUI = () => {
   const [isBountyOpen, setIsBountyOpen] = useState(false);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [isPatchnoteModalOpen, setIsPatchnoteModalOpen] = useState(false);
   const [isHotelOpen, setIsHotelOpen] = useState(false);
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
@@ -337,9 +335,8 @@ const GameUI = () => {
         onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
         zoneName={selectedZoneForAction?.type || "Casino"}
       />
-      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} onOpenGuide={() => setIsGuideOpen(true)} onOpenPatchnotes={() => setIsPatchnoteModalOpen(true)} />
+      <MoreOptionsModal isOpen={isMoreOptionsOpen} onClose={() => setIsMoreOptionsOpen(false)} onOpenGuide={() => setIsGuideOpen(true)} />
       <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
-      <PatchnoteModal isOpen={isPatchnoteModalOpen} onClose={() => setIsPatchnoteModalOpen(false)} />
     </div>
   );
 };

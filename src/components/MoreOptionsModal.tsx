@@ -7,10 +7,9 @@ interface MoreOptionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenGuide: () => void;
-  onOpenPatchnotes: () => void;
 }
 
-const MoreOptionsModal = ({ isOpen, onClose, onOpenGuide, onOpenPatchnotes }: MoreOptionsModalProps) => {
+const MoreOptionsModal = ({ isOpen, onClose, onOpenGuide }: MoreOptionsModalProps) => {
   const handleOptionClick = (optionName: string) => {
     showInfo(`La section "${optionName}" sera bientôt disponible !`);
     onClose();
@@ -18,11 +17,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onOpenGuide, onOpenPatchnotes }: Mo
 
   const handleGuideClick = () => {
     onOpenGuide();
-    onClose();
-  };
-
-  const handlePatchnotesClick = () => {
-    onOpenPatchnotes();
     onClose();
   };
 
@@ -44,7 +38,7 @@ const MoreOptionsModal = ({ isOpen, onClose, onOpenGuide, onOpenPatchnotes }: Mo
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-3">
-          <Button onClick={handlePatchnotesClick} className="w-full flex items-center justify-start gap-3">
+          <Button onClick={() => handleOptionClick("Patchnotes")} className="w-full flex items-center justify-start gap-3">
             <BookText className="w-5 h-5" /> Patchnotes
           </Button>
           <Button onClick={handleGuideClick} className="w-full flex items-center justify-start gap-3">
