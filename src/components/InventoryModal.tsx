@@ -103,7 +103,15 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
         const toIndex = to.targetId as number;
         if (fromIndex === toIndex || toIndex >= unlockedSlots) return;
         
-        [newSlots[fromIndex], newSlots[toIndex]] = [newSlots[toIndex], newSlots[fromIndex]];
+        const fromItem = newSlots[fromIndex];
+        const toItem = newSlots[toIndex];
+
+        if (fromItem && toItem && fromItem.item_id === toItem.item_id && fromItem.items?.stackable) {
+            newSlots[toIndex] = { ...toItem, quantity: toItem.quantity + fromItem.quantity };
+            newSlots[fromIndex] = null;
+        } else {
+            [newSlots[fromIndex], newSlots[toIndex]] = [newSlots[toIndex], newSlots[fromIndex]];
+        }
         setSlots(newSlots);
         rpcCall = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
 
@@ -340,7 +348,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
 
           <div className="flex-1 flex flex-col min-h-0 p-4 bg-slate-900/50 rounded-lg border border-slate-800">
             <h3 className="text-center font-bold font-mono mb-3 text-gray-300">
-              Inventaire <span className="text-white">({unlockedSlots} / {TOTAL_SLOTS})</span>
+              Inventaire <span className="text-white">({slots.filter(Boolean).length} / {unlockedSlots})</span>
             </h3>
             <div ref={gridRef} className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 flex-grow overflow-y-auto pr-2">
               {loading ? (
