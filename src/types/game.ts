@@ -117,9 +117,20 @@ export interface ChestItem {
   quantity: number;
 }
 
+export type EquipmentSlotType = 'armor' | 'backpack' | 'weapon' | 'shoes' | 'vehicle';
+
+export interface Equipment {
+  armor: InventoryItem | null;
+  backpack: InventoryItem | null;
+  weapon: InventoryItem | null;
+  shoes: InventoryItem | null;
+  vehicle: InventoryItem | null;
+}
+
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
+  equipment: Equipment;
   baseConstructions: BaseConstruction[];
   scoutingMissions: ScoutingMission[];
   constructionJobs?: ConstructionJob[];
