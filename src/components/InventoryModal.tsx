@@ -1,9 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useGame } from "@/hooks/useGame";
+import { useGame } from "@/contexts/GameContext";
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { useSupabaseClient } from "@supabase/auth-helpers-react";
-import { EquipmentSlotType, InventoryItem } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { EquipmentSlotType, InventoryItem } from "@/types/game";
 import { cn } from "@/lib/utils";
 import { CircleDashed } from "lucide-react";
 
@@ -83,7 +83,6 @@ const EquipmentSlot = ({ item, slotType, onDrop, icon: Icon, label }) => {
 
 const InventoryModal = ({ isOpen, onClose }: InventoryModalProps) => {
   const { playerData, isProcessing, performAction } = useGame();
-  const supabase = useSupabaseClient();
 
   if (!playerData) return null;
 

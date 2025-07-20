@@ -1,26 +1,33 @@
-import { Toaster } from "@/components/ui/sonner";
-import { GameProvider } from "./hooks/useGame";
-import Index from "./pages/Index";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { SessionContextProvider } from "@supabase/auth-helpers-react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import Landing from '@/pages/Landing';
+import Login from '@/pages/Login';
+import CreateProfile from '@/pages/CreateProfile';
+import Game from '@/pages/Game';
+import Admin from '@/pages/Admin';
+import NotFound from '@/pages/NotFound';
+import PublicRoute from '@/components/PublicRoute';
+import PrivateRoute from '@/components/PrivateRoute';
+import AdminRoute from '@/components/AdminRoute';
+import { Toaster } from '@/components/ui/sonner';
+import BannedOverlay from '@/components/BannedOverlay';
 
 function App() {
   return (
-    <SessionContextProvider supabaseClient={supabase}>
-      <GameProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster richColors closeButton />
-      </GameProvider>
-    </SessionContextProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/create-profile" element={<PrivateRoute><CreateProfile /></PrivateRoute>} />
+          <Route path="/game" element={<PrivateRoute><Game /></PrivateRoute>} />
+          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <BannedOverlay />
+        <Toaster richColors closeButton theme="dark" />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

@@ -8,6 +8,8 @@ interface GameContextType {
   playerData: FullPlayerData;
   mapLayout: MapCell[];
   items: Item[];
+  isProcessing: boolean;
+  performAction: (action: () => Promise<{ error: any }>, options?: { silent?: boolean, noRefetch?: boolean }) => Promise<void>;
   refreshPlayerData: (silent?: boolean) => Promise<void>;
   refreshResources: () => Promise<void>;
   refreshInventoryAndChests: () => Promise<void>;
@@ -39,6 +41,7 @@ interface GameProviderProps {
 
 export const GameProvider = ({ children, initialData, iconUrlMap }: GameProviderProps) => {
   const [playerData, setPlayerData] = useState<FullPlayerData>(initialData.playerData);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { user } = useAuth();
 
   const refreshPlayerData = useCallback(async (silent = false) => {
@@ -83,6 +86,23 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     }
   }, [user]);
 
+  const performAction = useCallback(async (action: () => Promise<{ error: any }>, options: { silent?: boolean, noRefetch?: boolean } = {}) => {
+    setIsProcessing(true);
+    try {
+      const { error } = await action();
+      if (error) {
+        showError(error.message || "Une erreur est survenue.");
+      }
+    } catch (error: any) {
+      showError(error.message || "Une erreur inattendue est survenue.");
+    } finally {
+      if (!options.noRefetch) {
+        await refreshPlayerData(options.silent);
+      }
+      setIsProcessing(false);
+    }
+  }, [refreshPlayerData]);
+
   const addConstructionJob = (job: ConstructionJob) => {
     setPlayerData(prev => ({
       ...prev,
@@ -122,6 +142,8 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     playerData,
     mapLayout: initialData.mapLayout,
     items: initialData.items,
+    isProcessing,
+    performAction,
     refreshPlayerData,
     refreshResources,
     refreshInventoryAndChests,
@@ -129,7 +151,7 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     addConstructionJob,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState, addConstructionJob, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, isProcessing, performAction, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState, addConstructionJob, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>
