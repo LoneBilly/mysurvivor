@@ -44,9 +44,10 @@ const PatchnoteManager = () => {
   const [changes, setChanges] = useState<PatchNoteChange[]>([]);
   const [selectedPatchNote, setSelectedPatchNote] = useState<PatchNote | null>(null);
   const [loading, setLoading] = useState(true);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState<PatchNote | null>(null);
+  const [editingNote, setEditingNote] = useState<Partial<PatchNote> | null>(null);
   
   const [isChangeModalOpen, setIsChangeModalOpen] = useState(false);
   const [editingChange, setEditingChange] = useState<Partial<PatchNoteChange> | null>(null);
@@ -56,16 +57,20 @@ const PatchnoteManager = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data: notesData, error: notesError } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
-    const { data: changesData, error: changesError } = await supabase.from('patch_note_changes').select('*');
-    
-    if (notesError || changesError) {
-      showError("Erreur de chargement des patchnotes.");
-    } else {
+    try {
+      const { data: notesData, error: notesError } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
+      if (notesError) throw notesError;
+      
+      const { data: changesData, error: changesError } = await supabase.from('patch_note_changes').select('*');
+      if (changesError) throw changesError;
+
       setPatchNotes(notesData || []);
       setChanges(changesData || []);
+    } catch (error: any) {
+      showError("Erreur de chargement des patchnotes.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -74,18 +79,29 @@ const PatchnoteManager = () => {
 
   const handleSaveNote = async (e: FormEvent) => {
     e.preventDefault();
-    if (!editingNote || !editingNote.title.trim() || !editingNote.version.trim()) return;
+    if (!editingNote || !editingNote.title?.trim() || !editingNote.version?.trim()) return;
 
-    const { id, ...dataToSave } = editingNote;
-    const promise = id ? supabase.from('patch_notes').update(dataToSave).eq('id', id) : supabase.from('patch_notes').insert(dataToSave);
-    
-    const { error } = await promise;
-    if (error) showError(error.message);
-    else {
-      showSuccess(`Patchnote ${id ? 'mis à jour' : 'créé'}.`);
+    setIsSubmitting(true);
+    try {
+      const { id, ...dataToSave } = editingNote;
+      if (id) {
+        const { data: updatedNote, error } = await supabase.from('patch_notes').update(dataToSave).eq('id', id).select().single();
+        if (error) throw error;
+        setPatchNotes(prev => prev.map(p => p.id === id ? updatedNote : p));
+        showSuccess(`Patchnote mis à jour.`);
+      } else {
+        const { data: newNote, error } = await supabase.from('patch_notes').insert(dataToSave).select().single();
+        if (error) throw error;
+        setPatchNotes(prev => [newNote, ...prev].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        setSelectedPatchNote(newNote);
+        showSuccess(`Patchnote créé.`);
+      }
       setIsNoteModalOpen(false);
       setEditingNote(null);
-      fetchData();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -93,32 +109,53 @@ const PatchnoteManager = () => {
     e.preventDefault();
     if (!editingChange || !editingChange.entity_name?.trim() || !selectedPatchNote) return;
 
-    const { id, ...dataToSave } = { ...editingChange, patch_note_id: selectedPatchNote.id };
-    const promise = id ? supabase.from('patch_note_changes').update(dataToSave).eq('id', id) : supabase.from('patch_note_changes').insert(dataToSave);
-    
-    const { error } = await promise;
-    if (error) showError(error.message);
-    else {
-      showSuccess(`Changement ${id ? 'mis à jour' : 'ajouté'}.`);
+    setIsSubmitting(true);
+    try {
+      const { id, ...dataToSave } = { ...editingChange, patch_note_id: selectedPatchNote.id };
+      if (id) {
+        const { data: updatedChange, error } = await supabase.from('patch_note_changes').update(dataToSave).eq('id', id).select().single();
+        if (error) throw error;
+        setChanges(prev => prev.map(c => c.id === id ? updatedChange : c));
+        showSuccess(`Changement mis à jour.`);
+      } else {
+        const { data: newChange, error } = await supabase.from('patch_note_changes').insert(dataToSave).select().single();
+        if (error) throw error;
+        setChanges(prev => [...prev, newChange]);
+        showSuccess(`Changement ajouté.`);
+      }
       setIsChangeModalOpen(false);
       setEditingChange(null);
-      fetchData();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deleteModal.item) return;
-    const fromTable = deleteModal.type === 'note' ? 'patch_notes' : 'patch_note_changes';
-    const { error } = await supabase.from(fromTable).delete().eq('id', deleteModal.item.id);
-    
-    if (error) showError(error.message);
-    else {
+    setIsSubmitting(true);
+    try {
+      const fromTable = deleteModal.type === 'note' ? 'patch_notes' : 'patch_note_changes';
+      const { error } = await supabase.from(fromTable).delete().eq('id', deleteModal.item.id);
+      if (error) throw error;
+
       showSuccess(`${deleteModal.type === 'note' ? 'Patchnote' : 'Changement'} supprimé.`);
-      if (deleteModal.type === 'note' && selectedPatchNote?.id === deleteModal.item.id) {
-        setSelectedPatchNote(null);
+      
+      if (deleteModal.type === 'note') {
+        setPatchNotes(prev => prev.filter(p => p.id !== deleteModal.item!.id));
+        if (selectedPatchNote?.id === deleteModal.item.id) {
+          setSelectedPatchNote(null);
+        }
+      } else {
+        setChanges(prev => prev.filter(c => c.id !== deleteModal.item!.id));
       }
+      
       setDeleteModal({ isOpen: false, type: 'note', item: null });
-      fetchData();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -214,9 +251,9 @@ const PatchnoteManager = () => {
         <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
           <DialogHeader><DialogTitle>{editingNote?.id ? 'Modifier' : 'Nouveau'} Patchnote</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveNote} className="py-4 space-y-4">
-            <div><Label>Version (ex: v1.0.1)</Label><Input value={editingNote?.version || ''} onChange={(e) => setEditingNote(prev => prev ? {...prev, version: e.target.value} : null)} required /></div>
-            <div><Label>Titre</Label><Input value={editingNote?.title || ''} onChange={(e) => setEditingNote(prev => prev ? {...prev, title: e.target.value} : null)} required /></div>
-            <DialogFooter><Button type="submit">Sauvegarder</Button></DialogFooter>
+            <div><Label>Version (ex: v1.0.1)</Label><Input value={editingNote?.version || ''} onChange={(e) => setEditingNote(prev => prev ? {...prev, version: e.target.value} : null)} required disabled={isSubmitting} /></div>
+            <div><Label>Titre</Label><Input value={editingNote?.title || ''} onChange={(e) => setEditingNote(prev => prev ? {...prev, title: e.target.value} : null)} required disabled={isSubmitting} /></div>
+            <DialogFooter><Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -226,12 +263,12 @@ const PatchnoteManager = () => {
           <DialogHeader><DialogTitle>{editingChange?.id ? 'Modifier' : 'Nouveau'} Changement</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveChange} className="py-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'Ajout'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded">{changeTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-              <div><Label>Type d'entité</Label><select value={editingChange?.entity_type || 'Fonctionnalité'} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_type: e.target.value} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded">{['Fonctionnalité', 'Item', 'Bâtiment', 'Zone', 'Correction', 'Équilibrage'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+              <div><Label>Type de changement</Label><select value={editingChange?.change_type || 'Ajout'} onChange={(e) => setEditingChange(prev => prev ? {...prev, change_type: e.target.value as any} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{changeTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+              <div><Label>Type d'entité</Label><select value={editingChange?.entity_type || 'Fonctionnalité'} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_type: e.target.value} : null)} className="w-full p-2 bg-gray-800 border border-gray-600 rounded" disabled={isSubmitting}>{['Fonctionnalité', 'Item', 'Bâtiment', 'Zone', 'Correction', 'Équilibrage'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             </div>
-            <div><Label>Nom de l'entité</Label><Input value={editingChange?.entity_name || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_name: e.target.value} : null)} required /></div>
-            <div><Label>Description</Label><Textarea value={editingChange?.description || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, description: e.target.value} : null)} rows={5} /></div>
-            <DialogFooter><Button type="submit">Sauvegarder</Button></DialogFooter>
+            <div><Label>Nom de l'entité</Label><Input value={editingChange?.entity_name || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, entity_name: e.target.value} : null)} required disabled={isSubmitting} /></div>
+            <div><Label>Description</Label><Textarea value={editingChange?.description || ''} onChange={(e) => setEditingChange(prev => prev ? {...prev, description: e.target.value} : null)} rows={5} disabled={isSubmitting} /></div>
+            <DialogFooter><Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -241,7 +278,7 @@ const PatchnoteManager = () => {
         onClose={() => setDeleteModal({ isOpen: false, type: 'note', item: null })}
         title={`Supprimer ${deleteModal.type === 'note' ? 'le patchnote' : 'le changement'}`}
         description={`Êtes-vous sûr de vouloir supprimer "${deleteModal.item?.title || (deleteModal.item as PatchNoteChange)?.entity_name}" ?`}
-        actions={[{ label: "Supprimer", onClick: handleDelete, variant: "destructive" }, { label: "Annuler", onClick: () => setDeleteModal({ isOpen: false, type: 'note', item: null }), variant: "secondary" }]}
+        actions={[{ label: "Supprimer", onClick: handleDelete, variant: "destructive", disabled: isSubmitting }, { label: "Annuler", onClick: () => setDeleteModal({ isOpen: false, type: 'note', item: null }), variant: "secondary" }]}
       />
     </>
   );

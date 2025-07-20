@@ -8,6 +8,7 @@ import {
 } from "@/components/CustomDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 interface ActionModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface ActionModalProps {
     label: string;
     onClick: () => void;
     variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | null;
+    disabled?: boolean;
   }[];
 }
 
@@ -46,6 +48,7 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
                 <Button
                   key={index}
                   onClick={action.onClick}
+                  disabled={action.disabled}
                   className={cn(
                     "flex-1 font-bold tracking-wide rounded-lg border border-white/20 transition-all",
                     action.variant === 'destructive' 
@@ -55,7 +58,7 @@ const ActionModal = ({ isOpen, onClose, title, description, actions }: ActionMod
                       : "bg-white/20 text-white hover:bg-white/30"
                   )}
                 >
-                  {action.label}
+                  {action.disabled ? <Loader2 className="w-4 h-4 animate-spin" /> : action.label}
                 </Button>
               ))}
             </div>
