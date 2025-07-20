@@ -74,7 +74,7 @@ const PatchnoteModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <DialogTitle className="text-2xl font-bold text-center text-white">Patchnotes</DialogTitle>
           </div>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto no-scrollbar p-4 max-h-full">
+        <div className="flex-grow overflow-y-auto no-scrollbar p-4">
           {loading ? (
             <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>
           ) : patchNotes.length === 0 ? (
