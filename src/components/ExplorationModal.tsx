@@ -12,6 +12,7 @@ import * as LucideIcons from "lucide-react";
 import { useGame } from '@/contexts/GameContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import InfoDisplayModal from './InfoDisplayModal';
+import ActionModal from './ActionModal';
 
 const EXPLORATION_COST = 5;
 const EXPLORATION_DURATION_S = 3; // Reduced for better UX
@@ -77,7 +78,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
   const [progress, setProgress] = useState(0);
   const [foundItems, setFoundItems] = useState<FoundItem[] | null>(null);
   const [eventResult, setEventResult] = useState<EventResult | null>(null);
-  const [inventoryFullError, setInventoryFullError] = useState(false);
+  const [inventoryFullModalState, setInventoryFullModalState] = useState<{ isOpen: boolean; item: FoundItem | null }>({ isOpen: false, item: null });
   const [remainingTime, setRemainingTime] = useState(0);
   const [detailedInfo, setDetailedInfo] = useState<{
     info: PotentialInfo;
@@ -155,7 +156,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     setProgress(0);
     setFoundItems(null);
     setEventResult(null);
-    setInventoryFullError(false);
+    setInventoryFullModalState({ isOpen: false, item: null });
     setRemainingTime(0);
   };
 
@@ -224,29 +225,8 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     setProgress(0);
     setFoundItems(null);
     setEventResult(null);
-    setInventoryFullError(false);
+    setInventoryFullModalState({ isOpen: false, item: null });
     setRemainingTime(EXPLORATION_DURATION_S);
-  };
-
-  const handleCollectOne = async (itemToCollect: FoundItem) => {
-    setInventoryFullError(false);
-    setFoundItems(currentItems => (currentItems?.filter(item => item.item_id !== itemToCollect.item_id) || null));
-    
-    const payload = [{ item_id: itemToCollect.item_id, quantity: itemToCollect.quantity }];
-    const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: payload });
-
-    if (error) {
-      if (error.message.includes("Votre inventaire est plein")) {
-        setInventoryFullError(true);
-        showError("Votre inventaire est plein. Libérez de l'espace pour récupérer votre butin.");
-      } else {
-        showError(error.message);
-      }
-      setFoundItems(prev => [...(prev || []), itemToCollect]);
-    } else {
-      showSuccess(`${itemToCollect.name} x${itemToCollect.quantity} ajouté à l'inventaire !`);
-      onUpdate();
-    }
   };
 
   const handleDiscardOne = (itemToDiscard: FoundItem) => {
@@ -255,6 +235,25 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
       return newItems && newItems.length > 0 ? newItems : null;
     });
     showInfo(`${itemToDiscard.name} a été jeté.`);
+  };
+
+  const handleCollectOne = async (itemToCollect: FoundItem) => {
+    setFoundItems(currentItems => (currentItems?.filter(item => item.item_id !== itemToCollect.item_id) || null));
+    
+    const payload = [{ item_id: itemToCollect.item_id, quantity: itemToCollect.quantity }];
+    const { error } = await supabase.rpc('collect_exploration_loot', { p_items_to_add: payload });
+
+    if (error) {
+      if (error.message.includes("Votre inventaire est plein")) {
+        setInventoryFullModalState({ isOpen: true, item: itemToCollect });
+      } else {
+        showError(error.message);
+      }
+      setFoundItems(prev => [...(prev || []), itemToCollect]);
+    } else {
+      showSuccess(`${itemToCollect.name} x${itemToCollect.quantity} ajouté à l'inventaire !`);
+      onUpdate();
+    }
   };
 
   useEffect(() => {
@@ -335,13 +334,6 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
-
-                  {inventoryFullError && (
-                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center space-y-2">
-                      <p className="text-red-300 text-sm">Votre inventaire est plein.</p>
-                      <Button onClick={onOpenInventory} variant="destructive" size="sm">Ouvrir l'inventaire</Button>
                     </div>
                   )}
 
@@ -446,6 +438,16 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         description={detailedInfo?.info.description || null}
         icon={detailedInfo?.info.icon || null}
         boostInfo={detailedInfo?.boost}
+      />
+      <ActionModal
+        isOpen={inventoryFullModalState.isOpen}
+        onClose={() => setInventoryFullModalState({ isOpen: false, item: null })}
+        title="Inventaire plein"
+        description={`Votre inventaire est plein. Vous pouvez faire de la place pour récupérer ${inventoryFullModalState.item?.name} ou le jeter.`}
+        actions={[
+          { label: "Ouvrir l'inventaire", onClick: () => { setInventoryFullModalState({ isOpen: false, item: null }); onOpenInventory(); }, variant: "default" },
+          { label: "Jeter l'objet", onClick: () => { if (inventoryFullModalState.item) { handleDiscardOne(inventoryFullModalState.item); } setInventoryFullModalState({ isOpen: false, item: null }); }, variant: "destructive" },
+        ]}
       />
     </>
   );
