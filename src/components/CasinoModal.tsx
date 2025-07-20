@@ -135,7 +135,7 @@ const CasinoModal = ({ isOpen, onClose, credits, onUpdate, onPurchaseCredits, zo
   const fetchWonAuctions = useCallback(async () => {
     if (!user) return;
     setLoadingAuctions(true);
-    const { data, error } = await supabase.rpc('get_won_auctions', { p_user_id: user.id });
+    const { data, error } = await supabase.rpc('get_won_auctions', { p_player_id: user.id });
     if (error) showError("Impossible de charger vos gains.");
     else setWonAuctions(data || []);
     setLoadingAuctions(false);
