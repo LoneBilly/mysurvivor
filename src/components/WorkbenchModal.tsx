@@ -261,7 +261,6 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
         onDropAll={() => {}}
         onUpdate={onUpdate}
         onTransferFromWorkbench={() => {}}
-        playerStats={playerData.playerState}
       />
       <BlueprintModal isOpen={isBlueprintModalOpen} onClose={() => setIsBlueprintModalOpen(false)} />
       <WorkbenchInventorySelectorModal

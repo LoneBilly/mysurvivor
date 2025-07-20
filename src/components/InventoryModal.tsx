@@ -452,7 +452,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           onSplit={handleSplitItem}
           source="inventory"
           onUpdate={onUpdate}
-          playerStats={playerData.playerState}
         />
       </DialogContent>
     </Dialog>
