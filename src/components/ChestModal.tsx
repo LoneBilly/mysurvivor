@@ -198,23 +198,47 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         }
         rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
       } else if (source === 'inventory' && target === 'chest') {
-        if (fromItemInv) {
-          optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
-          if (toItemChest) {
-            optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== toItemChest.id);
-            optimisticData.inventory.push({ ...toItemChest, slot_position: fromIndex });
-          }
-          optimisticData.chestItems.push({ ...fromItemInv, slot_position: toIndex, chest_id: construction.id });
+        if (!fromItemInv || !construction) return;
+        if (toItemChest) {
+            if (fromItemInv.items?.stackable) {
+                if (fromItemInv.item_id === toItemChest.item_id) {
+                    toItemChest.quantity += fromItemInv.quantity;
+                    optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
+                } else {
+                    showError("Impossible d'échanger des objets empilables.");
+                    return;
+                }
+            } else {
+                const fromInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === fromItemInv.id);
+                const toChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === toItemChest.id);
+                optimisticData.inventory[fromInvIndex] = { ...toItemChest, slot_position: fromIndex };
+                optimisticData.chestItems[toChestIndex] = { ...fromItemInv, slot_position: toIndex, chest_id: construction.id };
+            }
+        } else {
+            optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
+            optimisticData.chestItems.push({ ...fromItemInv, slot_position: toIndex, chest_id: construction.id });
         }
         rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: fromItemInv.id, p_chest_id: construction.id, p_quantity_to_move: fromItemInv.quantity, p_target_slot: toIndex });
       } else if (source === 'chest' && target === 'inventory') {
-        if (fromItemChest) {
-          optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
-          if (toItemInv) {
-            optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== toItemInv.id);
-            optimisticData.chestItems.push({ ...toItemInv, slot_position: fromIndex, chest_id: construction.id });
-          }
-          optimisticData.inventory.push({ ...fromItemChest, slot_position: toIndex });
+        if (!fromItemChest) return;
+        if (toItemInv) {
+            if (fromItemChest.items?.stackable) {
+                if (fromItemChest.item_id === toItemInv.item_id) {
+                    toItemInv.quantity += fromItemChest.quantity;
+                    optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
+                } else {
+                    showError("Impossible d'échanger des objets empilables.");
+                    return;
+                }
+            } else {
+                const fromChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === fromItemChest.id);
+                const toInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItemInv.id);
+                optimisticData.chestItems[fromChestIndex] = { ...toItemInv, slot_position: fromIndex, chest_id: construction.id };
+                optimisticData.inventory[toInvIndex] = { ...fromItemChest, slot_position: toIndex };
+            }
+        } else {
+            optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
+            optimisticData.inventory.push({ ...fromItemChest, slot_position: toIndex });
         }
         rpcPromise = supabase.rpc('move_item_from_chest', { p_chest_item_id: fromItemChest.id, p_quantity_to_move: fromItemChest.quantity, p_target_slot: toIndex });
       }
@@ -296,7 +320,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
               Stockez vos objets en sécurité.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
+          <div className="relative flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 min-h-0">
             {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
