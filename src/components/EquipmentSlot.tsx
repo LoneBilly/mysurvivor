@@ -46,7 +46,7 @@ const EquipmentSlot = ({ slotType, label, item, onDragStart, isDragOver, onItemC
           <div
             data-slot-type={slotType}
             className={cn(
-              "relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg border-2 flex flex-col items-center justify-center transition-colors",
+              "relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg border-2 flex flex-col items-center justify-center transition-colors",
               isDragOver ? "bg-sky-500/20 border-sky-500" : "bg-black/20 border-slate-600",
               item ? "cursor-grab active:cursor-grabbing" : "cursor-default"
             )}

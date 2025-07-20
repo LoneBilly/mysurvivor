@@ -330,7 +330,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, unlockedSlots, onUpdate }:
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex justify-center gap-2 sm:gap-4 mb-6 relative">
+        <div className="flex justify-center gap-1 sm:gap-2 mb-6 relative">
           {equipmentSlots.map(slot => (
             <div key={slot.type} className="flex flex-col items-center gap-2">
               <EquipmentSlot
