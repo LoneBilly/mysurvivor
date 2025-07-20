@@ -3,7 +3,6 @@ import {
   CustomDialogContent as DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/CustomDialog";
 import { Package, Loader2, Backpack, Shield, Sword, Footprints, Car, Trash2 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -38,6 +37,7 @@ const equipmentSlotConfig: { type: EquipmentSlotType; icon: React.ElementType }[
 const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, onUpdate }: InventoryModalProps) => {
   const { user } = useAuth();
   const [slots, setSlots] = useState<(InventoryItem | null)[]>(Array(TOTAL_SLOTS).fill(null));
+  const [localEquipment, setLocalEquipment] = useState<Equipment>(equipment);
   const [loading, setLoading] = useState(true);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'equipment'; slotType?: EquipmentSlotType } | null>(null);
   
@@ -57,8 +57,9 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
       }
     });
     setSlots(newSlots);
+    setLocalEquipment(equipment);
     setLoading(false);
-  }, [inventory]);
+  }, [inventory, equipment]);
 
   const stopAutoScroll = useCallback(() => {
     if (scrollIntervalRef.current) {
@@ -74,38 +75,81 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
       draggedItemNode.current = null;
     }
 
-    const fromItem = draggedItem;
-    const toTarget = dragOver;
+    const from = draggedItem;
+    const to = dragOver;
 
     setDraggedItem(null);
     setDragOver(null);
 
-    if (!fromItem || !toTarget || !user) return;
+    if (!from || !to || !user) return;
 
-    if (toTarget.target === 'drop') {
+    if (to.target === 'drop') {
+      setDraggedItem(from);
       setIsDropModalOpen(true);
       return;
     }
 
-    if (fromItem.source === 'inventory' && toTarget.target === 'inventory') {
-      const fromIndex = fromItem.sourceId as number;
-      const toIndex = toTarget.targetId as number;
-      if (fromIndex === toIndex || toIndex >= unlockedSlots) return;
-      await supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
-    } else if (fromItem.source === 'inventory' && toTarget.target === 'equipment') {
-      await supabase.rpc('equip_item', { p_inventory_id: fromItem.item.id, p_slot_type: toTarget.targetId });
-    } else if (fromItem.source === 'equipment' && toTarget.target === 'inventory') {
-      const toIndex = toTarget.targetId as number;
-      if (toIndex >= unlockedSlots) {
-        showError("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
+    const originalSlots = JSON.parse(JSON.stringify(slots));
+    const originalEquipment = JSON.parse(JSON.stringify(localEquipment));
+    
+    const newSlots = [...slots];
+    const newEquipment = { ...localEquipment };
+    
+    let rpcCall: PromiseLike<{ error: any }>;
+
+    try {
+      if (from.source === 'inventory' && to.target === 'inventory') {
+        const fromIndex = from.sourceId as number;
+        const toIndex = to.targetId as number;
+        if (fromIndex === toIndex || toIndex >= unlockedSlots) return;
+        
+        [newSlots[fromIndex], newSlots[toIndex]] = [newSlots[toIndex], newSlots[fromIndex]];
+        setSlots(newSlots);
+        rpcCall = supabase.rpc('swap_inventory_items', { p_from_slot: fromIndex, p_to_slot: toIndex });
+
+      } else if (from.source === 'inventory' && to.target === 'equipment') {
+        const toSlotType = to.targetId as EquipmentSlotType;
+        const itemToEquip = from.item;
+        
+        const currentlyEquipped = newEquipment[toSlotType];
+        newEquipment[toSlotType] = itemToEquip;
+        
+        const fromIndex = newSlots.findIndex(i => i?.id === itemToEquip.id);
+        if (fromIndex !== -1) newSlots[fromIndex] = currentlyEquipped;
+        
+        setSlots(newSlots);
+        setLocalEquipment(newEquipment);
+        rpcCall = supabase.rpc('equip_item', { p_inventory_id: itemToEquip.id, p_slot_type: toSlotType });
+
+      } else if (from.source === 'equipment' && to.target === 'inventory') {
+        const fromSlotType = from.sourceId as EquipmentSlotType;
+        const toIndex = to.targetId as number;
+        if (toIndex >= unlockedSlots) throw new Error("Vous ne pouvez pas déposer un objet sur un emplacement verrouillé.");
+
+        const itemToUnequip = from.item;
+        const itemInTargetSlot = newSlots[toIndex];
+
+        newSlots[toIndex] = itemToUnequip;
+        newEquipment[fromSlotType] = itemInTargetSlot;
+
+        setSlots(newSlots);
+        setLocalEquipment(newEquipment);
+        rpcCall = supabase.rpc('unequip_item_to_slot', { p_inventory_id: itemToUnequip.id, p_target_slot: toIndex });
+      } else {
         return;
       }
-      await supabase.rpc('unequip_item_to_slot', { p_inventory_id: fromItem.item.id, p_target_slot: toIndex });
-    }
-    
-    await onUpdate();
 
-  }, [draggedItem, dragOver, unlockedSlots, stopAutoScroll, user, onUpdate]);
+      const { error } = await rpcCall;
+      if (error) throw error;
+      
+      await onUpdate();
+
+    } catch (error: any) {
+      showError(error.message || "Une erreur est survenue.");
+      setSlots(originalSlots);
+      setLocalEquipment(originalEquipment);
+    }
+  }, [draggedItem, dragOver, unlockedSlots, stopAutoScroll, user, onUpdate, slots, localEquipment]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (draggedItemNode.current) {
@@ -126,7 +170,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
       const inventoryIndex = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
       const equipmentType = slotElement.getAttribute('data-slot-type') as EquipmentSlotType | null;
 
-      if (inventoryIndex !== -1 && inventoryIndex < unlockedSlots) {
+      if (inventoryIndex !== -1) {
         setDragOver({ target: 'inventory', targetId: inventoryIndex });
         return;
       }
@@ -136,22 +180,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
       }
     }
     setDragOver(null);
-
-    const gridEl = gridRef.current;
-    if (!gridEl) return;
-    const rect = gridEl.getBoundingClientRect();
-    const scrollThreshold = 60;
-
-    stopAutoScroll();
-
-    if (clientY < rect.top + scrollThreshold) {
-      const scroll = () => { gridEl.scrollTop -= 10; scrollIntervalRef.current = requestAnimationFrame(scroll); };
-      scroll();
-    } else if (clientY > rect.bottom - scrollThreshold) {
-      const scroll = () => { gridEl.scrollTop += 10; scrollIntervalRef.current = requestAnimationFrame(scroll); };
-      scroll();
-    }
-  }, [unlockedSlots, stopAutoScroll]);
+  }, []);
 
   const handleDragStart = useCallback((item: InventoryItem, source: 'inventory' | 'equipment', sourceId: number | EquipmentSlotType, node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -178,15 +207,61 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
     setDetailedItem({ item, source, slotType });
   };
 
-  const handleDropAllItems = async () => {
+  const handleDropZoneDrop = async () => {
     if (!draggedItem) return;
-    const { error } = await supabase.from('inventories').delete().eq('id', draggedItem.item.id);
-    if (error) showError("Erreur lors de la suppression.");
-    else {
+    const itemToDrop = draggedItem.item;
+    setDraggedItem(null);
+    setIsDropModalOpen(false);
+
+    const { error } = await supabase.from('inventories').delete().eq('id', itemToDrop.id);
+    if (error) {
+      showError("Erreur lors de la suppression de l'objet.");
+    } else {
       showSuccess("Objet jeté.");
       onUpdate();
     }
-    setIsDropModalOpen(false);
+  };
+
+  const handleDetailModalDropOne = async () => {
+    if (!detailedItem) return;
+    const item = detailedItem.item;
+    setDetailedItem(null);
+
+    const { error } = await supabase.rpc('drop_inventory_item', { p_inventory_id: item.id, p_quantity_to_drop: 1 });
+    if (error) showError(error.message);
+    else {
+      showSuccess("1x objet jeté.");
+      onUpdate();
+    }
+  };
+
+  const handleDetailModalDropAll = async () => {
+    if (!detailedItem) return;
+    const item = detailedItem.item;
+    setDetailedItem(null);
+
+    const { error } = await supabase.from('inventories').delete().eq('id', item.id);
+    if (error) showError(error.message);
+    else {
+      showSuccess("Pile d'objets jetée.");
+      onUpdate();
+    }
+  };
+
+  const handleDetailModalSplit = async (item: InventoryItem, quantity: number) => {
+    if (!item) return;
+    setDetailedItem(null);
+  
+    const { error } = await supabase.rpc('split_inventory_item', {
+      p_inventory_id: item.id,
+      p_split_quantity: quantity,
+    });
+  
+    if (error) showError(error.message);
+    else {
+      showSuccess("La pile d'objets a été divisée.");
+      onUpdate();
+    }
   };
 
   useEffect(() => {
@@ -235,13 +310,12 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
             </div>
           </DialogHeader>
 
-          {/* Equipment Section */}
           <div className="flex-shrink-0 p-4 bg-slate-900/50 rounded-lg border border-slate-800">
             <h3 className="text-center font-bold font-mono mb-3 text-gray-300">Équipement</h3>
             <div className="flex justify-center items-center gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {equipmentSlotConfig.map(({ type, icon: Icon }) => {
-                  const item = equipment[type];
+                  const item = localEquipment[type];
                   return (
                     <div key={type} data-slot-type={type} className="w-16 h-16">
                       <InventorySlot
@@ -264,7 +338,6 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
             </div>
           </div>
 
-          {/* Inventory Section */}
           <div className="flex-1 flex flex-col min-h-0 p-4 bg-slate-900/50 rounded-lg border border-slate-800">
             <h3 className="text-center font-bold font-mono mb-3 text-gray-300">
               Inventaire <span className="text-white">({unlockedSlots} / {TOTAL_SLOTS})</span>
@@ -295,9 +368,9 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
         onClose={() => setDetailedItem(null)}
         item={detailedItem?.item || null}
         onUse={() => showError("Cette fonctionnalité n'est pas encore disponible.")}
-        onDropOne={() => {}}
-        onDropAll={() => {}}
-        onSplit={() => {}}
+        onDropOne={handleDetailModalDropOne}
+        onDropAll={handleDetailModalDropAll}
+        onSplit={handleDetailModalSplit}
         source={detailedItem?.source}
         onUpdate={onUpdate}
       />
@@ -307,7 +380,7 @@ const InventoryModal = ({ isOpen, onClose, inventory, equipment, unlockedSlots, 
         title="Jeter l'objet"
         description={`Êtes-vous sûr de vouloir jeter ${draggedItem?.item.quantity}x ${draggedItem?.item.items?.name} ? Cette action est irréversible.`}
         actions={[
-          { label: "Confirmer", onClick: handleDropAllItems, variant: "destructive" },
+          { label: "Confirmer", onClick: handleDropZoneDrop, variant: "destructive" },
           { label: "Annuler", onClick: () => setIsDropModalOpen(false), variant: "secondary" },
         ]}
       />
