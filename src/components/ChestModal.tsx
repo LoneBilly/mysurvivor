@@ -200,14 +200,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       } else if (source === 'inventory' && target === 'chest') {
         if (!fromItemInv || !construction) return;
         if (toItemChest) {
-            if (fromItemInv.items?.stackable) {
-                if (fromItemInv.item_id === toItemChest.item_id) {
-                    toItemChest.quantity += fromItemInv.quantity;
-                    optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
-                } else {
-                    showError("Impossible d'échanger des objets empilables.");
-                    return;
-                }
+            if (fromItemInv.item_id === toItemChest.item_id && fromItemInv.items?.stackable) {
+                toItemChest.quantity += fromItemInv.quantity;
+                optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
             } else {
                 const fromInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === fromItemInv.id);
                 const toChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === toItemChest.id);
@@ -222,14 +217,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       } else if (source === 'chest' && target === 'inventory') {
         if (!fromItemChest) return;
         if (toItemInv) {
-            if (fromItemChest.items?.stackable) {
-                if (fromItemChest.item_id === toItemInv.item_id) {
-                    toItemInv.quantity += fromItemChest.quantity;
-                    optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
-                } else {
-                    showError("Impossible d'échanger des objets empilables.");
-                    return;
-                }
+            if (fromItemChest.item_id === toItemInv.item_id && fromItemChest.items?.stackable) {
+                toItemInv.quantity += fromItemChest.quantity;
+                optimisticData.chestItems = optimisticData.chestItems.filter((i: ChestItemType) => i.id !== fromItemChest.id);
             } else {
                 const fromChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === fromItemChest.id);
                 const toInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItemInv.id);
