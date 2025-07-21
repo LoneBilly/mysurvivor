@@ -94,16 +94,16 @@
     width: 8px;
   }
   .visible-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
     border-radius: 4px;
   }
   .visible-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.4);
     border-radius: 4px;
   }
   .visible-scrollbar {
     scrollbar-width: thin; /* Firefox */
-    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1); /* Firefox */
+    scrollbar-color: rgba(255, 255, 255, 0.4) rgba(0, 0, 0, 0.3); /* Firefox */
   }
 }
 

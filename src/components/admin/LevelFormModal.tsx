@@ -50,6 +50,8 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
     const numValue = parseInt(value, 10);
     if (!isNaN(numValue)) {
       setLevel(prev => ({ ...prev, [field]: numValue }));
+    } else if (value === '') {
+      setLevel(prev => ({ ...prev, [field]: 0 }));
     }
   };
 
@@ -105,13 +107,15 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
         <form onSubmit={handleSubmit} className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           <div>
             <Label>Niveau</Label>
-            <Input type="number" value={level.level || ''} onChange={(e) => handleInputChange('level', e.target.value)} required min="1" />
+            <Input type="number" value={level.level || ''} onChange={(e) => handleInputChange('level', e.target.value)} required min="1" disabled={levelData?.level === 1} />
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <div><Label>Coût Énergie</Label><Input type="number" value={level.upgrade_cost_energy || ''} onChange={(e) => handleInputChange('upgrade_cost_energy', e.target.value)} placeholder="0" /></div>
+            <div><Label>Temps (secondes)</Label><Input type="number" value={level.upgrade_time_seconds || ''} onChange={(e) => handleInputChange('upgrade_time_seconds', e.target.value)} placeholder="0" /></div>
             <div><Label>Coût Bois</Label><Input type="number" value={level.upgrade_cost_wood || ''} onChange={(e) => handleInputChange('upgrade_cost_wood', e.target.value)} placeholder="0" /></div>
             <div><Label>Coût Pierre</Label><Input type="number" value={level.upgrade_cost_metal || ''} onChange={(e) => handleInputChange('upgrade_cost_metal', e.target.value)} placeholder="0" /></div>
             <div><Label>Coût Composants</Label><Input type="number" value={level.upgrade_cost_components || ''} onChange={(e) => handleInputChange('upgrade_cost_components', e.target.value)} placeholder="0" /></div>
-            <div><Label>Temps (secondes)</Label><Input type="number" value={level.upgrade_time_seconds || ''} onChange={(e) => handleInputChange('upgrade_time_seconds', e.target.value)} placeholder="0" /></div>
+            <div><Label>Coût Métal (lingots)</Label><Input type="number" value={level.upgrade_cost_metal_ingots || ''} onChange={(e) => handleInputChange('upgrade_cost_metal_ingots', e.target.value)} placeholder="0" /></div>
           </div>
           <div>
             <Label>Statistiques</Label>
