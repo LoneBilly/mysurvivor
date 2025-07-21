@@ -10,24 +10,29 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 const testimonials = [
   {
-    quote: "L'adrénaline de l'exploration est incroyable. On ne sait jamais sur quoi on va tomber. J'ai perdu ma première base, mais la deuxième est une forteresse !",
-    name: "Izipeace",
-    avatar: "I",
+    quote: "Le système de construction de base est génial ! J'adore voir ma forteresse évoluer avec les niveaux, ça ajoute une vraie profondeur stratégique.",
+    name: "BâtisseurPro",
+    avatar: "B",
   },
   {
-    quote: "Ce jeu ne pardonne pas, et c'est ça qui est bon. Chaque ressource compte, chaque décision a un impact. C'est la meilleure simulation de survie à laquelle j'ai joué.",
-    name: "ShadowKiller92",
-    avatar: "S",
+    quote: "La carte est incroyablement riche et variée. Que ce soit la forêt pour les ressources, l'hôpital pour les soins, ou le casino pour le frisson, chaque zone a son intérêt. L'exploration est un plaisir !",
+    name: "CartographeFou",
+    avatar: "C",
   },
   {
-    quote: "J'ai passé 15 jours à survivre, c'était intense ! Le système de construction est simple mais profond. Voir sa base grandir jour après jour, c'est gratifiant.",
-    name: "Jacadu66",
-    avatar: "J",
+    quote: "Le PvP 24h/24 sur un serveur unique, c'est l'adrénaline pure ! Savoir que n'importe qui peut attaquer à tout moment rend chaque décision stratégique. C'est impitoyable et j'adore ça.",
+    name: "ChasseurOmbre",
+    avatar: "H",
   },
   {
-    quote: "Le frisson de croiser un autre joueur... allié ou ennemi ? Cette tension permanente est ce qui me fait revenir chaque jour. Un must pour les fans de survie.",
-    name: "LaReineDuLoot",
-    avatar: "L",
+    quote: "Le marché est une révolution ! Acheter et vendre des objets avec des prix fixés par les joueurs, c'est un système économique vivant et passionnant. J'ai fait fortune en vendant du bois !",
+    name: "MarchandMalin",
+    avatar: "M",
+  },
+  {
+    quote: "Le design du jeu est une réussite. Pas de 3D tape-à-l'œil, mais des interfaces sobres et épurées qui créent une immersion folle. On se sent vraiment dans un terminal de survie.",
+    name: "PixelArtiste",
+    avatar: "P",
   },
 ];
 
