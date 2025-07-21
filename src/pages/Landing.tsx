@@ -45,10 +45,10 @@ const Landing = () => {
       <section className="w-full max-w-5xl text-center py-16 sm:py-24">
         <ShieldAlert className="w-16 h-16 mx-auto text-white mb-6 animate-pulse" />
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white font-mono tracking-wider uppercase">
-          MY SURVIVOR
+          RIVALIST
         </h1>
         <p className="text-gray-300 mt-4 text-lg max-w-3xl mx-auto">
-          Incarnez votre propre survivant dans un monde post-apocalyptique impitoyable. Explorez, construisez, et luttez pour votre place dans ce qui reste de l'humanité.
+          Incarne ton propre survivant dans un monde hostile. La devise de Rivalist? Tué ou être tué! Tu es maître de ton destin dans cette simulation de survie sur navigateur 100% multijoueur. Deviens le meilleur survivant et défend ton campement contre tous les survivants qui voudraient ta peau.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4">
           <Button 
@@ -81,7 +81,7 @@ const Landing = () => {
 
       {/* Testimonials Section */}
       <section className="w-full flex flex-col items-center py-16">
-        <h2 className="text-3xl font-bold text-center mb-2 font-mono uppercase">Échos des Terres Désolées</h2>
+        <h2 className="text-3xl font-bold text-center mb-2 font-mono uppercase">Échos des Survivants</h2>
         <p className="text-gray-400 text-center mb-12">Ils ont survécu. Pour l'instant.</p>
         <TestimonialCarousel />
       </section>
@@ -89,10 +89,10 @@ const Landing = () => {
       {/* Final CTA Section */}
       <section className="w-full max-w-5xl text-center py-16">
         <h2 className="text-3xl md:text-4xl font-bold text-white font-mono tracking-wider uppercase">
-          Prêt à laisser votre marque ?
+          As-tu réellement les capacités d'un survivant?
         </h2>
         <p className="text-gray-300 mt-4 text-lg max-w-2xl mx-auto">
-          Le monde ne vous attendra pas. Chaque seconde compte. Rejoignez les rangs des survivants et forgez votre propre légende.
+          Incarne ton personnage et sois le top 1 des survivants de Rivalist!
         </p>
         <Button 
           onClick={() => navigate('/login')}
