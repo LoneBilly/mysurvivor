@@ -35,7 +35,7 @@ const Landing = () => {
     { icon: Map, title: "Explorez", description: "Découvrez un monde en ruines, zone par zone, et révélez ses secrets." },
     { icon: Home, title: "Construisez", description: "Établissez votre campement et transformez-le en une base imprenable." },
     { icon: Package, title: "Lootez & Commercez", description: "Ramassez tout ce dont vous avez besoin pour votre survie et vendez le reste sur le marché des survivants." },
-    { icon: Swords, title: "Survivez", description: "Affrontez les autres joueurs dans un PvP asynchrone stratégique." },
+    { icon: Swords, title: "Survivez", description: "Affrontez les autres joueurs dans un PvP asynchrone stratégique. Serveur 100% online, 100% PvP." },
   ];
 
   return (
