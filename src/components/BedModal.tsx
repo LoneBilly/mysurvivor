@@ -152,9 +152,7 @@ const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) 
         onClose={() => setIsUpgradeModalOpen(false)}
         construction={construction}
         onUpdate={refreshPlayerData}
+        onUpgradeComplete={onClose}
       />
     </>
   );
-};
-
-export default BedModal;

@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, ChestItem as ChestItemType } from "@/types/game";
 import { Box, Trash2, ArrowUpCircle } from "lucide-react";
@@ -440,8 +440,11 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
               <Box className="w-7 h-7 text-white" />
               <div>
                 <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
-                  Coffre - Niveau {currentConstruction.level} ({chestSlots} slots)
+                  Coffre - Niveau {currentConstruction.level}
                 </DialogTitle>
+                <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
+                  {chestSlots} slots de stockage
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -491,6 +494,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
           onClose={() => setIsUpgradeModalOpen(false)}
           construction={currentConstruction}
           onUpdate={onUpdate}
+          onUpgradeComplete={onClose}
         />
       )}
     </>

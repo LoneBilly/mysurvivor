@@ -15,12 +15,13 @@ interface BuildingUpgradeProps {
   construction: BaseConstruction;
   onUpdate: (silent?: boolean) => void;
   onClose: () => void;
+  onUpgradeComplete?: () => void;
 }
 
 const statDisplayConfig: { [key: string]: { label: string; icon: React.ElementType; unit?: string } } = {
   storage_slots: { label: "Slots de stockage", icon: Box },
   energy_regen_per_second: { label: "Régénération d'énergie", icon: Zap, unit: "/s" },
-  // Ajoutez d'autres stats ici au besoin
+  crafting_speed_modifier_percentage: { label: "Vitesse de fabrication", icon: Clock, unit: '%' },
 };
 
 const CostDisplay = ({ item, required, available, icon: IconComponent }: { item?: Item, required: number, available: number, icon?: React.ElementType }) => {
@@ -50,7 +51,7 @@ const CostDisplay = ({ item, required, available, icon: IconComponent }: { item?
   );
 };
 
-const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradeProps) => {
+const BuildingUpgrade = ({ construction, onUpdate, onClose, onUpgradeComplete }: BuildingUpgradeProps) => {
   const { playerData, items, addConstructionJob, buildingLevels } = useGame();
   const [nextLevel, setNextLevel] = useState<BuildingLevel | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,6 +122,7 @@ const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradePro
       }
       onUpdate(true);
       onClose();
+      if (onUpgradeComplete) onUpgradeComplete();
     }
     setIsUpgrading(false);
   };
@@ -128,11 +130,12 @@ const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradePro
   const isJobRunning = playerData.constructionJobs && playerData.constructionJobs.length > 0;
 
   const statChanges = useMemo(() => {
-    if (!currentLevel?.stats || !nextLevel?.stats) return [];
+    if (!currentLevel || !nextLevel) return [];
+    const allKeys = new Set([...Object.keys(currentLevel.stats || {}), ...Object.keys(nextLevel.stats || {})]);
     const changes = [];
-    for (const key in nextLevel.stats) {
-      const oldValue = (currentLevel.stats as any)[key] ?? 0;
-      const newValue = (nextLevel.stats as any)[key];
+    for (const key of allKeys) {
+      const oldValue = (currentLevel.stats as any)?.[key] ?? 0;
+      const newValue = (nextLevel.stats as any)?.[key] ?? 0;
       if (oldValue !== newValue) {
         changes.push({ key, oldValue, newValue });
       }

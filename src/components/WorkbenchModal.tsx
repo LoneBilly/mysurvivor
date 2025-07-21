@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import WorkbenchInventorySelectorModal from "./WorkbenchInventorySelectorModal";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import ActionModal from "./ActionModal";
 import { useWorkbench } from "@/hooks/useWorkbench";
 import { showError } from "@/utils/toast";
@@ -58,6 +58,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     handleDragMove,
     handleDragEnd,
   } = useWorkbench(construction, onUpdate);
+
+  const currentLevelInfo = useMemo(() => {
+    if (!construction) return null;
+    return buildingLevels.find(
+      level => level.building_type === construction.type && level.level === construction.level
+    );
+  }, [construction, buildingLevels]);
+
+  const craftingSpeedModifier = useMemo(() => {
+    return currentLevelInfo?.stats?.crafting_speed_modifier_percentage || 0;
+  }, [currentLevelInfo]);
 
   const hasNextLevel = useMemo(() => {
     if (!construction) return false;
@@ -141,6 +152,11 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                 <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
                   Établi - Niveau {construction.level}
                 </DialogTitle>
+                {craftingSpeedModifier > 0 && (
+                  <DialogDescription className="text-sm text-green-400 font-mono mt-1">
+                    Vitesse de fabrication: +{craftingSpeedModifier}%
+                  </DialogDescription>
+                )}
               </div>
             </div>
           </DialogHeader>
@@ -313,6 +329,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
           onClose={() => setIsUpgradeModalOpen(false)}
           construction={construction}
           onUpdate={onUpdate}
+          onUpgradeComplete={onClose}
         />
       )}
     </>
