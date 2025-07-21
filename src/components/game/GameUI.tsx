@@ -253,29 +253,28 @@ const GameUI = () => {
   }), [playerData.scoutingMissions]);
 
   const totalResources = useMemo(() => {
-    const inventoryWood = playerData.inventory.find(i => i.items?.name === 'Bois')?.quantity || 0;
-    const inventoryMetal = playerData.inventory.find(i => i.items?.name === 'Pierre')?.quantity || 0;
-    const inventoryComponents = playerData.inventory.find(i => i.items?.name === 'Composants')?.quantity || 0;
-    
-    const woodItem = items.find(i => i.name === 'Bois');
-    const metalItem = items.find(i => i.name === 'Pierre');
-    const componentsItem = items.find(i => i.name === 'Composants');
-
-    const chestWood = playerData.chestItems?.find(i => i.item_id === woodItem?.id)?.quantity || 0;
-    const chestMetal = playerData.chestItems?.find(i => i.item_id === metalItem?.id)?.quantity || 0;
-    const chestComponents = playerData.chestItems?.find(i => i.item_id === componentsItem?.id)?.quantity || 0;
-
-    return {
-      wood: playerData.playerState.wood + inventoryWood + chestWood,
-      metal: playerData.playerState.metal + inventoryMetal + chestMetal,
-      components: playerData.playerState.components + inventoryComponents + chestComponents,
+    const resourceCounter = (name: string) => {
+      const inventoryQty = playerData.inventory
+        .filter(i => i.items?.name === name)
+        .reduce((sum, i) => sum + i.quantity, 0);
+      const chestQty = playerData.chestItems
+        ?.filter(i => i.items?.name === name)
+        .reduce((sum, i) => sum + i.quantity, 0) || 0;
+      return inventoryQty + chestQty;
     };
-  }, [playerData, items]);
+    
+    return {
+      wood: resourceCounter('Bois'),
+      metal: resourceCounter('Pierre'),
+      components: resourceCounter('Composants'),
+      metal_ingots: resourceCounter('Lingot de métal'),
+    };
+  }, [playerData.inventory, playerData.chestItems]);
 
   const resourceItems = useMemo(() => ({
     wood: items.find(i => i.name === 'Bois'),
     metal: items.find(i => i.name === 'Pierre'),
-    real_metal: items.find(i => i.name === 'Métal'),
+    real_metal: items.find(i => i.name === 'Lingot de métal'),
     components: items.find(i => i.name === 'Composants'),
   }), [items]);
 
