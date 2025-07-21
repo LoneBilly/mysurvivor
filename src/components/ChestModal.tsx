@@ -8,6 +8,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemDetailModal from "./ItemDetailModal";
+import BuildingUpgradePanel from "./BuildingUpgradePanel";
 
 const CHEST_SLOTS = 10;
 
@@ -414,6 +415,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
+          
+          <BuildingUpgradePanel construction={construction} onClose={onClose} />
+
           <DialogFooter className="mt-4">
             <Button variant="destructive" onClick={handleDemolishClick}>
               <Trash2 className="w-4 h-4 mr-2" />

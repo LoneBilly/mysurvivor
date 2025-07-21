@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import ActionModal from "./ActionModal";
 import { useWorkbench } from "@/hooks/useWorkbench";
 import { showError } from "@/utils/toast";
+import BuildingUpgradePanel from "./BuildingUpgradePanel";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -243,6 +244,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
               </div>
             </div>
           </div>
+
+          <BuildingUpgradePanel construction={construction} onClose={onClose} />
+
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 mt-4">
             <Button variant="outline" onClick={() => setIsBlueprintModalOpen(true)}>
               <BookOpen className="w-4 h-4 mr-2" /> Blueprints
