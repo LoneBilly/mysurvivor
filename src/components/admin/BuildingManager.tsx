@@ -1,115 +1,155 @@
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, Edit, Trash2, Flame, Wrench } from "lucide-react";
-import BuildingForm from './BuildingForm';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
-import { Item } from '@/types/admin';
-import CampfireManager from './CampfireManager';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Edit, Wrench, Loader2 } from 'lucide-react';
+import * as LucideIcons from "lucide-react";
+import { useIsMobile } from '@/hooks/use-is-mobile';
+import BuildingLevelEditor from './BuildingLevelEditor';
+import { BuildingLevel } from '@/types/game';
+import { showError } from '@/utils/toast';
 
-interface BuildingManagerProps {
-  buildings: any[];
-  onBuildingsUpdate: () => void;
-  allItems: Item[];
+interface BuildingDefinition {
+  type: string;
+  name: string;
+  icon: string | null;
 }
 
-const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingManagerProps) => {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedBuilding, setSelectedBuilding] = useState<any | null>(null);
+interface BuildingManagerProps {
+  buildings: BuildingDefinition[];
+  onBuildingsUpdate: () => void;
+}
 
-  const handleEdit = (building: any) => {
-    setSelectedBuilding(building);
-    setIsFormOpen(true);
-  };
+const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps) => {
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingDefinition | null>(null);
+  const isMobile = useIsMobile();
+  const [levelsData, setLevelsData] = useState<Record<string, BuildingLevel>>({});
+  const [loadingLevels, setLoadingLevels] = useState(true);
 
-  const handleAddNew = () => {
-    setSelectedBuilding(null);
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = async (buildingType: string) => {
-    if (window.confirm(`Voulez-vous vraiment supprimer le bâtiment ${buildingType} ?`)) {
-      const { error } = await supabase.from('building_definitions').delete().eq('type', buildingType);
+  useEffect(() => {
+    const fetchLevel1Data = async () => {
+      setLoadingLevels(true);
+      const { data, error } = await supabase
+        .from('building_levels')
+        .select('*')
+        .eq('level', 1);
+      
       if (error) {
-        showError(`Erreur lors de la suppression : ${error.message}`);
+        showError("Impossible de charger les données de niveau 1.");
       } else {
-        showSuccess("Bâtiment supprimé.");
-        onBuildingsUpdate();
+        const level1Map = data.reduce((acc, level) => {
+          acc[level.building_type] = level;
+          return acc;
+        }, {} as Record<string, BuildingLevel>);
+        setLevelsData(level1Map);
       }
-    }
+      setLoadingLevels(false);
+    };
+    fetchLevel1Data();
+  }, []);
+
+  const handleManageLevels = (building: BuildingDefinition) => {
+    setSelectedBuilding(building);
   };
 
-  const handleFormClose = () => {
-    setIsFormOpen(false);
+  const handleBackToList = () => {
     setSelectedBuilding(null);
+    onBuildingsUpdate();
   };
+
+  const getIconComponent = (iconName: string | null) => {
+    if (!iconName) return Wrench;
+    const Icon = (LucideIcons as any)[iconName];
+    return Icon && typeof Icon.render === 'function' ? Icon : Wrench;
+  };
+
+  if (selectedBuilding) {
+    return <BuildingLevelEditor building={selectedBuilding} onBack={handleBackToList} />;
+  }
+
+  if (loadingLevels) {
+    return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
+  }
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <Tabs defaultValue="definitions" className="w-full flex flex-col flex-1 min-h-0">
-        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
-          <TabsTrigger value="definitions"><Wrench className="w-4 h-4 mr-2" />Définitions</TabsTrigger>
-          <TabsTrigger value="campfire"><Flame className="w-4 h-4 mr-2" />Feu de camp</TabsTrigger>
-        </TabsList>
-        <TabsContent value="definitions" className="flex-1 min-h-0 mt-4 flex flex-col">
-          <div className="flex justify-between items-center mb-4 flex-shrink-0">
-            <h2 className="text-2xl font-bold">Gestion des Bâtiments</h2>
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={handleAddNew}>
-                  <PlusCircle className="w-4 h-4 mr-2" /> Ajouter un bâtiment
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px] bg-gray-800 border-gray-700 text-white">
-                <DialogHeader>
-                  <DialogTitle>{selectedBuilding ? "Modifier" : "Ajouter"} un bâtiment</DialogTitle>
-                </DialogHeader>
-                <BuildingForm
-                  building={selectedBuilding}
-                  onSuccess={() => {
-                    handleFormClose();
-                    onBuildingsUpdate();
-                  }}
-                  onCancel={handleFormClose}
-                />
-              </DialogContent>
-            </Dialog>
+    <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
+      <div className="flex-grow overflow-y-auto">
+        {isMobile ? (
+          <div className="p-4 space-y-3">
+            {buildings.map(building => {
+              const Icon = getIconComponent(building.icon);
+              const level1 = levelsData[building.type];
+              return (
+                <div key={building.type} onClick={() => handleManageLevels(building)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-6 h-6" />
+                      <p className="font-bold text-white">{building.name}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleManageLevels(building); }}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-300">
+                    <p>Temps: {level1?.upgrade_time_seconds || 0}s</p>
+                    <p>Énergie: {level1?.upgrade_cost_energy || 0}</p>
+                    <p>Bois: {level1?.upgrade_cost_wood || 0}</p>
+                    <p>Pierre: {level1?.upgrade_cost_metal || 0}</p>
+                    <p>Composants: {level1?.upgrade_cost_components || 0}</p>
+                    <p>Métal: {level1?.upgrade_cost_metal_ingots || 0}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="overflow-auto flex-1">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Type (ID)</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {buildings.map((building) => (
-                  <TableRow key={building.type}>
-                    <TableCell>{building.name}</TableCell>
-                    <TableCell>{building.type}</TableCell>
-                    <TableCell className="flex gap-2">
-                      <Button variant="outline" size="icon" onClick={() => handleEdit(building)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleDelete(building.type)}>
-                        <Trash2 className="w-4 h-4" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
+                <TableHead>Nom</TableHead>
+                <TableHead>Temps</TableHead>
+                <TableHead>Énergie</TableHead>
+                <TableHead>Bois</TableHead>
+                <TableHead>Pierre</TableHead>
+                <TableHead>Composants</TableHead>
+                <TableHead>Métal</TableHead>
+                <TableHead className="w-[180px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {buildings.map(building => {
+                const level1 = levelsData[building.type];
+                return (
+                  <TableRow key={building.type} className="border-gray-700">
+                    <TableCell className="font-medium flex items-center gap-2">
+                      {(() => { const Icon = getIconComponent(building.icon); return <Icon className="w-5 h-5" />; })()}
+                      {building.name}
+                    </TableCell>
+                    <TableCell>{level1?.upgrade_time_seconds || 0}s</TableCell>
+                    <TableCell>{level1?.upgrade_cost_energy || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_wood || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_metal || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_components || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_metal_ingots || 0}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => handleManageLevels(building)}>
+                        <Wrench className="w-4 h-4 mr-2" /> Gérer les niveaux
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-        <TabsContent value="campfire" className="flex-1 min-h-0 mt-4 overflow-auto">
-          <CampfireManager allItems={allItems} />
-        </TabsContent>
-      </Tabs>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </div>
     </div>
   );
 };
