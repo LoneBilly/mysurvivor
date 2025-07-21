@@ -29,17 +29,23 @@ interface CampfireConfig {
 const MAX_BURN_TIME_SECONDS = 72 * 60 * 60; // 72 hours
 
 const formatDuration = (totalSeconds: number) => {
+  totalSeconds = Math.floor(totalSeconds);
   if (totalSeconds <= 0) return "0s";
+
   const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  
-  let result = '';
-  if (days > 0) result += `${days}j `;
-  if (hours > 0) result += `${hours}h `;
-  if (minutes > 0) result += `${minutes}m`;
-  
-  return result.trim() || `${Math.round(totalSeconds)}s`;
+  const seconds = totalSeconds % 60;
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}j`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (days === 0) {
+    parts.push(`${seconds}s`);
+  }
+
+  return parts.join(' ');
 };
 
 const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModalProps) => {
@@ -127,6 +133,11 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     setLoading(false);
   };
 
+  const handleSelectFuel = (item: InventoryItem) => {
+    setSelectedFuel(item);
+    setQuantity(1);
+  };
+
   if (!currentConstruction) return null;
 
   return (
@@ -175,7 +186,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
               <h4 className="font-semibold mb-2 text-center">Ajouter du combustible</h4>
               <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-black/20 rounded-lg">
                 {availableFuels.map(item => (
-                  <button key={item.id} onClick={() => setSelectedFuel(item)} className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
+                  <button key={item.id} onClick={() => handleSelectFuel(item)} className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
                     <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
                     <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
                   </button>
