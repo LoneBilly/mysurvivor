@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Trash2, Zap, Clock, Hammer, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
+import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from '@/lib/utils';
+import { Item } from '@/types/game';
 import ItemIcon from './ItemIcon';
-import { ScrollArea } from './ui/scroll-area';
+import { useGame } from '@/contexts/GameContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from "@/components/ui/skeleton";
 
 const buildingIcons: { [key: string]: React.ElementType } = {
   chest: Box,
@@ -21,14 +25,66 @@ interface BuildingDefinition {
   type: string;
   name: string;
   icon: string;
-  level: number;
-  upgrade_time_seconds: number;
-  upgrade_cost_energy: number;
-  upgrade_cost_wood: number;
-  upgrade_cost_metal: number;
-  upgrade_cost_components: number;
-  upgrade_cost_metal_ingots: number;
+  build_time_seconds: number;
+  cost_energy: number;
+  cost_wood: number;
+  cost_metal: number;
+  cost_components: number;
 }
+
+const resourceToItemName: { [key: string]: string } = {
+  wood: 'Bois',
+  metal: 'Pierre',
+  components: 'Composants'
+};
+
+const CostDisplay = ({ resource, required, available, itemDetail }: { resource: string; required: number; available: number; itemDetail?: Item }) => {
+  const { getIconUrl } = useGame();
+  if (required === 0) return null;
+  const hasEnough = available >= required;
+  const iconUrl = itemDetail ? getIconUrl(itemDetail.icon) : null;
+
+  const displayName = useMemo(() => {
+    if (resource === 'metal') return 'Pierre';
+    if (resource === 'wood') return 'Bois';
+    if (resource === 'components') return 'Composants';
+    return itemDetail?.name || resource;
+  }, [resource, itemDetail]);
+
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn(
+            "relative w-16 h-16 bg-black/20 rounded-lg border",
+            hasEnough ? "border-white/10" : "border-red-500/50"
+          )}>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {itemDetail ? (
+                <div className="w-8 h-8 relative">
+                  <ItemIcon iconName={iconUrl || itemDetail.icon} alt={itemDetail.name} />
+                </div>
+              ) : (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              )}
+            </div>
+            <span className={cn(
+                "absolute bottom-1 right-1.5 text-sm font-bold z-10",
+                hasEnough ? "text-white" : "text-red-400"
+            )} style={{ textShadow: '1px 1px 2px black' }}>
+              {required}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent className="bg-gray-900/80 backdrop-blur-md text-white border border-white/20">
+          <p className="font-bold">{displayName}</p>
+          <p className={cn(hasEnough ? "text-gray-300" : "text-red-400")}>Requis: {required}</p>
+          <p className="text-gray-300">En stock: {available}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 interface FoundationMenuModalProps {
   isOpen: boolean;
@@ -42,144 +98,171 @@ interface FoundationMenuModalProps {
     wood: number;
     metal: number;
     components: number;
-    metal_ingots: number;
   };
-  items: any[];
+  items: Item[];
 }
 
+const BuildingSkeleton = () => (
+  <div className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+      <div className="flex items-center gap-3">
+        <Skeleton className="w-10 h-10 rounded-md" />
+        <Skeleton className="h-6 w-32 rounded-md" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-8 w-16 rounded-md" />
+        <Skeleton className="h-8 w-20 rounded-md" />
+      </div>
+    </div>
+    <div className="flex flex-wrap gap-2 mb-4">
+      <Skeleton className="w-16 h-16 rounded-lg" />
+      <Skeleton className="w-16 h-16 rounded-lg" />
+    </div>
+    <Skeleton className="h-10 w-full rounded-md" />
+  </div>
+);
+
 const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playerResources, items }: FoundationMenuModalProps) => {
+  const [loading, setLoading] = useState(false);
   const [buildings, setBuildings] = useState<BuildingDefinition[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [itemDetails, setItemDetails] = useState<{[key: string]: Item}>({});
 
   useEffect(() => {
-    if (isOpen) {
-      const fetchBuildings = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('building_levels')
-          .select(`
-            building_type,
-            level,
-            upgrade_time_seconds,
-            upgrade_cost_energy,
-            upgrade_cost_wood,
-            upgrade_cost_metal,
-            upgrade_cost_components,
-            upgrade_cost_metal_ingots
-          `)
-          .eq('level', 1);
+    const fetchBuildingDefinitions = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('building_definitions').select('*');
+      if (error) {
+        showError("Impossible de charger les définitions des bâtiments.");
+      } else {
+        setBuildings(data || []);
+      }
+      setLoading(false);
+    };
 
-        if (error) {
-          showError("Impossible de charger les définitions de bâtiments.");
-          setBuildings([]);
-        } else {
-          const buildingTypes = data.map(d => d.building_type);
-          const { data: defs, error: defsError } = await supabase
-            .from('building_definitions')
-            .select('type, name, icon')
-            .in('type', buildingTypes);
-          
-          if (defsError) {
-            showError("Impossible de charger les noms des bâtiments.");
-            setBuildings([]);
-          } else {
-            const merged = data.map(level => {
-              const def = defs.find(d => d.type === level.building_type);
-              return { ...level, type: level.building_type, name: def?.name || 'Inconnu', icon: def?.icon || '' };
-            });
-            setBuildings(merged);
-          }
-        }
-        setLoading(false);
-      };
-      fetchBuildings();
+    if (isOpen) {
+      fetchBuildingDefinitions();
     }
   }, [isOpen]);
 
-  const handleDemolishClick = () => {
-    if (x !== null && y !== null) {
-      onDemolish(x, y);
-      onClose();
+  useEffect(() => {
+    const fetchItemDetails = () => {
+      const neededItemNames = Object.values(resourceToItemName);
+      const itemsToFetch = items.filter(item => neededItemNames.includes(item.name));
+      
+      const details: {[key: string]: Item} = {};
+      for (const item of itemsToFetch) {
+        const key = Object.keys(resourceToItemName).find(k => resourceToItemName[k] === item.name);
+        if (key) {
+          details[key] = item;
+        }
+      }
+      setItemDetails(details);
+    };
+
+    if (isOpen && items.length > 0) {
+      fetchItemDetails();
     }
-  };
+  }, [isOpen, items]);
 
   const handleBuildClick = (building: BuildingDefinition) => {
-    if (x !== null && y !== null) {
-      onBuild(x, y, building);
-      onClose();
+    if (x === null || y === null) {
+      showError("Erreur de coordonnées.");
+      return;
     }
+    setLoading(true);
+    onClose();
+    onBuild(x, y, building);
   };
 
-  const resourceItems = useMemo(() => ({
-    wood: items.find(i => i.id === 9),
-    metal: items.find(i => i.id === 4),
-    components: items.find(i => i.id === 38),
-    metal_ingots: items.find(i => i.id === 12),
-  }), [items]);
-
-  const renderResourceCost = (cost: number, resourceName: string, item: any) => {
-    if (cost === 0) return null;
-    return (
-      <div className="flex items-center gap-1 text-xs">
-        {item && <ItemIcon iconName={item.icon} alt={item.name} className="w-4 h-4" />}
-        <span>{cost}</span>
-      </div>
-    );
+  const handleDemolishClick = () => {
+    if (x === null || y === null) {
+      showError("Erreur de coordonnées.");
+      return;
+    }
+    setLoading(true);
+    onClose();
+    onDemolish(x, y);
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Construire sur la fondation" containerClassName="max-w-2xl">
-      {loading ? (
-        <div className="flex justify-center items-center h-48">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <ScrollArea className="max-h-[50vh] pr-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {buildings.map((building) => {
-                const Icon = buildingIcons[building.type] || Hammer;
-                const hasEnoughResources = 
-                  playerResources.energie >= building.upgrade_cost_energy &&
-                  playerResources.wood >= building.upgrade_cost_wood &&
-                  playerResources.metal >= building.upgrade_cost_metal &&
-                  playerResources.components >= building.upgrade_cost_components &&
-                  playerResources.metal_ingots >= building.upgrade_cost_metal_ingots;
-
-                return (
-                  <div key={building.type} className="bg-white/5 p-3 rounded-lg flex flex-col">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Icon className="w-8 h-8 text-gray-300" />
-                      <h3 className="text-lg font-semibold flex-1">{building.name}</h3>
-                    </div>
-                    <div className="text-sm text-gray-400 mb-3 flex-1">
-                      Description du bâtiment à ajouter ici.
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-gray-300 mb-3">
-                      <div className="flex items-center gap-1 text-xs"><Zap size={14} className="text-yellow-400" /> {building.upgrade_cost_energy}</div>
-                      <div className="flex items-center gap-1 text-xs"><Clock size={14} /> {building.upgrade_time_seconds}s</div>
-                      {renderResourceCost(building.upgrade_cost_wood, 'Bois', resourceItems.wood)}
-                      {renderResourceCost(building.upgrade_cost_metal, 'Pierre', resourceItems.metal)}
-                      {renderResourceCost(building.upgrade_cost_components, 'Composants', resourceItems.components)}
-                      {renderResourceCost(building.upgrade_cost_metal_ingots, 'Lingots', resourceItems.metal_ingots)}
-                    </div>
-                    <Button onClick={() => handleBuildClick(building)} disabled={!hasEnoughResources}>
-                      Construire
-                    </Button>
-                  </div>
-                );
-              })}
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+        <DialogHeader>
+          <DialogTitle>Construire sur la fondation</DialogTitle>
+          <DialogDescription>Choisissez un bâtiment à construire.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4 max-h-[60vh] overflow-y-auto space-y-4 pr-2">
+          {loading ? (
+            <div className="space-y-4">
+              <BuildingSkeleton />
+              <BuildingSkeleton />
             </div>
-          </ScrollArea>
-          <div className="border-t border-white/10 pt-4">
-            <Button variant="destructive" onClick={handleDemolishClick} className="w-full">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Détruire la fondation
-            </Button>
-          </div>
+          ) : (
+            buildings.map((b) => {
+              const Icon = buildingIcons[b.type];
+              const resourceCosts = { wood: b.cost_wood, metal: b.cost_metal, components: b.cost_components };
+              const canAfford = Object.entries(resourceCosts).every(([resource, cost]) => playerResources[resource as keyof typeof resourceCosts] >= cost) && playerResources.energie >= b.cost_energy;
+              
+              return (
+                <div key={b.type} className="bg-white/5 p-4 rounded-lg border border-white/10">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-10 h-10 text-gray-300 flex-shrink-0" />
+                      <h3 className="font-semibold text-lg">{b.name}</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md border border-white/10">
+                              <Zap className="w-4 h-4 text-yellow-400" />
+                              <span className="text-sm font-mono text-white">{b.cost_energy}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Énergie requise</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md border border-white/10">
+                              <Clock className="w-4 h-4 text-gray-300" />
+                              <span className="text-sm font-mono text-white">{Math.floor(b.build_time_seconds / 60)}m {b.build_time_seconds % 60}s</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Temps de construction</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {Object.entries(resourceCosts).map(([resource, cost]) => (
+                      <CostDisplay
+                        key={resource}
+                        resource={resource}
+                        required={cost}
+                        available={playerResources[resource as keyof typeof resourceCosts]}
+                        itemDetail={itemDetails[resource]}
+                      />
+                    ))}
+                  </div>
+
+                  <Button onClick={() => handleBuildClick(b)} disabled={loading || !canAfford} className="w-full">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Construire'}
+                  </Button>
+                </div>
+              );
+            })
+          )}
         </div>
-      )}
-    </Modal>
+        <DialogFooter>
+          <Button variant="destructive" onClick={handleDemolishClick} className="w-full flex items-center gap-2">
+            <Trash2 className="w-4 h-4 mr-2" /> Démolir la fondation
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
