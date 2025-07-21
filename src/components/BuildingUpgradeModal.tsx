@@ -8,10 +8,9 @@ interface BuildingUpgradeModalProps {
   onClose: () => void;
   construction: BaseConstruction | null;
   onUpdate: (silent?: boolean) => void;
-  onUpgradeComplete?: () => void;
 }
 
-const BuildingUpgradeModal = ({ isOpen, onClose, construction, onUpdate, onUpgradeComplete }: BuildingUpgradeModalProps) => {
+const BuildingUpgradeModal = ({ isOpen, onClose, construction, onUpdate }: BuildingUpgradeModalProps) => {
   if (!construction) return null;
 
   return (
@@ -31,7 +30,7 @@ const BuildingUpgradeModal = ({ isOpen, onClose, construction, onUpdate, onUpgra
           </div>
         </DialogHeader>
         <div className="py-4">
-          <BuildingUpgrade construction={construction} onUpdate={onUpdate} onClose={onClose} onUpgradeComplete={onUpgradeComplete} />
+          <BuildingUpgrade construction={construction} onUpdate={onUpdate} onClose={onClose} />
         </div>
       </DialogContent>
     </Dialog>

@@ -13,7 +13,7 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
 
   const fallbackIcon = (
     <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
-      <LucideIcons.Package className={cn("w-full h-full text-gray-400", className)} />
+      <LucideIcons.Package className={cn("w-2/3 h-2/3 text-gray-400", className)} />
     </div>
   );
 
@@ -29,7 +29,7 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
         <img
           src={iconName}
           alt={alt}
-          className={cn("w-full h-full object-contain", className)}
+          className={cn("w-2/3 h-2/3 object-contain", className)}
           onError={() => setError(true)}
         />
       </div>
@@ -40,7 +40,7 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
   if (LucideIcon) {
     return (
       <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
-        <LucideIcon className={cn("w-full h-full", className)} />
+        <LucideIcon className={cn("w-2/3 h-2/3", className)} />
       </div>
     );
   }

@@ -21,7 +21,6 @@ const PREDEFINED_STATS = [
   { key: 'crafting_speed_modifier_percentage', label: 'Vitesse de fabrication % (Établi, Forge)', type: 'number' },
   { key: 'damage', label: 'Dégâts (Pièges, Tourelles)', type: 'number' },
   { key: 'health', label: 'Points de vie (Murs, etc.)', type: 'number' },
-  { key: 'energy_regen_per_second', label: 'Régénération d\'énergie/sec (Lit)', type: 'number' },
 ];
 
 const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, existingLevels }: LevelFormModalProps) => {
