@@ -83,22 +83,28 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
   const [liveConstructions, setLiveConstructions] = useState(initialConstructions);
+  const initialConstructionsRef = useRef(initialConstructions);
+  const fetchTimeRef = useRef<number>(0);
 
   useEffect(() => {
     setLiveConstructions(initialConstructions);
+    initialConstructionsRef.current = initialConstructions;
+    fetchTimeRef.current = Date.now();
   }, [initialConstructions]);
 
   useEffect(() => {
     if (!isActive) return;
     const timer = setInterval(() => {
-        setLiveConstructions(prev => 
-            prev.map(c => {
-                if (c.type === 'campfire' && c.burn_time_remaining_seconds > 0) {
-                    return { ...c, burn_time_remaining_seconds: c.burn_time_remaining_seconds - 1 };
-                }
-                return c;
-            })
-        );
+      const elapsedSeconds = Math.floor((Date.now() - fetchTimeRef.current) / 1000);
+      const updatedConstructions = initialConstructionsRef.current.map(c => {
+        if (c.type === 'campfire' && c.burn_time_remaining_seconds > 0) {
+          const initialBurnTime = c.burn_time_remaining_seconds;
+          const newBurnTime = initialBurnTime - elapsedSeconds;
+          return { ...c, burn_time_remaining_seconds: Math.max(0, newBurnTime) };
+        }
+        return c;
+      });
+      setLiveConstructions(updatedConstructions);
     }, 1000);
     return () => clearInterval(timer);
   }, [isActive]);
@@ -389,17 +395,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             return;
         } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace' || cell.type === 'lit' || cell.type === 'campfire') {
             if (cell.type === 'chest') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+                const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     setChestModalState({ isOpen: true, construction: constructionData });
                 }
             } else if (cell.type === 'workbench' || cell.type === 'lit') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+                const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     onInspectWorkbench(constructionData);
                 }
             } else if (cell.type === 'campfire') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+                const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     setCampfireModalState({ isOpen: true, construction: constructionData });
                 }
@@ -418,7 +424,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'chest') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+        const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             setChestModalState({ isOpen: true, construction: constructionData });
         }
@@ -426,7 +432,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'campfire') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+        const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             setCampfireModalState({ isOpen: true, construction: constructionData });
         }
@@ -434,7 +440,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'workbench' || cell.type === 'lit') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+        const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             onInspectWorkbench(constructionData);
         }

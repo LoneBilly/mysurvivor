@@ -9,6 +9,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { Slider } from './ui/slider';
 import { Label } from './ui/label';
 import ItemIcon from './ItemIcon';
+import { useAccurateCountdown } from '@/hooks/useAccurateCountdown';
 
 interface CampfireModalProps {
   isOpen: boolean;
@@ -56,6 +57,8 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (!construction) return null;
     return playerData.baseConstructions.find(c => c.id === construction.id) || construction;
   }, [construction, playerData.baseConstructions]);
+
+  const liveBurnTime = useAccurateCountdown(currentConstruction?.burn_time_remaining_seconds ?? 0);
 
   const availableFuels = useMemo(() => {
     const fuelItemIds = new Set(fuels.map(f => f.item_id));
@@ -109,13 +112,13 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const canAddFuel = useMemo(() => {
     if (!currentConstruction) return false;
     
-    const currentBurnTime = parseInt(String(currentConstruction.burn_time_remaining_seconds), 10) || 0;
+    const currentBurnTime = liveBurnTime;
     const addedBurnTime = burnTimeFromSelection;
 
     if (!isFinite(addedBurnTime)) return false;
 
     return (currentBurnTime + addedBurnTime) <= MAX_BURN_TIME_SECONDS;
-  }, [currentConstruction, burnTimeFromSelection]);
+  }, [currentConstruction, burnTimeFromSelection, liveBurnTime]);
 
   const handleAddFuel = async () => {
     if (!selectedFuel || !canAddFuel) return;
@@ -148,7 +151,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
         <div className="py-4 space-y-4">
           <div className="text-center p-4 bg-black/20 rounded-lg">
             <p className="text-sm text-gray-400">Temps de combustion restant</p>
-            <p className="text-3xl font-bold font-mono text-orange-300">{formatDuration(currentConstruction.burn_time_remaining_seconds)}</p>
+            <p className="text-3xl font-bold font-mono text-orange-300">{formatDuration(liveBurnTime)}</p>
           </div>
 
           {selectedFuel ? (
