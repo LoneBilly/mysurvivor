@@ -1,162 +1,160 @@
-import React, { useState, useEffect, FormEvent } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { BuildingLevel } from '@/types/game';
-import { showError } from '@/utils/toast';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input';
+import { Label } from "@/components/ui/label';
+import { BuildingLevel } from '@/types/admin';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
+import { Trash2 } from 'lucide-react';
 
 interface LevelFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (levelData: Partial<BuildingLevel>) => void;
+  levelData: BuildingLevel | null;
   buildingType: string;
-  levelData?: BuildingLevel | null;
-  existingLevels: number[];
+  onSave: () => void;
 }
 
-const PREDEFINED_STATS = [
-  { key: 'storage_slots', label: 'Slots de stockage (Coffre)', type: 'number' },
-  { key: 'crafting_speed_modifier_percentage', label: 'Vitesse de fabrication % (Établi, Forge)', type: 'number' },
-  { key: 'damage', label: 'Dégâts (Pièges, Tourelles)', type: 'number' },
-  { key: 'health', label: 'Points de vie (Murs, etc.)', type: 'number' },
+const statKeys = [
+  'bonus_recolte_bois_pourcentage',
+  'bonus_recolte_pierre_pourcentage',
+  'bonus_recolte_viande_pourcentage',
+  'extra_slots',
+  'max_capacity',
+  'production_rate',
+  'energy_regen_per_second',
 ];
 
-const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, existingLevels }: LevelFormModalProps) => {
-  const [level, setLevel] = useState<Partial<BuildingLevel>>({});
-  const [statsList, setStatsList] = useState<{ id: number; key: string; value: any }[]>([]);
+const LevelFormModal = ({ isOpen, onClose, levelData, buildingType, onSave }: LevelFormModalProps) => {
+  const [level, setLevel] = useState(1);
+  const [costs, setCosts] = useState({ wood: 0, metal: 0, components: 0, energy: 0, metal_ingots: 0 });
+  const [time, setTime] = useState(0);
+  const [stats, setStats] = useState<{ id: number; key: string; value: string; }[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      if (levelData) {
-        setLevel(levelData);
-        const initialStats = levelData.stats || {};
-        const statsArray = Object.entries(initialStats).map(([key, value], index) => ({
-          id: index,
-          key,
-          value,
-        }));
-        setStatsList(statsArray);
-      } else {
-        const nextLevel = Math.max(0, ...existingLevels.filter(l => l !== levelData?.level)) + 1;
-        setLevel({ level: nextLevel, building_type: buildingType });
-        setStatsList([]);
-      }
+    if (levelData) {
+      setLevel(levelData.level);
+      setCosts({
+        wood: levelData.upgrade_cost_wood,
+        metal: levelData.upgrade_cost_metal,
+        components: levelData.upgrade_cost_components,
+        energy: levelData.upgrade_cost_energy,
+        metal_ingots: levelData.upgrade_cost_metal_ingots,
+      });
+      setTime(levelData.upgrade_time_seconds);
+      setStats(levelData.stats ? Object.entries(levelData.stats).map(([key, value], index) => ({ id: index, key, value: String(value) })) : []);
+    } else {
+      // Reset for new level
+      setLevel(1);
+      setCosts({ wood: 0, metal: 0, components: 0, energy: 0, metal_ingots: 0 });
+      setTime(0);
+      setStats([]);
     }
-  }, [isOpen, levelData, existingLevels, buildingType]);
+  }, [levelData]);
 
-  const handleInputChange = (field: keyof BuildingLevel, value: string) => {
-    const numValue = parseInt(value, 10);
-    if (!isNaN(numValue)) {
-      setLevel(prev => ({ ...prev, [field]: numValue }));
-    } else if (value === '') {
-      setLevel(prev => ({ ...prev, [field]: 0 }));
-    }
+  const handleStatChange = (id: number, field: 'key' | 'value', value: string) => {
+    setStats(stats.map(stat => stat.id === id ? { ...stat, [field]: value } : stat));
   };
 
-  const handleAddStat = () => {
-    setStatsList(prev => [...prev, { id: Date.now(), key: '', value: '' }]);
+  const addStat = () => {
+    setStats([...stats, { id: Date.now(), key: '', value: '' }]);
   };
 
-  const handleStatChange = (id: number, field: 'key' | 'value', newValue: any) => {
-    setStatsList(prev => prev.map(stat => {
-      if (stat.id === id) {
-        const newStat = { ...stat, [field]: newValue };
-        if (field === 'key') {
-          newStat.value = 0;
-        }
-        return newStat;
-      }
-      return stat;
-    }));
+  const removeStat = (id: number) => {
+    setStats(stats.filter(stat => stat.id !== id));
   };
 
-  const handleRemoveStat = (id: number) => {
-    setStatsList(prev => prev.filter(stat => stat.id !== id));
-  };
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!level.level || (existingLevels.includes(level.level) && level.level !== levelData?.level)) {
-      showError("Ce numéro de niveau est déjà utilisé ou est invalide.");
-      return;
-    }
-    
-    const finalStats = statsList.reduce((acc, stat) => {
-      if (stat.key.trim() !== '') {
-        const value = Number(stat.value);
-        if (!isNaN(value)) {
-          acc[stat.key] = value;
-        }
+  const handleSave = async () => {
+    setIsSaving(true);
+    const statsObject = stats.reduce((acc, stat) => {
+      if (stat.key) {
+        acc[stat.key] = isNaN(Number(stat.value)) ? stat.value : Number(stat.value);
       }
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, string | number>);
 
-    const finalLevelData = { ...level, stats: finalStats };
-    onSave(finalLevelData);
+    const dataToSave = {
+      building_type: buildingType,
+      level: level,
+      upgrade_cost_wood: costs.wood,
+      upgrade_cost_metal: costs.metal,
+      upgrade_cost_components: costs.components,
+      upgrade_cost_energy: costs.energy,
+      upgrade_cost_metal_ingots: costs.metal_ingots,
+      upgrade_time_seconds: time,
+      stats: statsObject,
+    };
+
+    let error;
+    if (levelData?.id) {
+      const { error: updateError } = await supabase.from('building_levels').update(dataToSave).eq('id', levelData.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase.from('building_levels').insert(dataToSave);
+      error = insertError;
+    }
+
+    if (error) {
+      showError(`Erreur lors de la sauvegarde: ${error.message}`);
+    } else {
+      showSuccess('Niveau sauvegardé avec succès.');
+      onSave();
+      onClose();
+    }
+    setIsSaving(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+      <DialogContent className="bg-slate-900 border-slate-700 text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{levelData ? `Modifier le Niveau ${levelData.level}` : 'Ajouter un Niveau'}</DialogTitle>
-          <DialogDescription>Définissez les coûts et les statistiques pour ce niveau.</DialogDescription>
+          <DialogTitle className="text-white">{levelData ? `Modifier le niveau ${levelData.level}` : 'Ajouter un niveau'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="grid gap-4 py-4">
           <div>
             <Label>Niveau</Label>
-            <Input type="number" value={level.level || ''} onChange={(e) => handleInputChange('level', e.target.value)} required min="1" disabled={levelData?.level === 1} />
+            <Input type="number" value={level} onChange={(e) => setLevel(parseInt(e.target.value))} className="bg-white/5 border-white/20" />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><Label>Coût Énergie</Label><Input type="number" value={level.upgrade_cost_energy || ''} onChange={(e) => handleInputChange('upgrade_cost_energy', e.target.value)} placeholder="0" /></div>
-            <div><Label>Temps (secondes)</Label><Input type="number" value={level.upgrade_time_seconds || ''} onChange={(e) => handleInputChange('upgrade_time_seconds', e.target.value)} placeholder="0" /></div>
-            <div><Label>Coût Bois</Label><Input type="number" value={level.upgrade_cost_wood || ''} onChange={(e) => handleInputChange('upgrade_cost_wood', e.target.value)} placeholder="0" /></div>
-            <div><Label>Coût Pierre</Label><Input type="number" value={level.upgrade_cost_metal || ''} onChange={(e) => handleInputChange('upgrade_cost_metal', e.target.value)} placeholder="0" /></div>
-            <div><Label>Coût Composants</Label><Input type="number" value={level.upgrade_cost_components || ''} onChange={(e) => handleInputChange('upgrade_cost_components', e.target.value)} placeholder="0" /></div>
-            <div><Label>Coût Métal (lingots)</Label><Input type="number" value={level.upgrade_cost_metal_ingots || ''} onChange={(e) => handleInputChange('upgrade_cost_metal_ingots', e.target.value)} placeholder="0" /></div>
+            <div><Label>Coût Bois</Label><Input type="number" value={costs.wood} onChange={(e) => setCosts(c => ({ ...c, wood: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" /></div>
+            <div><Label>Coût Pierre</Label><Input type="number" value={costs.metal} onChange={(e) => setCosts(c => ({ ...c, metal: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" /></div>
+            <div><Label>Coût Composants</Label><Input type="number" value={costs.components} onChange={(e) => setCosts(c => ({ ...c, components: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" /></div>
+            <div><Label>Coût Lingots</Label><Input type="number" value={costs.metal_ingots} onChange={(e) => setCosts(c => ({ ...c, metal_ingots: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" /></div>
+            <div><Label>Coût Énergie</Label><Input type="number" value={costs.energy} onChange={(e) => setCosts(c => ({ ...c, energy: parseInt(e.target.value) }))} className="bg-white/5 border-white/20" /></div>
+            <div><Label>Temps (sec)</Label><Input type="number" value={time} onChange={(e) => setTime(parseInt(e.target.value))} className="bg-white/5 border-white/20" /></div>
           </div>
           <div>
-            <Label>Statistiques</Label>
-            <div className="space-y-2 rounded-lg border border-slate-700 p-3">
-              {statsList.map((stat) => (
-                <div key={stat.id} className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <Label className="text-xs">Clé</Label>
-                    <select
-                      value={stat.key}
-                      onChange={(e) => handleStatChange(stat.id, 'key', e.target.value)}
-                      className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white text-sm"
-                    >
-                      <option value="" disabled>Choisir une stat...</option>
-                      {PREDEFINED_STATS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <Label className="text-xs">Valeur</Label>
-                    <Input
-                      type="number"
-                      value={stat.value || ''}
-                      onChange={(e) => handleStatChange(stat.id, 'value', e.target.value)}
-                      className="bg-white/5 border-white/20"
-                      disabled={!stat.key}
-                    />
-                  </div>
-                  <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveStat(stat.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+            <h4 className="text-lg font-semibold mb-2">Statistiques</h4>
+            {stats.map(stat => (
+              <div key={stat.id} className="flex items-end gap-2 mb-2">
+                <div className="flex-1">
+                  <Label className="text-xs">Clé</Label>
+                  <select
+                    value={stat.key}
+                    onChange={(e) => handleStatChange(stat.id, 'key', e.target.value)}
+                    className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white text-sm"
+                  >
+                    <option value="">Sélectionner une clé</option>
+                    {statKeys.map(key => (
+                      <option key={key} value={key}>{key}</option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-              <Button type="button" variant="outline" onClick={handleAddStat} className="w-full mt-2">
-                <PlusCircle className="w-4 h-4 mr-2" /> Ajouter une statistique
-              </Button>
-            </div>
+                <div className="flex-1">
+                  <Label className="text-xs">Valeur</Label>
+                  <Input value={stat.value} onChange={(e) => handleStatChange(stat.id, 'value', e.target.value)} className="bg-white/5 border-white/20" />
+                </div>
+                <Button variant="destructive" size="icon" onClick={() => removeStat(stat.id)}><Trash2 className="w-4 h-4" /></Button>
+              </div>
+            ))}
+            <Button onClick={addStat} variant="outline" className="mt-2 w-full">Ajouter une statistique</Button>
           </div>
-          <DialogFooter>
-            <Button type="submit">Sauvegarder</Button>
-          </DialogFooter>
-        </form>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Sauvegarde...' : 'Sauvegarder'}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

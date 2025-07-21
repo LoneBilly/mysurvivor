@@ -21,9 +21,10 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
   const sleepInterval = useRef<NodeJS.Timeout | null>(null);
 
   const handleSleep = async () => {
-    const { error } = await supabase.rpc('start_sleep');
+    if (!construction) return;
+    const { error } = await supabase.rpc('start_sleep', { p_construction_id: construction.id });
     if (error) {
-      showError("Impossible de commencer à dormir.");
+      showError(`Impossible de commencer à dormir: ${error.message}`);
       return;
     }
     setOptimisticEnergy(playerData.playerState.energie);
@@ -39,7 +40,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
     if (error) {
       showError("Erreur de synchronisation de l'énergie.");
       refreshPlayerData();
-    } else {
+    } else if (newEnergy !== null) {
       setPlayerData(prev => ({
         ...prev,
         playerState: { ...prev.playerState, energie: newEnergy }
@@ -50,6 +51,8 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
 
   useEffect(() => {
     if (isSleeping) {
+      // Note: The actual regen rate is handled by the server.
+      // The client just shows a 1 energy/sec optimistic update.
       sleepInterval.current = setInterval(() => {
         setOptimisticEnergy(prevEnergy => {
           if (prevEnergy >= 100) {
@@ -65,6 +68,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
     return () => {
       if (sleepInterval.current) clearInterval(sleepInterval.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSleeping]);
 
   useEffect(() => {
@@ -84,7 +88,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
         <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
           <DialogHeader className="text-center">
             <BedDouble className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Lit</DialogTitle>
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Lit (Niv. {construction.level})</DialogTitle>
           </DialogHeader>
           <div className="py-4 text-center space-y-4">
             <p>Reposez-vous pour regagner de l'énergie.</p>

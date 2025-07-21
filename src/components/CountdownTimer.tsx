@@ -49,12 +49,12 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
 
   const formatTime = (value: number) => value.toString().padStart(2, '0');
 
-  if (!isClient) {
+  if (!isClient && !timeLeft.total) {
     return <Loader2 className="w-6 h-6 animate-spin text-white" />;
   }
 
   if (timeLeft.total <= 0) {
-    return <span>Terminé !</span>;
+    return null;
   }
 
   return (
