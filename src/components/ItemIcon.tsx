@@ -1,7 +1,6 @@
 import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
 import React, { useState } from 'react';
-import { getPublicIconUrl } from '@/utils/imageUrls'; // Import the utility function
 
 interface ItemIconProps {
   iconName: string | null;
@@ -22,14 +21,13 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
     return fallbackIcon;
   }
 
-  // Use the utility function to get the public URL
-  const imageUrl = getPublicIconUrl(iconName);
+  const isUrl = iconName.startsWith('http');
 
-  if (imageUrl) {
+  if (isUrl) {
     return (
       <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
         <img
-          src={imageUrl}
+          src={iconName}
           alt={alt}
           className={cn("w-full h-full object-contain", className)}
           onError={() => setError(true)}
@@ -38,7 +36,6 @@ const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
     );
   }
 
-  // Fallback to LucideIcons if it's not a URL or URL failed
   const LucideIcon = (LucideIcons as any)[iconName];
   if (LucideIcon) {
     return (
