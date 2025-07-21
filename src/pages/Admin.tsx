@@ -99,7 +99,7 @@ const Admin = () => {
           </div>
         );
       case 'players':
-        return <PlayerManager mapLayout={mapLayout} />;
+        return <PlayerManager mapLayout={mapLayout} allItems={items} />;
       case 'items':
         return <ItemManager items={items} onItemsUpdate={fetchAdminData} />;
       case 'events':
@@ -178,7 +178,7 @@ const Admin = () => {
               </div>
             </TabsContent>
             <TabsContent value="players" className="flex-1 min-h-0">
-              <PlayerManager mapLayout={mapLayout} />
+              <PlayerManager mapLayout={mapLayout} allItems={items} />
             </TabsContent>
             <TabsContent value="items" className="flex-1 min-h-0">
               <ItemManager items={items} onItemsUpdate={fetchAdminData} />

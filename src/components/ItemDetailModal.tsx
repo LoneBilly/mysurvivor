@@ -8,8 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import ItemIcon from "./ItemIcon";
-import { InventoryItem } from "@/types/game";
-import { useGame } from "@/contexts/GameContext";
+import { InventoryItem, PlayerState as GamePlayerState } from "@/types/game";
+import { getPublicIconUrl } from '@/utils/imageUrls';
 import { useState, useEffect } from "react";
 import { Label } from "./ui/label";
 import { Slider } from "./ui/slider";
@@ -30,26 +30,27 @@ interface ItemDetailModalProps {
   onTransferFromWorkbench?: (item: InventoryItem, quantity: number) => void;
   onSplit?: (item: InventoryItem, quantity: number) => void;
   onUpdate?: () => Promise<void>;
+  playerStats?: GamePlayerState;
+  playerInventory?: InventoryItem[];
 }
 
 const effectIcons = {
-  restaure_vie: { icon: Heart, label: "Vie", color: "text-red-400", statKey: 'vie' as keyof import('@/types/game').PlayerState },
-  restaure_faim: { icon: Utensils, label: "Faim", color: "text-orange-400", statKey: 'faim' as keyof import('@/types/game').PlayerState },
-  restaure_soif: { icon: Droplets, label: "Soif", color: "text-blue-400", statKey: 'soif' as keyof import('@/types/game').PlayerState },
-  restaure_energie: { icon: Zap, label: "Énergie", color: "text-yellow-400", statKey: 'energie' as keyof import('@/types/game').PlayerState },
+  restaure_vie: { icon: Heart, label: "Vie", color: "text-red-400", statKey: 'vie' as keyof GamePlayerState },
+  restaure_faim: { icon: Utensils, label: "Faim", color: "text-orange-400", statKey: 'faim' as keyof GamePlayerState },
+  restaure_soif: { icon: Droplets, label: "Soif", color: "text-blue-400", statKey: 'soif' as keyof GamePlayerState },
+  restaure_energie: { icon: Zap, label: "Énergie", color: "text-yellow-400", statKey: 'energie' as keyof GamePlayerState },
 };
 
 const passiveEffectIcons = {
   slots_supplementaires: { icon: PackagePlus, label: "Slots inventaire", unit: '', color: 'text-purple-400' },
-  reduction_cout_energie_deplacement_pourcentage: { icon: Footprints, label: "Coût déplacement", unit: '%', color: 'text-green-400' },
+  reduction_cout_energie_deplacement_pourcentage: { icon: Footprints, label: "Coût déplacement", unit: '%', color: 'text-green-440' },
   reduction_temps_exploration_pourcentage: { icon: Clock, label: "Temps exploration", unit: '%', color: 'text-green-400' },
-  bonus_recolte_bois_pourcentage: { icon: Axe, label: "Récolte bois", unit: '%', color: 'text-teal-400' },
-  bonus_recolte_pierre_pourcentage: { icon: Pickaxe, label: "Récolte pierre", unit: '%', color: 'text-teal-400' },
-  bonus_recolte_viande_pourcentage: { icon: CookingPot, label: "Récolte viande", unit: '%', color: 'text-teal-400' },
+  bonus_recolte_bois_pourcentage: { icon: Axe, label: "Récolte bois", unit: '%', color: 'text-teal-440' },
+  bonus_recolte_pierre_pourcentage: { icon: Pickaxe, label: "Récolte pierre", unit: '%', color: 'text-teal-440' },
+  bonus_recolte_viande_pourcentage: { icon: CookingPot, label: "Récolte viande", unit: '%', color: 'text-teal-440' },
 };
 
-const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate }: ItemDetailModalProps) => {
-  const { getIconUrl, playerData } = useGame();
+const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, source, onTransfer, onTransferToWorkbench, onTransferFromWorkbench, onSplit, onUpdate, playerStats, playerInventory }: ItemDetailModalProps) => {
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [workbenchTransferQuantity, setWorkbenchTransferQuantity] = useState(1);
   const [splitQuantity, setSplitQuantity] = useState(1);
@@ -122,7 +123,7 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
 
   const useActionText = source === 'output' ? 'Récupérer' : item.items?.use_action_text;
   const isBlueprint = item.items?.use_action_text === 'Lire';
-  const iconUrl = getIconUrl(item.items?.icon || null);
+  const iconUrl = getPublicIconUrl(item.items?.icon || null);
   const canUse = (source !== 'chest' && useActionText) || source === 'output';
   const canTransfer = !!onTransfer && (source === 'inventory' || source === 'chest');
   const canTransferToWorkbench = !!onTransferToWorkbench && source === 'inventory';
@@ -131,8 +132,8 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
 
   const ammoItemId = item.items?.effects?.ammo_item_id;
   let ammoCount = 0;
-  if (ammoItemId) {
-    ammoCount = playerData.inventory
+  if (ammoItemId && playerInventory) {
+    ammoCount = playerInventory
       .filter(invItem => invItem.item_id === ammoItemId)
       .reduce((sum, invItem) => sum + invItem.quantity, 0);
   }
@@ -185,20 +186,20 @@ const ItemDetailModal = ({ isOpen, onClose, item, onUse, onDropOne, onDropAll, s
                   const effectInfo = effectIcons[key as keyof typeof effectIcons];
                   if (!effectInfo) return null;
                   const Icon = effectInfo.icon;
-                  const currentStatValue = playerData.playerState[effectInfo.statKey] as number;
-                  const newStatValue = Math.min(100, currentStatValue + value);
+                  const currentStatValue = playerStats ? playerStats[effectInfo.statKey] as number : undefined;
+                  const newStatValue = currentStatValue !== undefined ? Math.min(100, currentStatValue + value) : undefined;
                   return (
                     <div key={key} className="flex items-center gap-2 text-sm bg-white/5 p-2 rounded-md">
                       <Icon className={`w-4 h-4 ${effectInfo.color}`} />
                       <span className="text-gray-300">{effectInfo.label}:</span>
                       <span className="font-bold text-white">
-                        +{value} <span className="text-gray-400 font-normal">→ {newStatValue}</span>
+                        +{value} {newStatValue !== undefined && <span className="text-gray-400 font-normal">→ {newStatValue}</span>}
                       </span>
                     </div>
                   );
                 })}
                 {passiveItemEffects.map(([key, value]) => {
-                  const effectInfo = passiveEffectIcons[key as keyof typeof passiveEffectIcons];
+                  const effectInfo = passiveEffectIcons[key as keyof typeof passiveItemEffects];
                   if (!effectInfo) return null;
                   const Icon = effectInfo.icon;
                   const sign = key.startsWith('reduction') ? '-' : '+';

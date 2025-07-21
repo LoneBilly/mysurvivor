@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { InventoryItem } from "@/types/game";
 import ItemIcon from "./ItemIcon";
-import { useGame } from "@/contexts/GameContext";
+import { getPublicIconUrl } from '@/utils/imageUrls';
 import { Shield, Backpack, Footprints, Car } from "lucide-react";
 import {
   Tooltip,
@@ -30,7 +30,6 @@ const slotIcons = {
 };
 
 const EquipmentSlot = ({ slotType, label, item, onDragStart, isDragOver, onItemClick }: EquipmentSlotProps) => {
-  const { getIconUrl } = useGame();
   const Icon = slotIcons[slotType];
   const interactionState = useRef<{
     startPos: { x: number, y: number };
@@ -95,7 +94,7 @@ const EquipmentSlot = ({ slotType, label, item, onDragStart, isDragOver, onItemC
             {item && (
               <div className="w-full h-full">
                 <div className="absolute inset-0 item-visual">
-                  <ItemIcon iconName={getIconUrl(item.items?.icon) || item.items?.icon} alt={item.items?.name || 'Objet'} />
+                  <ItemIcon iconName={getPublicIconUrl(item.items?.icon) || item.items?.icon} alt={item.items?.name || 'Objet'} />
                 </div>
               </div>
             )}

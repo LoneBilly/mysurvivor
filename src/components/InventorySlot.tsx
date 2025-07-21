@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useRef } from "react";
-import { useGame } from "@/contexts/GameContext";
+import { getPublicIconUrl } from '@/utils/imageUrls';
 
 interface InventorySlotProps {
   item: InventoryItem | null;
@@ -24,7 +24,6 @@ interface InventorySlotProps {
 }
 
 const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBeingDragged, isDragOver, isLocked = false, onRemove }: InventorySlotProps) => {
-  const { getIconUrl } = useGame();
   const interactionState = useRef<{
     startPos: { x: number, y: number };
     isDragging: boolean;
@@ -46,7 +45,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
       const dx = Math.abs(clientX - interactionState.current.startPos.x);
       const dy = Math.abs(clientY - interactionState.current.startPos.y);
 
-      if (dx > 5 || dy > 5) { // Threshold for movement
+      if (dx > 5 || dy > 5) {
         interactionState.current.isDragging = true;
         onDragStart(index, e.currentTarget, e);
       }
@@ -68,7 +67,7 @@ const InventorySlot = ({ item, index, isUnlocked, onDragStart, onItemClick, isBe
     );
   }
 
-  const iconUrl = item ? getIconUrl(item.items?.icon) : null;
+  const iconUrl = item ? getPublicIconUrl(item.items?.icon) : null;
 
   return (
     <div
