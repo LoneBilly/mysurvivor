@@ -1,114 +1,183 @@
-"use client";
+import { useState, FormEvent } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Loader2, Edit, Wrench } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
+import * as LucideIcons from "lucide-react";
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { BuildingDefinition, BuildingLevel } from "@/types/building";
-import { toast } from "sonner";
-import { getIconComponent } from "@/utils/getIconComponent";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import BuildingLevelManager from "./BuildingLevelManager";
+interface BuildingDefinition {
+  type: string;
+  name: string;
+  icon: string | null;
+  build_time_seconds: number;
+  cost_energy: number;
+  cost_wood: number;
+  cost_metal: number;
+  cost_components: number;
+}
 
-export default function BuildingManager() {
-  const [buildings, setBuildings] = useState<BuildingDefinition[]>([]);
-  const [levels, setLevels] = useState<BuildingLevel[]>([]);
-  const [selectedBuilding, setSelectedBuilding] = useState<BuildingDefinition | null>(null);
-  const [loading, setLoading] = useState(true);
+interface BuildingManagerProps {
+  buildings: BuildingDefinition[];
+  onBuildingsUpdate: () => void;
+}
 
-  const fetchData = async () => {
+const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps) => {
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingBuilding, setEditingBuilding] = useState<BuildingDefinition | null>(null);
+  const isMobile = useIsMobile();
+
+  const handleEdit = (building: BuildingDefinition) => {
+    setEditingBuilding({ ...building });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingBuilding) return;
+
     setLoading(true);
-    const buildingsPromise = supabase
-      .from('building_definitions')
-      .select('*')
-      .order('name', { ascending: true });
-      
-    const levelsPromise = supabase
-      .from('building_levels')
-      .select('*')
-      .order('level', { ascending: true });
-
-    const [{ data: buildingsData, error: buildingsError }, { data: levelsData, error: levelsError }] = await Promise.all([buildingsPromise, levelsPromise]);
-
-    if (buildingsError) {
-      toast.error("Erreur lors de la récupération des bâtiments.", { description: buildingsError.message });
+    const { type, ...updateData } = editingBuilding;
+    const { error } = await supabase.from('building_definitions').update(updateData).eq('type', type);
+    
+    if (error) {
+      showError("Erreur lors de la mise à jour.");
     } else {
-      setBuildings(buildingsData || []);
-    }
-
-    if (levelsError) {
-      toast.error("Erreur lors de la récupération des niveaux.", { description: levelsError.message });
-    } else {
-      setLevels(levelsData || []);
+      showSuccess("Bâtiment mis à jour.");
+      setIsModalOpen(false);
+      onBuildingsUpdate();
     }
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleSelectBuilding = (building: BuildingDefinition) => {
-    setSelectedBuilding(building);
+  const handleInputChange = (field: keyof BuildingDefinition, value: string) => {
+    if (!editingBuilding) return;
+    const isNumeric = ['build_time_seconds', 'cost_energy', 'cost_wood', 'cost_metal', 'cost_components'].includes(field);
+    setEditingBuilding({
+      ...editingBuilding,
+      [field]: isNumeric ? parseInt(value, 10) || 0 : value,
+    });
   };
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-64">Chargement des données...</div>;
-  }
-
-  const renderBuilding = (building: BuildingDefinition) => {
-    const Icon = getIconComponent(building.icon);
-    return (
-      <Card 
-        key={building.type} 
-        onClick={() => handleSelectBuilding(building)}
-        className={`cursor-pointer transition-all hover:shadow-md hover:border-primary ${selectedBuilding?.type === building.type ? 'border-primary ring-2 ring-primary' : ''}`}
-      >
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{building.name}</CardTitle>
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-xs text-muted-foreground">
-            Type: {building.type}
-          </div>
-        </CardContent>
-      </Card>
-    );
+  const getIconComponent = (iconName: string | null) => {
+    if (!iconName) return Wrench;
+    const Icon = (LucideIcons as any)[iconName];
+    return Icon && typeof Icon.render === 'function' ? Icon : Wrench;
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h2 className="text-3xl font-bold tracking-tight mb-6">Gestion des Bâtiments</h2>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-4">
-            <h3 className="text-xl font-semibold">Liste des bâtiments</h3>
-            <p className="text-sm text-muted-foreground">
-                Cliquez sur un bâtiment pour gérer ses niveaux d'amélioration.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-                {buildings.map(renderBuilding)}
-            </div>
-        </div>
-
-        <div className="lg:col-span-2">
-          {selectedBuilding ? (
-            <div>
-              <h3 className="text-2xl font-bold mb-4">
-                Niveaux pour : <span className="text-primary">{selectedBuilding.name}</span>
-              </h3>
-              <BuildingLevelManager
-                building={selectedBuilding}
-                levels={levels.filter(l => l.building_type === selectedBuilding.type)}
-                onUpdate={fetchData}
-              />
+    <>
+      <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
+        <div className="flex-grow overflow-y-auto">
+          {isMobile ? (
+            <div className="p-4 space-y-3">
+              {buildings.map(building => {
+                const Icon = getIconComponent(building.icon);
+                return (
+                  <div key={building.type} onClick={() => handleEdit(building)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-6 h-6" />
+                        <p className="font-bold text-white">{building.name}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(building); }}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-300">
+                      <p>Temps: {building.build_time_seconds}s</p>
+                      <p>Énergie: {building.cost_energy}</p>
+                      <p>Bois: {building.cost_wood}</p>
+                      <p>Pierre: {building.cost_metal}</p>
+                      <p>Composants: {building.cost_components}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full border-2 border-dashed rounded-lg bg-muted/40 min-h-[300px]">
-                <p className="text-muted-foreground text-center">Sélectionnez un bâtiment pour commencer à configurer ses niveaux.</p>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Temps</TableHead>
+                  <TableHead>Énergie</TableHead>
+                  <TableHead>Bois</TableHead>
+                  <TableHead>Pierre</TableHead>
+                  <TableHead>Composants</TableHead>
+                  <TableHead className="w-[100px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {buildings.map(building => (
+                  <TableRow key={building.type} className="border-gray-700">
+                    <TableCell className="font-medium flex items-center gap-2">
+                      {(() => { const Icon = getIconComponent(building.icon); return <Icon className="w-5 h-5" />; })()}
+                      {building.name}
+                    </TableCell>
+                    <TableCell>{building.build_time_seconds}s</TableCell>
+                    <TableCell>{building.cost_energy}</TableCell>
+                    <TableCell>{building.cost_wood}</TableCell>
+                    <TableCell>{building.cost_metal}</TableCell>
+                    <TableCell>{building.cost_components}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(building)}>
+                        <Edit className="w-4 h-4 mr-2" /> Modifier
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </div>
       </div>
-    </div>
+
+      {editingBuilding && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+            <DialogHeader>
+              <DialogTitle>Modifier {editingBuilding.name}</DialogTitle>
+              <DialogDescription>Ajustez les coûts et le temps de construction.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSave} className="py-4 grid grid-cols-2 gap-4">
+              <div><Label>Nom</Label><Input value={editingBuilding.name} onChange={(e) => handleInputChange('name', e.target.value)} className="bg-white/5 border-white/20" /></div>
+              <div><Label>Icône</Label><Input value={editingBuilding.icon || ''} onChange={(e) => handleInputChange('icon', e.target.value)} className="bg-white/5 border-white/20" /></div>
+              <div><Label>Temps (s)</Label><Input type="number" value={editingBuilding.build_time_seconds} onChange={(e) => handleInputChange('build_time_seconds', e.target.value)} className="bg-white/5 border-white/20" /></div>
+              <div><Label>Coût Énergie</Label><Input type="number" value={editingBuilding.cost_energy} onChange={(e) => handleInputChange('cost_energy', e.target.value)} className="bg-white/5 border-white/20" /></div>
+              <div><Label>Coût Bois</Label><Input type="number" value={editingBuilding.cost_wood} onChange={(e) => handleInputChange('cost_wood', e.target.value)} className="bg-white/5 border-white/20" /></div>
+              <div><Label>Coût Pierre</Label><Input type="number" value={editingBuilding.cost_metal} onChange={(e) => handleInputChange('cost_metal', e.target.value)} className="bg-white/5 border-white/20" /></div>
+              <div><Label>Coût Composants</Label><Input type="number" value={editingBuilding.cost_components} onChange={(e) => handleInputChange('cost_components', e.target.value)} className="bg-white/5 border-white/20" /></div>
+              <DialogFooter className="col-span-2 mt-4">
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sauvegarder"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
-}
+};
+
+export default BuildingManager;
