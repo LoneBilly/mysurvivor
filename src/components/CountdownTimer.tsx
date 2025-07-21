@@ -13,16 +13,13 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
       return { total: 0, minutes: 0, seconds: 0 };
     }
     
-    let timeLeft = {
+    const totalSeconds = Math.floor(difference / 1000);
+    
+    const timeLeft = {
       total: difference,
-      minutes: Math.floor((difference / 1000 / 60) % 60),
-      seconds: Math.round((difference / 1000) % 60),
+      minutes: Math.floor(totalSeconds / 60),
+      seconds: totalSeconds % 60,
     };
-
-    if (timeLeft.seconds === 60) {
-      timeLeft.minutes += 1;
-      timeLeft.seconds = 0;
-    }
     
     return timeLeft;
   };
