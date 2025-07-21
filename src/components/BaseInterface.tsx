@@ -12,7 +12,6 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useGame } from "@/contexts/GameContext";
 import CountdownTimer from "./CountdownTimer";
 import CraftingProgressBar from "./CraftingProgressBar";
-import CampfireModal from "./CampfireModal";
 
 interface BaseCell {
   x: number;
@@ -79,8 +78,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
-  const [isCampfireModalOpen, setIsCampfireModalOpen] = useState(false);
-  const [selectedCampfire, setSelectedCampfire] = useState<BaseConstruction | null>(null);
 
   const isJobRunning = useMemo(() => {
     if (!gridData) return initialConstructionJobs.length > 0;
@@ -366,7 +363,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 handleCancelConstruction(x, y);
             }
             return;
-        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace' || cell.type === 'campfire') {
+        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
             if (cell.type === 'chest') {
                 const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
@@ -376,12 +373,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     onInspectWorkbench(constructionData);
-                }
-            } else if (cell.type === 'campfire') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    setSelectedCampfire(constructionData);
-                    setIsCampfireModalOpen(true);
                 }
             } else {
                 showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
@@ -413,16 +404,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         return;
     }
 
-    if (cell.type === 'campfire') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) {
-            setSelectedCampfire(constructionData);
-            setIsCampfireModalOpen(true);
-        }
-        return;
-    }
-
-    if (Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'foundation') {
+    if (Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'foundation' && cell.type !== 'campfire') {
         showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         return;
     }
@@ -677,11 +659,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         construction={chestModalState.construction}
         onDemolish={onDemolishBuilding}
         onUpdate={refreshPlayerData}
-      />
-      <CampfireModal
-        isOpen={isCampfireModalOpen}
-        onClose={() => setIsCampfireModalOpen(false)}
-        construction={selectedCampfire}
       />
     </div>
   );
