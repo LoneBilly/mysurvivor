@@ -93,7 +93,7 @@ const CampfireManager = ({ allItems }: { allItems: Item[] }) => {
         <CardContent className="flex items-end gap-4">
           <div className="flex-grow">
             <Label htmlFor="consumption">Consommation de bois par minute</Label>
-            <Input id="consumption" type="number" value={consumption} onChange={(e) => setConsumption(Number(e.target.value))} className="mt-1" />
+            <Input id="consumption" type="number" step="0.1" value={consumption} onChange={(e) => setConsumption(Number(e.target.value))} className="mt-1" />
           </div>
           <Button onClick={handleSaveConfig}><Save className="w-4 h-4 mr-2" />Sauvegarder</Button>
         </CardContent>
