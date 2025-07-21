@@ -1,28 +1,51 @@
-import { cn } from '@/lib/utils';
-import { useGame } from '@/contexts/GameContext';
+import * as LucideIcons from "lucide-react";
+import { cn } from "@/lib/utils";
+import React, { useState } from 'react';
 
 interface ItemIconProps {
-  iconName?: string | null;
+  iconName: string | null;
   alt: string;
   className?: string;
 }
 
 const ItemIcon = ({ iconName, alt, className }: ItemIconProps) => {
-  const { getIconUrl } = useGame();
-  if (!iconName) {
-    return <div className={cn("w-full h-full bg-gray-700 rounded-md", className)} />;
+  const [error, setError] = useState(false);
+
+  const fallbackIcon = (
+    <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+      <LucideIcons.Package className={cn("w-2/3 h-2/3 text-gray-400", className)} />
+    </div>
+  );
+
+  if (!iconName || error) {
+    return fallbackIcon;
   }
 
-  const iconUrl = getIconUrl(iconName);
+  const isUrl = iconName.startsWith('http');
 
-  return (
-    <img
-      src={iconUrl}
-      alt={alt}
-      className={cn("w-full h-full object-cover", className)}
-      loading="lazy"
-    />
-  );
+  if (isUrl) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+        <img
+          src={iconName}
+          alt={alt}
+          className={cn("w-2/3 h-2/3 object-contain", className)}
+          onError={() => setError(true)}
+        />
+      </div>
+    );
+  }
+
+  const LucideIcon = (LucideIcons as any)[iconName];
+  if (LucideIcon) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+        <LucideIcon className={cn("w-2/3 h-2/3", className)} />
+      </div>
+    );
+  }
+
+  return fallbackIcon;
 };
 
 export default ItemIcon;
