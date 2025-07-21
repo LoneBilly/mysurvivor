@@ -19,10 +19,11 @@ import { useIsMobile } from '@/hooks/use-is-mobile';
 
 interface ItemManagerProps {
   items: Item[];
-  onItemsUpdate: () => void;
+  onItemsUpdate: () => void; // This will now be called only for full refresh (e.g., delete)
 }
 
-const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
+const ItemManager = ({ items: initialItems, onItemsUpdate }: ItemManagerProps) => {
+  const [localItems, setLocalItems] = useState<Item[]>(initialItems);
   const [craftableItemIds, setCraftableItemIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +31,10 @@ const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setLocalItems(initialItems);
+  }, [initialItems]);
 
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
@@ -59,7 +64,30 @@ const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
     setIsModalOpen(true);
   };
 
-  const filteredItems = items.filter(item =>
+  const handleItemSave = (savedItem?: Item) => {
+    if (savedItem) {
+      setLocalItems(prevItems => {
+        const existingIndex = prevItems.findIndex(item => item.id === savedItem.id);
+        if (existingIndex > -1) {
+          // Update existing item
+          return prevItems.map(item => (item.id === savedItem.id ? savedItem : item));
+        } else {
+          // Add new item
+          return [...prevItems, savedItem].sort((a, b) => a.name.localeCompare(b.name));
+        }
+      });
+      // If a new craftable item was added, refresh recipes
+      if (savedItem.recipe_id && !craftableItemIds.has(savedItem.id)) {
+        fetchRecipes();
+      }
+    } else {
+      // Item was deleted, trigger full refresh
+      onItemsUpdate();
+    }
+    setIsModalOpen(false);
+  };
+
+  const filteredItems = localItems.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (typeFilter === 'all' || item.type === typeFilter)
   );
@@ -178,8 +206,8 @@ const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         item={editingItem}
-        onSave={onItemsUpdate}
-        allItems={items}
+        onSave={handleItemSave}
+        allItems={localItems}
       />
     </>
   );

@@ -25,7 +25,7 @@ interface ItemFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   item?: Item | null;
-  onSave: () => void;
+  onSave: (savedItem?: Item) => void; // Changed to accept saved item
   allItems: Item[];
 }
 
@@ -266,7 +266,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
     }, {} as Record<string, any>);
 
     if (!item) {
-      const { error } = await supabase.rpc('create_item_and_recipe', {
+      const { data, error } = await supabase.rpc('create_item_and_recipe', {
         p_name: name,
         p_description: description,
         p_icon: icon || null,
@@ -291,6 +291,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
         return;
       }
       showSuccess(`Objet créé !`);
+      onSave(data as Item); // Pass the newly created item
 
     } else {
       const itemDataToUpdate = {
@@ -304,7 +305,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
         recipe_id: isCraftable ? recipeId : null,
       };
 
-      const { error: updateItemError } = await supabase.from('items').update(itemDataToUpdate).eq('id', item.id);
+      const { data, error: updateItemError } = await supabase.from('items').update(itemDataToUpdate).eq('id', item.id).select().single();
       if (updateItemError) {
         showError(`Erreur lors de la mise à jour de l'objet: ${updateItemError.message}`);
         setLoading(false);
@@ -316,9 +317,9 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
         await supabase.from('crafting_recipes').delete().eq('result_item_id', item.id);
       }
       showSuccess(`Objet mis à jour !`);
+      onSave(data as Item); // Pass the updated item
     }
 
-    onSave();
     onClose();
     setLoading(false);
   };
@@ -331,7 +332,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
       showError(`Erreur lors de la suppression: ${error.message}`);
     } else {
       showSuccess("Objet supprimé avec succès.");
-      onSave();
+      onSave(undefined); // Indicate item was deleted
       setIsDeleteModalOpen(false);
       onClose();
     }
