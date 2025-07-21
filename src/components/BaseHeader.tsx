@@ -1,26 +1,30 @@
+import { TreeDeciduous, Mountain, Cog, Hammer } from 'lucide-react';
 import { Item } from '@/types/game';
 import ItemIcon from './ItemIcon';
 import { useGame } from '@/contexts/GameContext';
-import { Skeleton } from "@/components/ui/skeleton";
 
-interface ResourceDisplayProps {
+interface ResourceItemProps {
+  icon: React.ElementType;
+  itemIcon?: Item;
   label: string;
   value: number;
-  itemIcon?: Item | null;
-  iconUrl?: string | null;
 }
 
-const ResourceDisplay = ({ label, value, itemIcon, iconUrl }: ResourceDisplayProps) => {
+const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps) => {
+  const { getIconUrl } = useGame();
+  const iconUrl = itemIcon ? getIconUrl(itemIcon.icon) : null;
+
   return (
     <div className="flex items-center space-x-2 bg-white/5 px-2 py-1 rounded-lg border border-white/10">
-      <div className="w-8 h-8 relative">
+      <div className="w-6 h-6 relative">
         {itemIcon ? (
           <ItemIcon iconName={iconUrl || itemIcon.icon} alt={label} />
         ) : (
-          <Skeleton className="w-full h-full rounded-md" />
+          <Icon className="w-6 h-6 text-white flex-shrink-0" />
         )}
       </div>
-      <span className="font-mono text-lg font-bold">{value}</span>
+      <span className="hidden sm:inline font-mono text-sm text-gray-300">{itemIcon?.name || label}:</span>
+      <span className="font-mono font-bold text-white">{value}</span>
     </div>
   );
 };
@@ -33,23 +37,23 @@ interface BaseHeaderProps {
     metal_ingots: number;
   };
   resourceItems: {
-    wood?: Item | null;
-    metal?: Item | null;
-    real_metal?: Item | null;
-    components?: Item | null;
+    wood: Item | undefined;
+    metal: Item | undefined;
+    real_metal: Item | undefined;
+    components: Item | undefined;
   };
 }
 
 const BaseHeader = ({ resources, resourceItems }: BaseHeaderProps) => {
-  const { getIconUrl } = useGame();
-
   return (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex flex-wrap justify-center gap-2">
-      <ResourceDisplay label="Bois" value={resources.wood} itemIcon={resourceItems.wood} iconUrl={resourceItems.wood ? getIconUrl(resourceItems.wood.icon) : null} />
-      <ResourceDisplay label="Pierre" value={resources.metal} itemIcon={resourceItems.metal} iconUrl={resourceItems.metal ? getIconUrl(resourceItems.metal.icon) : null} />
-      <ResourceDisplay label="Lingots de métal" value={resources.metal_ingots} itemIcon={resourceItems.real_metal} iconUrl={resourceItems.real_metal ? getIconUrl(resourceItems.real_metal.icon) : null} />
-      <ResourceDisplay label="Composants" value={resources.components} itemIcon={resourceItems.components} iconUrl={resourceItems.components ? getIconUrl(resourceItems.components.icon) : null} />
-    </div>
+    <header className="absolute top-4 left-1/2 -translate-x-1/2 w-auto max-w-[95%] z-10">
+      <div className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-lg p-2 rounded-xl shadow-lg border border-white/20">
+        <ResourceItem icon={TreeDeciduous} itemIcon={resourceItems.wood} label="Bois" value={resources.wood} />
+        <ResourceItem icon={Mountain} itemIcon={resourceItems.metal} label="Pierre" value={resources.metal} />
+        <ResourceItem icon={Hammer} itemIcon={resourceItems.real_metal} label="Métal" value={resources.metal_ingots} />
+        <ResourceItem icon={Cog} itemIcon={resourceItems.components} label="Composants" value={resources.components} />
+      </div>
+    </header>
   );
 };
 
