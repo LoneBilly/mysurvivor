@@ -41,6 +41,10 @@ const PREDEFINED_EFFECTS = [
   { key: 'restaure_faim', label: 'Restaure Faim (Consommable)', type: 'number' },
   { key: 'restaure_soif', label: 'Restaure Soif (Consommable)', type: 'number' },
   { key: 'restaure_energie', label: 'Restaure Énergie (Consommable)', type: 'number' },
+  { key: 'reduire_vie', label: 'Réduit Vie (Consommable)', type: 'number' },
+  { key: 'reduire_faim', label: 'Réduit Faim (Consommable)', type: 'number' },
+  { key: 'reduire_soif', label: 'Réduit Soif (Consommable)', type: 'number' },
+  { key: 'reduire_energie', label: 'Réduit Énergie (Consommable)', type: 'number' },
 ];
 
 const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModalProps) => {
