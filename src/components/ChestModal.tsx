@@ -415,12 +415,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
-          <DialogFooter className="mt-4 flex-col sm:flex-col sm:space-x-0 gap-2">
-            <BuildingUpgrade construction={construction} onUpdate={onUpdate} onClose={onClose} />
-            <div className="w-full">
-              <Button variant="destructive" onClick={handleDemolishClick} className="w-full">
+          <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
+            <div className="flex-1">
+              <BuildingUpgrade construction={construction} onUpdate={onUpdate} onClose={onClose} />
+            </div>
+            <div className="flex items-end">
+              <Button variant="destructive" onClick={handleDemolishClick} className="w-full sm:w-auto">
                 <Trash2 className="w-4 h-4 mr-2" />
-                Détruire le coffre
+                Détruire
               </Button>
             </div>
           </DialogFooter>
