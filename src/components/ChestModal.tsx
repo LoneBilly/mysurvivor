@@ -1,14 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, ChestItem as ChestItemType } from "@/types/game";
-import { Box, Trash2 } from "lucide-react";
+import { Box, Trash2, ArrowUpCircle } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemDetailModal from "./ItemDetailModal";
-import BuildingUpgrade from "./BuildingUpgrade";
+import BuildingUpgradeModal from "./BuildingUpgradeModal";
 
 const CHEST_SLOTS = 10;
 
@@ -24,6 +24,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   const { playerData, setPlayerData, refreshInventoryAndChests } = useGame();
   const [chestItems, setChestItems] = useState<ChestItemType[]>([]);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const [draggedItem, setDraggedItem] = useState<{ index: number; source: 'inventory' | 'chest' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
@@ -417,7 +418,10 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
           </div>
           <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
             <div className="flex-1">
-              <BuildingUpgrade construction={construction} onUpdate={onUpdate} onClose={onClose} />
+              <Button onClick={() => setIsUpgradeModalOpen(true)} className="w-full">
+                <ArrowUpCircle className="w-4 h-4 mr-2" />
+                Améliorer
+              </Button>
             </div>
             <div className="flex items-end">
               <Button variant="destructive" onClick={handleDemolishClick} className="w-full sm:w-auto">
@@ -446,6 +450,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         }
         onUpdate={refreshInventoryAndChests}
       />
+      {construction && (
+        <BuildingUpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          construction={construction}
+          onUpdate={onUpdate}
+        />
+      )}
     </>
   );
 };

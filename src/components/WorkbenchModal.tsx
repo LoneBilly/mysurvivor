@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, ArrowUpCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import ActionModal from "./ActionModal";
 import { useWorkbench } from "@/hooks/useWorkbench";
 import { showError } from "@/utils/toast";
-import BuildingUpgrade from "./BuildingUpgrade";
+import BuildingUpgradeModal from "./BuildingUpgradeModal";
 
 interface WorkbenchModalProps {
   isOpen: boolean;
@@ -34,6 +34,7 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   const [isInventorySelectorOpen, setIsInventorySelectorOpen] = useState(false);
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
   const [inventoryFullModal, setInventoryFullModal] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const {
     isLoadingAction,
@@ -245,13 +246,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 mt-4">
-            <div className="flex flex-row gap-2 items-end">
-                <div className="flex-grow">
-                    <BuildingUpgrade construction={construction} onUpdate={onUpdate} onClose={onClose} />
-                </div>
-                <Button variant="destructive" onClick={() => onDemolish(construction)}>
-                  <Trash2 className="w-4 h-4 mr-2" /> Détruire
-                </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="destructive" onClick={() => onDemolish(construction)} className="flex-1">
+                <Trash2 className="w-4 h-4 mr-2" /> Détruire
+              </Button>
+              <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
+                <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer
+              </Button>
             </div>
             <Button variant="outline" onClick={() => setIsBlueprintModalOpen(true)} className="w-full">
               <BookOpen className="w-4 h-4 mr-2" /> Blueprints
@@ -288,6 +289,14 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
           { label: "Jeter l'objet", onClick: handleDiscard, variant: "destructive" },
         ]}
       />
+      {construction && (
+        <BuildingUpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          construction={construction}
+          onUpdate={onUpdate}
+        />
+      )}
     </>
   );
 };
