@@ -34,6 +34,13 @@ const formatZoneName = (name: string): string => {
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
 
+const RESOURCE_IDS = {
+  WOOD: 9,
+  STONE: 4,
+  METAL_INGOT: 12,
+  COMPONENTS: 38,
+};
+
 const GameUI = () => {
   const { playerData, setPlayerData, mapLayout, items, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState } = useGame();
   
@@ -253,29 +260,29 @@ const GameUI = () => {
   }), [playerData.scoutingMissions]);
 
   const totalResources = useMemo(() => {
-    const resourceCounter = (name: string) => {
+    const resourceCounter = (itemId: number) => {
       const inventoryQty = playerData.inventory
-        .filter(i => i.items?.name === name)
+        .filter(i => i.item_id === itemId)
         .reduce((sum, i) => sum + i.quantity, 0);
       const chestQty = playerData.chestItems
-        ?.filter(i => i.items?.name === name)
+        ?.filter(i => i.item_id === itemId)
         .reduce((sum, i) => sum + i.quantity, 0) || 0;
       return inventoryQty + chestQty;
     };
     
     return {
-      wood: resourceCounter('Bois'),
-      metal: resourceCounter('Pierre'),
-      components: resourceCounter('Composants'),
-      metal_ingots: resourceCounter('Lingot de métal'),
+      wood: resourceCounter(RESOURCE_IDS.WOOD),
+      metal: resourceCounter(RESOURCE_IDS.STONE),
+      components: resourceCounter(RESOURCE_IDS.COMPONENTS),
+      metal_ingots: resourceCounter(RESOURCE_IDS.METAL_INGOT),
     };
   }, [playerData.inventory, playerData.chestItems]);
 
   const resourceItems = useMemo(() => ({
-    wood: items.find(i => i.name === 'Bois'),
-    metal: items.find(i => i.name === 'Pierre'),
-    real_metal: items.find(i => i.name === 'Lingot de métal'),
-    components: items.find(i => i.name === 'Composants'),
+    wood: items.find(i => i.id === RESOURCE_IDS.WOOD),
+    metal: items.find(i => i.id === RESOURCE_IDS.STONE),
+    real_metal: items.find(i => i.id === RESOURCE_IDS.METAL_INGOT),
+    components: items.find(i => i.id === RESOURCE_IDS.COMPONENTS),
   }), [items]);
 
   if (!isViewReady) return <div className="h-full flex items-center justify-center bg-gray-950"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;

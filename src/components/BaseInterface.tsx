@@ -47,6 +47,7 @@ interface BuildingDefinition {
   cost_wood: number;
   cost_metal: number;
   cost_components: number;
+  cost_metal_ingots: number;
 }
 
 interface BaseInterfaceProps {
@@ -54,6 +55,13 @@ interface BaseInterfaceProps {
   onInspectWorkbench: (construction: BaseConstruction) => void;
   onDemolishBuilding: (construction: BaseConstruction) => void;
 }
+
+const RESOURCE_IDS = {
+  WOOD: 9,
+  STONE: 4,
+  METAL_INGOT: 12,
+  COMPONENTS: 38,
+};
 
 const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
@@ -124,22 +132,22 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   } | null>(null);
 
   const totalResources = useMemo(() => {
-    const resourceCounter = (name: string) => {
+    const resourceCounter = (itemId: number) => {
       const inventoryQty = playerData.inventory
-        .filter(i => i.items?.name === name)
+        .filter(i => i.item_id === itemId)
         .reduce((sum, i) => sum + i.quantity, 0);
       const chestQty = playerData.chestItems
-        ?.filter(i => i.items?.name === name)
+        ?.filter(i => i.item_id === itemId)
         .reduce((sum, i) => sum + i.quantity, 0) || 0;
       return inventoryQty + chestQty;
     };
     
     return {
       energie: playerData.playerState.energie,
-      wood: resourceCounter('Bois'),
-      metal: resourceCounter('Pierre'),
-      components: resourceCounter('Composants'),
-      metal_ingots: resourceCounter('Lingot de métal'),
+      wood: resourceCounter(RESOURCE_IDS.WOOD),
+      metal: resourceCounter(RESOURCE_IDS.STONE),
+      components: resourceCounter(RESOURCE_IDS.COMPONENTS),
+      metal_ingots: resourceCounter(RESOURCE_IDS.METAL_INGOT),
     };
   }, [playerData.playerState.energie, playerData.inventory, playerData.chestItems]);
 
@@ -446,7 +454,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   };
 
   const handleBuildOnFoundation = async (x: number, y: number, building: BuildingDefinition) => {
-    if (playerData.playerState.energie < building.cost_energy || totalResources.wood < building.cost_wood || totalResources.metal < building.cost_metal || totalResources.components < building.cost_components) {
+    if (playerData.playerState.energie < building.cost_energy || totalResources.wood < building.cost_wood || totalResources.metal < building.cost_metal || totalResources.components < building.cost_components || totalResources.metal_ingots < building.cost_metal_ingots) {
       showError("Ressources insuffisantes.");
       return;
     }
