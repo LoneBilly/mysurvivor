@@ -16,11 +16,11 @@ const ResourceItem = ({ icon: Icon, itemIcon, label, value }: ResourceItemProps)
 
   return (
     <div className="flex items-center space-x-2 bg-white/5 px-2 py-1 rounded-lg border border-white/10">
-      <div className="w-8 h-8 relative">
+      <div className="w-10 h-10 relative">
         {itemIcon ? (
           <ItemIcon iconName={iconUrl || itemIcon.icon} alt={label} />
         ) : (
-          <Icon className="w-8 h-8 text-white flex-shrink-0" />
+          <Icon className="w-10 h-10 text-white flex-shrink-0" />
         )}
       </div>
       <span className="hidden sm:inline font-mono text-sm text-gray-300">{itemIcon?.name || label}:</span>
