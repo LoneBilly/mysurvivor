@@ -72,19 +72,22 @@ const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradePro
   }, [construction, buildingLevels]);
 
   const totalResources = useMemo(() => {
-    const inventoryWood = playerData.inventory.find(i => i.items?.name === 'Bois')?.quantity || 0;
-    const inventoryMetal = playerData.inventory.find(i => i.items?.name === 'Pierre')?.quantity || 0;
-    const inventoryComponents = playerData.inventory.find(i => i.items?.name === 'Composants')?.quantity || 0;
-    const inventoryMetalIngots = playerData.inventory.find(i => i.items?.name === 'Lingot de métal')?.quantity || 0;
-    
+    const calculateTotal = (itemName: string) => {
+      const inventoryQty = playerData.inventory.find(i => i.items?.name === itemName)?.quantity || 0;
+      const chestQty = playerData.chestItems
+        .filter(i => i.items?.name === itemName)
+        .reduce((acc, i) => acc + i.quantity, 0);
+      return inventoryQty + chestQty;
+    };
+
     return {
-      wood: (playerData.playerState.wood || 0) + inventoryWood,
-      metal: (playerData.playerState.metal || 0) + inventoryMetal,
-      components: (playerData.playerState.components || 0) + inventoryComponents,
-      metal_ingots: (playerData.playerState.metal_ingots || 0) + inventoryMetalIngots,
+      wood: calculateTotal('Bois'),
+      metal: calculateTotal('Pierre'),
+      components: calculateTotal('Composants'),
+      metal_ingots: calculateTotal('Lingot de métal'),
       energy: playerData.playerState.energie || 0,
     };
-  }, [playerData.playerState, playerData.inventory]);
+  }, [playerData]);
 
   const resourceItems = useMemo(() => ({
     wood: items.find(i => i.name === 'Bois'),
