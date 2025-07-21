@@ -33,13 +33,15 @@ const formatDuration = (totalSeconds: number) => {
   const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
   
   let result = '';
   if (days > 0) result += `${days}j `;
   if (hours > 0) result += `${hours}h `;
-  if (minutes > 0) result += `${minutes}m`;
+  if (minutes > 0) result += `${minutes}m `;
+  if (seconds > 0 || result === '') result += `${seconds}s`;
   
-  return result.trim() || `${Math.round(totalSeconds)}s`;
+  return result.trim();
 };
 
 const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModalProps) => {
@@ -82,6 +84,12 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
       setQuantity(1);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedFuel) {
+      setQuantity(1);
+    }
+  }, [selectedFuel]);
 
   const burnTimeFromSelection = useMemo(() => {
     if (!selectedFuel || !config) return 0;

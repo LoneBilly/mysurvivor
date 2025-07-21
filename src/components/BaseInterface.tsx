@@ -13,6 +13,7 @@ import { useGame } from "@/contexts/GameContext";
 import CountdownTimer from "./CountdownTimer";
 import CraftingProgressBar from "./CraftingProgressBar";
 import CampfireModal from "./CampfireModal";
+import CampfireProgressBar from "./CampfireProgressBar";
 
 interface BaseCell {
   x: number;
@@ -26,6 +27,7 @@ interface BaseCell {
 const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
+const MAX_BURN_TIME_SECONDS = 72 * 60 * 60; // 72 hours
 
 const buildingIcons: { [key: string]: React.ElementType } = {
   chest: Box,
@@ -36,7 +38,6 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   workbench: Hammer,
   furnace: CookingPot,
   foundation: Plus,
-  campfire: () => <>🔥</>,
   lit: BedDouble,
 };
 
@@ -81,6 +82,26 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [campfireModalState, setCampfireModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
+  const [liveConstructions, setLiveConstructions] = useState(initialConstructions);
+
+  useEffect(() => {
+    setLiveConstructions(initialConstructions);
+  }, [initialConstructions]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const timer = setInterval(() => {
+        setLiveConstructions(prev => 
+            prev.map(c => {
+                if (c.type === 'campfire' && c.burn_time_remaining_seconds > 0) {
+                    return { ...c, burn_time_remaining_seconds: c.burn_time_remaining_seconds - 1 };
+                }
+                return c;
+            })
+        );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isActive]);
 
   const isJobRunning = useMemo(() => {
     if (!gridData) return initialConstructionJobs.length > 0;
@@ -534,7 +555,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   };
 
   const getCellContent = (cell: BaseCell) => {
-    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const construction = liveConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    
+    if (cell.type === 'campfire' && construction) {
+        const progress = (construction.burn_time_remaining_seconds / MAX_BURN_TIME_SECONDS) * 100;
+        return (
+            <>
+                <span className="text-3xl">🔥</span>
+                {construction.burn_time_remaining_seconds > 0 && <CampfireProgressBar progress={progress} />}
+            </>
+        );
+    }
     
     if (cell.type === 'workbench') {
       const job = construction ? playerData.craftingJobs?.find(j => j.workbench_id === construction.id) : undefined;
