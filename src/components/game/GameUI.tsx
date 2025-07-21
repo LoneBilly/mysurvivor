@@ -14,7 +14,6 @@ import { FullPlayerData, MapCell, BaseConstruction } from "@/types/game";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import MarketModal from "../MarketModal";
-import CreditsDisplay from "../CreditsDisplay";
 import PurchaseCreditsModal from "../PurchaseCreditsModal";
 import FactionScoutsModal from "../FactionScoutsModal";
 import { useGame } from "@/contexts/GameContext";
@@ -299,9 +298,16 @@ const GameUI = () => {
 
   return (
     <div className="h-full flex flex-col text-white">
-      <GameHeader spawnDate={playerData.playerState.spawn_date} onLeaderboard={() => setIsLeaderboardOpen(true)} onOptions={() => setIsOptionsOpen(true)} currentView={currentView} onBackToMap={handleHeaderBack} />
+      <GameHeader
+        spawnDate={playerData.playerState.spawn_date}
+        onLeaderboard={() => setIsLeaderboardOpen(true)}
+        onOptions={() => setIsOptionsOpen(true)}
+        currentView={currentView}
+        onBackToMap={handleHeaderBack}
+        credits={playerData.playerState.credits}
+        onPurchaseCredits={() => setIsPurchaseModalOpen(true)}
+      />
       <main className="flex-1 min-h-0 overflow-hidden relative">
-        <CreditsDisplay credits={playerData.playerState.credits} onPurchaseClick={() => setIsPurchaseModalOpen(true)} />
         <div className={cn("w-full h-full flex items-center justify-center p-4", currentView !== 'map' && "hidden")}>
           <GameGrid mapLayout={mapLayout} onCellSelect={handleCellSelect} discoveredZones={playerData.playerState.zones_decouvertes} playerPosition={{ x: playerData.playerState.position_x, y: playerData.playerState.position_y }} basePosition={playerData.playerState.base_position_x !== null ? { x: playerData.playerState.base_position_x, y: playerData.playerState.base_position_y! } : null} />
         </div>

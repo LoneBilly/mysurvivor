@@ -1,6 +1,7 @@
 import { Trophy, Settings, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
+import CreditsDisplay from './CreditsDisplay';
 
 interface GameHeaderProps {
   spawnDate: string;
@@ -8,9 +9,11 @@ interface GameHeaderProps {
   onOptions: () => void;
   currentView: 'map' | 'base' | 'exploration';
   onBackToMap: () => void;
+  credits: number;
+  onPurchaseCredits: () => void;
 }
 
-const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
+const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackToMap, credits, onPurchaseCredits }: GameHeaderProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
   const [daysSurvived, setDaysSurvived] = useState(0);
   const showBackButton = currentView === 'base';
@@ -71,7 +74,8 @@ const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackTo
           </p>
         )}
       </div>
-      <div className="flex-1 flex justify-end">
+      <div className="flex-1 flex justify-end items-center gap-2">
+        <CreditsDisplay credits={credits} onPurchaseClick={onPurchaseCredits} />
         <Button variant="ghost" size="icon" onClick={onOptions} className="hover:bg-white/10 rounded-lg">
           <Settings className="w-5 h-5" />
         </Button>
