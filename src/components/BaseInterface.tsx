@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,7 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   furnace: CookingPot,
   foundation: Plus,
   campfire: () => <>🔥</>,
+  lit: BedDouble,
 };
 
 interface BuildingDefinition {
@@ -363,13 +364,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 handleCancelConstruction(x, y);
             }
             return;
-        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace') {
+        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace' || cell.type === 'lit') {
             if (cell.type === 'chest') {
                 const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     setChestModalState({ isOpen: true, construction: constructionData });
                 }
-            } else if (cell.type === 'workbench') {
+            } else if (cell.type === 'workbench' || cell.type === 'lit') {
                 const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     onInspectWorkbench(constructionData);
@@ -396,7 +397,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         return;
     }
 
-    if (cell.type === 'workbench') {
+    if (cell.type === 'workbench' || cell.type === 'lit') {
         const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             onInspectWorkbench(constructionData);
@@ -503,6 +504,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
       }
       case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
+      case 'lit': return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
       case 'empty':
         if (cell.canBuild) {
           const baseStyle = "bg-white/5 border-white/10 border-dashed";

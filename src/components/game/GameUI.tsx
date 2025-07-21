@@ -28,6 +28,7 @@ import HotelModal from '../HotelModal';
 import CasinoModal from '../CasinoModal';
 import GuideModal from "../GuideModal";
 import PatchnoteModal from "../PatchnoteModal";
+import BedModal from "../BedModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -63,6 +64,7 @@ const GameUI = () => {
   const [isPatchnoteOpen, setIsPatchnoteOpen] = useState(false);
   const [isHotelOpen, setIsHotelOpen] = useState(false);
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
+  const [isBedModalOpen, setIsBedModalOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const isInitialMount = useRef(true);
@@ -114,8 +116,13 @@ const GameUI = () => {
     setCurrentView('map');
   };
 
-  const handleInspectWorkbench = (construction: BaseConstruction) => {
+  const handleInspectBuilding = (construction: BaseConstruction) => {
     setInspectedConstruction(construction);
+    if (construction.type === 'workbench') {
+      // The WorkbenchModal is handled by the inspectedConstruction state
+    } else if (construction.type === 'lit') {
+      setIsBedModalOpen(true);
+    }
   };
 
   const handleDemolishBuilding = async (construction: BaseConstruction) => {
@@ -301,7 +308,7 @@ const GameUI = () => {
           <BaseHeader resources={totalResources} resourceItems={resourceItems} />
           <BaseInterface
             isActive={currentView === 'base'}
-            onInspectWorkbench={handleInspectWorkbench}
+            onInspectWorkbench={handleInspectBuilding}
             onDemolishBuilding={handleDemolishBuilding}
           />
         </div>
@@ -319,12 +326,17 @@ const GameUI = () => {
       <BankModal isOpen={isBankOpen} onClose={() => setIsBankOpen(false)} credits={playerData.playerState.credits} bankBalance={playerData.playerState.bank_balance || 0} onUpdate={refreshResources} zoneName={selectedZoneForAction?.type || "Banque"} />
       <BountyModal isOpen={isBountyOpen} onClose={() => setIsBountyOpen(false)} credits={playerData.playerState.credits} onUpdate={refreshResources} zoneName={selectedZoneForAction?.type || "Commissariat"} />
       <WorkbenchModal
-        isOpen={!!inspectedConstruction}
+        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'workbench'}
         onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
         onUpdate={refreshBaseState}
         onOpenInventory={() => setIsInventoryOpen(true)}
+      />
+      <BedModal
+        isOpen={isBedModalOpen}
+        onClose={() => { setIsBedModalOpen(false); setInspectedConstruction(null); }}
+        construction={inspectedConstruction}
       />
       <HotelModal
         isOpen={isHotelOpen}
