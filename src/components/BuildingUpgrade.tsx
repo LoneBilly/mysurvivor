@@ -34,7 +34,7 @@ const CostDisplay = ({ item, required, available, icon: IconComponent }: { item?
       <Tooltip>
         <TooltipTrigger asChild>
           <div className={cn("relative w-12 h-12 bg-black/20 rounded-lg border flex items-center justify-center", hasEnough ? "border-white/10" : "border-red-500/50")}>
-            <div className="w-8 h-8 relative">
+            <div className="w-7 h-7 relative">
               {IconComponent ? <IconComponent className="w-full h-full text-yellow-400" /> : <ItemIcon iconName={iconUrl || item?.icon} alt={item?.name || ''} />}
             </div>
             <span className={cn("absolute -bottom-1 -right-1 text-xs font-bold px-1 rounded bg-gray-900", hasEnough ? "text-white" : "text-red-400")}>{required}</span>
