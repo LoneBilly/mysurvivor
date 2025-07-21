@@ -9,12 +9,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Wrench, Loader2 } from 'lucide-react';
+import { Edit, Wrench, Loader2, ArrowLeft } from 'lucide-react';
 import * as LucideIcons from "lucide-react";
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import BuildingLevelEditor from './BuildingLevelEditor';
 import { BuildingLevel } from '@/types/game';
 import { showError } from '@/utils/toast';
+import CampfireManager from './CampfireManager';
+import { Item } from '@/types/admin';
 
 interface BuildingDefinition {
   type: string;
@@ -25,9 +27,10 @@ interface BuildingDefinition {
 interface BuildingManagerProps {
   buildings: BuildingDefinition[];
   onBuildingsUpdate: () => void;
+  allItems: Item[];
 }
 
-const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps) => {
+const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingManagerProps) => {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingDefinition | null>(null);
   const isMobile = useIsMobile();
   const [levelsData, setLevelsData] = useState<Record<string, BuildingLevel>>({});
@@ -71,6 +74,20 @@ const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps)
   };
 
   if (selectedBuilding) {
+    if (selectedBuilding.type === 'campfire') {
+      return (
+        <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
+          <div className="p-4 border-b border-gray-700 flex-shrink-0">
+            <Button onClick={handleBackToList} variant="ghost">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux bâtiments
+            </Button>
+          </div>
+          <div className="flex-grow overflow-y-auto">
+            <CampfireManager allItems={allItems} />
+          </div>
+        </div>
+      );
+    }
     return <BuildingLevelEditor building={selectedBuilding} onBack={handleBackToList} />;
   }
 
