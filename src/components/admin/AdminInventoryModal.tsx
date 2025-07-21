@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,16 +17,29 @@ import { Loader2, Package, Trash2, Edit, PlusCircle } from 'lucide-react';
 import { Item } from '@/types/admin';
 import ActionModal from '../ActionModal';
 import { getPublicIconUrl } from '@/utils/imageUrls';
+import InventorySlot from '../InventorySlot';
+import EquipmentSlot, { EquipmentSlotType } from '../EquipmentSlot';
+import ItemDetailModal from '../ItemDetailModal';
+import { useGame } from '@/contexts/GameContext';
+import { InventoryItem as GameInventoryItem } from '@/types/game';
 
-interface InventoryItem {
-  id: number;
-  quantity: number;
-  slot_position: number;
+interface InventoryItem extends GameInventoryItem {
   items: {
     name: string;
     icon: string | null;
     stackable: boolean;
+    type?: string;
+    description?: string;
+    use_action_text?: string;
+    effects?: Record<string, any>;
   };
+}
+
+interface EquippedItems {
+  armor: InventoryItem | null;
+  backpack: InventoryItem | null;
+  shoes: InventoryItem | null;
+  vehicle: InventoryItem | null;
 }
 
 interface AdminInventoryModalProps {
@@ -35,8 +48,20 @@ interface AdminInventoryModalProps {
   player: PlayerProfile;
 }
 
+const TOTAL_SLOTS = 50;
+
+const SLOT_TYPE_MAP: Record<EquipmentSlotType, string> = {
+  armor: 'Armure',
+  backpack: 'Sac à dos',
+  shoes: 'Chaussures',
+  vehicle: 'Vehicule',
+};
+
 const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalProps) => {
+  const { getIconUrl } = useGame();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [equippedItems, setEquippedItems] = useState<EquippedItems>({ armor: null, backpack: null, shoes: null, vehicle: null });
+  const [unlockedSlots, setUnlockedSlots] = useState(0);
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [editQuantity, setEditQuantity] = useState('');
@@ -45,39 +70,83 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [newItemId, setNewItemId] = useState<string>('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
+  const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
 
-  const fetchInventory = async () => {
+  // Drag and drop states
+  const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'equipment' } | null>(null);
+  const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' } | { type: EquipmentSlotType; target: 'equipment' } | null>(null);
+  const draggedItemNode = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
+
+  const fetchInventory = useCallback(async () => {
     if (!player) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('inventories')
-      .select('id, quantity, slot_position, items(name, icon, stackable)')
-      .eq('player_id', player.id)
-      .order('slot_position', { ascending: true });
+    try {
+      const { data: playerStateData, error: playerStateError } = await supabase
+        .from('player_states')
+        .select('unlocked_slots')
+        .eq('id', player.id)
+        .single();
 
-    if (error) {
+      if (playerStateError) throw playerStateError;
+      setUnlockedSlots(playerStateData.unlocked_slots);
+
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventories')
+        .select('id, quantity, slot_position, items(id, name, icon, stackable, type, description, use_action_text, effects)')
+        .eq('player_id', player.id);
+
+      if (inventoryError) throw inventoryError;
+
+      const { data: equipmentData, error: equipmentError } = await supabase
+        .from('player_equipment')
+        .select('armor_inventory_id, backpack_inventory_id, shoes_inventory_id, vehicle_inventory_id')
+        .eq('player_id', player.id)
+        .single();
+
+      if (equipmentError && equipmentError.code !== 'PGRST116') throw equipmentError; // PGRST116 means no row found
+
+      const allItemsFetched = (inventoryData || []) as InventoryItem[];
+      const newEquippedItems: EquippedItems = { armor: null, backpack: null, shoes: null, vehicle: null };
+
+      if (equipmentData) {
+        for (const key of Object.keys(newEquippedItems) as Array<keyof EquippedItems>) {
+          const invId = equipmentData[`${key}_inventory_id`];
+          if (invId) {
+            const equippedItem = allItemsFetched.find(item => item.id === invId);
+            if (equippedItem) {
+              newEquippedItems[key] = equippedItem;
+            }
+          }
+        }
+      }
+      setInventory(allItemsFetched);
+      setEquippedItems(newEquippedItems);
+
+    } catch (error: any) {
       showError("Erreur lors du chargement de l'inventaire.");
-    } else {
-      setInventory(data as any[]);
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, [player]);
 
-  const fetchAllItems = async () => {
+  const fetchAllItems = useCallback(async () => {
     const { data, error } = await supabase.from('items').select('*').order('name');
     if (error) {
       showError("Erreur lors du chargement de la liste d'objets.");
     } else {
       setAllItems(data);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       fetchInventory();
       fetchAllItems();
     }
-  }, [isOpen, player]);
+  }, [isOpen, fetchInventory, fetchAllItems]);
 
   const handleSaveQuantity = async () => {
     if (!editingItem) return;
@@ -124,11 +193,13 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       return;
     }
 
+    setLoading(true);
     const { error } = await supabase.rpc('admin_add_item_to_inventory', {
       p_player_id: player.id,
       p_item_id: parseInt(newItemId, 10),
       p_quantity: quantity,
     });
+    setLoading(false);
 
     if (error) {
       showError(`Erreur: ${error.message}`);
@@ -141,54 +212,279 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     }
   };
 
+  const handleItemClick = (item: InventoryItem, source: 'inventory' | 'chest') => {
+    setDetailedItem({ item, source });
+  };
+
+  const handleUseItem = () => {
+    showError("Cette fonctionnalité n'est pas disponible en mode admin.");
+  };
+
+  const handleDropOneItem = async () => {
+    if (!detailedItem) return;
+    setDetailedItem(null);
+    const { error } = await supabase.rpc('drop_inventory_item', { p_inventory_id: detailedItem.item.id, p_quantity_to_drop: 1 });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Objet jeté.");
+      fetchInventory();
+    }
+  };
+
+  const handleDropAllItems = async () => {
+    if (!detailedItem) return;
+    setDetailedItem(null);
+    const { error } = await supabase.rpc('drop_inventory_item', { p_inventory_id: detailedItem.item.id, p_quantity_to_drop: detailedItem.item.quantity });
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Objets jetés.");
+      fetchInventory();
+    }
+  };
+
+  const handleSplitItem = async (item: InventoryItem, quantity: number) => {
+    if (!item) return;
+    setDetailedItem(null);
+    const { error } = await supabase.rpc('split_inventory_item', {
+      p_inventory_id: item.id,
+      p_split_quantity: quantity,
+    });
+    if (error) {
+      showError(error.message || "Erreur lors de la division de l'objet.");
+    } else {
+      showSuccess("La pile d'objets a été divisée.");
+      fetchInventory();
+    }
+  };
+
+  const stopAutoScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (draggedItemNode.current) {
+      draggedItemNode.current.style.left = `${clientX - draggedItemNode.current.offsetWidth / 2}px`;
+      draggedItemNode.current.style.top = `${clientY - draggedItemNode.current.offsetHeight / 2}px`;
+    }
+
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const slotElement = elements.find(el => el.hasAttribute('data-slot-index') || el.hasAttribute('data-slot-type'));
+    
+    if (slotElement) {
+      if (slotElement.hasAttribute('data-slot-index')) {
+        const index = parseInt(slotElement.getAttribute('data-slot-index') || '-1', 10);
+        if (index !== -1 && index < unlockedSlots) {
+          setDragOver({ index, target: 'inventory' });
+          return;
+        }
+      } else if (slotElement.hasAttribute('data-slot-type')) {
+        const type = slotElement.getAttribute('data-slot-type') as EquipmentSlotType;
+        setDragOver({ type, target: 'equipment' });
+        return;
+      }
+    }
+    setDragOver(null);
+
+    const gridEl = gridRef.current;
+    if (!gridEl) return;
+    const rect = gridEl.getBoundingClientRect();
+    const scrollThreshold = 60;
+
+    stopAutoScroll();
+
+    if (clientY < rect.top + scrollThreshold) {
+      const scroll = () => {
+        gridEl.scrollTop -= 10;
+        scrollIntervalRef.current = requestAnimationFrame(scroll);
+      };
+      scroll();
+    } else if (clientY > rect.bottom - scrollThreshold) {
+      const scroll = () => {
+        gridEl.scrollTop += 10;
+        scrollIntervalRef.current = requestAnimationFrame(scroll);
+      };
+      scroll();
+    }
+  }, [unlockedSlots, stopAutoScroll]);
+
+  const handleDragStart = useCallback((item: InventoryItem, source: 'inventory' | 'equipment', node: HTMLDivElement, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setDraggedItem({ item, source });
+    
+    const ghostNode = node.querySelector('.item-visual')?.cloneNode(true) as HTMLDivElement;
+    if (!ghostNode) return;
+
+    ghostNode.style.position = 'fixed';
+    ghostNode.style.pointerEvents = 'none';
+    ghostNode.style.zIndex = '5000';
+    ghostNode.style.width = '56px';
+    ghostNode.style.height = '56px';
+    ghostNode.style.opacity = '0.85';
+    ghostNode.style.transform = 'scale(1.1)';
+    document.body.appendChild(ghostNode);
+    draggedItemNode.current = ghostNode;
+
+    const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+    handleDragMove(clientX, clientY);
+  }, [handleDragMove]);
+
+  const handleDragEnd = useCallback(async () => {
+    stopAutoScroll();
+    if (draggedItemNode.current) {
+      document.body.removeChild(draggedItemNode.current);
+      draggedItemNode.current = null;
+    }
+
+    const dragged = draggedItem;
+    const over = dragOver;
+
+    setDraggedItem(null);
+    setDragOver(null);
+
+    if (!dragged || !over || !player) return;
+
+    if (dragged.source === 'inventory' && over.target === 'inventory' && dragged.item.slot_position === over.index) return;
+    if (dragged.source === 'equipment' && over.target === 'equipment' && (equippedItems as any)[over.type]?.id === dragged.item.id) return;
+
+    try {
+      if (dragged.source === 'inventory' && over.target === 'inventory') {
+        const { error } = await supabase.rpc('swap_inventory_items', { p_from_slot: dragged.item.slot_position, p_to_slot: over.index });
+        if (error) throw error;
+      } else if (dragged.source === 'equipment' && over.target === 'inventory') {
+        const extraSlots = dragged.item.items?.effects?.extra_slots || 0;
+        if (extraSlots > 0) {
+            const currentUnlockedSlots = unlockedSlots;
+            const newUnlockedSlots = currentUnlockedSlots - extraSlots;
+
+            if (over.index >= newUnlockedSlots) {
+                showError("Vous ne pouvez pas placer cet objet dans un emplacement qui sera verrouillé.");
+                return;
+            }
+
+            const highestOccupiedSlot = Math.max(-1, ...inventory
+                .filter(i => i.slot_position !== null && i.id !== dragged.item.id)
+                .map(i => i.slot_position as number)
+            );
+            
+            if (highestOccupiedSlot >= newUnlockedSlots) {
+                showError("Impossible de déséquiper : des objets se trouvent dans des emplacements qui seraient verrouillés.");
+                return;
+            }
+        }
+        const { error } = await supabase.rpc('unequip_item_to_slot', { p_inventory_id: dragged.item.id, p_target_slot: over.index });
+        if (error) throw error;
+      } else if (dragged.source === 'inventory' && over.target === 'equipment') {
+        const requiredItemType = SLOT_TYPE_MAP[over.type];
+        const draggedItemType = dragged.item.items?.type;
+        if (requiredItemType !== draggedItemType) {
+          showError(`Cet objet ne peut pas être équipé ici. Emplacement pour: ${requiredItemType}.`);
+          return;
+        }
+        const { error } = await supabase.rpc('equip_item', { p_inventory_id: dragged.item.id, p_slot_type: over.type });
+        if (error) throw error;
+      }
+      fetchInventory(); // Re-fetch to ensure state is consistent with DB
+    } catch (error: any) {
+      showError(error.message || "Erreur de mise à jour de l'inventaire.");
+      fetchInventory(); // Re-fetch to revert optimistic updates on error
+    }
+  }, [draggedItem, dragOver, player, unlockedSlots, equippedItems, inventory, stopAutoScroll, fetchInventory]);
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
+      const { clientX, clientY } = 'touches' in e ? e.touches[0] : e;
+      handleDragMove(clientX, clientY);
+    };
+    const endHandler = () => handleDragEnd();
+
+    if (draggedItem) {
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', endHandler);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
+      stopAutoScroll();
+    };
+  }, [draggedItem, handleDragMove, handleDragEnd, stopAutoScroll]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (draggedItemNode.current) {
+        document.body.removeChild(draggedItemNode.current);
+        draggedItemNode.current = null;
+      }
+      setDraggedItem(null);
+      setDragOver(null);
+      stopAutoScroll();
+    }
+  }, [isOpen, stopAutoScroll]);
+
+  const inventorySlots = Array.from({ length: TOTAL_SLOTS }).map((_, index) => {
+    return inventory.find(item => item.slot_position === index) || null;
+  });
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-xl bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6 flex flex-col max-h-[80vh]">
+        <DialogContent className="max-w-3xl w-full bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl text-center">
               Inventaire de {player.username || 'Joueur Anonyme'}
             </DialogTitle>
-            <DialogDescription className="sr-only">Gestion de l'inventaire pour {player.username || 'Joueur Anonyme'}.</DialogDescription>
+            <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 text-center">
+              <span className="text-white font-bold">{unlockedSlots}</span> / {TOTAL_SLOTS} SLOTS DÉBLOQUÉS
+            </DialogDescription>
           </DialogHeader>
+
+          <div className="flex justify-center gap-1 sm:gap-2 mb-6 relative">
+            {Object.entries(equippedItems).map(([type, item]) => (
+              <div key={type} className="flex flex-col items-center gap-2">
+                <EquipmentSlot
+                  slotType={type as EquipmentSlotType}
+                  label={SLOT_TYPE_MAP[type as EquipmentSlotType]}
+                  item={item}
+                  onDragStart={(item, node, e) => handleDragStart(item, 'equipment', node, e)}
+                  isDragOver={dragOver?.target === 'equipment' && dragOver.type === (type as EquipmentSlotType)}
+                  onItemClick={(clickedItem) => handleItemClick(clickedItem, 'inventory')} // Source is inventory as equipped items are from inventory
+                />
+                <p className="text-xs text-gray-400 font-mono">{SLOT_TYPE_MAP[type as EquipmentSlotType]}</p>
+              </div>
+            ))}
+          </div>
+
           {loading ? (
             <div className="flex justify-center items-center h-48">
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
           ) : (
-            <div className="mt-4 flex-grow overflow-y-auto space-y-2 pr-2">
-              {inventory.length > 0 ? (
-                inventory.map((item) => {
-                  const iconUrl = getPublicIconUrl(item.items.icon);
-                  return (
-                    <div key={item.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {iconUrl ? (
-                          <img src={iconUrl} alt={item.items.name} className="w-10 h-10 object-contain rounded-md bg-black/20 p-1 flex-shrink-0" />
-                        ) : (
-                          <Package className="w-10 h-10 text-gray-400 flex-shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate">{item.items.name}</p>
-                          <p className="text-sm text-gray-400">Quantité: {item.quantity}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => { setEditingItem(item); setEditQuantity(String(item.quantity)); }}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="hover:bg-red-500/20 hover:text-red-500" onClick={() => setItemToDelete(item)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center text-gray-400 py-10">
-                  L'inventaire est vide.
-                </div>
-              )}
+            <div
+              ref={gridRef}
+              className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 p-2 sm:p-4 bg-slate-900/50 rounded-lg border border-slate-800 flex-grow overflow-y-auto relative"
+            >
+              {inventorySlots.map((item, index) => (
+                <InventorySlot
+                  key={item?.id || `slot-${index}`}
+                  item={item}
+                  index={index}
+                  isUnlocked={index < unlockedSlots}
+                  onDragStart={(idx, node, e) => inventorySlots[idx] && handleDragStart(inventorySlots[idx]!, 'inventory', node, e)}
+                  onItemClick={(clickedItem) => clickedItem && handleItemClick(clickedItem, 'inventory')}
+                  isBeingDragged={draggedItem?.source === 'inventory' && draggedItem.item.slot_position === index}
+                  isDragOver={dragOver?.target === 'inventory' && dragOver.index === index}
+                  onRemove={(itemToRemove) => setItemToDelete(itemToRemove)}
+                />
+              ))}
             </div>
           )}
           <DialogFooter className="mt-4 pt-4 border-t border-slate-700">
@@ -275,6 +571,18 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ItemDetailModal
+        isOpen={!!detailedItem}
+        onClose={() => setDetailedItem(null)}
+        item={detailedItem?.item || null}
+        source={detailedItem?.source}
+        onUse={handleUseItem}
+        onDropOne={handleDropOneItem}
+        onDropAll={handleDropAllItems}
+        onSplit={handleSplitItem}
+        onUpdate={fetchInventory}
+      />
     </>
   );
 };
