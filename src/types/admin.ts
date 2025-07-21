@@ -25,3 +25,14 @@ export interface ZoneItemEditorProps {
   zone: MapCell;
   onBack: () => void;
 }
+
+export interface BuildingLevel {
+  id?: number;
+  building_type: string;
+  level: number;
+  upgrade_cost_wood: number;
+  upgrade_cost_metal: number;
+  upgrade_cost_components: number;
+  upgrade_time_seconds: number;
+  stats: Record<string, any> | null;
+}
