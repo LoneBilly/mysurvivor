@@ -47,7 +47,7 @@ interface BaseHeaderProps {
 const BaseHeader = ({ resources, resourceItems }: BaseHeaderProps) => {
   return (
     <header className="absolute top-4 left-1/2 -translate-x-1/2 w-auto max-w-[95%] z-10">
-      <div className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-lg p-2 rounded-xl shadow-lg border border-white/20">
+      <div className="flex flex-wrap items-center justify-center gap-2 bg-white/10 backdrop-blur-lg p-2 rounded-xl shadow-lg border border-white/20">
         <ResourceItem icon={TreeDeciduous} itemIcon={resourceItems.wood} label="Bois" value={resources.wood} />
         <ResourceItem icon={Mountain} itemIcon={resourceItems.metal} label="Pierre" value={resources.metal} />
         <ResourceItem icon={Hammer} itemIcon={resourceItems.real_metal} label="Métal" value={resources.metal_ingots} />
