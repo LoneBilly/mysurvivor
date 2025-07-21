@@ -2,15 +2,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, ChestItem as ChestItemType } from "@/types/game";
 import { Box, Trash2, ArrowUpCircle } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemDetailModal from "./ItemDetailModal";
 import BuildingUpgradeModal from "./BuildingUpgradeModal";
-
-const CHEST_SLOTS = 10;
 
 interface ChestModalProps {
   isOpen: boolean;
@@ -21,7 +19,7 @@ interface ChestModalProps {
 }
 
 const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
-  const { playerData, setPlayerData, refreshInventoryAndChests } = useGame();
+  const { playerData, setPlayerData, refreshInventoryAndChests, buildingLevels } = useGame();
   const [chestItems, setChestItems] = useState<ChestItemType[]>([]);
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -30,16 +28,34 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' | 'chest' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
 
+  const currentConstruction = useMemo(() => {
+    if (!construction) return null;
+    return playerData.baseConstructions.find(c => c.id === construction.id) || construction;
+  }, [construction, playerData.baseConstructions]);
+
+  const chestLevelInfo = useMemo(() => {
+    if (!currentConstruction) return null;
+    return buildingLevels.find(
+      level => level.building_type === currentConstruction.type && level.level === currentConstruction.level
+    );
+  }, [currentConstruction, buildingLevels]);
+
+  const chestSlots = useMemo(() => {
+    return chestLevelInfo?.stats?.storage_slots || 10;
+  }, [chestLevelInfo]);
+
   useEffect(() => {
-    if (isOpen && construction) {
-      const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === construction.id) || [];
+    if (isOpen && currentConstruction) {
+      const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === currentConstruction.id) || [];
       setChestItems(itemsInChest);
     }
-  }, [isOpen, construction, playerData.chestItems]);
+  }, [isOpen, currentConstruction, playerData.chestItems]);
 
 
   const handleDemolishClick = () => {
-    onDemolish(construction!);
+    if (currentConstruction) {
+      onDemolish(currentConstruction);
+    }
   };
 
   const handleItemClick = (item: InventoryItem, source: 'inventory' | 'chest') => {
@@ -49,7 +65,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   };
 
   const handleTransfer = async (item: InventoryItem, quantity: number, source: 'inventory' | 'chest') => {
-    if (!construction) return;
+    if (!currentConstruction) return;
     setDetailedItem(null);
 
     const originalPlayerData = JSON.parse(JSON.stringify(playerData));
@@ -59,7 +75,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
 
     if (source === 'inventory') {
         rpcName = 'move_item_to_chest';
-        rpcParams = { p_inventory_id: item.id, p_chest_id: construction.id, p_quantity_to_move: quantity, p_target_slot: null };
+        rpcParams = { p_inventory_id: item.id, p_chest_id: currentConstruction.id, p_quantity_to_move: quantity, p_target_slot: null };
         
         const invItemIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === item.id);
         if (invItemIndex > -1) {
@@ -70,14 +86,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
                 optimisticData.inventory.splice(invItemIndex, 1);
             }
 
-            const chestItem = { ...invItem, quantity, slot_position: null, chest_id: construction.id };
+            const chestItem = { ...invItem, quantity, slot_position: null, chest_id: currentConstruction.id };
             const existingStackIndex = optimisticData.chestItems.findIndex((ci: ChestItemType) => ci.item_id === chestItem.item_id && ci.items?.stackable);
             if (existingStackIndex > -1) {
                 optimisticData.chestItems[existingStackIndex].quantity += quantity;
             } else {
-                const usedSlots = new Set(optimisticData.chestItems.filter((ci: ChestItemType) => ci.chest_id === construction.id).map((ci: ChestItemType) => ci.slot_position));
+                const usedSlots = new Set(optimisticData.chestItems.filter((ci: ChestItemType) => ci.chest_id === currentConstruction.id).map((ci: ChestItemType) => ci.slot_position));
                 let nextEmptySlot = -1;
-                for (let i = 0; i < CHEST_SLOTS; i++) {
+                for (let i = 0; i < chestSlots; i++) {
                     if (!usedSlots.has(i)) {
                         nextEmptySlot = i;
                         break;
@@ -262,9 +278,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     let rpcPromise;
   
     const fromItemInv = source === 'inventory' ? optimisticData.inventory.find((i: InventoryItem) => i.slot_position === fromIndex) : null;
-    const fromItemChest = source === 'chest' ? optimisticData.chestItems.find((i: ChestItemType) => i.chest_id === construction?.id && i.slot_position === fromIndex) : null;
+    const fromItemChest = source === 'chest' ? optimisticData.chestItems.find((i: ChestItemType) => i.chest_id === currentConstruction?.id && i.slot_position === fromIndex) : null;
     const toItemInv = target === 'inventory' ? optimisticData.inventory.find((i: InventoryItem) => i.slot_position === toIndex) : null;
-    const toItemChest = target === 'chest' ? optimisticData.chestItems.find((i: ChestItemType) => i.chest_id === construction?.id && i.slot_position === toIndex) : null;
+    const toItemChest = target === 'chest' ? optimisticData.chestItems.find((i: ChestItemType) => i.chest_id === currentConstruction?.id && i.slot_position === toIndex) : null;
   
     try {
       if (source === 'inventory' && target === 'inventory') {
@@ -296,9 +312,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             fromItemChest.slot_position = toIndex;
           }
         }
-        rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: construction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
+        rpcPromise = supabase.rpc('swap_chest_items', { p_chest_id: currentConstruction.id, p_from_slot: fromIndex, p_to_slot: toIndex });
       } else if (source === 'inventory' && target === 'chest') {
-        if (!fromItemInv || !construction) return;
+        if (!fromItemInv || !currentConstruction) return;
         if (toItemChest) {
             if (fromItemInv.item_id === toItemChest.item_id && fromItemInv.items?.stackable) {
                 toItemChest.quantity += fromItemInv.quantity;
@@ -307,13 +323,13 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
                 const fromInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === fromItemInv.id);
                 const toChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === toItemChest.id);
                 optimisticData.inventory[fromInvIndex] = { ...toItemChest, slot_position: fromIndex };
-                optimisticData.chestItems[toChestIndex] = { ...fromItemInv, slot_position: toIndex, chest_id: construction.id };
+                optimisticData.chestItems[toChestIndex] = { ...fromItemInv, slot_position: toIndex, chest_id: currentConstruction.id };
             }
         } else {
             optimisticData.inventory = optimisticData.inventory.filter((i: InventoryItem) => i.id !== fromItemInv.id);
-            optimisticData.chestItems.push({ ...fromItemInv, slot_position: toIndex, chest_id: construction.id });
+            optimisticData.chestItems.push({ ...fromItemInv, slot_position: toIndex, chest_id: currentConstruction.id });
         }
-        rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: fromItemInv.id, p_chest_id: construction.id, p_quantity_to_move: fromItemInv.quantity, p_target_slot: toIndex });
+        rpcPromise = supabase.rpc('move_item_to_chest', { p_inventory_id: fromItemInv.id, p_chest_id: currentConstruction.id, p_quantity_to_move: fromItemInv.quantity, p_target_slot: toIndex });
       } else if (source === 'chest' && target === 'inventory') {
         if (!fromItemChest) return;
         if (toItemInv) {
@@ -323,7 +339,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             } else {
                 const fromChestIndex = optimisticData.chestItems.findIndex((i: ChestItemType) => i.id === fromItemChest.id);
                 const toInvIndex = optimisticData.inventory.findIndex((i: InventoryItem) => i.id === toItemInv.id);
-                optimisticData.chestItems[fromChestIndex] = { ...toItemInv, slot_position: fromIndex, chest_id: construction.id };
+                optimisticData.chestItems[fromChestIndex] = { ...toItemInv, slot_position: fromIndex, chest_id: currentConstruction.id };
                 optimisticData.inventory[toInvIndex] = { ...fromItemChest, slot_position: toIndex };
             }
         } else {
@@ -376,7 +392,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     return (
       <div className="flex flex-col min-h-0">
         <h3 className="text-center font-bold mb-2 flex-shrink-0">{title}</h3>
-        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto flex-1">
+        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto flex-1 visible-scrollbar">
           {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
@@ -395,7 +411,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     );
   };
 
-  if (!construction) return null;
+  if (!currentConstruction) return null;
 
   return (
     <>
@@ -406,13 +422,13 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
               <Box className="w-7 h-7 text-white" />
               <div>
                 <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
-                  Coffre - Niveau {construction.level}
+                  Coffre - Niveau {currentConstruction.level}
                 </DialogTitle>
               </div>
             </div>
           </DialogHeader>
           <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
-            {renderGrid("Contenu du coffre", chestItems, CHEST_SLOTS, 'chest')}
+            {renderGrid("Contenu du coffre", chestItems, chestSlots, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
           <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
@@ -445,11 +461,11 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         }
         onUpdate={refreshInventoryAndChests}
       />
-      {construction && (
+      {currentConstruction && (
         <BuildingUpgradeModal
           isOpen={isUpgradeModalOpen}
           onClose={() => setIsUpgradeModalOpen(false)}
-          construction={construction}
+          construction={currentConstruction}
           onUpdate={onUpdate}
         />
       )}

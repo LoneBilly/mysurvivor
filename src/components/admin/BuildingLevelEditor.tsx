@@ -110,15 +110,19 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                   <TableRow key={level.id}>
                     <TableCell className="font-bold text-lg">{level.level}</TableCell>
                     <TableCell className="text-xs">
+                      <p>Énergie: {level.upgrade_cost_energy}</p>
                       <p>Bois: {level.upgrade_cost_wood}</p>
                       <p>Pierre: {level.upgrade_cost_metal}</p>
                       <p>Composants: {level.upgrade_cost_components}</p>
+                      <p>Métal: {level.upgrade_cost_metal_ingots}</p>
                     </TableCell>
                     <TableCell>{level.upgrade_time_seconds}s</TableCell>
                     <TableCell><pre className="text-xs bg-black/20 p-2 rounded-md max-w-xs overflow-x-auto"><code>{JSON.stringify(level.stats, null, 2)}</code></pre></TableCell>
                     <TableCell className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => handleEditLevel(level)}><Edit className="w-4 h-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => handleDeleteLevel(level.id!)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDeleteLevel(level.id!)} disabled={level.level === 1}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
