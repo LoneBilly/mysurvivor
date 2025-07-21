@@ -29,6 +29,7 @@ import CasinoModal from '../CasinoModal';
 import GuideModal from "../GuideModal";
 import PatchnoteModal from "../PatchnoteModal";
 import BedModal from "../BedModal";
+import CampfireModal from "../CampfireModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -65,6 +66,7 @@ const GameUI = () => {
   const [isHotelOpen, setIsHotelOpen] = useState(false);
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
   const [isBedModalOpen, setIsBedModalOpen] = useState(false);
+  const [isCampfireModalOpen, setIsCampfireModalOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const isInitialMount = useRef(true);
@@ -122,6 +124,8 @@ const GameUI = () => {
       // The WorkbenchModal is handled by the inspectedConstruction state
     } else if (construction.type === 'lit') {
       setIsBedModalOpen(true);
+    } else if (construction.type === 'campfire') {
+      setIsCampfireModalOpen(true);
     }
   };
 
@@ -339,6 +343,11 @@ const GameUI = () => {
         onClose={() => { setIsBedModalOpen(false); setInspectedConstruction(null); }}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
+      />
+      <CampfireModal
+        isOpen={isCampfireModalOpen}
+        onClose={() => { setIsCampfireModalOpen(false); setInspectedConstruction(null); }}
+        construction={inspectedConstruction}
       />
       <HotelModal
         isOpen={isHotelOpen}
