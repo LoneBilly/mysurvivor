@@ -184,3 +184,17 @@ export interface MarketListing {
 export interface DiscoverableZone extends MapCell {
   is_discovered: boolean;
 }
+
+export interface BuildingLevel {
+  id?: number;
+  building_type: string;
+  level: number;
+  upgrade_cost_wood: number;
+  upgrade_cost_metal: number;
+  upgrade_cost_components: number;
+  upgrade_time_seconds: number;
+  stats: {
+    storage_slots?: number;
+    [key: string]: any;
+  } | null;
+}

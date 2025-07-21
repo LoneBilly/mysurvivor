@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BuildingLevel } from '@/types/admin';
+import { BuildingLevel } from '@/types/game';
 import { showError } from '@/utils/toast';
 import { PlusCircle, Trash2 } from 'lucide-react';
 

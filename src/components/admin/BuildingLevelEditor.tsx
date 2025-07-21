@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ArrowLeft, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { BuildingLevel } from '@/types/admin';
+import { BuildingLevel } from '@/types/game';
 import LevelFormModal from './LevelFormModal';
 
 interface BuildingDefinition {

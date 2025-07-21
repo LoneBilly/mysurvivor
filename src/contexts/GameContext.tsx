@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { FullPlayerData, MapCell, Item, ConstructionJob } from '@/types/game';
+import { FullPlayerData, MapCell, Item, ConstructionJob, BuildingLevel } from '@/types/game';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
@@ -8,6 +8,7 @@ interface GameContextType {
   playerData: FullPlayerData;
   mapLayout: MapCell[];
   items: Item[];
+  buildingLevels: BuildingLevel[];
   refreshPlayerData: (silent?: boolean) => Promise<void>;
   refreshResources: () => Promise<void>;
   refreshInventoryAndChests: () => Promise<void>;
@@ -33,6 +34,7 @@ interface GameProviderProps {
     playerData: FullPlayerData;
     mapLayout: MapCell[];
     items: Item[];
+    buildingLevels: BuildingLevel[];
   };
   iconUrlMap: Map<string, string>;
 }
@@ -122,6 +124,7 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     playerData,
     mapLayout: initialData.mapLayout,
     items: initialData.items,
+    buildingLevels: initialData.buildingLevels,
     refreshPlayerData,
     refreshResources,
     refreshInventoryAndChests,
@@ -129,7 +132,7 @@ export const GameProvider = ({ children, initialData, iconUrlMap }: GameProvider
     addConstructionJob,
     setPlayerData,
     getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState, addConstructionJob, getIconUrl]);
+  }), [playerData, initialData.mapLayout, initialData.items, initialData.buildingLevels, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState, addConstructionJob, getIconUrl]);
 
   return (
     <GameContext.Provider value={value}>
