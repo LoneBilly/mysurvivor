@@ -82,32 +82,38 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [campfireModalState, setCampfireModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
-  const [liveConstructions, setLiveConstructions] = useState(initialConstructions);
-  const initialConstructionsRef = useRef(initialConstructions);
-  const fetchTimeRef = useRef<number>(0);
+  
+  const [now, setNow] = useState(Date.now());
+  const fetchTime = useRef(Date.now());
 
   useEffect(() => {
-    setLiveConstructions(initialConstructions);
-    initialConstructionsRef.current = initialConstructions;
-    fetchTimeRef.current = Date.now();
+    if (isActive) {
+      refreshPlayerData(true);
+    }
+  }, [isActive]);
+
+  useEffect(() => {
+    fetchTime.current = Date.now();
   }, [initialConstructions]);
 
   useEffect(() => {
     if (!isActive) return;
-    const timer = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - fetchTimeRef.current) / 1000);
-      const updatedConstructions = initialConstructionsRef.current.map(c => {
-        if (c.type === 'campfire' && c.burn_time_remaining_seconds > 0) {
-          const initialBurnTime = c.burn_time_remaining_seconds;
-          const newBurnTime = initialBurnTime - elapsedSeconds;
-          return { ...c, burn_time_remaining_seconds: Math.max(0, newBurnTime) };
-        }
-        return c;
-      });
-      setLiveConstructions(updatedConstructions);
-    }, 1000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [isActive]);
+
+  const elapsedSeconds = useMemo(() => Math.floor((now - fetchTime.current) / 1000), [now]);
+
+  const liveConstructions = useMemo(() => {
+    if (!initialConstructions) return [];
+    return initialConstructions.map(c => {
+      if (c.type === 'campfire' && c.burn_time_remaining_seconds > 0) {
+        const newBurnTime = c.burn_time_remaining_seconds - elapsedSeconds;
+        return { ...c, burn_time_remaining_seconds: Math.max(0, newBurnTime) };
+      }
+      return c;
+    });
+  }, [initialConstructions, elapsedSeconds]);
 
   const isJobRunning = useMemo(() => {
     if (!gridData) return initialConstructionJobs.length > 0;
@@ -395,17 +401,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             return;
         } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace' || cell.type === 'lit' || cell.type === 'campfire') {
             if (cell.type === 'chest') {
-                const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
+                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     setChestModalState({ isOpen: true, construction: constructionData });
                 }
             } else if (cell.type === 'workbench' || cell.type === 'lit') {
-                const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
+                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     onInspectWorkbench(constructionData);
                 }
             } else if (cell.type === 'campfire') {
-                const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
+                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
                 if (constructionData) {
                     setCampfireModalState({ isOpen: true, construction: constructionData });
                 }
@@ -424,7 +430,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'chest') {
-        const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
+        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             setChestModalState({ isOpen: true, construction: constructionData });
         }
@@ -432,7 +438,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'campfire') {
-        const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
+        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             setCampfireModalState({ isOpen: true, construction: constructionData });
         }
@@ -440,7 +446,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
 
     if (cell.type === 'workbench' || cell.type === 'lit') {
-        const constructionData = liveConstructions.find(c => c.x === x && c.y === y);
+        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             onInspectWorkbench(constructionData);
         }

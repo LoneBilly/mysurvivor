@@ -46,18 +46,15 @@ const formatDuration = (totalSeconds: number) => {
 };
 
 const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModalProps) => {
-  const { playerData, getIconUrl } = useGame();
+  const { getIconUrl } = useGame();
   const [fuels, setFuels] = useState<CampfireFuel[]>([]);
   const [config, setConfig] = useState<CampfireConfig | null>(null);
   const [selectedFuel, setSelectedFuel] = useState<InventoryItem | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
+  const { playerData } = useGame();
 
-  const currentConstruction = useMemo(() => {
-    if (!construction) return null;
-    return playerData.baseConstructions.find(c => c.id === construction.id) || construction;
-  }, [construction, playerData.baseConstructions]);
-
+  const currentConstruction = construction;
   const liveBurnTime = useAccurateCountdown(currentConstruction?.burn_time_remaining_seconds ?? 0);
 
   const availableFuels = useMemo(() => {
@@ -112,13 +109,11 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const canAddFuel = useMemo(() => {
     if (!currentConstruction) return false;
     
-    const currentBurnTime = liveBurnTime;
     const addedBurnTime = burnTimeFromSelection;
-
     if (!isFinite(addedBurnTime)) return false;
 
-    return (currentBurnTime + addedBurnTime) <= MAX_BURN_TIME_SECONDS;
-  }, [currentConstruction, burnTimeFromSelection, liveBurnTime]);
+    return (liveBurnTime + addedBurnTime) <= MAX_BURN_TIME_SECONDS;
+  }, [liveBurnTime, burnTimeFromSelection, currentConstruction]);
 
   const handleAddFuel = async () => {
     if (!selectedFuel || !canAddFuel) return;
@@ -131,7 +126,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
       showError(error.message);
     } else {
       showSuccess("Combustible ajouté !");
-      onUpdate(true);
+      onUpdate(false); // Pass false to indicate a non-silent update might be needed
       setSelectedFuel(null);
       setQuantity(1);
     }
