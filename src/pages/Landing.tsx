@@ -34,8 +34,8 @@ const Landing = () => {
   const features = [
     { icon: Map, title: "Explorez", description: "Découvrez un monde en ruines, zone par zone, et révélez ses secrets." },
     { icon: Home, title: "Construisez", description: "Établissez votre campement et transformez-le en une base imprenable." },
-    { icon: Package, title: "Lootez", description: "Fouillez les décombres pour trouver des ressources et des objets précieux." },
-    { icon: Swords, title: "Survivez", description: "Affrontez les autres survivants dans un environnement où chaque rencontre est décisive." },
+    { icon: Package, title: "Lootez & Commercez", description: "Ramassez tout ce dont vous avez besoin pour votre survie et vendez le reste sur le marché des survivants." },
+    { icon: Swords, title: "Survivez", description: "Affrontez les autres joueurs dans un PvP asynchrone stratégique." },
   ];
 
   return (
@@ -58,7 +58,7 @@ const Landing = () => {
             COMMENCER L'AVENTURE
           </Button>
           <p className="text-sm text-gray-400 mt-2">
-            Inscription 100% gratuite, 100 jetons offerts
+            Inscription 100% gratuite, 100 crédits offerts
           </p>
         </div>
         <div className="mt-16 w-full flex justify-center">
