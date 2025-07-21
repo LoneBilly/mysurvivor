@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2 } from 'lucide-react';
+import { Loader2, Zap, Clock, Box, BrickWall, TowerControl, AlertTriangle, Hammer, CookingPot, Trash2, Wrench } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 import { Item } from '@/types/game';
@@ -199,7 +199,7 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playe
             </div>
           ) : (
             buildings.map((b) => {
-              const Icon = buildingIcons[b.type];
+              const Icon = buildingIcons[b.type] || Wrench;
               const resourceCosts = { wood: b.cost_wood, metal: b.cost_metal, components: b.cost_components };
               const canAfford = Object.entries(resourceCosts).every(([resource, cost]) => playerResources[resource as keyof typeof resourceCosts] >= cost) && playerResources.energie >= b.cost_energy;
               

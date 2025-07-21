@@ -59,8 +59,16 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
   }, [isOpen, currentConstruction, playerData.chestItems]);
 
+  const isChestEmpty = useMemo(() => {
+    if (!currentConstruction) return true;
+    return !playerData.chestItems?.some(item => item.chest_id === currentConstruction.id);
+  }, [currentConstruction, playerData.chestItems]);
 
   const handleDemolishClick = () => {
+    if (!isChestEmpty) {
+      showError("Le coffre doit être vide pour être démoli.");
+      return;
+    }
     if (currentConstruction) {
       onDemolish(currentConstruction);
     }
