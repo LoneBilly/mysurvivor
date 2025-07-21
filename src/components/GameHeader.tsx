@@ -1,6 +1,7 @@
 import { Trophy, Settings, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
+import CreditsDisplay from './CreditsDisplay'; // Import CreditsDisplay
 
 interface GameHeaderProps {
   spawnDate: string;
@@ -8,9 +9,11 @@ interface GameHeaderProps {
   onOptions: () => void;
   currentView: 'map' | 'base' | 'exploration';
   onBackToMap: () => void;
+  credits: number; // Add credits prop
+  onPurchaseCredits: () => void; // Add onPurchaseCredits prop
 }
 
-const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackToMap }: GameHeaderProps) => {
+const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackToMap, credits, onPurchaseCredits }: GameHeaderProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
   const [daysSurvived, setDaysSurvived] = useState(0);
   const showBackButton = currentView === 'base';
@@ -43,11 +46,14 @@ const GameHeader = ({ spawnDate, onLeaderboard, onOptions, currentView, onBackTo
 
   return (
     <header className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-lg text-white border-b border-white/10 h-[73px]">
-      <div className="flex-1 flex justify-start">
+      <div className="flex-1 flex justify-start items-center gap-2"> {/* Added gap-2 for spacing */}
         {currentView === 'map' ? (
-          <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-white/10 rounded-lg">
-            <Trophy className="w-5 h-5" />
-          </Button>
+          <>
+            <Button variant="ghost" size="icon" onClick={onLeaderboard} className="hover:bg-white/10 rounded-lg">
+              <Trophy className="w-5 h-5" />
+            </Button>
+            <CreditsDisplay credits={credits} onPurchaseClick={onPurchaseCredits} className="hidden md:block" /> {/* Render CreditsDisplay here */}
+          </>
         ) : showBackButton ? (
           <Button
             variant="ghost"
