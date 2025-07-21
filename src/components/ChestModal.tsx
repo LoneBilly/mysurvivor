@@ -9,6 +9,7 @@ import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemDetailModal from "./ItemDetailModal";
 import BuildingUpgradeModal from "./BuildingUpgradeModal";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ChestModalProps {
   isOpen: boolean;
@@ -392,21 +393,23 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     return (
       <div className="flex flex-col min-h-0">
         <h3 className="text-center font-bold mb-2 flex-shrink-0">{title}</h3>
-        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto flex-1 visible-scrollbar">
-          {slots.map((item, index) => (
-            <div key={index} data-slot-target={type}>
-              <InventorySlot
-                item={item}
-                index={index}
-                isUnlocked={type === 'chest' || index < playerData.playerState.unlocked_slots}
-                onDragStart={(idx, node, e) => handleDragStart(idx, type, node, e)}
-                onItemClick={(clickedItem) => handleItemClick(clickedItem, type)}
-                isBeingDragged={draggedItem?.source === type && draggedItem?.index === index}
-                isDragOver={dragOver?.target === type && dragOver?.index === index}
-              />
-            </div>
-          ))}
-        </div>
+        <ScrollArea className="bg-black/20 rounded-lg border border-slate-700 flex-1">
+          <div className="p-2 grid grid-cols-5 gap-2 content-start">
+            {slots.map((item, index) => (
+              <div key={index} data-slot-target={type}>
+                <InventorySlot
+                  item={item}
+                  index={index}
+                  isUnlocked={type === 'chest' || index < playerData.playerState.unlocked_slots}
+                  onDragStart={(idx, node, e) => handleDragStart(idx, type, node, e)}
+                  onItemClick={(clickedItem) => handleItemClick(clickedItem, type)}
+                  isBeingDragged={draggedItem?.source === type && draggedItem?.index === index}
+                  isDragOver={dragOver?.target === type && dragOver?.index === index}
+                />
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
       </div>
     );
   };

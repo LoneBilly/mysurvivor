@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -8,20 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Wrench } from 'lucide-react';
+import { Edit, Wrench, Loader2 } from 'lucide-react';
 import * as LucideIcons from "lucide-react";
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import BuildingLevelEditor from './BuildingLevelEditor';
+import { BuildingLevel } from '@/types/game';
+import { showError } from '@/utils/toast';
 
 interface BuildingDefinition {
   type: string;
   name: string;
   icon: string | null;
-  build_time_seconds: number;
-  cost_energy: number;
-  cost_wood: number;
-  cost_metal: number;
-  cost_components: number;
 }
 
 interface BuildingManagerProps {
@@ -32,6 +30,30 @@ interface BuildingManagerProps {
 const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps) => {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingDefinition | null>(null);
   const isMobile = useIsMobile();
+  const [levelsData, setLevelsData] = useState<Record<string, BuildingLevel>>({});
+  const [loadingLevels, setLoadingLevels] = useState(true);
+
+  useEffect(() => {
+    const fetchLevel1Data = async () => {
+      setLoadingLevels(true);
+      const { data, error } = await supabase
+        .from('building_levels')
+        .select('*')
+        .eq('level', 1);
+      
+      if (error) {
+        showError("Impossible de charger les données de niveau 1.");
+      } else {
+        const level1Map = data.reduce((acc, level) => {
+          acc[level.building_type] = level;
+          return acc;
+        }, {} as Record<string, BuildingLevel>);
+        setLevelsData(level1Map);
+      }
+      setLoadingLevels(false);
+    };
+    fetchLevel1Data();
+  }, []);
 
   const handleManageLevels = (building: BuildingDefinition) => {
     setSelectedBuilding(building);
@@ -52,6 +74,10 @@ const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps)
     return <BuildingLevelEditor building={selectedBuilding} onBack={handleBackToList} />;
   }
 
+  if (loadingLevels) {
+    return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
+  }
+
   return (
     <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
       <div className="flex-grow overflow-y-auto">
@@ -59,6 +85,7 @@ const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps)
           <div className="p-4 space-y-3">
             {buildings.map(building => {
               const Icon = getIconComponent(building.icon);
+              const level1 = levelsData[building.type];
               return (
                 <div key={building.type} onClick={() => handleManageLevels(building)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
                   <div className="flex items-center justify-between">
@@ -71,11 +98,12 @@ const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps)
                     </Button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-300">
-                    <p>Temps: {building.build_time_seconds}s</p>
-                    <p>Énergie: {building.cost_energy}</p>
-                    <p>Bois: {building.cost_wood}</p>
-                    <p>Pierre: {building.cost_metal}</p>
-                    <p>Composants: {building.cost_components}</p>
+                    <p>Temps: {level1?.upgrade_time_seconds || 0}s</p>
+                    <p>Énergie: {level1?.upgrade_cost_energy || 0}</p>
+                    <p>Bois: {level1?.upgrade_cost_wood || 0}</p>
+                    <p>Pierre: {level1?.upgrade_cost_metal || 0}</p>
+                    <p>Composants: {level1?.upgrade_cost_components || 0}</p>
+                    <p>Métal: {level1?.upgrade_cost_metal_ingots || 0}</p>
                   </div>
                 </div>
               );
@@ -91,28 +119,33 @@ const BuildingManager = ({ buildings, onBuildingsUpdate }: BuildingManagerProps)
                 <TableHead>Bois</TableHead>
                 <TableHead>Pierre</TableHead>
                 <TableHead>Composants</TableHead>
+                <TableHead>Métal</TableHead>
                 <TableHead className="w-[180px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {buildings.map(building => (
-                <TableRow key={building.type} className="border-gray-700">
-                  <TableCell className="font-medium flex items-center gap-2">
-                    {(() => { const Icon = getIconComponent(building.icon); return <Icon className="w-5 h-5" />; })()}
-                    {building.name}
-                  </TableCell>
-                  <TableCell>{building.build_time_seconds}s</TableCell>
-                  <TableCell>{building.cost_energy}</TableCell>
-                  <TableCell>{building.cost_wood}</TableCell>
-                  <TableCell>{building.cost_metal}</TableCell>
-                  <TableCell>{building.cost_components}</TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => handleManageLevels(building)}>
-                      <Wrench className="w-4 h-4 mr-2" /> Gérer les niveaux
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {buildings.map(building => {
+                const level1 = levelsData[building.type];
+                return (
+                  <TableRow key={building.type} className="border-gray-700">
+                    <TableCell className="font-medium flex items-center gap-2">
+                      {(() => { const Icon = getIconComponent(building.icon); return <Icon className="w-5 h-5" />; })()}
+                      {building.name}
+                    </TableCell>
+                    <TableCell>{level1?.upgrade_time_seconds || 0}s</TableCell>
+                    <TableCell>{level1?.upgrade_cost_energy || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_wood || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_metal || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_components || 0}</TableCell>
+                    <TableCell>{level1?.upgrade_cost_metal_ingots || 0}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => handleManageLevels(building)}>
+                        <Wrench className="w-4 h-4 mr-2" /> Gérer les niveaux
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
