@@ -313,7 +313,7 @@ const GameUI = () => {
           <BaseHeader resources={totalResources} resourceItems={resourceItems} />
           <BaseInterface
             isActive={currentView === 'base'}
-            onInspectBuilding={handleInspectBuilding}
+            onInspectWorkbench={handleInspectBuilding}
             onDemolishBuilding={handleDemolishBuilding}
           />
         </div>
