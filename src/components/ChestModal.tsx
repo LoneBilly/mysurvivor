@@ -158,12 +158,29 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     }
   };
 
-  const handleSplitItem = async (item: InventoryItem, quantity: number) => {
+  const handleSplitChestItem = async (item: InventoryItem, quantity: number) => {
     if (!item) return;
     setDetailedItem(null);
 
     const { error } = await supabase.rpc('split_chest_item', {
       p_chest_item_id: item.id,
+      p_split_quantity: quantity,
+    });
+  
+    if (error) {
+      showError(error.message || "Erreur lors de la division de l'objet.");
+    } else {
+      showSuccess("La pile d'objets a été divisée.");
+      await refreshInventoryAndChests();
+    }
+  };
+
+  const handleSplitInventoryItem = async (item: InventoryItem, quantity: number) => {
+    if (!item) return;
+    setDetailedItem(null);
+
+    const { error } = await supabase.rpc('split_inventory_item', {
+      p_inventory_id: item.id,
       p_split_quantity: quantity,
     });
   
@@ -412,7 +429,13 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
         onDropOne={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, 1)}
         onDropAll={() => detailedItem && handleDrop(detailedItem.item, detailedItem.source, detailedItem.item.quantity)}
         onUse={() => {}}
-        onSplit={detailedItem?.source === 'chest' ? handleSplitItem : undefined}
+        onSplit={
+          detailedItem?.source === 'chest' 
+          ? handleSplitChestItem 
+          : detailedItem?.source === 'inventory' 
+          ? handleSplitInventoryItem 
+          : undefined
+        }
         onUpdate={refreshInventoryAndChests}
       />
     </>
