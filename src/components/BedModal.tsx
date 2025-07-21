@@ -18,12 +18,15 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
   const { playerData, setPlayerData, refreshPlayerData } = useGame();
   const [isSleeping, setIsSleeping] = useState(false);
   const [optimisticEnergy, setOptimisticEnergy] = useState(0);
-  const sleepStartTime = useRef<number | null>(null);
   const sleepInterval = useRef<NodeJS.Timeout | null>(null);
 
-  const handleSleep = () => {
+  const handleSleep = async () => {
+    const { error } = await supabase.rpc('start_sleep');
+    if (error) {
+      showError("Impossible de commencer à dormir.");
+      return;
+    }
     setOptimisticEnergy(playerData.playerState.energie);
-    sleepStartTime.current = Date.now();
     setIsSleeping(true);
   };
 
@@ -31,25 +34,16 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
     if (sleepInterval.current) clearInterval(sleepInterval.current);
     setIsSleeping(false);
 
-    if (sleepStartTime.current) {
-      const durationSeconds = Math.floor((Date.now() - sleepStartTime.current) / 1000);
-      sleepStartTime.current = null;
+    const { data: newEnergy, error } = await supabase.rpc('rest_in_bed');
 
-      if (durationSeconds > 0) {
-        const { data: newEnergy, error } = await supabase.rpc('rest_in_bed', { p_duration_seconds: durationSeconds });
-
-        if (error) {
-          showError("Erreur de synchronisation de l'énergie.");
-          // En cas d'erreur, on rafraîchit complètement les données pour être sûr
-          refreshPlayerData();
-        } else {
-          // On met à jour l'état du client avec la valeur officielle du serveur
-          setPlayerData(prev => ({
-            ...prev,
-            playerState: { ...prev.playerState, energie: newEnergy }
-          }));
-        }
-      }
+    if (error) {
+      showError("Erreur de synchronisation de l'énergie.");
+      refreshPlayerData();
+    } else {
+      setPlayerData(prev => ({
+        ...prev,
+        playerState: { ...prev.playerState, energie: newEnergy }
+      }));
     }
     onClose();
   };
