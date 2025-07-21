@@ -97,7 +97,10 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     } else {
       showSuccess("Quantité mise à jour.");
       setEditingItem(null);
-      fetchInventory();
+      // Optimistically update the local state
+      setInventory(prev => prev.map(item => 
+        item.id === editingItem.id ? { ...item, quantity: quantity } : item
+      ));
     }
   };
 
@@ -109,7 +112,8 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
     } else {
       showSuccess("Objet supprimé de l'inventaire.");
       setItemToDelete(null);
-      fetchInventory();
+      // Optimistically update the local state
+      setInventory(prev => prev.filter(item => item.id !== itemToDelete.id));
     }
   };
 
@@ -124,7 +128,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       return;
     }
 
-    const { error } = await supabase.rpc('admin_add_item_to_inventory', {
+    const { data, error } = await supabase.rpc('admin_add_item_to_inventory', {
       p_player_id: player.id,
       p_item_id: parseInt(newItemId, 10),
       p_quantity: quantity,
@@ -137,7 +141,9 @@ const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalPro
       setIsAddingItem(false);
       setNewItemId('');
       setNewItemQuantity('1');
-      fetchInventory();
+      // Re-fetch to get the correct ID and slot_position for the new item
+      // This is necessary because admin_add_item_to_inventory doesn't return the new item's full details.
+      fetchInventory(); 
     }
   };
 
