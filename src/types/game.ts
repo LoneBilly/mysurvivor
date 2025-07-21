@@ -41,6 +41,7 @@ export interface BaseConstruction {
   type: string;
   output_item_id: number | null;
   output_quantity: number | null;
+  level: number;
 }
 
 export interface ScoutingMission {
@@ -91,6 +92,8 @@ export interface ConstructionJob {
   type: string;
   ends_at: string;
   created_at: string;
+  construction_id: number | null;
+  target_level: number | null;
 }
 
 export interface CraftingRecipe {
