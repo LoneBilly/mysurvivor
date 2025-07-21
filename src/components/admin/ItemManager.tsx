@@ -1,72 +1,175 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Loader2, Search, PlusCircle, Check, X } from 'lucide-react';
-import { Item } from '@/types/admin';
-import ItemFormModal from './ItemFormModal';
-import ItemIcon from '@/components/ItemIcon';
-import { getPublicIconUrl } from '@/utils/imageUrls';
-import { useIsMobile } from '@/hooks/use-is-mobile';
+"use client";
 
-interface ItemManagerProps {
-  items: Item[];
-  onItemsUpdate: () => void;
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/src/integrations/supabase/client';
+import { Input } from '@/src/components/ui/input';
+import { Button } from '@/src/components/ui/button';
+import { Label } from '@/src/components/ui/label';
+import { Textarea } from '@/src/components/ui/textarea';
+import { Checkbox } from '@/src/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/src/components/ui/select';
+import { toast } from 'react-hot-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/src/components/ui/dialog';
+import { Ban, Pencil, Trash2 } from 'lucide-react';
+
+interface Item {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  stackable: boolean;
+  type: string;
+  use_action_text: string | null;
+  recipe_id: number | null;
+  effects: any | null;
 }
 
-const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
-  const [craftableItemIds, setCraftableItemIds] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const isMobile = useIsMobile();
+interface Recipe {
+  id: number;
+  result_item_id: number;
+  result_quantity: number;
+  slot1_item_id: number | null;
+  slot1_quantity: number | null;
+  slot2_item_id: number | null;
+  slot2_quantity: number | null;
+  slot3_item_id: number | null;
+  slot3_quantity: number | null;
+  craft_time_seconds: number;
+}
 
-  const fetchRecipes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: recipesRes, error: recipesError } = await supabase.from('crafting_recipes').select('result_item_id');
-      if (recipesError) throw recipesError;
-      const craftableIds = new Set(recipesRes.map(r => r.result_item_id));
-      setCraftableItemIds(craftableIds);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+const ItemManager = () => {
+  const [items, setItems] = useState<Item[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    description: '',
+    icon: '',
+    stackable: true,
+    type: 'Items divers',
+    use_action_text: '',
+    is_craftable: false,
+    effects: '{}', // JSON string
+  });
+  const [newRecipe, setNewRecipe] = useState({
+    result_quantity: 1,
+    slot1_item_id: null as number | null,
+    slot1_quantity: null as number | null,
+    slot2_item_id: null as number | null,
+    slot2_quantity: null as number | null,
+    slot3_item_id: null as number | null,
+    slot3_quantity: null as number | null,
+    craft_time_seconds: 10,
+  });
+
+  const fetchItemsAndRecipes = async () => {
+    const { data: itemsData, error: itemsError } = await supabase.from('items').select('*');
+    const { data: recipesData, error: recipesError } = await supabase.from('crafting_recipes').select('*');
+
+    if (itemsError) {
+      console.error('Error fetching items:', itemsError);
+      toast.error('Failed to fetch items.');
+    } else {
+      setItems(itemsData || []);
     }
-  }, []);
+
+    if (recipesError) {
+      console.error('Error fetching recipes:', recipesError);
+      toast.error('Failed to fetch recipes.');
+    } else {
+      setRecipes(recipesData || []);
+    }
+  };
 
   useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
+    fetchItemsAndRecipes();
+  }, []);
 
-  const handleCreate = () => {
-    setEditingItem(null);
-    setIsModalOpen(true);
+  const handleItemChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      setNewItem(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
+    } else {
+      setNewItem(prev => ({ ...prev, [name]: value }));
+    }
   };
 
-  const handleEdit = (item: Item) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
+  const handleRecipeChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewRecipe(prev => ({ ...prev, [name]: value === '' ? null : Number(value) }));
   };
 
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (typeFilter === 'all' || item.type === typeFilter)
-  );
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const parsedEffects = newItem.effects ? JSON.parse(newItem.effects) : null;
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
-  }
+      const { data: newItems, error } = await supabase.rpc('create_item_and_recipe', {
+        p_name: newItem.name,
+        p_description: newItem.description,
+        p_icon: newItem.icon,
+        p_stackable: newItem.stackable,
+        p_type: newItem.type,
+        p_use_action_text: newItem.use_action_text || null,
+        p_is_craftable: newItem.is_craftable,
+        p_effects: parsedEffects,
+        p_recipe_result_quantity: newItem.is_craftable ? newRecipe.result_quantity : 1,
+        p_recipe_slot1_item_id: newItem.is_craftable ? newRecipe.slot1_item_id : null,
+        p_recipe_slot1_quantity: newItem.is_craftable ? newRecipe.slot1_quantity : null,
+        p_recipe_slot2_item_id: newItem.is_craftable ? newRecipe.slot2_item_id : null,
+        p_recipe_slot2_quantity: newItem.is_craftable ? newRecipe.slot2_quantity : null,
+        p_recipe_slot3_item_id: newItem.is_craftable ? newRecipe.slot3_item_id : null,
+        p_recipe_slot3_quantity: newItem.is_craftable ? newRecipe.slot3_quantity : null,
+        p_recipe_craft_time_seconds: newItem.is_craftable ? newRecipe.craft_time_seconds : 10,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Item added successfully!');
+      
+      // Dynamically update the list with the new item(s)
+      if (newItems && newItems.length > 0) {
+        setItems(prevItems => [...prevItems, ...newItems]);
+        // If a recipe was created, re-fetch recipes to ensure consistency
+        if (newItem.is_craftable && newItems[0].recipe_id) {
+            const { data: updatedRecipes, error: recipesFetchError } = await supabase.from('crafting_recipes').select('*');
+            if (recipesFetchError) {
+                console.error('Error re-fetching recipes:', recipesFetchError);
+            } else {
+                setRecipes(updatedRecipes || []);
+            }
+        }
+      }
+
+      // Reset form
+      setNewItem({
+        name: '',
+        description: '',
+        icon: '',
+        stackable: true,
+        type: 'Items divers',
+        use_action_text: '',
+        is_craftable: false,
+        effects: '{}',
+      });
+      setNewRecipe({
+        result_quantity: 1,
+        slot1_item_id: null,
+        slot1_quantity: null,
+        slot2_item_id: null,
+        slot2_quantity: null,
+        slot3_item_id: null,
+        slot3_quantity: null,
+        craft_time_seconds: 10,
+      });
+
+    } catch (error: any) {
+      console.error('Error adding item:', error);
+      toast.error(`Failed to add item: ${error.message}`);
+    }
+  };
 
   return (
     <>
@@ -74,113 +177,202 @@ const ItemManager = ({ items, onItemsUpdate }: ItemManagerProps) => {
         <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              {/* Search and filter inputs */}
               <Input
                 type="text"
-                placeholder="Rechercher un objet..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-900 border-gray-700"
+                placeholder="Search items..."
+                className="w-full pl-10 bg-gray-900 border-gray-600 text-white"
               />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </span>
             </div>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full sm:w-[180px] bg-gray-900 border-gray-700 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="all">Tous les types</option>
-              <option value="Ressources">Ressources</option>
-              <option value="Armes">Armes</option>
-              <option value="Armure">Armure</option>
-              <option value="Sac à dos">Sac à dos</option>
-              <option value="Chaussures">Chaussures</option>
-              <option value="Vehicule">Vehicule</option>
-              <option value="Nourriture">Nourriture</option>
-              <option value="Soins">Soins</option>
-              <option value="Outils">Outils</option>
-              <option value="Équipements">Équipements</option>
-              <option value="Items divers">Items divers</option>
-              <option value="Items craftés">Items craftés</option>
-            </select>
+            <Select>
+              <SelectTrigger className="w-full sm:w-[180px] bg-gray-900 border-gray-600 text-white">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-700 text-white border-gray-600">
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="resource">Resource</SelectItem>
+                <SelectItem value="consumable">Consumable</SelectItem>
+                {/* Add more types as needed */}
+              </SelectContent>
+            </Select>
           </div>
-          <Button onClick={handleCreate} className="w-full sm:w-auto">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Créer un objet
+          <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white">
+            Add New Item
           </Button>
         </div>
-        <div className="flex-grow overflow-y-auto">
-          {isMobile ? (
-            <div className="p-4 space-y-3">
-              {filteredItems.map(item => (
-                <div key={item.id} onClick={() => handleEdit(item)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer flex items-start gap-4">
-                  <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                    <ItemIcon iconName={getPublicIconUrl(item.icon)} alt={item.name} />
-                  </div>
-                  <div className="flex-grow min-w-0">
-                    <p className="font-bold text-white truncate">{item.name}</p>
-                    <p className="text-sm text-gray-400 truncate mt-1">{item.description || 'Aucune description'}</p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 mt-2">
-                      <div className="flex items-center gap-2">
-                        {item.stackable ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
-                        <span>Empilable</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {craftableItemIds.has(item.id) ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
-                        <span>Craftable</span>
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">{item.type}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+
+        <div className="flex-grow p-4 overflow-auto">
+          <h2 className="text-xl font-semibold mb-4">Add New Item</h2>
+          <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" name="name" value={newItem.name} onChange={handleItemChange} required className="bg-gray-900 border-gray-600 text-white" />
             </div>
-          ) : (
-            <Table className="table-fixed w-full">
-              <TableHeader>
-                <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
-                  <TableHead className="w-[80px]">Icône</TableHead>
-                  <TableHead className="w-[200px]">Nom</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-[150px]">Type</TableHead>
-                  <TableHead className="w-[120px] text-center">Empilable</TableHead>
-                  <TableHead className="w-[120px] text-center">Craftable</TableHead>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" name="description" value={newItem.description} onChange={handleItemChange} className="bg-gray-900 border-gray-600 text-white" />
+            </div>
+            <div>
+              <Label htmlFor="icon">Icon (URL or name)</Label>
+              <Input id="icon" name="icon" value={newItem.icon} onChange={handleItemChange} className="bg-gray-900 border-gray-600 text-white" />
+            </div>
+            <div>
+              <Label htmlFor="type">Type</Label>
+              <Select name="type" value={newItem.type} onValueChange={(value) => handleItemChange({ target: { name: 'type', value, type: 'select' } } as React.ChangeEvent<HTMLSelectElement>)}>
+                <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                  <SelectValue placeholder="Select item type" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-700 text-white border-gray-600">
+                  <SelectItem value="Items divers">Items divers</SelectItem>
+                  <SelectItem value="Ressource">Ressource</SelectItem>
+                  <SelectItem value="Consommable">Consommable</SelectItem>
+                  <SelectItem value="Outil">Outil</SelectItem>
+                  <SelectItem value="Arme">Arme</SelectItem>
+                  <SelectItem value="Armure">Armure</SelectItem>
+                  <SelectItem value="Sac à dos">Sac à dos</SelectItem>
+                  <SelectItem value="Chaussures">Chaussures</SelectItem>
+                  <SelectItem value="Vehicule">Vehicule</SelectItem>
+                  <SelectItem value="Blueprint">Blueprint</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="stackable" name="stackable" checked={newItem.stackable} onCheckedChange={(checked) => handleItemChange({ target: { name: 'stackable', checked, type: 'checkbox' } } as any)} />
+              <Label htmlFor="stackable">Stackable</Label>
+            </div>
+            <div>
+              <Label htmlFor="use_action_text">Use Action Text</Label>
+              <Input id="use_action_text" name="use_action_text" value={newItem.use_action_text} onChange={handleItemChange} className="bg-gray-900 border-gray-600 text-white" />
+            </div>
+            <div>
+              <Label htmlFor="effects">Effects (JSON)</Label>
+              <Textarea id="effects" name="effects" value={newItem.effects} onChange={handleItemChange} placeholder='{"restaure_vie": 20}' className="bg-gray-900 border-gray-600 text-white" />
+            </div>
+            <div className="flex items-center space-x-2 col-span-full">
+              <Checkbox id="is_craftable" name="is_craftable" checked={newItem.is_craftable} onCheckedChange={(checked) => setNewItem(prev => ({ ...prev, is_craftable: checked as boolean }))} />
+              <Label htmlFor="is_craftable">Is Craftable?</Label>
+            </div>
+
+            {newItem.is_craftable && (
+              <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded-md border-gray-600">
+                <h3 className="col-span-full text-lg font-semibold mb-2">Recipe Details</h3>
+                <div>
+                  <Label htmlFor="result_quantity">Result Quantity</Label>
+                  <Input id="result_quantity" name="result_quantity" type="number" value={newRecipe.result_quantity} onChange={handleRecipeChange} min="1" className="bg-gray-900 border-gray-600 text-white" />
+                </div>
+                <div>
+                  <Label htmlFor="craft_time_seconds">Craft Time (seconds)</Label>
+                  <Input id="craft_time_seconds" name="craft_time_seconds" type="number" value={newRecipe.craft_time_seconds} onChange={handleRecipeChange} min="1" className="bg-gray-900 border-gray-600 text-white" />
+                </div>
+                {/* Slot 1 */}
+                <div>
+                  <Label htmlFor="slot1_item_id">Slot 1 Item</Label>
+                  <Select name="slot1_item_id" value={newRecipe.slot1_item_id?.toString() || ''} onValueChange={(value) => handleRecipeChange({ target: { name: 'slot1_item_id', value, type: 'select' } } as React.ChangeEvent<HTMLSelectElement>)}>
+                    <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                      <SelectValue placeholder="Select item" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 text-white border-gray-600">
+                      {items.map(item => (
+                        <SelectItem key={item.id} value={item.id.toString()}>{item.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="slot1_quantity">Slot 1 Quantity</Label>
+                  <Input id="slot1_quantity" name="slot1_quantity" type="number" value={newRecipe.slot1_quantity || ''} onChange={handleRecipeChange} min="1" className="bg-gray-900 border-gray-600 text-white" />
+                </div>
+                {/* Slot 2 */}
+                <div>
+                  <Label htmlFor="slot2_item_id">Slot 2 Item</Label>
+                  <Select name="slot2_item_id" value={newRecipe.slot2_item_id?.toString() || ''} onValueChange={(value) => handleRecipeChange({ target: { name: 'slot2_item_id', value, type: 'select' } } as React.ChangeEvent<HTMLSelectElement>)}>
+                    <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                      <SelectValue placeholder="Select item" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 text-white border-gray-600">
+                      {items.map(item => (
+                        <SelectItem key={item.id} value={item.id.toString()}>{item.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="slot2_quantity">Slot 2 Quantity</Label>
+                  <Input id="slot2_quantity" name="slot2_quantity" type="number" value={newRecipe.slot2_quantity || ''} onChange={handleRecipeChange} min="1" className="bg-gray-900 border-gray-600 text-white" />
+                </div>
+                {/* Slot 3 */}
+                <div>
+                  <Label htmlFor="slot3_item_id">Slot 3 Item</Label>
+                  <Select name="slot3_item_id" value={newRecipe.slot3_item_id?.toString() || ''} onValueChange={(value) => handleRecipeChange({ target: { name: 'slot3_item_id', value, type: 'select' } } as React.ChangeEvent<HTMLSelectElement>)}>
+                    <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                      <SelectValue placeholder="Select item" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 text-white border-gray-600">
+                      {items.map(item => (
+                        <SelectItem key={item.id} value={item.id.toString()}>{item.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="slot3_quantity">Slot 3 Quantity</Label>
+                  <Input id="slot3_quantity" name="slot3_quantity" type="number" value={newRecipe.slot3_quantity || ''} onChange={handleRecipeChange} min="1" className="bg-gray-900 border-gray-600 text-white" />
+                </div>
+              </div>
+            )}
+            <Button type="submit" className="col-span-full bg-green-600 hover:bg-green-700 text-white">Add Item</Button>
+          </form>
+
+          <h2 className="text-xl font-semibold mb-4">Existing Items</h2>
+          <div className="rounded-md border border-gray-700 overflow-hidden">
+            <Table>
+              <TableHeader className="bg-gray-700">
+                <TableRow>
+                  <TableHead className="w-[50px] text-gray-300">ID</TableHead>
+                  <TableHead className="text-gray-300">Name</TableHead>
+                  <TableHead className="text-gray-300">Type</TableHead>
+                  <TableHead className="text-gray-300">Stackable</TableHead>
+                  <TableHead className="text-gray-300">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map(item => (
-                  <TableRow
-                    key={item.id}
-                    className="border-gray-700 hover:bg-gray-800/60 cursor-pointer"
-                    onClick={() => handleEdit(item)}
-                  >
+                {items.map((item) => (
+                  <TableRow key={item.id} className="border-b border-gray-700 hover:bg-gray-800">
+                    <TableCell className="font-medium text-gray-300">{item.id}</TableCell>
+                    <TableCell className="text-gray-300">{item.name}</TableCell>
+                    <TableCell className="text-gray-300">{item.type}</TableCell>
+                    <TableCell className="text-gray-300">{item.stackable ? 'Yes' : 'No'}</TableCell>
                     <TableCell>
-                      <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative">
-                        <ItemIcon iconName={getPublicIconUrl(item.icon)} alt={item.name} />
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="text-blue-400 hover:text-blue-300">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-300">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium truncate">{item.name}</TableCell>
-                    <TableCell className="text-gray-400 truncate">{item.description}</TableCell>
-                    <TableCell>
-                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span>
-                    </TableCell>
-                    <TableCell className="text-center">{item.stackable ? 'Oui' : 'Non'}</TableCell>
-                    <TableCell className="text-center">{craftableItemIds.has(item.id) ? 'Oui' : 'Non'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          )}
+          </div>
         </div>
       </div>
-      <ItemFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        item={editingItem}
-        onSave={onItemsUpdate}
-        allItems={items}
-      />
     </>
   );
 };
