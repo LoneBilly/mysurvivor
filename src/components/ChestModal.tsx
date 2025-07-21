@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, ChestItem as ChestItemType } from "@/types/game";
 import { Box, Trash2, ArrowUpCircle } from "lucide-react";
@@ -405,10 +405,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             <div className="flex items-center gap-3">
               <Box className="w-7 h-7 text-white" />
               <div>
-                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Coffre</DialogTitle>
-                <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
-                  Niveau {construction.level}
-                </DialogDescription>
+                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+                  Coffre - Niveau {construction.level}
+                </DialogTitle>
               </div>
             </div>
           </DialogHeader>
@@ -421,7 +420,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
               <ArrowUpCircle className="w-4 h-4 mr-2" />
               Améliorer
             </Button>
-            <Button variant="destructive" onClick={handleDemolishClick} className="flex-1 sm:flex-initial">
+            <Button variant="destructive" onClick={handleDemolishClick} className="flex-1">
               <Trash2 className="w-4 h-4 mr-2" />
               Détruire
             </Button>

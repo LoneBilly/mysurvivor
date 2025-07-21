@@ -131,8 +131,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
             <div className="flex items-center gap-3">
               <Hammer className="w-7 h-7 text-white" />
               <div>
-                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Établi</DialogTitle>
-                <p className="text-sm text-neutral-400 font-mono mt-1">Niveau {construction.level}</p>
+                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+                  Établi - Niveau {construction.level}
+                </DialogTitle>
               </div>
             </div>
           </DialogHeader>
