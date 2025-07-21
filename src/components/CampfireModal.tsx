@@ -88,17 +88,24 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     const fuelInfo = fuels.find(f => f.item_id === selectedFuel.item_id);
     if (!fuelInfo) return 0;
     
-    const consumptionRate = Number(config.base_wood_consumption_per_minute);
-    if (consumptionRate === 0) return Infinity;
+    const consumptionRate = parseFloat(String(config.base_wood_consumption_per_minute));
+    if (isNaN(consumptionRate) || consumptionRate <= 0) return Infinity;
     
+    const multiplier = parseFloat(String(fuelInfo.multiplier));
+    if (isNaN(multiplier)) return 0;
+
     const secondsPerWood = 60 / consumptionRate;
-    return Math.floor(Number(quantity) * Number(fuelInfo.multiplier) * secondsPerWood);
+    return Math.floor(quantity * multiplier * secondsPerWood);
   }, [selectedFuel, quantity, fuels, config]);
 
   const canAddFuel = useMemo(() => {
     if (!currentConstruction) return false;
-    const currentBurnTime = Number(currentConstruction.burn_time_remaining_seconds);
-    const addedBurnTime = Number(burnTimeFromSelection);
+    
+    const currentBurnTime = parseInt(String(currentConstruction.burn_time_remaining_seconds), 10) || 0;
+    const addedBurnTime = burnTimeFromSelection;
+
+    if (!isFinite(addedBurnTime)) return false;
+
     return (currentBurnTime + addedBurnTime) <= MAX_BURN_TIME_SECONDS;
   }, [currentConstruction, burnTimeFromSelection]);
 
