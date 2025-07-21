@@ -17,59 +17,70 @@ interface BedModalProps {
 const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
   const { playerData, setPlayerData, refreshPlayerData } = useGame();
   const [isSleeping, setIsSleeping] = useState(false);
-  const initialEnergy = useRef(0);
+  const [optimisticEnergy, setOptimisticEnergy] = useState(0);
+  const sleepStartTime = useRef<number | null>(null);
+  const sleepInterval = useRef<NodeJS.Timeout | null>(null);
 
   const handleSleep = () => {
-    initialEnergy.current = playerData.playerState.energie;
+    setOptimisticEnergy(playerData.playerState.energie);
+    sleepStartTime.current = Date.now();
     setIsSleeping(true);
   };
 
   const handleWakeUp = async () => {
+    if (sleepInterval.current) clearInterval(sleepInterval.current);
     setIsSleeping(false);
-    const finalEnergy = playerData.playerState.energie;
-    
-    // Only call DB if energy has actually changed
-    if (finalEnergy > initialEnergy.current) {
-      const { error } = await supabase.rpc('rest_in_bed', { p_new_energy: finalEnergy });
-      if (error) {
-        showError("Erreur de synchronisation de l'énergie.");
-        // Revert optimistic update on error
-        setPlayerData(prev => ({
-          ...prev,
-          playerState: { ...prev.playerState, energie: initialEnergy.current }
-        }));
+
+    if (sleepStartTime.current) {
+      const durationSeconds = Math.floor((Date.now() - sleepStartTime.current) / 1000);
+      sleepStartTime.current = null;
+
+      if (durationSeconds > 0) {
+        const { data: newEnergy, error } = await supabase.rpc('rest_in_bed', { p_duration_seconds: durationSeconds });
+
+        if (error) {
+          showError("Erreur de synchronisation de l'énergie.");
+          // En cas d'erreur, on rafraîchit complètement les données pour être sûr
+          refreshPlayerData();
+        } else {
+          // On met à jour l'état du client avec la valeur officielle du serveur
+          setPlayerData(prev => ({
+            ...prev,
+            playerState: { ...prev.playerState, energie: newEnergy }
+          }));
+        }
       }
     }
     onClose();
   };
 
   useEffect(() => {
-    if (!isSleeping) return;
+    if (isSleeping) {
+      sleepInterval.current = setInterval(() => {
+        setOptimisticEnergy(prevEnergy => {
+          if (prevEnergy >= 100) {
+            if (sleepInterval.current) clearInterval(sleepInterval.current);
+            handleWakeUp();
+            return 100;
+          }
+          return prevEnergy + 1;
+        });
+      }, 1000);
+    }
 
-    const sleepInterval = setInterval(() => {
-      setPlayerData(prev => {
-        const currentEnergy = prev.playerState.energie;
-        if (currentEnergy >= 100) {
-          clearInterval(sleepInterval);
-          handleWakeUp();
-          return prev;
-        }
-        return {
-          ...prev,
-          playerState: { ...prev.playerState, energie: currentEnergy + 1 }
-        };
-      });
-    }, 1000);
-
-    return () => clearInterval(sleepInterval);
-  }, [isSleeping, setPlayerData]);
+    return () => {
+      if (sleepInterval.current) clearInterval(sleepInterval.current);
+    };
+  }, [isSleeping]);
 
   useEffect(() => {
-    // Reset state when modal is closed
     if (!isOpen) {
       setIsSleeping(false);
+      if (sleepInterval.current) clearInterval(sleepInterval.current);
+    } else {
+      setOptimisticEnergy(playerData.playerState.energie);
     }
-  }, [isOpen]);
+  }, [isOpen, playerData.playerState.energie]);
 
   if (!construction) return null;
 
@@ -99,9 +110,9 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
                 <Zap className="w-6 h-6 text-yellow-400" />
                 <span className="text-lg">Énergie</span>
               </div>
-              <span className="text-lg font-bold">{playerData.playerState.energie} / 100</span>
+              <span className="text-lg font-bold">{Math.min(100, optimisticEnergy)} / 100</span>
             </div>
-            <Progress value={playerData.playerState.energie} className="h-4" />
+            <Progress value={optimisticEnergy} className="h-4" />
           </div>
           <Button onClick={handleWakeUp} className="mt-8">
             Se réveiller
