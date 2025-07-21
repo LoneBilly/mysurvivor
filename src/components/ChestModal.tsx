@@ -402,7 +402,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Box className="w-7 h-7 text-white" />
-              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Coffre (Niveau {construction.level})</DialogTitle>
+              <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Coffre</DialogTitle>
             </div>
             <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
               Stockez vos objets en sécurité.
