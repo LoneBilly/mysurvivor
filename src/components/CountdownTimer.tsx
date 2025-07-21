@@ -54,7 +54,7 @@ const CountdownTimer = ({ endTime, onComplete }: CountdownTimerProps) => {
   }
 
   if (timeLeft.total <= 0) {
-    return <span>Terminé !</span>;
+    return null;
   }
 
   return (

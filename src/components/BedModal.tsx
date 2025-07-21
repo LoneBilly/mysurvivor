@@ -21,7 +21,8 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
   const sleepInterval = useRef<NodeJS.Timeout | null>(null);
 
   const handleSleep = async () => {
-    const { error } = await supabase.rpc('start_sleep');
+    if (!construction) return;
+    const { error } = await supabase.rpc('start_sleep', { p_construction_id: construction.id });
     if (error) {
       showError("Impossible de commencer à dormir.");
       return;
@@ -57,6 +58,8 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
             handleWakeUp();
             return 100;
           }
+          // Note: This is just a visual prediction. The server has the final say.
+          // We assume a base regen of 1/s for the UI. The server will correct it.
           return prevEnergy + 1;
         });
       }, 1000);
