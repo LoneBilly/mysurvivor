@@ -34,6 +34,7 @@ interface BaseHeaderProps {
     wood: number;
     metal: number;
     components: number;
+    metal_ingots: number;
   };
   resourceItems: {
     wood: Item | undefined;
@@ -49,7 +50,7 @@ const BaseHeader = ({ resources, resourceItems }: BaseHeaderProps) => {
       <div className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-lg p-2 rounded-xl shadow-lg border border-white/20">
         <ResourceItem icon={TreeDeciduous} itemIcon={resourceItems.wood} label="Bois" value={resources.wood} />
         <ResourceItem icon={Mountain} itemIcon={resourceItems.metal} label="Pierre" value={resources.metal} />
-        <ResourceItem icon={Hammer} itemIcon={resourceItems.real_metal} label="Métal" value={0} />
+        <ResourceItem icon={Hammer} itemIcon={resourceItems.real_metal} label="Métal" value={resources.metal_ingots} />
         <ResourceItem icon={Cog} itemIcon={resourceItems.components} label="Composants" value={resources.components} />
       </div>
     </header>

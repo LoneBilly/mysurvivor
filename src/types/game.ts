@@ -65,22 +65,21 @@ export interface PlayerState {
   faim: number;
   soif: number;
   energie: number;
+  current_zone_id: number | null;
+  base_zone_id: number | null;
+  created_at: string;
+  updated_at: string;
   zones_decouvertes: number[];
+  exploration_x: number | null;
+  exploration_y: number | null;
+  unlocked_slots: number;
+  credits: number;
+  sale_slots: number;
+  spawn_date: string;
   position_x: number;
   position_y: number;
   base_position_x: number | null;
   base_position_y: number | null;
-  exploration_x: number | null;
-  exploration_y: number | null;
-  created_at: string;
-  updated_at: string;
-  wood: number;
-  metal: number;
-  components: number;
-  spawn_date: string;
-  unlocked_slots: number;
-  credits: number;
-  sale_slots: number;
   bank_balance: number | null;
 }
 

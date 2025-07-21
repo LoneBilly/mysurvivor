@@ -124,17 +124,24 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   } | null>(null);
 
   const totalResources = useMemo(() => {
-    const inventoryWood = playerData.inventory.find(i => i.items?.name === 'Bois')?.quantity || 0;
-    const inventoryMetal = playerData.inventory.find(i => i.items?.name === 'Pierre')?.quantity || 0;
-    const inventoryComponents = playerData.inventory.find(i => i.items?.name === 'Composants')?.quantity || 0;
+    const resourceCounter = (name: string) => {
+      const inventoryQty = playerData.inventory
+        .filter(i => i.items?.name === name)
+        .reduce((sum, i) => sum + i.quantity, 0);
+      const chestQty = playerData.chestItems
+        ?.filter(i => i.items?.name === name)
+        .reduce((sum, i) => sum + i.quantity, 0) || 0;
+      return inventoryQty + chestQty;
+    };
     
     return {
       energie: playerData.playerState.energie,
-      wood: playerData.playerState.wood + inventoryWood,
-      metal: playerData.playerState.metal + inventoryMetal,
-      components: playerData.playerState.components + inventoryComponents,
+      wood: resourceCounter('Bois'),
+      metal: resourceCounter('Pierre'),
+      components: resourceCounter('Composants'),
+      metal_ingots: resourceCounter('Lingot de métal'),
     };
-  }, [playerData.playerState, playerData.inventory]);
+  }, [playerData.playerState.energie, playerData.inventory, playerData.chestItems]);
 
   const updateCanBuild = (grid: BaseCell[][]): BaseCell[][] => {
     const newGrid = grid.map(row => row.map(cell => ({ ...cell, canBuild: false })));
