@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, Plus, Edit, Trash2, Zap, Search, ArrowLeft, Save } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Zap, Search, ArrowLeft, Save, PlusCircle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { MapCell } from '@/types/game';
 import { Item } from '@/types/admin';
