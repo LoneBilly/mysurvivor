@@ -45,6 +45,13 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     return chestLevelInfo?.stats?.storage_slots || 10;
   }, [chestLevelInfo]);
 
+  const hasNextLevel = useMemo(() => {
+    if (!currentConstruction) return false;
+    return buildingLevels.some(
+      level => level.building_type === currentConstruction.type && level.level === currentConstruction.level + 1
+    );
+  }, [currentConstruction, buildingLevels]);
+
   useEffect(() => {
     if (isOpen && currentConstruction) {
       const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === currentConstruction.id) || [];
@@ -434,11 +441,17 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             {renderGrid("Contenu du coffre", chestItems, chestSlots, 'chest')}
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
-          <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
-            <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
-              <ArrowUpCircle className="w-4 h-4 mr-2" />
-              Améliorer
-            </Button>
+          <DialogFooter className="mt-4 flex flex-row gap-2">
+            {hasNextLevel ? (
+              <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
+                <ArrowUpCircle className="w-4 h-4 mr-2" />
+                Améliorer
+              </Button>
+            ) : (
+              <Button disabled className="flex-1">
+                Niv Max
+              </Button>
+            )}
             <Button variant="destructive" onClick={handleDemolishClick} className="flex-1">
               <Trash2 className="w-4 h-4 mr-2" />
               Détruire

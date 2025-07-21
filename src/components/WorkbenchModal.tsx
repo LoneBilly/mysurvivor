@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
 import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, ArrowUpCircle, Clock } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
 import ItemIcon from "./ItemIcon";
@@ -27,7 +27,7 @@ interface WorkbenchModalProps {
 }
 
 const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, onOpenInventory }: WorkbenchModalProps) => {
-  const { playerData, getIconUrl } = useGame();
+  const { playerData, getIconUrl, buildingLevels } = useGame();
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'crafting' } | null>(null);
   const [isBlueprintModalOpen, setIsBlueprintModalOpen] = useState(false);
   const [craftQuantity, setCraftQuantity] = useState(1);
@@ -58,6 +58,13 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     handleDragMove,
     handleDragEnd,
   } = useWorkbench(construction, onUpdate);
+
+  const hasNextLevel = useMemo(() => {
+    if (!construction) return false;
+    return buildingLevels.some(
+      level => level.building_type === construction.type && level.level === construction.level + 1
+    );
+  }, [construction, buildingLevels]);
 
   useEffect(() => {
     if (craftQuantity > maxCraftQuantity) setCraftQuantity(maxCraftQuantity > 0 ? maxCraftQuantity : 1);
@@ -255,9 +262,15 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
               <BookOpen className="w-4 h-4 mr-2" /> Blueprints
             </Button>
             <div className="flex flex-row gap-2">
-              <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
-                <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer
-              </Button>
+              {hasNextLevel ? (
+                <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
+                  <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer
+                </Button>
+              ) : (
+                <Button disabled className="flex-1">
+                  Niv Max
+                </Button>
+              )}
               <Button variant="destructive" onClick={() => onDemolish(construction)} className="flex-1">
                 <Trash2 className="w-4 h-4 mr-2" /> Détruire
               </Button>
