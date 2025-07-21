@@ -42,6 +42,8 @@ export interface BaseConstruction {
   output_item_id: number | null;
   output_quantity: number | null;
   level: number;
+  burn_time_remaining_seconds: number;
+  fuel_last_updated_at: string;
 }
 
 export interface ScoutingMission {
