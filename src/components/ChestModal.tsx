@@ -376,7 +376,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     return (
       <div className="flex flex-col min-h-0">
         <h3 className="text-center font-bold mb-2 flex-shrink-0">{title}</h3>
-        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto no-scrollbar flex-1">
+        <div className="bg-black/20 rounded-lg p-2 border border-slate-700 grid grid-cols-5 gap-2 content-start overflow-y-auto flex-1">
           {slots.map((item, index) => (
             <div key={index} data-slot-target={type}>
               <InventorySlot
@@ -417,18 +417,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
             {renderGrid("Votre inventaire", playerData.inventory, playerData.playerState.unlocked_slots, 'inventory')}
           </div>
           <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
-            <div className="flex-1">
-              <Button onClick={() => setIsUpgradeModalOpen(true)} className="w-full">
-                <ArrowUpCircle className="w-4 h-4 mr-2" />
-                Améliorer
-              </Button>
-            </div>
-            <div className="flex items-end">
-              <Button variant="destructive" onClick={handleDemolishClick} className="w-full sm:w-auto">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Détruire
-              </Button>
-            </div>
+            <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
+              <ArrowUpCircle className="w-4 h-4 mr-2" />
+              Améliorer
+            </Button>
+            <Button variant="destructive" onClick={handleDemolishClick} className="flex-1 sm:flex-initial">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Détruire
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

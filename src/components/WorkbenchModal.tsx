@@ -246,17 +246,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 mt-4">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button variant="destructive" onClick={() => onDemolish(construction)} className="flex-1">
-                <Trash2 className="w-4 h-4 mr-2" /> Détruire
-              </Button>
-              <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
-                <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer
-              </Button>
-            </div>
             <Button variant="outline" onClick={() => setIsBlueprintModalOpen(true)} className="w-full">
               <BookOpen className="w-4 h-4 mr-2" /> Blueprints
             </Button>
+            <div className="flex flex-row gap-2">
+              <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
+                <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer
+              </Button>
+              <Button variant="destructive" onClick={() => onDemolish(construction)} className="flex-1">
+                <Trash2 className="w-4 h-4 mr-2" /> Détruire
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
