@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, ArrowUpCircle } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, ArrowUpCircle, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
@@ -227,6 +227,10 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                         <div className="w-full px-4 space-y-2">
                           <div className="flex justify-between items-center text-sm">
                             <span>Quantité: <span className="font-bold text-white">{craftQuantity}</span></span>
+                            <span className="flex items-center gap-1 text-gray-400">
+                              <Clock className="w-3 h-3" />
+                              {matchedRecipe.craft_time_seconds * craftQuantity}s
+                            </span>
                           </div>
                           <Slider value={[craftQuantity]} onValueChange={(value) => setCraftQuantity(value[0])} min={1} max={maxCraftQuantity} step={1} disabled={isLoadingAction} />
                           <Button onClick={handleStartCraft} disabled={!matchedRecipe || isLoadingAction || craftQuantity === 0} className="w-full">

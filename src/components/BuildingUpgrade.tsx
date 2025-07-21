@@ -113,33 +113,35 @@ const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradePro
     setIsUpgrading(false);
   };
 
-  if (loading) {
-    return <div className="h-10 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin" /></div>;
-  }
-
-  if (!nextLevel) {
-    return <Button disabled>Niveau maximum atteint</Button>;
-  }
-
   const isJobRunning = playerData.constructionJobs && playerData.constructionJobs.length > 0;
 
   return (
     <div className="w-full space-y-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Niveau suivant: {nextLevel.level}</h4>
-        <div className="flex items-center gap-1 text-sm text-gray-400">
-          <Clock className="w-4 h-4" />
-          <span>{nextLevel.upgrade_time_seconds}s</span>
+      {loading ? (
+        <div className="h-24 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin" /></div>
+      ) : nextLevel ? (
+        <>
+          <div className="flex justify-between items-center">
+            <h4 className="font-semibold">Niveau suivant: {nextLevel.level}</h4>
+            <div className="flex items-center gap-1 text-sm text-gray-400">
+              <Clock className="w-4 h-4" />
+              <span>{nextLevel.upgrade_time_seconds}s</span>
+            </div>
+          </div>
+          <div className="flex justify-center gap-2">
+            <CostDisplay item={resourceItems.wood} required={nextLevel.upgrade_cost_wood} available={totalResources.wood} />
+            <CostDisplay item={resourceItems.metal} required={nextLevel.upgrade_cost_metal} available={totalResources.metal} />
+            <CostDisplay item={resourceItems.components} required={nextLevel.upgrade_cost_components} available={totalResources.components} />
+          </div>
+          <Button onClick={handleUpgrade} disabled={!canAfford || isUpgrading || isJobRunning} className="w-full">
+            {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : isJobRunning ? "Construction en cours..." : <><ArrowUpCircle className="w-4 h-4 mr-2" />Améliorer</>}
+          </Button>
+        </>
+      ) : (
+        <div className="w-full h-10 flex items-center justify-center bg-gray-800/50 rounded-md text-gray-400 font-bold">
+          Niv Max
         </div>
-      </div>
-      <div className="flex justify-center gap-2">
-        <CostDisplay item={resourceItems.wood} required={nextLevel.upgrade_cost_wood} available={totalResources.wood} />
-        <CostDisplay item={resourceItems.metal} required={nextLevel.upgrade_cost_metal} available={totalResources.metal} />
-        <CostDisplay item={resourceItems.components} required={nextLevel.upgrade_cost_components} available={totalResources.components} />
-      </div>
-      <Button onClick={handleUpgrade} disabled={!canAfford || isUpgrading || isJobRunning} className="w-full">
-        {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : isJobRunning ? "Construction en cours..." : <><ArrowUpCircle className="w-4 h-4 mr-2" />Améliorer</>}
-      </Button>
+      )}
     </div>
   );
 };
