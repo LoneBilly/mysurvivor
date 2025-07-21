@@ -128,6 +128,7 @@ const GameUI = () => {
   const handleDemolishBuilding = async (construction: BaseConstruction) => {
     const { x, y } = construction;
     setInspectedConstruction(null);
+    setIsBedModalOpen(false);
     const { error } = await supabase.rpc('demolish_building_to_foundation', { p_x: x, p_y: y });
     if (error) {
       showError(error.message || "Erreur de démolition.");
@@ -337,6 +338,7 @@ const GameUI = () => {
         isOpen={isBedModalOpen}
         onClose={() => { setIsBedModalOpen(false); setInspectedConstruction(null); }}
         construction={inspectedConstruction}
+        onDemolish={handleDemolishBuilding}
       />
       <HotelModal
         isOpen={isHotelOpen}

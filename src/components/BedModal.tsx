@@ -1,24 +1,42 @@
-import { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { BedDouble, Zap } from 'lucide-react';
+import { BedDouble, Zap, Trash2, ArrowUpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { Progress } from './ui/progress';
+import BuildingUpgradeModal from './BuildingUpgradeModal';
 
 interface BedModalProps {
   isOpen: boolean;
   onClose: () => void;
   construction: BaseConstruction | null;
+  onDemolish: (construction: BaseConstruction) => void;
 }
 
-const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
-  const { playerData, setPlayerData, refreshPlayerData } = useGame();
+const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) => {
+  const { playerData, setPlayerData, refreshPlayerData, buildingLevels } = useGame();
   const [isSleeping, setIsSleeping] = useState(false);
   const [optimisticEnergy, setOptimisticEnergy] = useState(0);
   const sleepInterval = useRef<NodeJS.Timeout | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  const regenRate = useMemo(() => {
+    if (!construction) return 1;
+    const levelInfo = buildingLevels.find(
+        bl => bl.building_type === construction.type && bl.level === construction.level
+    );
+    return levelInfo?.stats?.energy_regen_per_second ?? 1;
+  }, [construction, buildingLevels]);
+
+  const hasNextLevel = useMemo(() => {
+    if (!construction) return false;
+    return buildingLevels.some(
+      level => level.building_type === construction.type && level.level === construction.level + 1
+    );
+  }, [construction, buildingLevels]);
 
   const handleSleep = async () => {
     if (!construction) return;
@@ -34,6 +52,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
   const handleWakeUp = async () => {
     if (sleepInterval.current) clearInterval(sleepInterval.current);
     setIsSleeping(false);
+    onClose(); // Ferme la modale immédiatement
 
     const { data: newEnergy, error } = await supabase.rpc('rest_in_bed');
 
@@ -46,7 +65,6 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
         playerState: { ...prev.playerState, energie: newEnergy }
       }));
     }
-    onClose();
   };
 
   useEffect(() => {
@@ -58,9 +76,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
             handleWakeUp();
             return 100;
           }
-          // Note: This is just a visual prediction. The server has the final say.
-          // We assume a base regen of 1/s for the UI. The server will correct it.
-          return prevEnergy + 1;
+          return prevEnergy + regenRate;
         });
       }, 1000);
     }
@@ -68,7 +84,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
     return () => {
       if (sleepInterval.current) clearInterval(sleepInterval.current);
     };
-  }, [isSleeping]);
+  }, [isSleeping, regenRate]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -87,7 +103,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
         <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
           <DialogHeader className="text-center">
             <BedDouble className="w-10 h-10 mx-auto text-white mb-2" />
-            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Lit</DialogTitle>
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Lit - Niveau {construction.level}</DialogTitle>
           </DialogHeader>
           <div className="py-4 text-center space-y-4">
             <p>Reposez-vous pour regagner de l'énergie.</p>
@@ -95,6 +111,18 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
               {playerData.playerState.energie >= 100 ? "Énergie au maximum" : "Dormir"}
             </Button>
           </div>
+          <DialogFooter className="flex-col sm:flex-row sm:space-x-2 gap-2">
+            {hasNextLevel ? (
+              <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
+                <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer
+              </Button>
+            ) : (
+              <Button disabled className="flex-1">Niv Max</Button>
+            )}
+            <Button variant="destructive" onClick={() => onDemolish(construction)} className="flex-1">
+              <Trash2 className="w-4 h-4 mr-2" /> Détruire
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -107,7 +135,7 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
                 <Zap className="w-6 h-6 text-yellow-400" />
                 <span className="text-lg">Énergie</span>
               </div>
-              <span className="text-lg font-bold">{Math.min(100, optimisticEnergy)} / 100</span>
+              <span className="text-lg font-bold">{Math.min(100, Math.floor(optimisticEnergy))} / 100</span>
             </div>
             <Progress value={optimisticEnergy} className="h-4" />
           </div>
@@ -116,6 +144,12 @@ const BedModal = ({ isOpen, onClose, construction }: BedModalProps) => {
           </Button>
         </div>
       )}
+      <BuildingUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        construction={construction}
+        onUpdate={refreshPlayerData}
+      />
     </>
   );
 };
