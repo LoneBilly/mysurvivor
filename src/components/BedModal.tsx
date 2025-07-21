@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
@@ -104,6 +104,9 @@ const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) 
           <DialogHeader className="text-center">
             <BedDouble className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Lit - Niveau {construction.level}</DialogTitle>
+            <DialogDescription>
+              Régénération: {regenRate} énergie/seconde
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4 text-center space-y-4">
             <p>Reposez-vous pour regagner de l'énergie.</p>

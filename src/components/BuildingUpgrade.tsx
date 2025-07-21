@@ -2,19 +2,26 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useGame } from '@/contexts/GameContext';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowUpCircle, Clock, Zap } from 'lucide-react';
+import { Loader2, ArrowUpCircle, Clock, Zap, Box, ArrowRight } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import { BaseConstruction, Item } from '@/types/game';
 import { BuildingLevel } from '@/types/game';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 import ItemIcon from './ItemIcon';
+import DynamicIcon from './DynamicIcon';
 
 interface BuildingUpgradeProps {
   construction: BaseConstruction;
   onUpdate: (silent?: boolean) => void;
   onClose: () => void;
 }
+
+const statDisplayConfig: { [key: string]: { label: string; icon: React.ElementType; unit?: string } } = {
+  storage_slots: { label: "Slots de stockage", icon: Box },
+  energy_regen_per_second: { label: "Régénération d'énergie", icon: Zap, unit: "/s" },
+  // Ajoutez d'autres stats ici au besoin
+};
 
 const CostDisplay = ({ item, required, available, icon: IconComponent }: { item?: Item, required: number, available: number, icon?: React.ElementType }) => {
   const { getIconUrl } = useGame();
@@ -48,6 +55,12 @@ const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradePro
   const [nextLevel, setNextLevel] = useState<BuildingLevel | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const currentLevel = useMemo(() => {
+    return buildingLevels.find(
+      level => level.building_type === construction.type && level.level === construction.level
+    );
+  }, [construction, buildingLevels]);
 
   useEffect(() => {
     setLoading(true);
@@ -111,6 +124,19 @@ const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradePro
 
   const isJobRunning = playerData.constructionJobs && playerData.constructionJobs.length > 0;
 
+  const statChanges = useMemo(() => {
+    if (!currentLevel?.stats || !nextLevel?.stats) return [];
+    const changes = [];
+    for (const key in nextLevel.stats) {
+      const oldValue = (currentLevel.stats as any)[key] ?? 0;
+      const newValue = (nextLevel.stats as any)[key];
+      if (oldValue !== newValue) {
+        changes.push({ key, oldValue, newValue });
+      }
+    }
+    return changes;
+  }, [currentLevel, nextLevel]);
+
   return (
     <div className="w-full space-y-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
       {loading ? (
@@ -124,6 +150,27 @@ const BuildingUpgrade = ({ construction, onUpdate, onClose }: BuildingUpgradePro
               <span>{nextLevel.upgrade_time_seconds}s</span>
             </div>
           </div>
+          {statChanges.length > 0 && (
+            <div className="space-y-2 text-sm">
+              {statChanges.map(({ key, oldValue, newValue }) => {
+                const config = statDisplayConfig[key];
+                if (!config) return null;
+                return (
+                  <div key={key} className="flex items-center justify-between bg-black/20 p-2 rounded-md">
+                    <div className="flex items-center gap-2">
+                      <config.icon className="w-4 h-4 text-gray-300" />
+                      <span>{config.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono">
+                      <span>{oldValue}{config.unit}</span>
+                      <ArrowRight className="w-4 h-4 text-green-400" />
+                      <span className="font-bold text-green-300">{newValue}{config.unit}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="flex justify-center gap-2 flex-wrap">
             <CostDisplay icon={Zap} required={nextLevel.upgrade_cost_energy || 0} available={totalResources.energy} />
             <CostDisplay item={resourceItems.wood} required={nextLevel.upgrade_cost_wood || 0} available={totalResources.wood} />
