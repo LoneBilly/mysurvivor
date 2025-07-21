@@ -61,7 +61,7 @@ const CostDisplay = ({ resource, required, available, itemDetail }: { resource: 
           )}>
             <div className="absolute inset-0 flex items-center justify-center">
               {itemDetail ? (
-                <div className="w-12 h-12 relative">
+                <div className="w-10 h-10 relative">
                   <ItemIcon iconName={iconUrl || itemDetail.icon} alt={itemDetail.name} />
                 </div>
               ) : (
@@ -207,7 +207,7 @@ const FoundationMenuModal = ({ isOpen, onClose, x, y, onBuild, onDemolish, playe
                 <div key={b.type} className="bg-white/5 p-4 rounded-lg border border-white/10">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3">
-                      <Icon className="w-14 h-14 text-gray-300 flex-shrink-0" />
+                      <Icon className="w-12 h-12 text-gray-300 flex-shrink-0" />
                       <h3 className="font-semibold text-lg">{b.name}</h3>
                     </div>
                     <div className="flex items-center gap-2">
