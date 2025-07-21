@@ -20,7 +20,8 @@ import { getPublicIconUrl } from '@/utils/imageUrls';
 import InventorySlot from '../InventorySlot';
 import EquipmentSlot, { EquipmentSlotType } from '../EquipmentSlot';
 import ItemDetailModal from '../ItemDetailModal';
-import { PlayerState as GamePlayerState } from '@/types/game';
+import { useGame } from '@/contexts/GameContext';
+import { InventoryItem as GameInventoryItem } from '@/types/game';
 
 interface InventoryItem extends GameInventoryItem {
   items: {
@@ -45,7 +46,6 @@ interface AdminInventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   player: PlayerProfile;
-  allItems: Item[];
 }
 
 const TOTAL_SLOTS = 50;
@@ -57,20 +57,22 @@ const SLOT_TYPE_MAP: Record<EquipmentSlotType, string> = {
   vehicle: 'Vehicule',
 };
 
-const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInventoryModalProps) => {
+const AdminInventoryModal = ({ isOpen, onClose, player }: AdminInventoryModalProps) => {
+  const { getIconUrl } = useGame();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [equippedItems, setEquippedItems] = useState<EquippedItems>({ armor: null, backpack: null, shoes: null, vehicle: null });
   const [unlockedSlots, setUnlockedSlots] = useState(0);
-  const [playerStats, setPlayerStats] = useState<GamePlayerState | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [editQuantity, setEditQuantity] = useState('');
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [allItems, setAllItems] = useState<Item[]>([]);
   const [newItemId, setNewItemId] = useState<string>('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
   const [detailedItem, setDetailedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'chest' } | null>(null);
 
+  // Drag and drop states
   const [draggedItem, setDraggedItem] = useState<{ item: InventoryItem; source: 'inventory' | 'equipment' } | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; target: 'inventory' } | { type: EquipmentSlotType; target: 'equipment' } | null>(null);
   const draggedItemNode = useRef<HTMLDivElement | null>(null);
@@ -83,13 +85,12 @@ const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInvento
     try {
       const { data: playerStateData, error: playerStateError } = await supabase
         .from('player_states')
-        .select('unlocked_slots, vie, faim, soif, energie')
+        .select('unlocked_slots')
         .eq('id', player.id)
         .single();
 
       if (playerStateError) throw playerStateError;
       setUnlockedSlots(playerStateData.unlocked_slots);
-      setPlayerStats(playerStateData as GamePlayerState);
 
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventories')
@@ -104,7 +105,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInvento
         .eq('player_id', player.id)
         .single();
 
-      if (equipmentError && equipmentError.code !== 'PGRST116') throw equipmentError;
+      if (equipmentError && equipmentError.code !== 'PGRST116') throw equipmentError; // PGRST116 means no row found
 
       const allItemsFetched = (inventoryData || []) as InventoryItem[];
       const newEquippedItems: EquippedItems = { armor: null, backpack: null, shoes: null, vehicle: null };
@@ -131,11 +132,21 @@ const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInvento
     }
   }, [player]);
 
+  const fetchAllItems = useCallback(async () => {
+    const { data, error } = await supabase.from('items').select('*').order('name');
+    if (error) {
+      showError("Erreur lors du chargement de la liste d'objets.");
+    } else {
+      setAllItems(data);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       fetchInventory();
+      fetchAllItems();
     }
-  }, [isOpen, fetchInventory]);
+  }, [isOpen, fetchInventory, fetchAllItems]);
 
   const handleSaveQuantity = async () => {
     if (!editingItem) return;
@@ -377,10 +388,10 @@ const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInvento
         const { error } = await supabase.rpc('equip_item', { p_inventory_id: dragged.item.id, p_slot_type: over.type });
         if (error) throw error;
       }
-      fetchInventory();
+      fetchInventory(); // Re-fetch to ensure state is consistent with DB
     } catch (error: any) {
       showError(error.message || "Erreur de mise à jour de l'inventaire.");
-      fetchInventory();
+      fetchInventory(); // Re-fetch to revert optimistic updates on error
     }
   }, [draggedItem, dragOver, player, unlockedSlots, equippedItems, inventory, stopAutoScroll, fetchInventory]);
 
@@ -445,7 +456,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInvento
                   item={item}
                   onDragStart={(item, node, e) => handleDragStart(item, 'equipment', node, e)}
                   isDragOver={dragOver?.target === 'equipment' && dragOver.type === (type as EquipmentSlotType)}
-                  onItemClick={(clickedItem) => handleItemClick(clickedItem, 'inventory')}
+                  onItemClick={(clickedItem) => handleItemClick(clickedItem, 'inventory')} // Source is inventory as equipped items are from inventory
                 />
                 <p className="text-xs text-gray-400 font-mono">{SLOT_TYPE_MAP[type as EquipmentSlotType]}</p>
               </div>
@@ -516,7 +527,7 @@ const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInvento
         isOpen={!!itemToDelete}
         onClose={() => setItemToDelete(null)}
         title="Confirmer la suppression"
-        description={`Êtes-uor de vouloir supprimer ${itemToDelete?.items.name} de l'inventaire de ce joueur ?`}
+        description={`Êtes-vous sûr de vouloir supprimer ${itemToDelete?.items.name} de l'inventaire de ce joueur ?`}
         actions={[
           { label: "Confirmer", onClick: handleDeleteItem, variant: "destructive" },
           { label: "Annuler", onClick: () => setItemToDelete(null), variant: "secondary" },
@@ -571,8 +582,6 @@ const AdminInventoryModal = ({ isOpen, onClose, player, allItems }: AdminInvento
         onDropAll={handleDropAllItems}
         onSplit={handleSplitItem}
         onUpdate={fetchInventory}
-        playerStats={playerStats || undefined}
-        playerInventory={inventory}
       />
     </>
   );

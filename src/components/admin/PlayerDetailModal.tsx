@@ -16,8 +16,8 @@ import { showSuccess, showError } from '@/utils/toast';
 import ActionModal from '../ActionModal';
 import AdminInventoryModal from './AdminInventoryModal';
 import AdminBaseViewer from './AdminBaseViewer';
-import { useAuth } from '@/contexts/Auth/AuthContext';
-import { MapCell, Item } from '@/types/game';
+import { useAuth } from '@/contexts/AuthContext';
+import { MapCell } from '@/types/game';
 import AdminStatEditorModal from './AdminStatEditorModal';
 
 interface PlayerDetailModalProps {
@@ -26,10 +26,9 @@ interface PlayerDetailModalProps {
   player: PlayerProfile;
   onPlayerUpdate: (player: PlayerProfile) => void;
   mapLayout: MapCell[];
-  allItems: Item[];
 }
 
-const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout, allItems }: PlayerDetailModalProps) => {
+const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout }: PlayerDetailModalProps) => {
   const { user: adminUser } = useAuth();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isBaseViewerOpen, setIsBaseViewerOpen] = useState(false);
@@ -224,7 +223,6 @@ const PlayerDetailModal = ({ isOpen, onClose, player, onPlayerUpdate, mapLayout,
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
         player={player}
-        allItems={allItems}
       />
       <AdminBaseViewer
         isOpen={isBaseViewerOpen}

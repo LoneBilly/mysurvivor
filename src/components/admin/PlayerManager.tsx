@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { showError } from '@/utils/toast';
 import PlayerDetailModal from './PlayerDetailModal';
-import { MapCell, Item } from '@/types/game';
+import { MapCell } from '@/types/game';
 
 export type PlayerProfile = {
   id: string;
@@ -29,12 +29,7 @@ export type PlayerProfile = {
 
 type SortKey = 'username' | 'created_at';
 
-interface PlayerManagerProps {
-  mapLayout: MapCell[];
-  allItems: Item[];
-}
-
-const PlayerManager = ({ mapLayout, allItems }: PlayerManagerProps) => {
+const PlayerManager = ({ mapLayout }: { mapLayout: MapCell[] }) => {
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -174,7 +169,6 @@ const PlayerManager = ({ mapLayout, allItems }: PlayerManagerProps) => {
           player={selectedPlayer}
           onPlayerUpdate={handlePlayerUpdate}
           mapLayout={mapLayout}
-          allItems={allItems}
         />
       )}
     </>
