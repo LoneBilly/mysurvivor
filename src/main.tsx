@@ -1,16 +1,12 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import './globals.css'
-import { GameProvider } from './contexts/GameContext.tsx'
-import { Toaster } from "@/components/ui/sonner"
-import 'simplebar-react/dist/simplebar.min.css';
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./globals.css";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <GameProvider>
-      <App />
-      <Toaster />
-    </GameProvider>
-  </React.StrictMode>,
-)
+const queryClient = new QueryClient();
+
+createRoot(document.getElementById("root")!).render(
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
+);
