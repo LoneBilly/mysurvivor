@@ -84,7 +84,7 @@ const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) 
     return () => {
       if (sleepInterval.current) clearInterval(sleepInterval.current);
     };
-  }, [isSleeping, regenRate]);
+  }, [isSleeping, regenRate, handleWakeUp]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -156,3 +156,6 @@ const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) 
       />
     </>
   );
+};
+
+export default BedModal;
