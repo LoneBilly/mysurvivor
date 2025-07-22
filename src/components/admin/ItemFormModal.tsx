@@ -45,8 +45,6 @@ const PREDEFINED_EFFECTS = [
   { key: 'reduire_faim', label: 'Réduit Faim (Consommable)', type: 'number' },
   { key: 'reduire_soif', label: 'Réduit Soif (Consommable)', type: 'number' },
   { key: 'reduire_energie', label: 'Réduit Énergie (Consommable)', type: 'number' },
-  { key: 'temps_de_cuisson_secondes', label: 'Temps de cuisson (secondes)', type: 'number' },
-  { key: 'cooked_item_id', label: 'ID de l\'objet cuit', type: 'item_id' },
 ];
 
 const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModalProps) => {

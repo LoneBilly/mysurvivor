@@ -44,11 +44,6 @@ export interface BaseConstruction {
   level: number;
   burn_time_remaining_seconds: number;
   fuel_last_updated_at: string;
-  cooking_item_id: number | null;
-  cooking_item_quantity: number | null;
-  cooking_started_at: string | null;
-  cooking_ends_at: string | null;
-  cooked_at: string | null;
 }
 
 export interface ScoutingMission {
