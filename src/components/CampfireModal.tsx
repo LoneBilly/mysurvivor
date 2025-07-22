@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, ChestItem } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { Flame, Clock, PlusCircle, Loader2, CookingPot, Trash2 } from 'lucide-react';
+import { Flame, Clock, PlusCircle, Loader2, CookingPot, Trash2, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Slider } from './ui/slider';
@@ -35,24 +35,22 @@ interface CampfireFuelSource extends InventoryItem {
 const MAX_BURN_TIME_SECONDS = 72 * 60 * 60; // 72 hours
 
 const formatDuration = (totalSeconds: number) => {
-  if (totalSeconds <= 0) return "0s";
+  if (totalSeconds < 0) totalSeconds = 0;
   const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = Math.floor(totalSeconds % 60);
-  
-  let result = '';
-  if (days > 0) result += `${days}j `;
-  if (hours > 0) result += `${hours}h `;
-  if (minutes > 0) result += `${minutes}m `;
-  
-  if (days > 0 || hours > 0 || minutes > 0) {
-    result += `${String(seconds).padStart(2, '0')}s`;
-  } else {
-    result += `${seconds}s`;
+
+  if (days > 0) {
+    return `${days}j ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
   }
-  
-  return result.trim();
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  }
+  if (minutes > 0) {
+    return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  }
+  return `${seconds}s`;
 };
 
 const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModalProps) => {
@@ -194,47 +192,80 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const CookingProgress = () => {
     const [progress, setProgress] = useState(0);
     const [statusText, setStatusText] = useState('');
+    const [remainingSeconds, setRemainingSeconds] = useState(0);
 
     useEffect(() => {
-      if (!cookingSlot) return;
-      const interval = setInterval(() => {
+      if (!cookingSlot?.ends_at) return;
+
+      const calculateState = () => {
         const now = Date.now();
         const end = new Date(cookingSlot.ends_at).getTime();
+        setRemainingSeconds(Math.max(0, Math.floor((end - now) / 1000)));
+
         if (cookingSlot.status === 'cooking') {
           const start = new Date(cookingSlot.started_at).getTime();
           const duration = end - start;
-          const elapsed = now - start;
-          setProgress(Math.min(100, (elapsed / duration) * 100));
-          setStatusText('Cuisson...');
+          if (duration > 0) {
+            const elapsed = now - start;
+            setProgress(Math.min(100, (elapsed / duration) * 100));
+          } else {
+            setProgress(100);
+          }
+          setStatusText('Cuisson en cours...');
         } else if (cookingSlot.status === 'cooked') {
-          const start = end - 3 * 60 * 1000;
-          const duration = end - start;
-          const elapsed = now - start;
-          setProgress(100 - Math.min(100, (elapsed / duration) * 100));
-          setStatusText('Va brûler !');
+          const burnStartTime = end - 3 * 60 * 1000; // 3 minutes before it burns
+          const duration = end - burnStartTime;
+          if (duration > 0) {
+            const elapsed = now - burnStartTime;
+            setProgress(100 - Math.min(100, (elapsed / duration) * 100));
+          } else {
+            setProgress(0);
+          }
+          setStatusText('Va brûler dans :');
         }
-      }, 200);
+      };
+
+      calculateState();
+      const interval = setInterval(calculateState, 1000);
       return () => clearInterval(interval);
     }, [cookingSlot]);
 
     if (!cookingSlot) return null;
-    const item = allItems.find(i => i.id === (cookingSlot.status === 'cooked' ? cookingSlot.cooked_item_id : cookingSlot.input_item_id));
-    if (!item) return null;
+    const inputItem = allItems.find(i => i.id === cookingSlot.input_item_id);
+    const outputItem = allItems.find(i => i.id === cookingSlot.cooked_item_id);
+    
+    if (!inputItem || !outputItem) return null;
 
     return (
-      <div className="space-y-2 p-3 bg-white/5 rounded-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-            <ItemIcon iconName={getIconUrl(item.icon)} alt={item.name} />
+      <div className="space-y-3 p-3 bg-white/5 rounded-lg border border-slate-700">
+        <div className="flex items-center justify-around gap-2">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+              <ItemIcon iconName={getIconUrl(inputItem.icon)} alt={inputItem.name} />
+            </div>
+            <p className="text-xs text-gray-400 truncate w-14">{inputItem.name}</p>
           </div>
-          <div>
-            <p className="font-bold">{item.name}</p>
-            <p className="text-sm text-gray-400">{statusText}</p>
+
+          <div className="flex-1 flex flex-col items-center">
+            <p className="text-sm text-gray-300">{statusText}</p>
+            {cookingSlot.status !== 'burnt' && <p className="font-mono text-lg font-bold text-white">{formatDuration(remainingSeconds)}</p>}
+            {cookingSlot.status === 'burnt' && <p className="font-bold text-red-400">Brûlé !</p>}
+          </div>
+
+          <div className="flex flex-col items-center gap-1 text-center">
+            <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+              <ItemIcon iconName={getIconUrl(outputItem.icon)} alt={outputItem.name} />
+            </div>
+            <p className="text-xs text-gray-400 truncate w-14">{outputItem.name}</p>
           </div>
         </div>
+
         {cookingSlot.status !== 'burnt' && <Progress value={progress} className="h-2" />}
-        {cookingSlot.status === 'cooked' && <Button onClick={handleCollect} className="w-full">Récupérer</Button>}
-        {cookingSlot.status === 'burnt' && <div className="text-center"><p className="text-red-400">Brûlé !</p><Button onClick={handleClearBurnt} variant="destructive" size="sm">Nettoyer</Button></div>}
+        
+        <div className="pt-2">
+          {cookingSlot.status === 'cooked' && <Button onClick={handleCollect} className="w-full">Récupérer</Button>}
+          {cookingSlot.status === 'burnt' && <Button onClick={handleClearBurnt} variant="destructive" className="w-full">Nettoyer</Button>}
+        </div>
       </div>
     );
   };
