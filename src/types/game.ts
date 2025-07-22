@@ -44,6 +44,13 @@ export interface BaseConstruction {
   level: number;
   burn_time_remaining_seconds: number;
   fuel_last_updated_at: string;
+  cooking_slot?: {
+    input_item_id: number;
+    cooked_item_id: number;
+    status: 'cooking' | 'cooked' | 'burnt';
+    started_at: string;
+    ends_at: string;
+  } | null;
 }
 
 export interface ScoutingMission {
