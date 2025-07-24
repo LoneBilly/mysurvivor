@@ -16,7 +16,7 @@ interface CampfireModalProps {
   isOpen: boolean;
   onClose: () => void;
   construction: BaseConstruction | null;
-  onUpdate: (silent?: boolean) => void;
+  onUpdate: (silent?: boolean) => Promise<void>;
 }
 
 interface CampfireFuel {
@@ -144,10 +144,11 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
 
     const { error } = await supabase.rpc(rpcName, rpcParams);
     
-    if (error) showError(error.message);
-    else {
+    if (error) {
+      showError(error.message);
+    } else {
       showSuccess("Combustible ajouté !");
-      onUpdate(false);
+      await onUpdate(false);
       setSelectedFuel(null);
       setQuantity(1);
     }
@@ -158,15 +159,19 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (!currentConstruction) return;
     setIsAddingFood(false);
     setLoading(true);
-    const rpcName = item.source === 'inventory' ? 'start_cooking' : 'start_cooking_from_chest';
-    const rpcParams = item.source === 'inventory' ? { p_inventory_item_id: item.id, p_campfire_id: currentConstruction.id } : { p_chest_item_id: item.id, p_campfire_id: currentConstruction.id };
-    const { error } = await supabase.rpc(rpcName, rpcParams);
-    if (error) showError(error.message);
-    else {
+    try {
+      const rpcName = item.source === 'inventory' ? 'start_cooking' : 'start_cooking_from_chest';
+      const rpcParams = item.source === 'inventory' ? { p_inventory_item_id: item.id, p_campfire_id: currentConstruction.id } : { p_chest_item_id: item.id, p_campfire_id: currentConstruction.id };
+      const { error } = await supabase.rpc(rpcName, rpcParams);
+      if (error) throw error;
+      
       showSuccess("Cuisson démarrée !");
-      onUpdate(false);
+      await onUpdate(false);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCollect = async () => {
@@ -175,7 +180,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (error) showError(error.message);
     else {
       showSuccess("Objet récupéré !");
-      onUpdate(false);
+      await onUpdate(false);
     }
   };
 
@@ -185,7 +190,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (error) showError(error.message);
     else {
       showSuccess("Restes calcinés nettoyés.");
-      onUpdate(false);
+      await onUpdate(false);
     }
   };
 
