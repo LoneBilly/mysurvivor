@@ -645,6 +645,11 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     return "";
   };
 
+  const liveCampfireConstruction = useMemo(() => {
+    if (!campfireModalState.construction) return null;
+    return liveConstructions.find(c => c.id === campfireModalState.construction!.id) || null;
+  }, [campfireModalState.construction, liveConstructions]);
+
   if (loading) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-white">
@@ -730,7 +735,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       <CampfireModal
         isOpen={campfireModalState.isOpen}
         onClose={() => setCampfireModalState({ isOpen: false, construction: null })}
-        construction={campfireModalState.construction}
+        construction={liveCampfireConstruction}
         onUpdate={refreshPlayerData}
       />
     </div>

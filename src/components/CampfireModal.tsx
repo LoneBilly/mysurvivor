@@ -144,10 +144,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const [loading, setLoading] = useState(false);
   const [isCookingLoading, setIsCookingLoading] = useState(false);
 
-  const currentConstruction = useMemo(() => {
-    if (!construction) return null;
-    return playerData.baseConstructions.find(c => c.id === construction.id) || construction;
-  }, [construction, playerData.baseConstructions]);
+  const currentConstruction = construction;
 
   const liveBurnTime = useAccurateCountdown(currentConstruction?.burn_time_remaining_seconds ?? 0);
   const cookingSlot = currentConstruction?.cooking_slot;
