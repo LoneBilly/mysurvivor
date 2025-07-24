@@ -86,6 +86,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   
   const [now, setNow] = useState(Date.now());
   const fetchTime = useRef(Date.now());
+  const isRefreshingData = useRef(false);
 
   useEffect(() => {
     if (isActive) {
@@ -102,6 +103,34 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive || !initialConstructions) return;
+
+    const checkCookingStatus = () => {
+      if (isRefreshingData.current) return;
+
+      const now = Date.now();
+      const needsUpdate = initialConstructions.some(c => 
+        c.type === 'campfire' && 
+        c.cooking_slot?.status === 'cooking' && 
+        new Date(c.cooking_slot.ends_at).getTime() <= now
+      );
+
+      if (needsUpdate) {
+        isRefreshingData.current = true;
+        refreshPlayerData(true).finally(() => {
+          setTimeout(() => {
+            isRefreshingData.current = false;
+          }, 2000);
+        });
+      }
+    };
+
+    const intervalId = setInterval(checkCookingStatus, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [isActive, initialConstructions, refreshPlayerData]);
 
   const elapsedSeconds = useMemo(() => Math.floor((now - fetchTime.current) / 1000), [now]);
 
