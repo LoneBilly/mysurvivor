@@ -131,7 +131,11 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const [loading, setLoading] = useState(false);
   const [isAddingFood, setIsAddingFood] = useState(false);
 
-  const currentConstruction = construction;
+  const currentConstruction = useMemo(() => {
+    if (!construction) return null;
+    return playerData.baseConstructions.find(c => c.id === construction.id) || construction;
+  }, [construction, playerData.baseConstructions]);
+
   const liveBurnTime = useAccurateCountdown(currentConstruction?.burn_time_remaining_seconds ?? 0);
   const cookingSlot = currentConstruction?.cooking_slot;
 
@@ -211,9 +215,35 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   }, [selectedFuel, config, currentConstruction, liveBurnTime, fuels]);
 
   const handleAddFuel = async () => {
-    if (!selectedFuel || (liveBurnTime + burnTimeFromSelection > MAX_BURN_TIME_SECONDS)) return;
+    if (!selectedFuel || (liveBurnTime + burnTimeFromSelection > MAX_BURN_TIME_SECONDS) || !currentConstruction) return;
     setLoading(true);
-    
+
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+    const addedTime = burnTimeFromSelection;
+
+    setPlayerData(prev => {
+        const newPlayerData = JSON.parse(JSON.stringify(prev));
+        const constructionIndex = newPlayerData.baseConstructions.findIndex((c: BaseConstruction) => c.id === currentConstruction.id);
+        if (constructionIndex > -1) {
+            const currentBurnTime = newPlayerData.baseConstructions[constructionIndex].burn_time_remaining_seconds;
+            newPlayerData.baseConstructions[constructionIndex].burn_time_remaining_seconds = Math.min(MAX_BURN_TIME_SECONDS, currentBurnTime + addedTime);
+            newPlayerData.baseConstructions[constructionIndex].fuel_last_updated_at = new Date().toISOString();
+        }
+        
+        const itemSource = selectedFuel.source === 'inventory' ? newPlayerData.inventory : newPlayerData.chestItems;
+        const itemIndex = itemSource.findIndex((i: InventoryItem | ChestItem) => i.id === selectedFuel.id);
+        if (itemIndex > -1) {
+            if (itemSource[itemIndex].quantity > quantity) {
+                itemSource[itemIndex].quantity -= quantity;
+            } else {
+                itemSource.splice(itemIndex, 1);
+            }
+        }
+        return newPlayerData;
+    });
+    setSelectedFuel(null);
+    setQuantity(1);
+
     const rpcName = selectedFuel.source === 'inventory' ? 'add_fuel_to_campfire' : 'add_fuel_to_campfire_from_chest';
     const rpcParams = selectedFuel.source === 'inventory' 
       ? { p_inventory_id: selectedFuel.id, p_quantity: quantity }
@@ -223,11 +253,10 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     
     if (error) {
       showError(error.message);
+      setPlayerData(originalPlayerData);
     } else {
       showSuccess("Combustible ajouté !");
-      await onUpdate(false);
-      setSelectedFuel(null);
-      setQuantity(1);
+      onUpdate(true);
     }
     setLoading(false);
   };
@@ -283,11 +312,24 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
 
   const handleCollect = async () => {
     if (!currentConstruction) return;
+    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
+
+    setPlayerData(prev => {
+        const newPlayerData = JSON.parse(JSON.stringify(prev));
+        const constructionIndex = newPlayerData.baseConstructions.findIndex((c: BaseConstruction) => c.id === currentConstruction.id);
+        if (constructionIndex > -1) {
+            newPlayerData.baseConstructions[constructionIndex].cooking_slot = null;
+        }
+        return newPlayerData;
+    });
+
     const { error } = await supabase.rpc('collect_cooking_output', { p_campfire_id: currentConstruction.id });
-    if (error) showError(error.message);
-    else {
+    if (error) {
+        showError(error.message);
+        setPlayerData(originalPlayerData);
+    } else {
       showSuccess("Objet récupéré !");
-      await onUpdate(false);
+      await onUpdate(true);
     }
   };
 
