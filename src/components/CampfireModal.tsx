@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, InventoryItem, ChestItem } from "@/types/game";
+import { BaseConstruction, InventoryItem, ChestItem, Item } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
 import { Flame, Clock, PlusCircle, Loader2, CookingPot, Trash2, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,8 +53,8 @@ const formatDuration = (totalSeconds: number) => {
   return `${seconds}s`;
 };
 
-const CookingProgress = ({ cookingSlot, onComplete }: { cookingSlot: NonNullable<BaseConstruction['cooking_slot']>, onComplete: () => void }) => {
-  const { getIconUrl, allItems } = useGame();
+const CookingProgress = ({ cookingSlot, onComplete, allItems }: { cookingSlot: NonNullable<BaseConstruction['cooking_slot']>, onComplete: () => void, allItems: Item[] | null }) => {
+  const { getIconUrl } = useGame();
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
   const [remainingSeconds, setRemainingSeconds] = useState(0);
@@ -377,7 +377,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
             <h4 className="font-semibold text-center">Cuisson</h4>
             {cookingSlot ? (
               <>
-                <CookingProgress cookingSlot={cookingSlot} onComplete={() => onUpdate(true)} />
+                <CookingProgress cookingSlot={cookingSlot} onComplete={() => onUpdate(true)} allItems={allItems} />
                 <div className="pt-2">
                   {cookingSlot.status === 'cooked' && <Button onClick={handleCollect} className="w-full">Récupérer</Button>}
                   {cookingSlot.status === 'burnt' && <Button onClick={handleClearBurnt} variant="destructive" className="w-full">Nettoyer</Button>}
@@ -441,7 +441,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
           <DialogHeader><DialogTitle>Choisir un aliment à cuire</DialogTitle></DialogHeader>
           <div className="py-4 max-h-64 overflow-y-auto grid grid-cols-4 gap-2">
             {availableFood.map(item => (
-              <button key={`${item.source}-${item.id}`} onClick={() => handleCookItem(item)} className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
+              <button key={`${item.source}-${item.id}`} onClick={() => handleCookItem(item)} disabled={loading} className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
                 <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
               </button>
