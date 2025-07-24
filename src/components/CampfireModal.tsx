@@ -369,14 +369,17 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-52 overflow-y-auto p-2 bg-black/20 rounded-lg">
-                  {availableFuels.map(item => (
-                    <button key={`${item.source}-${item.id}`} onClick={() => setSelectedFuel(item)} className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
-                      <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
-                      <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
-                    </button>
-                  ))}
-                  {availableFuels.length === 0 && <p className="col-span-full text-center text-gray-400 py-4">Aucun combustible disponible.</p>}
+                <div className="space-y-2">
+                  <p className="text-center text-sm text-gray-400">Choisissez un combustible</p>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-52 overflow-y-auto p-2 bg-black/20 rounded-lg">
+                    {availableFuels.map(item => (
+                      <button key={`${item.source}-${item.id}`} onClick={() => setSelectedFuel(item)} className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors">
+                        <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
+                        <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
+                      </button>
+                    ))}
+                    {availableFuels.length === 0 && <p className="col-span-full text-center text-gray-400 py-4">Aucun combustible disponible.</p>}
+                  </div>
                 </div>
               )}
             </div>
