@@ -91,6 +91,10 @@ const CookingProgress = ({ cookingSlot, onComplete }: { cookingSlot: NonNullable
     return () => clearInterval(interval);
   }, [cookingSlot]);
 
+  if (!allItems) {
+    return <div className="p-3 bg-white/5 rounded-lg border border-slate-700"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>;
+  }
+
   const inputItem = allItems.find(i => i.id === cookingSlot.input_item_id);
   const outputItem = allItems.find(i => i.id === cookingSlot.cooked_item_id);
   
@@ -262,7 +266,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   };
 
   const handleCookItem = async (item: CampfireFuelSource) => {
-    if (!currentConstruction) return;
+    if (!currentConstruction || !allItems) return;
     setIsAddingFood(false);
     setLoading(true);
 
