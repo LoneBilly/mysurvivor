@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, InventoryItem } from "@/types/game";
+import { BaseConstruction, InventoryItem, ChestItem } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { Flame, Clock, Loader2, CookingPot, Trash2 } from 'lucide-react';
+import { Flame, Clock, PlusCircle, Loader2, CookingPot, Trash2, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Slider } from './ui/slider';
@@ -28,7 +28,7 @@ interface CampfireConfig {
   base_wood_consumption_per_minute: number;
 }
 
-interface FuelSource extends InventoryItem {
+interface CampfireFuelSource extends InventoryItem {
   source: 'inventory' | 'chest';
 }
 
@@ -41,9 +41,15 @@ const formatDuration = (totalSeconds: number) => {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = Math.floor(totalSeconds % 60);
 
-  if (days > 0) return `${days}j ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
-  if (hours > 0) return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
-  if (minutes > 0) return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  if (days > 0) {
+    return `${days}j ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+  }
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  }
+  if (minutes > 0) {
+    return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  }
   return `${seconds}s`;
 };
 
@@ -51,21 +57,21 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const { getIconUrl, playerData, items: allItems } = useGame();
   const [fuels, setFuels] = useState<CampfireFuel[]>([]);
   const [config, setConfig] = useState<CampfireConfig | null>(null);
-  const [selectedFuel, setSelectedFuel] = useState<FuelSource | null>(null);
+  const [selectedFuel, setSelectedFuel] = useState<CampfireFuelSource | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isAddingFood, setIsAddingFood] = useState(false);
-  const [localCookingSlot, setLocalCookingSlot] = useState<any>(null);
 
-  const liveBurnTime = useAccurateCountdown(construction?.burn_time_remaining_seconds ?? 0);
-  const effectiveCookingSlot = construction?.cooking_slot || localCookingSlot;
+  const currentConstruction = construction;
+  const liveBurnTime = useAccurateCountdown(currentConstruction?.burn_time_remaining_seconds ?? 0);
+  const cookingSlot = currentConstruction?.cooking_slot;
 
   const availableFuels = useMemo(() => {
     const fuelItemIds = new Set(fuels.map(f => f.item_id));
-    const inventoryFuels: FuelSource[] = playerData.inventory
+    const inventoryFuels: CampfireFuelSource[] = playerData.inventory
         .filter(item => item.slot_position !== null && fuelItemIds.has(item.item_id))
         .map(item => ({ ...item, source: 'inventory' }));
-    const chestFuels: FuelSource[] = (playerData.chestItems || [])
+    const chestFuels: CampfireFuelSource[] = (playerData.chestItems || [])
         .filter(item => fuelItemIds.has(item.item_id))
         .map(item => ({ ...item, source: 'chest' as const, id: item.id, item_id: item.item_id, quantity: item.quantity, slot_position: item.slot_position, items: item.items }));
     return [...inventoryFuels, ...chestFuels];
@@ -85,8 +91,9 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
           supabase.from('campfire_fuels').select('*'),
           supabase.from('campfire_config').select('*').single()
         ]);
-        if (fuelsRes.error || configRes.error) showError("Erreur de chargement des données du feu de camp.");
-        else {
+        if (fuelsRes.error || configRes.error) {
+          showError("Erreur de chargement des données du feu de camp.");
+        } else {
           setFuels(fuelsRes.data || []);
           setConfig(configRes.data);
         }
@@ -97,7 +104,6 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
       setSelectedFuel(null);
       setQuantity(1);
       setIsAddingFood(false);
-      setLocalCookingSlot(null);
     }
   }, [isOpen]);
 
@@ -109,29 +115,38 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (!selectedFuel || !config) return 0;
     const fuelInfo = fuels.find(f => f.item_id === selectedFuel.item_id);
     if (!fuelInfo) return 0;
-    const consumptionRate = config.base_wood_consumption_per_minute;
-    if (consumptionRate <= 0) return Infinity;
+    
+    const consumptionRate = parseFloat(String(config.base_wood_consumption_per_minute));
+    if (isNaN(consumptionRate) || consumptionRate <= 0) return Infinity;
+    
+    const multiplier = parseFloat(String(fuelInfo.multiplier));
+    if (isNaN(multiplier)) return 0;
+
     const secondsPerWood = 60 / consumptionRate;
-    return Math.floor(quantity * fuelInfo.multiplier * secondsPerWood);
+    return Math.floor(quantity * multiplier * secondsPerWood);
   }, [selectedFuel, quantity, fuels, config]);
 
   const canAddFuel = useMemo(() => {
-    if (!construction) return false;
+    if (!currentConstruction) return false;
     const addedBurnTime = burnTimeFromSelection;
     if (!isFinite(addedBurnTime)) return false;
     return (liveBurnTime + addedBurnTime) <= MAX_BURN_TIME_SECONDS;
-  }, [liveBurnTime, burnTimeFromSelection, construction]);
+  }, [liveBurnTime, burnTimeFromSelection, currentConstruction]);
 
   const handleAddFuel = async () => {
     if (!selectedFuel || !canAddFuel) return;
     setLoading(true);
+    
     const rpcName = selectedFuel.source === 'inventory' ? 'add_fuel_to_campfire' : 'add_fuel_to_campfire_from_chest';
     const rpcParams = selectedFuel.source === 'inventory' 
       ? { p_inventory_id: selectedFuel.id, p_quantity: quantity }
       : { p_chest_item_id: selectedFuel.id, p_quantity: quantity };
+
     const { error } = await supabase.rpc(rpcName, rpcParams);
-    if (error) showError(error.message);
-    else {
+    
+    if (error) {
+      showError(error.message);
+    } else {
       showSuccess("Combustible ajouté !");
       await onUpdate(false);
       setSelectedFuel(null);
@@ -140,49 +155,28 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     setLoading(false);
   };
 
-  const handleCookItem = async (item: FuelSource) => {
-    if (!construction) return;
+  const handleCookItem = async (item: CampfireFuelSource) => {
+    if (!currentConstruction) return;
     setIsAddingFood(false);
     setLoading(true);
-
-    const itemDetails = allItems.find(i => i.id === item.item_id);
-    const cookingTime = itemDetails?.effects?.cooking_time_seconds ?? 180;
-    const cookedItemId = itemDetails?.effects?.cooked_item_id;
-
-    if (!cookedItemId) {
-      showError("Cet objet ne peut pas être cuit.");
-      setLoading(false);
-      return;
-    }
-
-    const tempSlot = {
-      input_item_id: item.item_id,
-      cooked_item_id: cookedItemId,
-      status: 'cooking',
-      started_at: new Date().toISOString(),
-      ends_at: new Date(Date.now() + cookingTime * 1000).toISOString(),
-    };
-    setLocalCookingSlot(tempSlot);
-
     try {
       const rpcName = item.source === 'inventory' ? 'start_cooking' : 'start_cooking_from_chest';
-      const rpcParams = item.source === 'inventory' ? { p_inventory_item_id: item.id, p_campfire_id: construction.id } : { p_chest_item_id: item.id, p_campfire_id: construction.id };
+      const rpcParams = item.source === 'inventory' ? { p_inventory_item_id: item.id, p_campfire_id: currentConstruction.id } : { p_chest_item_id: item.id, p_campfire_id: currentConstruction.id };
       const { error } = await supabase.rpc(rpcName, rpcParams);
       if (error) throw error;
+      
       showSuccess("Cuisson démarrée !");
+      await onUpdate(false);
     } catch (error: any) {
       showError(error.message);
-      setLocalCookingSlot(null); // Clear optimistic state on error
     } finally {
-      await onUpdate(false);
       setLoading(false);
-      setLocalCookingSlot(null);
     }
   };
 
   const handleCollect = async () => {
-    if (!construction) return;
-    const { error } = await supabase.rpc('collect_cooking_output', { p_campfire_id: construction.id });
+    if (!currentConstruction) return;
+    const { error } = await supabase.rpc('collect_cooking_output', { p_campfire_id: currentConstruction.id });
     if (error) showError(error.message);
     else {
       showSuccess("Objet récupéré !");
@@ -191,8 +185,8 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   };
 
   const handleClearBurnt = async () => {
-    if (!construction) return;
-    const { error } = await supabase.rpc('clear_burnt_item', { p_campfire_id: construction.id });
+    if (!currentConstruction) return;
+    const { error } = await supabase.rpc('clear_burnt_item', { p_campfire_id: currentConstruction.id });
     if (error) showError(error.message);
     else {
       showSuccess("Restes calcinés nettoyés.");
@@ -200,13 +194,14 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     }
   };
 
-  const CookingProgress = ({ cookingSlot }: { cookingSlot: any }) => {
+  const CookingProgress = () => {
     const [progress, setProgress] = useState(0);
     const [statusText, setStatusText] = useState('');
     const [remainingSeconds, setRemainingSeconds] = useState(0);
 
     useEffect(() => {
       if (!cookingSlot?.ends_at) return;
+
       const calculateState = () => {
         const now = Date.now();
         const end = new Date(cookingSlot.ends_at).getTime();
@@ -215,12 +210,26 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
         if (cookingSlot.status === 'cooking') {
           const start = new Date(cookingSlot.started_at).getTime();
           const duration = end - start;
-          setProgress(duration > 0 ? Math.min(100, (now - start) / duration * 100) : 100);
+          if (duration > 0) {
+            const elapsed = now - start;
+            setProgress(Math.min(100, (elapsed / duration) * 100));
+          } else {
+            setProgress(100);
+          }
           setStatusText('Cuisson en cours...');
         } else if (cookingSlot.status === 'cooked') {
+          const burnStartTime = end - 3 * 60 * 1000; // 3 minutes before it burns
+          const duration = end - burnStartTime;
+          if (duration > 0) {
+            const elapsed = now - burnStartTime;
+            setProgress(100 - Math.min(100, (elapsed / duration) * 100));
+          } else {
+            setProgress(0);
+          }
           setStatusText('Va brûler dans :');
         }
       };
+
       calculateState();
       const interval = setInterval(calculateState, 1000);
       return () => clearInterval(interval);
@@ -229,20 +238,35 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (!cookingSlot) return null;
     const inputItem = allItems.find(i => i.id === cookingSlot.input_item_id);
     const outputItem = allItems.find(i => i.id === cookingSlot.cooked_item_id);
+    
     if (!inputItem || !outputItem) return null;
 
     return (
       <div className="space-y-3 p-3 bg-white/5 rounded-lg border border-slate-700">
         <div className="flex items-center justify-around gap-2">
-          <ItemIcon iconName={getIconUrl(inputItem.icon)} alt={inputItem.name} label={inputItem.name} />
+          <div className="flex flex-col items-center gap-1 text-center">
+            <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+              <ItemIcon iconName={getIconUrl(inputItem.icon)} alt={inputItem.name} />
+            </div>
+            <p className="text-xs text-gray-400 truncate w-14">{inputItem.name}</p>
+          </div>
+
           <div className="flex-1 flex flex-col items-center">
             <p className="text-sm text-gray-300">{statusText}</p>
             {cookingSlot.status !== 'burnt' && <p className="font-mono text-lg font-bold text-white">{formatDuration(remainingSeconds)}</p>}
             {cookingSlot.status === 'burnt' && <p className="font-bold text-red-400">Brûlé !</p>}
           </div>
-          <ItemIcon iconName={getIconUrl(outputItem.icon)} alt={outputItem.name} label={outputItem.name} />
+
+          <div className="flex flex-col items-center gap-1 text-center">
+            <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+              <ItemIcon iconName={getIconUrl(outputItem.icon)} alt={outputItem.name} />
+            </div>
+            <p className="text-xs text-gray-400 truncate w-14">{outputItem.name}</p>
+          </div>
         </div>
-        {cookingSlot.status === 'cooking' && <Progress value={progress} className="h-2" />}
+
+        {cookingSlot.status !== 'burnt' && <Progress value={progress} className="h-2" />}
+        
         <div className="pt-2">
           {cookingSlot.status === 'cooked' && <Button onClick={handleCollect} className="w-full">Récupérer</Button>}
           {cookingSlot.status === 'burnt' && <Button onClick={handleClearBurnt} variant="destructive" className="w-full">Nettoyer</Button>}
@@ -251,7 +275,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     );
   };
 
-  if (!construction) return null;
+  if (!currentConstruction) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -269,7 +293,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
 
           <div className="space-y-2">
             <h4 className="font-semibold text-center">Cuisson</h4>
-            {effectiveCookingSlot ? <CookingProgress cookingSlot={effectiveCookingSlot} /> : (
+            {cookingSlot ? <CookingProgress /> : (
               <Button variant="outline" className="w-full" onClick={() => setIsAddingFood(true)} disabled={liveBurnTime <= 0}>
                 <CookingPot className="w-4 h-4 mr-2" /> Ajouter un aliment
               </Button>
@@ -279,7 +303,9 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
           {selectedFuel ? (
             <div className="space-y-4 p-3 bg-white/5 rounded-lg">
               <div className="flex items-center gap-3">
-                <ItemIcon iconName={getIconUrl(selectedFuel.items?.icon)} alt={selectedFuel.items?.name || ''} />
+                <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                  <ItemIcon iconName={getIconUrl(selectedFuel.items?.icon)} alt={selectedFuel.items?.name || ''} />
+                </div>
                 <div>
                   <p className="font-bold">{selectedFuel.items?.name}</p>
                   <p className="text-xs text-gray-400">En stock: {selectedFuel.quantity}</p>
