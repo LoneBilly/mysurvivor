@@ -134,6 +134,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isAddingFood, setIsAddingFood] = useState(false);
+  const [isCookingLoading, setIsCookingLoading] = useState(false);
 
   const currentConstruction = useMemo(() => {
     if (!construction) return null;
@@ -181,6 +182,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
       setSelectedFuel(null);
       setQuantity(1);
       setIsAddingFood(false);
+      setIsCookingLoading(false);
     }
   }, [isOpen]);
 
@@ -268,36 +270,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const handleCookItem = async (item: CampfireFuelSource) => {
     if (!currentConstruction || !allItems) return;
     setIsAddingFood(false);
-    setLoading(true);
-
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-    const itemDetails = allItems.find(i => i.id === item.item_id);
-    if (!itemDetails?.effects?.cooked_item_id || !itemDetails?.effects?.cooking_time_seconds) {
-        showError("Cet objet n'a pas de recette de cuisson valide.");
-        setLoading(false);
-        return;
-    }
-
-    const newCookingSlot = {
-        input_item_id: item.item_id,
-        cooked_item_id: itemDetails.effects.cooked_item_id,
-        status: 'cooking' as const,
-        started_at: new Date().toISOString(),
-        ends_at: new Date(Date.now() + itemDetails.effects.cooking_time_seconds * 1000).toISOString(),
-    };
-
-    setPlayerData(prev => {
-        const newPlayerData = JSON.parse(JSON.stringify(prev));
-        const constructionIndex = newPlayerData.baseConstructions.findIndex((c: BaseConstruction) => c.id === currentConstruction.id);
-        if (constructionIndex > -1) newPlayerData.baseConstructions[constructionIndex].cooking_slot = newCookingSlot;
-        const itemSource = item.source === 'inventory' ? newPlayerData.inventory : newPlayerData.chestItems;
-        const itemIndex = itemSource.findIndex((i: InventoryItem | ChestItem) => i.id === item.id);
-        if (itemIndex > -1) {
-            if (itemSource[itemIndex].quantity > 1) itemSource[itemIndex].quantity -= 1;
-            else itemSource.splice(itemIndex, 1);
-        }
-        return newPlayerData;
-    });
+    setIsCookingLoading(true);
 
     try {
       const rpcName = item.source === 'inventory' ? 'start_cooking' : 'start_cooking_from_chest';
@@ -305,12 +278,11 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
       const { error } = await supabase.rpc(rpcName, rpcParams);
       if (error) throw error;
       showSuccess("Cuisson démarrée !");
-      onUpdate(true);
+      await onUpdate(true);
     } catch (error: any) {
       showError(error.message);
-      setPlayerData(originalPlayerData);
     } finally {
-      setLoading(false);
+      setIsCookingLoading(false);
     }
   };
 
@@ -375,7 +347,11 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
 
           <div className="space-y-2">
             <h4 className="font-semibold text-center">Cuisson</h4>
-            {cookingSlot ? (
+            {isCookingLoading ? (
+              <div className="flex items-center justify-center h-[108px] bg-white/5 rounded-lg border border-slate-700">
+                <Loader2 className="w-6 h-6 animate-spin text-white" />
+              </div>
+            ) : cookingSlot ? (
               <>
                 <CookingProgress cookingSlot={cookingSlot} onComplete={() => onUpdate(true)} allItems={allItems} />
                 <div className="pt-2">
@@ -384,7 +360,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
                 </div>
               </>
             ) : (
-              <Button variant="outline" className="w-full" onClick={() => setIsAddingFood(true)} disabled={liveBurnTime <= 0}>
+              <Button variant="outline" className="w-full" onClick={() => setIsAddingFood(true)} disabled={liveBurnTime <= 0 || isCookingLoading}>
                 <CookingPot className="w-4 h-4 mr-2" /> Ajouter un aliment
               </Button>
             )}
