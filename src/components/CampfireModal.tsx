@@ -136,7 +136,6 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const [selectedFuel, setSelectedFuel] = useState<CampfireFuelSource | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [isAddingFood, setIsAddingFood] = useState(false);
   const [isCookingLoading, setIsCookingLoading] = useState(false);
 
   const currentConstruction = useMemo(() => {
@@ -184,7 +183,6 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     } else {
       setSelectedFuel(null);
       setQuantity(1);
-      setIsAddingFood(false);
       setIsCookingLoading(false);
     }
   }, [isOpen]);
@@ -251,7 +249,6 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
 
   const handleCookItem = async (item: CampfireFuelSource) => {
     if (!currentConstruction) return;
-    setIsAddingFood(false);
     setIsCookingLoading(true);
     const rpcName = item.source === 'inventory' ? 'start_cooking' : 'start_cooking_from_chest';
     const params = item.source === 'inventory' 
@@ -310,9 +307,25 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
                     </div>
                   </div>
                 ) : (
-                  <Button variant="outline" className="w-full" onClick={() => setIsAddingFood(true)} disabled={liveBurnTime <= 0 || isCookingLoading || loading}>
-                    <CookingPot className="w-4 h-4 mr-2" /> Ajouter un aliment
-                  </Button>
+                  <div className="space-y-2">
+                    <p className="text-center text-sm text-gray-400">Choisissez un aliment à cuire</p>
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-52 overflow-y-auto p-2 bg-black/20 rounded-lg">
+                      {availableFood.map(item => (
+                        <button 
+                          key={`${item.source}-${item.id}`} 
+                          onClick={() => handleCookItem(item)} 
+                          disabled={liveBurnTime <= 0 || loading || isCookingLoading}
+                          className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={liveBurnTime <= 0 ? "Le feu est éteint" : item.items?.name}
+                        >
+                          <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
+                          <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
+                        </button>
+                      ))}
+                      {availableFood.length === 0 && <p className="col-span-full text-center text-gray-400 py-4">Aucune nourriture à cuire.</p>}
+                    </div>
+                    {liveBurnTime <= 0 && <p className="text-center text-xs text-red-400 mt-2">Le feu doit être allumé pour pouvoir cuire.</p>}
+                  </div>
                 )}
               </div>
             </div>
@@ -370,20 +383,6 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
           </TabsContent>
         </Tabs>
       </DialogContent>
-      <Dialog open={isAddingFood} onOpenChange={setIsAddingFood}>
-        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-          <DialogHeader><DialogTitle>Choisir un aliment à cuire</DialogTitle></DialogHeader>
-          <div className="py-4 max-h-64 overflow-y-auto grid grid-cols-4 gap-2">
-            {availableFood.map(item => (
-              <button key={`${item.source}-${item.id}`} onClick={() => handleCookItem(item)} disabled={loading || isCookingLoading} className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
-                <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
-              </button>
-            ))}
-            {availableFood.length === 0 && <p className="col-span-full text-center text-gray-400 py-4">Aucune nourriture à cuire.</p>}
-          </div>
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
 };
