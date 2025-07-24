@@ -50,7 +50,15 @@ export interface BaseConstruction {
     status: 'cooking' | 'cooked' | 'burnt';
     started_at: string;
     ends_at: string;
+    quantity?: number;
   } | null;
+  building_state?: {
+    status?: 'armed' | 'disarmed' | 'triggered_animal' | 'triggered_player';
+    last_check?: string;
+    arrow_quantity?: number;
+    is_armed?: boolean;
+  } | null;
+  rotation: number;
 }
 
 export interface ScoutingMission {

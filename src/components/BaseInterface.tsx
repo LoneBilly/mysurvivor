@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble, Flame } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble, Flame, Crosshair } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +35,8 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   turret: TowerControl,
   generator: Zap,
   trap: AlertTriangle,
+  piège: AlertTriangle,
+  arbalete: Crosshair,
   workbench: Hammer,
   furnace: CookingPot,
   foundation: Plus,
@@ -429,24 +431,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 handleCancelConstruction(x, y);
             }
             return;
-        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace' || cell.type === 'lit' || cell.type === 'campfire') {
-            if (cell.type === 'chest') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    setChestModalState({ isOpen: true, construction: constructionData });
-                }
-            } else if (cell.type === 'workbench' || cell.type === 'lit') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    onInspectWorkbench(constructionData);
-                }
-            } else if (cell.type === 'campfire') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    setCampfireModalState({ isOpen: true, construction: constructionData });
-                }
-            } else {
-                showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
+        } else if (['chest', 'workbench', 'furnace', 'lit', 'campfire', 'piège', 'arbalete'].includes(cell.type)) {
+            const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
+            if (constructionData) {
+                if (cell.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
+                else if (cell.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
+                else onInspectWorkbench(constructionData);
             }
         } else {
             showInfo("Une construction est déjà en cours.");
@@ -459,26 +449,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         return;
     }
 
-    if (cell.type === 'chest') {
+    if (['chest', 'campfire', 'workbench', 'lit', 'piège', 'arbalete'].includes(cell.type)) {
         const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
-            setChestModalState({ isOpen: true, construction: constructionData });
-        }
-        return;
-    }
-
-    if (cell.type === 'campfire') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) {
-            setCampfireModalState({ isOpen: true, construction: constructionData });
-        }
-        return;
-    }
-
-    if (cell.type === 'workbench' || cell.type === 'lit') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) {
-            onInspectWorkbench(constructionData);
+            if (cell.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
+            else if (cell.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
+            else onInspectWorkbench(constructionData);
         }
         return;
     }
@@ -559,8 +535,30 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     }
   };
 
+  const crossbowActionZones = useMemo(() => {
+    const zones = new Set<string>();
+    if (!liveConstructions) return zones;
+    liveConstructions.forEach(c => {
+        if (c.type === 'arbalete') {
+            let targetX = c.x;
+            let targetY = c.y;
+            switch (c.rotation) {
+                case 0: targetY++; break; // Down
+                case 1: targetX--; break; // Left
+                case 2: targetY--; break; // Up
+                case 3: targetX++; break; // Right
+            }
+            zones.add(`${targetX},${targetY}`);
+        }
+    });
+    return zones;
+  }, [liveConstructions]);
+
   const getCellStyle = (cell: BaseCell) => {
     const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
+    const isActionZone = crossbowActionZones.has(`${cell.x},${cell.y}`);
+    if (isActionZone) return "bg-red-500/20 border-red-500/30 cursor-default";
+
     switch (cell.type) {
       case 'campfire':
         if (construction?.cooking_slot?.status === 'cooked') {
@@ -577,7 +575,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
       case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'trap': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'piège': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'arbalete': return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
