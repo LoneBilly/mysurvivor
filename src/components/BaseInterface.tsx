@@ -39,6 +39,7 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   furnace: CookingPot,
   foundation: Plus,
   lit: BedDouble,
+  campfire: Flame,
 };
 
 interface BuildingDefinition {
@@ -530,8 +531,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   };
 
   const getCellStyle = (cell: BaseCell) => {
+    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
     switch (cell.type) {
-      case 'campfire': return "bg-orange-400/20 border-orange-400/30";
+      case 'campfire':
+        if (construction?.cooking_slot?.status === 'cooked') {
+          return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
+        }
+        return "bg-orange-400/20 border-orange-400/30 cursor-pointer";
       case 'foundation':
         if (isJobRunning) {
           return "bg-white/20 border-white/30 cursor-not-allowed opacity-60";
@@ -544,7 +550,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
       case 'trap': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
       case 'workbench': {
-        const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
         if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
@@ -571,9 +576,11 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     
     if (cell.type === 'campfire' && construction) {
         const progress = (construction.burn_time_remaining_seconds / MAX_BURN_TIME_SECONDS) * 100;
+        const Icon = buildingIcons.campfire;
+        const isCooked = construction.cooking_slot?.status === 'cooked';
         return (
             <>
-                <span className="text-3xl">🔥</span>
+                <Icon className={cn("w-8 h-8", isCooked ? "text-green-400" : "text-orange-400")} />
                 {construction.burn_time_remaining_seconds > 0 && <CampfireProgressBar progress={progress} />}
             </>
         );

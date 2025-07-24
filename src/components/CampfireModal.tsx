@@ -103,12 +103,15 @@ const CookingProgress = ({ cookingSlot, onComplete, allItems }: { cookingSlot: N
   
   if (!inputItem || !outputItem) return null;
 
+  const quantity = cookingSlot.quantity || 1;
+
   return (
     <div className="space-y-3 p-3 bg-white/5 rounded-lg border border-slate-700">
       <div className="flex items-center justify-around gap-2">
         <div className="flex flex-col items-center gap-1 text-center">
           <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
             <ItemIcon iconName={getIconUrl(inputItem.icon)} alt={inputItem.name} />
+            {quantity > 1 && <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{quantity}</span>}
           </div>
           <p className="text-xs text-gray-400 truncate w-14">{inputItem.name}</p>
         </div>
@@ -120,6 +123,7 @@ const CookingProgress = ({ cookingSlot, onComplete, allItems }: { cookingSlot: N
         <div className="flex flex-col items-center gap-1 text-center">
           <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
             <ItemIcon iconName={getIconUrl(outputItem.icon)} alt={outputItem.name} />
+            {quantity > 1 && <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{quantity}</span>}
           </div>
           <p className="text-xs text-gray-400 truncate w-14">{outputItem.name}</p>
         </div>
@@ -134,7 +138,9 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const [fuels, setFuels] = useState<CampfireFuel[]>([]);
   const [config, setConfig] = useState<CampfireConfig | null>(null);
   const [selectedFuel, setSelectedFuel] = useState<CampfireFuelSource | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [fuelQuantity, setFuelQuantity] = useState(1);
+  const [selectedFood, setSelectedFood] = useState<CampfireFuelSource | null>(null);
+  const [foodQuantity, setFoodQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isCookingLoading, setIsCookingLoading] = useState(false);
 
@@ -182,14 +188,20 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
       fetchData();
     } else {
       setSelectedFuel(null);
-      setQuantity(1);
+      setFuelQuantity(1);
+      setSelectedFood(null);
+      setFoodQuantity(1);
       setIsCookingLoading(false);
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (selectedFuel) setQuantity(1);
+    if (selectedFuel) setFuelQuantity(1);
   }, [selectedFuel]);
+
+  useEffect(() => {
+    if (selectedFood) setFoodQuantity(1);
+  }, [selectedFood]);
 
   const burnTimeFromSelection = useMemo(() => {
     if (!selectedFuel || !config) return 0;
@@ -203,10 +215,10 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (isNaN(multiplier)) return 0;
 
     const secondsPerWood = 60 / consumptionRate;
-    return Math.floor(quantity * multiplier * secondsPerWood);
-  }, [selectedFuel, quantity, fuels, config]);
+    return Math.floor(fuelQuantity * multiplier * secondsPerWood);
+  }, [selectedFuel, fuelQuantity, fuels, config]);
 
-  const maxAddableQuantity = useMemo(() => {
+  const maxAddableFuelQuantity = useMemo(() => {
     if (!selectedFuel || !config || !currentConstruction) return 1;
     const fuelInfo = fuels.find(f => f.item_id === selectedFuel.item_id);
     if (!fuelInfo) return 1;
@@ -220,6 +232,12 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     const maxByCapacity = Math.floor(remainingCapacity / secondsPerItem);
     return Math.max(1, Math.min(selectedFuel.quantity, maxByCapacity));
   }, [selectedFuel, config, currentConstruction, liveBurnTime, fuels]);
+
+  const cookingTimeFromSelection = useMemo(() => {
+    if (!selectedFood) return 0;
+    const cookTime = selectedFood.items?.effects?.cooking_time_seconds || 180;
+    return cookTime * foodQuantity;
+  }, [selectedFood, foodQuantity]);
 
   const handleRpc = async (rpcName: string, params: any, successMessage: string) => {
     setLoading(true);
@@ -239,24 +257,26 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
     if (!selectedFuel || !currentConstruction) return;
     const rpcName = selectedFuel.source === 'inventory' ? 'add_fuel_to_campfire' : 'add_fuel_to_campfire_from_chest';
     const params = selectedFuel.source === 'inventory' 
-      ? { p_inventory_id: selectedFuel.id, p_quantity: quantity }
-      : { p_chest_item_id: selectedFuel.id, p_quantity: quantity };
+      ? { p_inventory_id: selectedFuel.id, p_quantity: fuelQuantity }
+      : { p_chest_item_id: selectedFuel.id, p_quantity: fuelQuantity };
     
     await handleRpc(rpcName, params, "Combustible ajouté !");
     setSelectedFuel(null);
-    setQuantity(1);
+    setFuelQuantity(1);
   };
 
-  const handleCookItem = async (item: CampfireFuelSource) => {
-    if (!currentConstruction) return;
+  const handleCookItem = async () => {
+    if (!selectedFood || !currentConstruction) return;
     setIsCookingLoading(true);
-    const rpcName = item.source === 'inventory' ? 'start_cooking' : 'start_cooking_from_chest';
-    const params = item.source === 'inventory' 
-      ? { p_inventory_item_id: item.id, p_campfire_id: currentConstruction.id } 
-      : { p_chest_item_id: item.id, p_campfire_id: currentConstruction.id };
+    const rpcName = selectedFood.source === 'inventory' ? 'start_cooking' : 'start_cooking_from_chest';
+    const params = selectedFood.source === 'inventory' 
+      ? { p_inventory_item_id: selectedFood.id, p_campfire_id: currentConstruction.id, p_quantity_to_cook: foodQuantity } 
+      : { p_chest_item_id: selectedFood.id, p_campfire_id: currentConstruction.id, p_quantity_to_cook: foodQuantity };
     
     await handleRpc(rpcName, params, "Cuisson démarrée !");
     setIsCookingLoading(false);
+    setSelectedFood(null);
+    setFoodQuantity(1);
   };
 
   const handleCollect = () => {
@@ -306,6 +326,39 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
                       {cookingSlot.status === 'burnt' && <Button onClick={handleClearBurnt} disabled={loading} variant="destructive" className="w-full">Nettoyer</Button>}
                     </div>
                   </div>
+                ) : selectedFood ? (
+                  <div className="space-y-4 p-4 bg-white/5 rounded-lg flex-grow flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                          <ItemIcon iconName={getIconUrl(selectedFood.items?.icon)} alt={selectedFood.items?.name || ''} />
+                        </div>
+                        <div>
+                          <p className="font-bold">{selectedFood.items?.name}</p>
+                          <p className="text-xs text-gray-400">En stock: {selectedFood.quantity}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <Label htmlFor="quantity-slider">Quantité à cuire</Label>
+                          <span className="font-mono text-lg font-bold">{foodQuantity}</span>
+                        </div>
+                        <Slider value={[foodQuantity]} onValueChange={([val]) => setFoodQuantity(val)} min={1} max={selectedFood.quantity} step={1} disabled={selectedFood.quantity <= 1} />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-center text-gray-300 mt-4">
+                        Temps de cuisson total: <span className="font-bold text-white">{formatDuration(cookingTimeFromSelection)}</span>.
+                      </p>
+                      {liveBurnTime < cookingTimeFromSelection && <p className="text-xs text-center text-red-400 mt-1">Combustible insuffisant.</p>}
+                      <div className="flex gap-2 pt-4">
+                        <Button variant="secondary" onClick={() => setSelectedFood(null)}>Changer</Button>
+                        <Button onClick={handleCookItem} disabled={loading || liveBurnTime < cookingTimeFromSelection} className="flex-1">
+                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Démarrer la cuisson'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     <p className="text-center text-sm text-gray-400">Choisissez un aliment à cuire</p>
@@ -313,7 +366,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
                       {availableFood.map(item => (
                         <button 
                           key={`${item.source}-${item.id}`} 
-                          onClick={() => handleCookItem(item)} 
+                          onClick={() => setSelectedFood(item)} 
                           disabled={liveBurnTime <= 0 || loading || isCookingLoading}
                           className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title={liveBurnTime <= 0 ? "Le feu est éteint" : item.items?.name}
@@ -348,9 +401,9 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <Label htmlFor="quantity-slider">Quantité</Label>
-                        <span className="font-mono text-lg font-bold">{quantity}</span>
+                        <span className="font-mono text-lg font-bold">{fuelQuantity}</span>
                       </div>
-                      <Slider value={[quantity]} onValueChange={([val]) => setQuantity(val)} min={1} max={maxAddableQuantity} step={1} disabled={selectedFuel.quantity <= 1 || maxAddableQuantity <= 1} />
+                      <Slider value={[fuelQuantity]} onValueChange={([val]) => setFuelQuantity(val)} min={1} max={maxAddableFuelQuantity} step={1} disabled={selectedFuel.quantity <= 1 || maxAddableFuelQuantity <= 1} />
                     </div>
                   </div>
                   <div>
