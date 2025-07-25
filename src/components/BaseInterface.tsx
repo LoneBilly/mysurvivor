@@ -600,9 +600,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'crossbow_trap': {
         const hasArrows = construction?.building_state?.arrow_quantity > 0;
         if (hasArrows) {
-          return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer group";
+          return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer";
         }
-        return "bg-red-600/20 border-red-500 hover:bg-red-600/30 cursor-pointer group";
+        return "bg-red-600/20 border-red-500 hover:bg-red-600/30 cursor-pointer";
       }
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
