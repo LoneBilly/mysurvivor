@@ -768,7 +768,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
           })}
           {gridData?.map((row, y) =>
             row.map((cell, x) => (
-              <button
+              <div
                 key={`${x}-${y}`}
                 onClick={() => handleCellClick(x, y)}
                 onMouseEnter={() => !isMobile && cell.type === 'in_progress' && setHoveredConstruction({x, y})}
@@ -785,7 +785,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 }}
               >
                 {getCellContent(cell)}
-              </button>
+              </div>
             ))
           )}
         </div>

@@ -128,21 +128,19 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     <div className="py-4 space-y-4 flex flex-col">
       <div className="space-y-2">
         <h3 className="font-semibold text-gray-300 text-center">Flèches dans l'arbalète</h3>
-        <div className="p-2 bg-black/20 rounded-lg">
-          <div className="flex justify-center">
-            <button 
-              onClick={handleSelectToUnload}
-              disabled={arrowCount === 0}
-              className="relative w-20 h-20 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {arrowCount > 0 && arrowItemIcon && (
-                <>
-                  <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
-                  <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{arrowCount}</span>
-                </>
-              )}
-            </button>
-          </div>
+        <div className="flex justify-center">
+          <button 
+            onClick={handleSelectToUnload}
+            disabled={arrowCount === 0}
+            className="relative w-20 h-20 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {arrowCount > 0 && arrowItemIcon && (
+              <>
+                <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
+                <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{arrowCount}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
@@ -152,22 +150,20 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
 
       <div className="space-y-2">
         <h3 className="font-semibold text-gray-300 text-center">Flèches dans l'inventaire</h3>
-        <div className="p-2 bg-black/20 rounded-lg min-h-[88px]">
-          <div className="grid grid-cols-4 gap-2">
-            {availableArrows.map(item => (
-              <button 
-                key={item.id} 
-                onClick={() => handleSelectStackToLoad(item)} 
-                disabled={loading}
-                className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
-                title={item.items?.name}
-              >
-                <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
-                <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
-              </button>
-            ))}
-            {availableArrows.length === 0 && <p className="col-span-4 text-center text-xs text-gray-400 py-6">Aucune flèche.</p>}
-          </div>
+        <div className="grid grid-cols-4 gap-2 min-h-[88px]">
+          {availableArrows.map(item => (
+            <button 
+              key={item.id} 
+              onClick={() => handleSelectStackToLoad(item)} 
+              disabled={loading}
+              className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
+              title={item.items?.name}
+            >
+              <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
+              <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
+            </button>
+          ))}
+          {availableArrows.length === 0 && <p className="col-span-4 text-center text-xs text-gray-400 py-6">Aucune flèche.</p>}
         </div>
       </div>
 
