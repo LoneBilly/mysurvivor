@@ -99,7 +99,7 @@ const formatBurnTime = (totalSeconds: number): string => {
 
 const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
-  const { playerData, setPlayerData, refreshPlayerData, items, addConstructionJob } = useGame();
+  const { playerData, setPlayerData, refreshPlayerData, items, addConstructionJob, buildingLevels } = useGame();
   const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
   
   const isMobile = useIsMobile();
@@ -629,6 +629,30 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const getCellContent = (cell: BaseCell) => {
     const construction = liveConstructions.find(c => c.x === cell.x && c.y === cell.y);
     
+    if (cell.type === 'chest' && construction) {
+        const Icon = buildingIcons.chest;
+        
+        const levelDef = buildingLevels.find(
+            level => level.building_type === 'chest' && level.level === construction.level
+        );
+        
+        const totalSlots = levelDef?.stats?.storage_capacity || 0;
+        
+        const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === construction.id) || [];
+        const usedSlots = new Set(itemsInChest.map(item => item.slot_position)).size;
+
+        return (
+            <>
+                <Icon className="w-8 h-8 text-amber-500" />
+                {totalSlots > 0 && (
+                    <div className="absolute bottom-1 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded">
+                        {usedSlots}/{totalSlots}
+                    </div>
+                )}
+            </>
+        );
+    }
+
     if (cell.type === 'campfire' && construction) {
         const Icon = buildingIcons.campfire;
         const isCooked = construction.cooking_slot?.status === 'cooked';
