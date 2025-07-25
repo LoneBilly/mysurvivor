@@ -643,12 +643,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
         return (
             <>
-                <Icon className="w-8 h-8 text-amber-500" />
                 {totalSlots > 0 && (
-                    <div className="absolute bottom-1 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded">
+                    <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded">
                         {usedSlots}/{totalSlots}
                     </div>
                 )}
+                <Icon className="w-8 h-8 text-amber-500" />
             </>
         );
     }
