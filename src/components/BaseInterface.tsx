@@ -37,6 +37,7 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   trap: AlertTriangle,
   piège: AlertTriangle,
   arbalete: Crosshair,
+  crossbow_trap: Crosshair,
   workbench: Hammer,
   furnace: CookingPot,
   foundation: Plus,
@@ -406,7 +407,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
-    const buildingsThatOpenModals = ['chest', 'workbench', 'furnace', 'lit', 'campfire', 'piège', 'trap', 'arbalete'];
+    const buildingsThatOpenModals = ['chest', 'workbench', 'furnace', 'lit', 'campfire', 'piège', 'trap', 'arbalete', 'crossbow_trap'];
 
     if (isJobRunning) {
         if (cell.type === 'in_progress') {
@@ -540,7 +541,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const zones = new Set<string>();
     if (!liveConstructions) return zones;
     liveConstructions.forEach(c => {
-        if (c.type === 'arbalete') {
+        if (c.type === 'arbalete' || c.type === 'crossbow_trap') {
             let targetX = c.x;
             let targetY = c.y;
             switch (c.rotation) {
@@ -579,7 +580,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'piège':
       case 'trap':
         return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
-      case 'arbalete': return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
+      case 'arbalete':
+      case 'crossbow_trap':
+        return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;

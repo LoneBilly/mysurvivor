@@ -127,7 +127,7 @@ const GameUI = () => {
       setIsBedModalOpen(true);
     } else if (construction.type === 'piège' || construction.type === 'trap') {
       setIsTrapModalOpen(true);
-    } else if (construction.type === 'arbalete') {
+    } else if (construction.type === 'arbalete' || construction.type === 'crossbow_trap') {
       setIsCrossbowModalOpen(true);
     }
   };
