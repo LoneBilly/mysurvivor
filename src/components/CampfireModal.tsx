@@ -63,7 +63,6 @@ const CookingProgress = ({ cookingSlot, onComplete, allItems }: { cookingSlot: N
   onCompleteRef.current = onComplete;
   const completionFired = useRef(false);
 
-  // Reset the completion trigger when the cooking job changes.
   useEffect(() => {
     completionFired.current = false;
   }, [cookingSlot.status, cookingSlot.ends_at]);
@@ -76,12 +75,20 @@ const CookingProgress = ({ cookingSlot, onComplete, allItems }: { cookingSlot: N
       setRemainingSeconds(newRemaining);
 
       if (newRemaining <= 0) {
-        if (!completionFired.current) {
-          completionFired.current = true;
-          onCompleteRef.current();
+        if (cookingSlot.status === 'cooking') {
+          setProgress(100);
+          setStatusText('Finalisation...');
+          if (!completionFired.current) {
+            completionFired.current = true;
+            onCompleteRef.current();
+          }
+        } else if (cookingSlot.status === 'cooked') {
+          setProgress(0);
+          if (!completionFired.current) {
+            completionFired.current = true;
+            onCompleteRef.current();
+          }
         }
-        if (cookingSlot.status === 'cooking') setProgress(100);
-        else if (cookingSlot.status === 'cooked') setProgress(0);
         return;
       }
 
