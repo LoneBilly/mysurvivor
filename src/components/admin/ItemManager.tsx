@@ -1,126 +1,215 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'react-hot-toast';
-import { PlusCircle, Edit, Trash2, Search } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Loader2, Search, PlusCircle, Check, X } from 'lucide-react';
+import { Item } from '@/types/admin';
+import ItemFormModal from './ItemFormModal';
+import ItemIcon from '@/components/ItemIcon';
+import { getPublicIconUrl } from '@/utils/imageUrls';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
-type Item = {
-  id: number;
-  name: string;
-  description: string;
-  icon: string;
-  type: string;
-};
+interface ItemManagerProps {
+  items: Item[];
+  onItemsUpdate: () => void; // This will now be called only for full refresh (e.g., delete)
+}
 
-const ItemManager = () => {
-  const [items, setItems] = useState<Item[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('All');
+const ItemManager = ({ items: initialItems, onItemsUpdate }: ItemManagerProps) => {
+  const [localItems, setLocalItems] = useState<Item[]>(initialItems);
+  const [craftableItemIds, setCraftableItemIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
-    const fetchItems = async () => {
-      setLoading(true);
-      const { data, error } = await supabase.from('items').select('id, name, description, icon, type').order('name', { ascending: true });
-      if (error) {
-        toast.error("Erreur lors du chargement des items.");
-      } else if (data) {
-        setItems(data);
-      }
+    setLocalItems(initialItems);
+  }, [initialItems]);
+
+  const fetchRecipes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: recipesRes, error: recipesError } = await supabase.from('crafting_recipes').select('result_item_id');
+      if (recipesError) throw recipesError;
+      const craftableIds = new Set(recipesRes.map(r => r.result_item_id));
+      setCraftableItemIds(craftableIds);
+    } catch (error) {
+      console.error(error);
+    } finally {
       setLoading(false);
-    };
-    fetchItems();
+    }
   }, []);
 
-  const filteredItems = useMemo(() => {
-    return items
-      .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      .filter(item => typeFilter === 'All' || item.type === typeFilter);
-  }, [items, searchQuery, typeFilter]);
+  useEffect(() => {
+    fetchRecipes();
+  }, [fetchRecipes]);
+
+  const handleCreate = () => {
+    setEditingItem(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (item: Item) => {
+    setEditingItem(item);
+    setIsModalOpen(true);
+  };
+
+  const handleItemSave = (savedItem?: Item) => {
+    if (savedItem) {
+      setLocalItems(prevItems => {
+        const existingIndex = prevItems.findIndex(item => item.id === savedItem.id);
+        if (existingIndex > -1) {
+          // Update existing item
+          return prevItems.map(item => (item.id === savedItem.id ? savedItem : item));
+        } else {
+          // Add new item
+          return [...prevItems, savedItem].sort((a, b) => a.name.localeCompare(b.name));
+        }
+      });
+      // If a new craftable item was added, refresh recipes
+      if (savedItem.recipe_id && !craftableItemIds.has(savedItem.id)) {
+        fetchRecipes();
+      }
+    } else {
+      // Item was deleted, trigger full refresh
+      onItemsUpdate();
+    }
+    setIsModalOpen(false);
+  };
+
+  const filteredItems = localItems.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (typeFilter === 'all' || item.type === typeFilter)
+  );
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
+  }
 
   return (
-    <div className="p-4 md:p-6 bg-gray-900 text-white min-h-screen">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold">Gestion des Items</h1>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" /> Nouvel Item
-        </Button>
-      </header>
-
-      <div className="bg-gray-800 p-4 rounded-lg mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Rechercher par nom..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-900 border-gray-700 pl-10"
-            />
+    <>
+      <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
+        <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Rechercher un objet..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-gray-900 border-gray-700"
+              />
+            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full sm:w-[180px] bg-gray-900 border-gray-700 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">Tous les types</option>
+              <option value="Ressources">Ressources</option>
+              <option value="Armes">Armes</option>
+              <option value="Armure">Armure</option>
+              <option value="Sac à dos">Sac à dos</option>
+              <option value="Chaussures">Chaussures</option>
+              <option value="Vehicule">Vehicule</option>
+              <option value="Nourriture">Nourriture</option>
+              <option value="Soins">Soins</option>
+              <option value="Outils">Outils</option>
+              <option value="Équipements">Équipements</option>
+              <option value="Items divers">Items divers</option>
+              <option value="Items craftés">Items craftés</option>
+            </select>
           </div>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="w-full sm:w-[180px] bg-gray-900 border-gray-700 px-3 h-10 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="All">Tous les types</option>
-            <option value="Nourriture">Nourriture</option>
-            <option value="Armure">Armure</option>
-            <option value="Sac à dos">Sac à dos</option>
-            <option value="Items divers">Items divers</option>
-            <option value="Blueprint">Blueprints</option>
-            <option value="Outil">Outil</option>
-            <option value="Arme">Arme</option>
-            <option value="Vehicule">Vehicule</option>
-            <option value="Chaussures">Chaussures</option>
-            <option value="Ressource">Ressource</option>
-            <option value="Composant">Composant</option>
-          </select>
+          <Button onClick={handleCreate} className="w-full sm:w-auto">
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Créer un objet
+          </Button>
+        </div>
+        <div className="flex-grow overflow-y-auto">
+          {isMobile ? (
+            <div className="p-4 space-y-3">
+              {filteredItems.map(item => (
+                <div key={item.id} onClick={() => handleEdit(item)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer flex items-start gap-4">
+                  <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+                    <ItemIcon iconName={getPublicIconUrl(item.icon)} alt={item.name} />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <p className="font-bold text-white truncate">{item.name}</p>
+                    <p className="text-sm text-gray-400 truncate mt-1">{item.description || 'Aucune description'}</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 mt-2">
+                      <div className="flex items-center gap-2">
+                        {item.stackable ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
+                        <span>Empilable</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {craftableItemIds.has(item.id) ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
+                        <span>Craftable</span>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">{item.type}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Table className="table-fixed w-full">
+              <TableHeader>
+                <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
+                  <TableHead className="w-[80px]">Icône</TableHead>
+                  <TableHead className="w-[200px]">Nom</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="w-[150px]">Type</TableHead>
+                  <TableHead className="w-[120px] text-center">Empilable</TableHead>
+                  <TableHead className="w-[120px] text-center">Craftable</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.map(item => (
+                  <TableRow
+                    key={item.id}
+                    className="border-gray-700 hover:bg-gray-800/60 cursor-pointer"
+                    onClick={() => handleEdit(item)}
+                  >
+                    <TableCell>
+                      <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative">
+                        <ItemIcon iconName={getPublicIconUrl(item.icon)} alt={item.name} />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium truncate">{item.name}</TableCell>
+                    <TableCell className="text-gray-400 truncate">{item.description}</TableCell>
+                    <TableCell>
+                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span>
+                    </TableCell>
+                    <TableCell className="text-center">{item.stackable ? 'Oui' : 'Non'}</TableCell>
+                    <TableCell className="text-center">{craftableItemIds.has(item.id) ? 'Oui' : 'Non'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
-
-      {loading ? (
-        <div className="text-center py-10">Chargement...</div>
-      ) : (
-        <div className="overflow-x-auto bg-gray-800 rounded-lg">
-          <table className="w-full text-left">
-            <thead className="bg-gray-700">
-              <tr>
-                <th className="p-4">Icon</th>
-                <th className="p-4">Nom</th>
-                <th className="p-4">Type</th>
-                <th className="p-4">Description</th>
-                <th className="p-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map(item => (
-                <tr key={item.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                  <td className="p-4">
-                    <img src={item.icon ? `/icons/items/${item.icon}` : '/placeholder.svg'} alt={item.name} className="w-10 h-10 object-contain bg-gray-600 rounded" />
-                  </td>
-                  <td className="p-4 font-medium">{item.name}</td>
-                  <td className="p-4"><span className="px-2 py-1 bg-gray-600 rounded-full text-xs">{item.type}</span></td>
-                  <td className="p-4 text-sm text-gray-400 max-w-xs truncate" title={item.description}>{item.description}</td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+      <ItemFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        item={editingItem}
+        onSave={handleItemSave}
+        allItems={localItems}
+      />
+    </>
   );
 };
 
