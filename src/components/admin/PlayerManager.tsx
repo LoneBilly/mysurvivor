@@ -13,6 +13,7 @@ import {
 import { showError } from '@/utils/toast';
 import PlayerDetailModal from './PlayerDetailModal';
 import { MapCell } from '@/types/game';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 export type PlayerProfile = {
   id: string;
@@ -36,6 +37,7 @@ const PlayerManager = ({ mapLayout }: { mapLayout: MapCell[] }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerProfile | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
+  const isMobile = useIsMobile();
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
@@ -137,28 +139,47 @@ const PlayerManager = ({ mapLayout }: { mapLayout: MapCell[] }) => {
         </div>
         
         <div className="flex-grow overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
-                <SortableHeader sortKey="username">Pseudo</SortableHeader>
-                <SortableHeader sortKey="created_at">Inscrit le</SortableHeader>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          {isMobile ? (
+            <div className="p-4 space-y-3">
               {sortedPlayers.map(player => (
-                <TableRow 
-                  key={player.id} 
-                  className="border-gray-700 hover:bg-gray-800/60 cursor-pointer"
-                  onClick={() => openPlayerDetails(player)}
-                >
-                  <TableCell>
-                    <div className="font-medium">{player.username || <span className="text-gray-500">Joueur Anonyme</span>}</div>
-                  </TableCell>
-                  <TableCell>{new Date(player.created_at).toLocaleDateString()}</TableCell>
-                </TableRow>
+                <div key={player.id} onClick={() => openPlayerDetails(player)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-white truncate">{player.username || 'Anonyme'}</p>
+                      <p className="text-sm text-gray-400">Inscrit le: {new Date(player.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 text-xs">
+                      {player.role === 'admin' && <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">Admin</span>}
+                      {player.is_banned && <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">Banni</span>}
+                    </div>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
+                  <SortableHeader sortKey="username">Pseudo</SortableHeader>
+                  <SortableHeader sortKey="created_at">Inscrit le</SortableHeader>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedPlayers.map(player => (
+                  <TableRow 
+                    key={player.id} 
+                    className="border-gray-700 hover:bg-gray-800/60 cursor-pointer"
+                    onClick={() => openPlayerDetails(player)}
+                  >
+                    <TableCell>
+                      <div className="font-medium">{player.username || <span className="text-gray-500">Joueur Anonyme</span>}</div>
+                    </TableCell>
+                    <TableCell>{new Date(player.created_at).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
 
