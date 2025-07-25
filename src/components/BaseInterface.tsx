@@ -699,7 +699,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             level => level.building_type === 'wall' && level.level === construction.level
         );
         
-        const maxHp = levelDef?.stats?.max_hp || 0;
+        const maxHp = levelDef?.stats?.health || 0;
         const currentHp = construction.building_state?.hp ?? maxHp;
 
         return (

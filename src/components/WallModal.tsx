@@ -66,7 +66,7 @@ const WallModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Wall
     );
   }, [construction, buildingLevels]);
 
-  const maxHp = currentLevelInfo?.stats?.max_hp || 0;
+  const maxHp = currentLevelInfo?.stats?.health || 0;
   const currentHp = construction?.building_state?.hp ?? maxHp;
   const damage = maxHp - currentHp;
   const damagePercentage = maxHp > 0 ? damage / maxHp : 0;
