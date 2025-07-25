@@ -130,7 +130,7 @@ export const BuildingLevelEditor = ({ buildingType }: BuildingLevelEditorProps) 
         <CardDescription>Modifiez les niveaux, les coûts et les statistiques pour ce type de bâtiment.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto p-4">
-        <div className="flex justify-end mb-4 gap-2">
+        <div className="flex flex-col sm:flex-row justify-end mb-4 gap-2">
           <Button onClick={handleSave}><Save className="w-4 h-4 mr-2" /> Sauvegarder</Button>
           <Button onClick={handleAddNewLevel}><PlusCircle className="w-4 h-4 mr-2" /> Ajouter un niveau</Button>
         </div>

@@ -115,6 +115,7 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
                     </Button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-300">
+                    <p>HP: {level1?.stats?.health || 0}</p>
                     <p>Temps: {level1?.upgrade_time_seconds || 0}s</p>
                     <p>Énergie: {level1?.upgrade_cost_energy || 0}</p>
                     <p>Bois: {level1?.upgrade_cost_wood || 0}</p>
@@ -131,6 +132,7 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
             <TableHeader>
               <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
                 <TableHead>Nom</TableHead>
+                <TableHead>HP (Lvl 1)</TableHead>
                 <TableHead>Temps</TableHead>
                 <TableHead>Énergie</TableHead>
                 <TableHead>Bois</TableHead>
@@ -149,6 +151,7 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
                       {(() => { const Icon = getIconComponent(building.icon); return <Icon className="w-5 h-5" />; })()}
                       {building.name}
                     </TableCell>
+                    <TableCell>{level1?.stats?.health || 0}</TableCell>
                     <TableCell>{level1?.upgrade_time_seconds || 0}s</TableCell>
                     <TableCell>{level1?.upgrade_cost_energy || 0}</TableCell>
                     <TableCell>{level1?.upgrade_cost_wood || 0}</TableCell>
