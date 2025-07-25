@@ -1,378 +1,557 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useState, useEffect, FormEvent } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/src/integrations/supabase/client";
-import { toast } from "sonner";
-import { Item } from "@/src/lib/types";
-import { Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
+import { Item, CraftingRecipe } from '@/types/game';
+import { useDebounce } from '@/hooks/useDebounce';
+import { Loader2, AlertCircle, CheckCircle, Trash2, Wrench, PlusCircle } from 'lucide-react';
+import { getPublicIconUrl } from '@/utils/imageUrls';
+import ActionModal from '../ActionModal';
+import RecipeEditorModal from './RecipeEditorModal';
 
 interface ItemFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: () => void;
-  initialData?: Item | null;
+  item?: Item | null;
+  onSave: (savedItem?: Item) => void; // Changed to accept saved item
+  allItems: Item[];
 }
 
-const itemTypes = [
-  "Items divers",
-  "Nourriture",
-  "Outil",
-  "Arme",
-  "Armure",
-  "Sac à dos",
-  "Chaussures",
-  "Vehicule",
-  "Ressource",
-  "Blueprint",
+const PREDEFINED_EFFECTS = [
+  { key: 'ammo_item_id', label: 'Munition (Armes)', type: 'item_id' },
+  { key: 'slots_supplementaires', label: 'Slots supplémentaires (Sac à dos)', type: 'number' },
+  { key: 'reduction_cout_energie_deplacement_pourcentage', label: 'Réduction coût énergie déplacement %', type: 'number' },
+  { key: 'reduction_temps_exploration_pourcentage', label: 'Réduction temps exploration %', type: 'number' },
+  { key: 'bonus_recolte_bois_pourcentage', label: 'Bonus récolte bois %', type: 'number' },
+  { key: 'bonus_recolte_pierre_pourcentage', label: 'Bonus récolte pierre %', type: 'number' },
+  { key: 'bonus_recolte_viande_pourcentage', label: 'Bonus récolte viande %', type: 'number' },
+  { key: 'restaure_vie', label: 'Restaure Vie (Consommable)', type: 'number' },
+  { key: 'restaure_faim', label: 'Restaure Faim (Consommable)', type: 'number' },
+  { key: 'restaure_soif', label: 'Restaure Soif (Consommable)', type: 'number' },
+  { key: 'restaure_energie', label: 'Restaure Énergie (Consommable)', type: 'number' },
+  { key: 'reduire_vie', label: 'Réduit Vie (Consommable)', type: 'number' },
+  { key: 'reduire_faim', label: 'Réduit Faim (Consommable)', type: 'number' },
+  { key: 'reduire_soif', label: 'Réduit Soif (Consommable)', type: 'number' },
+  { key: 'reduire_energie', label: 'Réduit Énergie (Consommable)', type: 'number' },
+  { key: 'cooking_time_seconds', label: 'Temps de cuisson (secondes)', type: 'number' },
+  { key: 'cooked_item_id', label: 'ID de l\'objet cuit', type: 'item_id' },
 ];
 
-const ItemFormModal: React.FC<ItemFormModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
-  const [name, setName] = useState(initialData?.name || "");
-  const [description, setDescription] = useState(initialData?.description || "");
-  const [icon, setIcon] = useState(initialData?.icon || "");
-  const [stackable, setStackable] = useState(initialData?.stackable || false);
-  const [type, setType] = useState(initialData?.type || "Items divers");
-  const [useActionText, setUseActionText] = useState(initialData?.use_action_text || "");
-  const [isCraftable, setIsCraftable] = useState(!!initialData?.recipe_id);
-  const [recipeResultQuantity, setRecipeResultQuantity] = useState(initialData?.recipe_id ? 1 : 1);
-  const [recipeSlot1ItemId, setRecipeSlot1ItemId] = useState<number | null>(null);
-  const [recipeSlot1Quantity, setRecipeSlot1Quantity] = useState<number | null>(null);
-  const [recipeSlot2ItemId, setRecipeSlot2ItemId] = useState<number | null>(null);
-  const [recipeSlot2Quantity, setRecipeSlot2Quantity] = useState<number | null>(null);
-  const [recipeSlot3ItemId, setRecipeSlot3ItemId] = useState<number | null>(null);
-  const [recipeSlot3Quantity, setRecipeSlot3Quantity] = useState<number | null>(null);
-  const [recipeCraftTimeSeconds, setRecipeCraftTimeSeconds] = useState(initialData?.recipe_id ? 10 : 10);
-  const [effects, setEffects] = useState<string>(JSON.stringify(initialData?.effects || {}, null, 2));
+const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModalProps) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('');
+  const [stackable, setStackable] = useState(true);
+  const [type, setType] = useState('Items divers');
+  const [useActionText, setUseActionText] = useState('Utiliser');
   const [loading, setLoading] = useState(false);
+  
+  const [nameExists, setNameExists] = useState(false);
+  const [checkingName, setCheckingName] = useState(false);
+  const debouncedName = useDebounce(name, 500);
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isValidatingIcon, setIsValidatingIcon] = useState(false);
+  const [iconExists, setIconExists] = useState<boolean | null>(null);
+  const debouncedIcon = useDebounce(icon, 500);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [isCraftable, setIsCraftable] = useState(false);
+  const [recipeId, setRecipeId] = useState<number | null>(null);
+  const [draftRecipe, setDraftRecipe] = useState<Partial<CraftingRecipe> | null>(null);
+  
+  const [effectsList, setEffectsList] = useState<{ id: number; key: string; value: any }[]>([]);
+
+  const [availableIcons, setAvailableIcons] = useState<string[]>([]);
+  const [fetchingIcons, setFetchingIcons] = useState(false);
 
   useEffect(() => {
-    if (initialData) {
-      setName(initialData.name);
-      setDescription(initialData.description || "");
-      setIcon(initialData.icon || "");
-      setStackable(initialData.stackable);
-      setType(initialData.type);
-      setUseActionText(initialData.use_action_text || "");
-      setIsCraftable(!!initialData.recipe_id);
-      setEffects(JSON.stringify(initialData.effects || {}, null, 2));
+    if (isOpen) {
+      const initialName = item?.name || '';
+      const initialIcon = item?.icon || '';
+      
+      setName(initialName);
+      setDescription(item?.description || '');
+      setIcon(initialIcon);
+      setStackable(item?.stackable ?? true);
+      setType(item?.type || 'Items divers');
+      setUseActionText(item?.use_action_text || '');
+      
+      const initialEffects = item?.effects || {};
+      const effectsArray = Object.entries(initialEffects).map(([key, value], index) => ({
+        id: index,
+        key,
+        value,
+      }));
+      setEffectsList(effectsArray);
 
-      if (initialData.recipe_id) {
-        fetchRecipeDetails(initialData.recipe_id);
+      setNameExists(false);
+      setPreviewUrl(null);
+      setIconExists(null);
+      setIsDeleteModalOpen(false);
+      
+      if (item) {
+        const fetchRecipe = async () => {
+          const { data } = await supabase.from('crafting_recipes').select('id').eq('result_item_id', item.id).single();
+          if (data) {
+            setRecipeId(data.id);
+            setIsCraftable(true);
+            setDraftRecipe(null);
+          } else {
+            setRecipeId(null);
+            setIsCraftable(false);
+            setDraftRecipe(null);
+          }
+        };
+        fetchRecipe();
       } else {
-        resetRecipeFields();
+        setRecipeId(null);
+        setIsCraftable(false);
+        setDraftRecipe(null);
       }
-    } else {
-      resetForm();
+
+      if (initialIcon) {
+        setIsValidatingIcon(true);
+        const url = getPublicIconUrl(initialIcon);
+        if (url) {
+          setPreviewUrl(url);
+          setIconExists(true); 
+        } else {
+          setIconExists(false);
+        }
+        setIsValidatingIcon(false);
+      }
     }
-  }, [initialData]);
+  }, [isOpen, item]);
 
-  const fetchRecipeDetails = async (recipeId: number) => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("crafting_recipes")
-      .select("*")
-      .eq("id", recipeId)
-      .single();
+  useEffect(() => {
+    if (!isOpen) return;
 
-    if (error) {
-      toast.error("Erreur lors du chargement de la recette: " + error.message);
-    } else if (data) {
-      setRecipeResultQuantity(data.result_quantity);
-      setRecipeSlot1ItemId(data.slot1_item_id);
-      setRecipeSlot1Quantity(data.slot1_quantity);
-      setRecipeSlot2ItemId(data.slot2_item_id);
-      setRecipeSlot2Quantity(data.slot2_quantity);
-      setRecipeSlot3ItemId(data.slot3_item_id);
-      setRecipeSlot3Quantity(data.slot3_quantity);
-      setRecipeCraftTimeSeconds(data.craft_time_seconds);
-    }
-    setLoading(false);
-  };
-
-  const resetForm = () => {
-    setName("");
-    setDescription("");
-    setIcon("");
-    setStackable(false);
-    setType("Items divers");
-    setUseActionText("");
-    setIsCraftable(false);
-    setEffects("{}");
-    resetRecipeFields();
-  };
-
-  const resetRecipeFields = () => {
-    setRecipeResultQuantity(1);
-    setRecipeSlot1ItemId(null);
-    setRecipeSlot1Quantity(null);
-    setRecipeSlot2ItemId(null);
-    setRecipeSlot2Quantity(null);
-    setRecipeSlot3ItemId(null);
-    setRecipeSlot3Quantity(null);
-    setRecipeCraftTimeSeconds(10);
-  };
-
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      let parsedEffects = {};
+    const fetchAvailableIcons = async () => {
+      setFetchingIcons(true);
       try {
-        parsedEffects = JSON.parse(effects);
-      } catch (e) {
-        toast.error("Effets JSON invalides.");
+        const [storageRes, itemsRes] = await Promise.all([
+          supabase.storage.from('items.icons').list(),
+          supabase.from('items').select('icon')
+        ]);
+
+        if (storageRes.error) throw storageRes.error;
+        if (itemsRes.error) throw itemsRes.error;
+
+        const allStorageIcons = storageRes.data.map(file => file.name).filter(name => name !== '.emptyfolderplaceholder');
+        const usedIcons = new Set(itemsRes.data.map(i => i.icon).filter(Boolean) as string[]);
+
+        if (item?.icon) {
+          usedIcons.delete(item.icon);
+        }
+
+        const unusedIcons = allStorageIcons.filter(iconName => !usedIcons.has(iconName));
+        setAvailableIcons(unusedIcons.sort());
+
+      } catch (error) {
+        console.error("Error fetching available icons:", error);
+        showError("Impossible de charger les icônes disponibles.");
+      } finally {
+        setFetchingIcons(false);
+      }
+    };
+
+    fetchAvailableIcons();
+  }, [isOpen, item]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const checkName = async () => {
+      if (debouncedName.trim() === '' || (item && debouncedName === item.name)) {
+        setNameExists(false);
+        return;
+      }
+      setCheckingName(true);
+      const { data } = await supabase.from('items').select('id').ilike('name', debouncedName);
+      setNameExists(data && data.length > 0);
+      setCheckingName(false);
+    };
+
+    const validateIcon = () => {
+      if (!debouncedIcon) {
+        setPreviewUrl(null);
+        setIconExists(null);
+        return;
+      }
+      setIsValidatingIcon(true);
+      const url = getPublicIconUrl(debouncedIcon);
+      setPreviewUrl(url);
+      setIconExists(!!url);
+      setIsValidatingIcon(false);
+    };
+
+    checkName();
+    validateIcon();
+  }, [debouncedName, debouncedIcon, item, isOpen]);
+
+  const handleActionTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (value.length > 0) {
+      value = value.charAt(0).toUpperCase() + value.slice(1);
+    }
+    setUseActionText(value);
+  };
+
+  const handleAddEffect = () => {
+    setEffectsList(prev => [...prev, { id: Date.now(), key: '', value: '' }]);
+  };
+
+  const handleEffectChange = (id: number, field: 'key' | 'value', newValue: any) => {
+    setEffectsList(prev => prev.map(effect => {
+      if (effect.id === id) {
+        const newEffect = { ...effect, [field]: newValue };
+        // Reset value if key changes to a different type
+        if (field === 'key') {
+          const newEffectConfig = PREDEFINED_EFFECTS.find(e => e.key === newValue);
+          if (newEffectConfig?.type === 'item_id') {
+            newEffect.value = '';
+          } else {
+            newEffect.value = 0;
+          }
+        }
+        return newEffect;
+      }
+      return effect;
+    }));
+  };
+
+  const handleRemoveEffect = (id: number) => {
+    setEffectsList(prev => prev.filter(effect => effect.id !== id));
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (nameExists) {
+      showError("Un objet avec ce nom existe déjà.");
+      return;
+    }
+    if (icon && !iconExists) {
+      showError("L'icône spécifiée n'existe pas dans le stockage.");
+      return;
+    }
+    if (isCraftable && !draftRecipe && !item) {
+      showError("Veuillez définir un blueprint pour cet objet craftable.");
+      return;
+    }
+
+    setLoading(true);
+    
+    const finalEffects = effectsList.reduce((acc, effect) => {
+      if (effect.key.trim() !== '') {
+        const effectConfig = PREDEFINED_EFFECTS.find(e => e.key === effect.key);
+        const isNumeric = effectConfig ? effectConfig.type === 'number' || effectConfig.type === 'item_id' : !isNaN(Number(effect.value));
+        const value = isNumeric ? Number(effect.value) : effect.value;
+        if (value !== '' && value !== null && !isNaN(value)) {
+          acc[effect.key] = value;
+        }
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    if (!item) {
+      const { data, error } = await supabase.rpc('create_item_and_recipe', {
+        p_name: name,
+        p_description: description,
+        p_icon: icon || null,
+        p_stackable: stackable,
+        p_type: type,
+        p_use_action_text: useActionText || null,
+        p_is_craftable: isCraftable,
+        p_effects: finalEffects,
+        p_recipe_result_quantity: draftRecipe?.result_quantity || 1,
+        p_recipe_slot1_item_id: draftRecipe?.slot1_item_id || null,
+        p_recipe_slot1_quantity: draftRecipe?.slot1_quantity || null,
+        p_recipe_slot2_item_id: draftRecipe?.slot2_item_id || null,
+        p_recipe_slot2_quantity: draftRecipe?.slot2_quantity || null,
+        p_recipe_slot3_item_id: draftRecipe?.slot3_item_id || null,
+        p_recipe_slot3_quantity: draftRecipe?.slot3_quantity || null,
+        p_recipe_craft_time_seconds: draftRecipe?.craft_time_seconds || 10,
+      }).single();
+
+      if (error) {
+        showError(`Erreur: ${error.message}`);
+        setLoading(false);
+        return;
+      }
+      showSuccess(`Objet créé !`);
+      onSave(data as Item); // Pass the newly created item
+
+    } else {
+      const itemDataToUpdate = {
+        name,
+        description,
+        icon: icon || null,
+        stackable,
+        type,
+        use_action_text: useActionText || null,
+        effects: finalEffects,
+        recipe_id: isCraftable ? recipeId : null,
+      };
+
+      const { data, error: updateItemError } = await supabase.from('items').update(itemDataToUpdate).eq('id', item.id).select().single();
+      if (updateItemError) {
+        showError(`Erreur lors de la mise à jour de l'objet: ${updateItemError.message}`);
         setLoading(false);
         return;
       }
 
-      if (initialData) {
-        // Update existing item
-        const { error: itemError } = await supabase
-          .from("items")
-          .update({
-            name,
-            description,
-            icon,
-            stackable,
-            type,
-            use_action_text,
-            effects: parsedEffects,
-          })
-          .eq("id", initialData.id);
-
-        if (itemError) throw itemError;
-
-        if (isCraftable) {
-          const { error: recipeError } = await supabase
-            .from("crafting_recipes")
-            .upsert(
-              {
-                id: initialData.recipe_id || undefined, // Use undefined for new recipe, id for update
-                result_item_id: initialData.id,
-                result_quantity: recipeResultQuantity,
-                slot1_item_id: recipeSlot1ItemId,
-                slot1_quantity: recipeSlot1Quantity,
-                slot2_item_id: recipeSlot2ItemId,
-                slot2_quantity: recipeSlot2Quantity,
-                slot3_item_id: recipeSlot3ItemId,
-                slot3_quantity: recipeSlot3Quantity,
-                craft_time_seconds: recipeCraftTimeSeconds,
-              },
-              { onConflict: "result_item_id", ignoreDuplicates: false }
-            );
-          if (recipeError) throw recipeError;
-        } else if (initialData.recipe_id) {
-          // If it was craftable but now it's not, delete the recipe
-          const { error: deleteRecipeError } = await supabase
-            .from("crafting_recipes")
-            .delete()
-            .eq("id", initialData.recipe_id);
-          if (deleteRecipeError) throw deleteRecipeError;
-        }
-        toast.success("Objet mis à jour avec succès !");
-      } else {
-        // Create new item
-        const { data: newItem, error: itemError } = await supabase
-          .rpc("create_item_and_recipe", {
-            p_name: name,
-            p_description: description,
-            p_icon: icon,
-            p_stackable: stackable,
-            p_type: type,
-            p_use_action_text: useActionText,
-            p_is_craftable: isCraftable,
-            p_effects: parsedEffects,
-            p_recipe_result_quantity: recipeResultQuantity,
-            p_recipe_slot1_item_id: recipeSlot1ItemId,
-            p_recipe_slot1_quantity: recipeSlot1Quantity,
-            p_recipe_slot2_item_id: recipeSlot2ItemId,
-            p_recipe_slot2_quantity: recipeSlot2Quantity,
-            p_recipe_slot3_item_id: recipeSlot3ItemId,
-            p_recipe_slot3_quantity: recipeSlot3Quantity,
-            p_recipe_craft_time_seconds: recipeCraftTimeSeconds,
-          })
-          .select()
-          .single();
-
-        if (itemError) throw itemError;
-        toast.success("Objet créé avec succès !");
+      if (!isCraftable && item.recipe_id) {
+        await supabase.from('items').update({ recipe_id: null }).eq('id', item.id);
+        await supabase.from('crafting_recipes').delete().eq('result_item_id', item.id);
       }
-      onSave();
-      onClose();
-    } catch (error: any) {
-      toast.error("Erreur: " + error.message);
-    } finally {
-      setLoading(false);
+      showSuccess(`Objet mis à jour !`);
+      onSave(data as Item); // Pass the updated item
     }
+
+    onClose();
+    setLoading(false);
+  };
+
+  const handleDelete = async () => {
+    if (!item) return;
+    setLoading(true);
+    const { error } = await supabase.from('items').delete().eq('id', item.id);
+    if (error) {
+      showError(`Erreur lors de la suppression: ${error.message}`);
+    } else {
+      showSuccess("Objet supprimé avec succès.");
+      onSave(undefined); // Indicate item was deleted
+      setIsDeleteModalOpen(false);
+      onClose();
+    }
+    setLoading(false);
+  };
+
+  const currentItemForRecipeEditor: Item = item || {
+    id: -1,
+    name: name || 'Nouvel Objet',
+    description: description || '',
+    icon: icon || null,
+    stackable: stackable,
+    type: type,
+    use_action_text: useActionText || '',
+    created_at: new Date().toISOString(),
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-gray-900 text-gray-100 border-gray-700">
-        <DialogHeader>
-          <DialogTitle className="text-gray-100">{initialData ? "Modifier l'objet" : "Créer un nouvel objet"}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
-            <div className="flex items-center gap-2 mt-1 col-span-3">
-              <div className="w-12 h-12 bg-white/5 border border-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                {icon ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`/items/${icon}`} alt="Item Icon" className="w-10 h-10 object-contain" />
-                ) : (
-                  <span className="text-gray-500 text-xs">No Icon</span>
-                )}
-              </div>
-              <Input
-                id="icon"
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-                placeholder="e.g., wood.webp"
-              />
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent 
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="sm:max-w-lg bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+        >
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+              {item ? 'Modifier l\'objet' : 'Créer un objet'}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Formulaire pour {item ? 'modifier les détails d\'un' : 'créer un nouvel'} objet.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            <div>
+              <Label htmlFor="name" className="text-gray-300 font-mono">Nom</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} />
+              {checkingName && <Loader2 className="w-4 h-4 animate-spin text-white mt-1" />}
+              {nameExists && !checkingName && <p className="text-red-400 text-sm mt-1">Ce nom existe déjà !</p>}
             </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-gray-300 font-mono">Nom</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-gray-300 font-mono">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="type" className="text-gray-300 font-mono">Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="col-span-3 bg-gray-800 text-gray-100 border-gray-700">
-                <SelectValue placeholder="Sélectionner un type" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                {itemTypes.map((itemType) => (
-                  <SelectItem key={itemType} value={itemType}>
-                    {itemType}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="useActionText" className="text-gray-300 font-mono">Texte d'action d'utilisation</Label>
-            <Input
-              id="useActionText"
-              value={useActionText}
-              onChange={(e) => setUseActionText(e.target.value)}
-              className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-              placeholder="e.g., Manger, Boire, Lire"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
-            <Checkbox
-              id="stackable"
-              checked={stackable}
-              onCheckedChange={(checked) => setStackable(!!checked)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="effects" className="text-gray-300 font-mono">Effets (JSON)</Label>
-            <Textarea
-              id="effects"
-              value={effects}
-              onChange={(e) => setEffects(e.target.value)}
-              className="col-span-3 bg-gray-800 text-gray-100 border-gray-700 font-mono text-xs"
-              rows={6}
-              placeholder={`{\n  "restaure_vie": 20,\n  "restaure_faim": 30\n}`}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="isCraftable" className="text-gray-300 font-mono">Fabricable</Label>
-            <Checkbox
-              id="isCraftable"
-              checked={isCraftable}
-              onCheckedChange={(checked) => setIsCraftable(!!checked)}
-              className="col-span-3"
-            />
-          </div>
+            <div>
+              <Label htmlFor="description" className="text-gray-300 font-mono">Description</Label>
+              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" disabled={loading} />
+            </div>
+            <div>
+              <Label htmlFor="use_action_text" className="text-gray-300 font-mono">Texte d'action (optionnel)</Label>
+              <Input id="use_action_text" value={useActionText} onChange={handleActionTextChange} className="mt-1 bg-white/5 border border-white/20 rounded-lg" disabled={loading} />
+            </div>
+            <div>
+              <Label htmlFor="type" className="text-gray-300 font-mono">Type</Label>
+              <select
+                id="type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                disabled={loading}
+                className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
+              >
+                <option value="Ressources">Ressources</option>
+                <option value="Armes">Armes</option>
+                <option value="Armure">Armure</option>
+                <option value="Sac à dos">Sac à dos</option>
+                <option value="Chaussures">Chaussures</option>
+                <option value="Vehicule">Vehicule</option>
+                <option value="Nourriture">Nourriture</option>
+                <option value="Soins">Soins</option>
+                <option value="Outils">Outils</option>
+                <option value="Équipements">Équipements</option>
+                <option value="Items divers">Items divers</option>
+                <option value="Items craftés">Items craftés</option>
+              </select>
+            </div>
+            
+            <div className="space-y-3 rounded-lg border border-slate-700 p-3">
+              <Label className="text-gray-300 font-mono">Effets</Label>
+              {effectsList.map((effect) => {
+                const effectConfig = PREDEFINED_EFFECTS.find(e => e.key === effect.key);
+                return (
+                  <div key={effect.id} className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs">Clé</Label>
+                      <select
+                        value={effect.key}
+                        onChange={(e) => handleEffectChange(effect.id, 'key', e.target.value)}
+                        className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white text-sm"
+                      >
+                        <option value="" disabled>Choisir un effet...</option>
+                        {PREDEFINED_EFFECTS.map(e => <option key={e.key} value={e.key}>{e.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-xs">Valeur</Label>
+                      {effectConfig?.type === 'item_id' ? (
+                        <select
+                          value={effect.value || ''}
+                          onChange={(e) => handleEffectChange(effect.id, 'value', e.target.value)}
+                          className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white text-sm"
+                        >
+                          <option value="" disabled>Choisir une munition...</option>
+                          {allItems.map(ammo => <option key={ammo.id} value={ammo.id}>{ammo.name}</option>)}
+                        </select>
+                      ) : (
+                        <Input
+                          type="number"
+                          value={effect.value || ''}
+                          onChange={(e) => handleEffectChange(effect.id, 'value', e.target.value)}
+                          className="bg-white/5 border-white/20"
+                          disabled={!effect.key}
+                        />
+                      )}
+                    </div>
+                    <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveEffect(effect.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+              <Button type="button" variant="outline" onClick={handleAddEffect} className="w-full mt-2">
+                <PlusCircle className="w-4 h-4 mr-2" /> Ajouter un effet
+              </Button>
+            </div>
 
-          {isCraftable && (
-            <>
-              <h3 className="text-lg font-semibold text-gray-100 mt-4 col-span-4">Détails de la recette</h3>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="recipeResultQuantity" className="text-gray-300 font-mono">Quantité de résultat</Label>
-                <Input
-                  id="recipeResultQuantity"
-                  type="number"
-                  value={recipeResultQuantity}
-                  onChange={(e) => setRecipeResultQuantity(parseInt(e.target.value))}
-                  className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-                />
+            <div>
+              <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-12 h-12 bg-white/5 border border-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  {isValidatingIcon ? <Loader2 className="w-5 h-5 animate-spin" /> :
+                  previewUrl ? <img src={previewUrl} alt="Prévisualisation" className="w-full h-full object-contain p-1" onError={() => setIconExists(false)} onLoad={() => setIconExists(true)} /> :
+                  <AlertCircle className="w-5 h-5 text-gray-500" />}
+                </div>
+                <div className="relative w-full">
+                  <select
+                    id="icon"
+                    value={icon}
+                    onChange={(e) => setIcon(e.target.value)}
+                    disabled={loading || fetchingIcons}
+                    className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white focus:ring-white/30 focus:border-white/30"
+                  >
+                    <option value="">{fetchingIcons ? "Chargement..." : "Aucune icône"}</option>
+                    {item?.icon && !availableIcons.includes(item.icon) && (
+                      <option value={item.icon}>{item.icon}</option>
+                    )}
+                    {availableIcons.map((iconName) => (
+                      <option key={iconName} value={iconName}>
+                        {iconName}
+                      </option>
+                    ))}
+                  </select>
+                  {!isValidatingIcon && icon && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 transform-gpu">
+                      {iconExists ? <CheckCircle className="w-5 h-5 text-green-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="recipeCraftTimeSeconds" className="text-gray-300 font-mono">Temps de fabrication (s)</Label>
-                <Input
-                  id="recipeCraftTimeSeconds"
-                  type="number"
-                  value={recipeCraftTimeSeconds}
-                  onChange={(e) => setRecipeCraftTimeSeconds(parseInt(e.target.value))}
-                  className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-                />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Checkbox id="stackable" checked={stackable} onCheckedChange={(checked) => setStackable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
+                <Label htmlFor="stackable" className="text-gray-300 font-mono">Empilable</Label>
               </div>
-              {[1, 2, 3].map((slotNum) => (
-                <React.Fragment key={slotNum}>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor={`slot${slotNum}ItemId`} className="text-gray-300 font-mono">Ingrédient {slotNum} (ID)</Label>
-                    <Input
-                      id={`slot${slotNum}ItemId`}
-                      type="number"
-                      value={eval(`recipeSlot${slotNum}ItemId`) || ""}
-                      onChange={(e) => eval(`setRecipeSlot${slotNum}ItemId`)(e.target.value ? parseInt(e.target.value) : null)}
-                      className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor={`slot${slotNum}Quantity`} className="text-gray-300 font-mono">Quantité {slotNum}</Label>
-                    <Input
-                      id={`slot${slotNum}Quantity`}
-                      type="number"
-                      value={eval(`recipeSlot${slotNum}Quantity`) || ""}
-                      onChange={(e) => eval(`setRecipeSlot${slotNum}Quantity`)(e.target.value ? parseInt(e.target.value) : null)}
-                      className="col-span-3 bg-gray-800 text-gray-100 border-gray-700"
-                    />
-                  </div>
-                </React.Fragment>
-              ))}
-            </>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="text-gray-100 border-gray-700 hover:bg-gray-700">
-            Annuler
-          </Button>
-          <Button onClick={handleSave} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {initialData ? "Sauvegarder les modifications" : "Créer l'objet"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+              <div className="flex items-center gap-2">
+                <Checkbox id="craftable" checked={isCraftable} onCheckedChange={(checked) => setIsCraftable(!!checked)} className="border-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded" disabled={loading} />
+                <Label htmlFor="craftable" className="text-gray-300 font-mono">Craftable</Label>
+              </div>
+            </div>
+            {isCraftable && (
+              <Button type="button" variant="outline" onClick={() => setIsRecipeModalOpen(true)} disabled={loading} className="w-full flex items-center gap-2">
+                <Wrench className="w-4 h-4" />
+                {item ? (recipeId ? 'Modifier le Blueprint' : 'Créer le Blueprint') : (draftRecipe ? 'Modifier le Blueprint' : 'Créer le Blueprint')}
+              </Button>
+            )}
+            <DialogFooter className="pt-4">
+              <div className="flex w-full items-center justify-between gap-2">
+                <div>
+                  {item && (
+                    <Button type="button" variant="destructive" onClick={() => setIsDeleteModalOpen(true)} disabled={loading} className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      Supprimer
+                    </Button>
+                  )}
+                </div>
+                <Button type="submit" disabled={loading || nameExists || !name.trim() || (icon.length > 0 && !iconExists) || (isCraftable && !draftRecipe && !item)}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {item ? 'Sauvegarder' : 'Créer l\'objet'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <ActionModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirmer la suppression"
+        description={`Êtes-vous sûr de vouloir supprimer l'objet "${item?.name}" ? Cette action est irréversible.`}
+        actions={[
+          { label: "Confirmer", onClick: handleDelete, variant: "destructive" },
+          { label: "Annuler", onClick: () => setIsDeleteModalOpen(false), variant: "secondary" },
+        ]}
+      />
+      {isRecipeModalOpen && (
+        <RecipeEditorModal
+          isOpen={isRecipeModalOpen}
+          onClose={() => setIsRecipeModalOpen(false)}
+          resultItem={currentItemForRecipeEditor}
+          recipeId={recipeId}
+          onSave={(recipeData) => {
+            setDraftRecipe(recipeData);
+            setIsRecipeModalOpen(false);
+            if (item && recipeData.id) {
+              setRecipeId(recipeData.id as number);
+            }
+          }}
+          isNewItem={!item}
+          initialRecipeData={draftRecipe}
+        />
+      )}
+    </>
   );
 };
 
