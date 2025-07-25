@@ -15,7 +15,8 @@ const DynamicIcon = ({ name, className, fallback: Fallback = Book }: DynamicIcon
 
   const IconComponent = (LucideIcons as any)[name];
 
-  if (!IconComponent) {
+  // A more robust check for a valid React component, especially for forwardRef components like Lucide icons.
+  if (!IconComponent || typeof IconComponent.render !== 'function') {
     return <Fallback className={className} />;
   }
 
