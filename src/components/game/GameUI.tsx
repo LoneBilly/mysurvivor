@@ -342,14 +342,14 @@ const GameUI = () => {
         onDemolish={handleDemolishBuilding}
       />
       <TrapModal
-        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'trap'}
+        isOpen={!!inspectedConstruction && ['trap', 'piège'].includes(inspectedConstruction.type)}
         onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
         onUpdate={refreshPlayerData}
       />
       <CrossbowModal
-        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'crossbow'}
+        isOpen={!!inspectedConstruction && ['crossbow', 'arbalete', 'crossbow_trap'].includes(inspectedConstruction.type)}
         onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, Item } from "@/types/game";
+import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
 import { AlertTriangle, Trash2, ArrowUpCircle, Rabbit, UserX, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
