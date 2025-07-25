@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Building, BuildingLevel } from '@/types/game';
+import { BaseConstruction, BuildingLevel } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -11,7 +11,7 @@ import { formatTime } from '@/utils/format-time';
 import { ResourceList } from './ResourceList';
 
 interface BuildingDetailsProps {
-  building: Building;
+  building: BaseConstruction;
   onClose: () => void;
 }
 
@@ -95,6 +95,9 @@ const BuildingDetails = ({ building, onClose }: BuildingDetailsProps) => {
     return <div className="p-4">Données du bâtiment introuvables.</div>;
   }
 
+  const maxHp = levelData.stats?.health;
+  const currentHp = building.building_state?.hp ?? maxHp;
+
   return (
     <Card className="bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
       <CardHeader>
@@ -103,18 +106,22 @@ const BuildingDetails = ({ building, onClose }: BuildingDetailsProps) => {
             <CardTitle>{levelData.name} - Nv. {building.level}</CardTitle>
             <CardDescription>{levelData.description}</CardDescription>
           </div>
-          {levelData.stats?.health && (
-            <div className="flex items-center gap-2 text-lg font-bold text-red-400 bg-black/20 px-3 py-1 rounded-lg">
-              <Heart className="w-5 h-5" />
-              <span>{levelData.stats.health}</span>
-            </div>
-          )}
           <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-2 right-2">
             <X className="w-5 h-5" />
           </Button>
         </div>
       </CardHeader>
       <CardContent>
+        {maxHp != null && (
+          <div className="mb-4">
+            <h4 className="font-semibold text-slate-400 mb-1">Points de Vie</h4>
+            <div className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-red-400" />
+              <Progress value={(currentHp / maxHp) * 100} className="w-full [&>*]:bg-red-400" />
+              <span className="font-bold text-lg">{currentHp} / {maxHp}</span>
+            </div>
+          </div>
+        )}
         {nextLevelData ? (
           <div className="space-y-4">
             <div>
