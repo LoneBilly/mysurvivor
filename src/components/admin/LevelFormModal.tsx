@@ -20,23 +20,20 @@ const PREDEFINED_STATS = [
   { key: 'storage_slots', label: 'Slots de stockage (Coffre)', type: 'number' },
   { key: 'crafting_speed_modifier_percentage', label: 'Vitesse de fabrication % (Établi, Forge)', type: 'number' },
   { key: 'damage', label: 'Dégâts (Pièges, Tourelles)', type: 'number' },
+  { key: 'health', label: 'Points de vie (Murs, etc.)', type: 'number' },
   { key: 'energy_regen_per_second', label: 'Régénération d\'énergie/sec (Lit)', type: 'number' },
 ];
 
 const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, existingLevels }: LevelFormModalProps) => {
   const [level, setLevel] = useState<Partial<BuildingLevel>>({});
   const [statsList, setStatsList] = useState<{ id: number; key: string; value: any }[]>([]);
-  const [health, setHealth] = useState<number | string>('');
 
   useEffect(() => {
     if (isOpen) {
       if (levelData) {
         setLevel(levelData);
         const initialStats = levelData.stats || {};
-        const { health: initialHealth, ...otherStats } = initialStats as { health?: number, [key: string]: any };
-        setHealth(initialHealth || '');
-        
-        const statsArray = Object.entries(otherStats).map(([key, value], index) => ({
+        const statsArray = Object.entries(initialStats).map(([key, value], index) => ({
           id: index,
           key,
           value,
@@ -46,7 +43,6 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
         const nextLevel = Math.max(0, ...existingLevels.filter(l => l !== levelData?.level)) + 1;
         setLevel({ level: nextLevel, building_type: buildingType });
         setStatsList([]);
-        setHealth('');
       }
     }
   }, [isOpen, levelData, existingLevels, buildingType]);
@@ -98,10 +94,6 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
       return acc;
     }, {} as Record<string, any>);
 
-    if (health !== '' && !isNaN(Number(health))) {
-      finalStats.health = Number(health);
-    }
-
     const finalLevelData = { ...level, stats: finalStats };
     onSave(finalLevelData);
   };
@@ -119,7 +111,6 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
             <Input type="number" value={level.level || ''} onChange={(e) => handleInputChange('level', e.target.value)} required min="1" disabled={levelData?.level === 1} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><Label>Points de vie</Label><Input type="number" value={health} onChange={(e) => setHealth(e.target.value)} placeholder="0" /></div>
             <div><Label>Coût Énergie</Label><Input type="number" value={level.upgrade_cost_energy || ''} onChange={(e) => handleInputChange('upgrade_cost_energy', e.target.value)} placeholder="0" /></div>
             <div><Label>Temps (secondes)</Label><Input type="number" value={level.upgrade_time_seconds || ''} onChange={(e) => handleInputChange('upgrade_time_seconds', e.target.value)} placeholder="0" /></div>
             <div><Label>Coût Bois</Label><Input type="number" value={level.upgrade_cost_wood || ''} onChange={(e) => handleInputChange('upgrade_cost_wood', e.target.value)} placeholder="0" /></div>
@@ -128,7 +119,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
             <div><Label>Coût Métal (lingots)</Label><Input type="number" value={level.upgrade_cost_metal_ingots || ''} onChange={(e) => handleInputChange('upgrade_cost_metal_ingots', e.target.value)} placeholder="0" /></div>
           </div>
           <div>
-            <Label>Statistiques Additionnelles</Label>
+            <Label>Statistiques</Label>
             <div className="space-y-2 rounded-lg border border-slate-700 p-3">
               {statsList.map((stat) => (
                 <div key={stat.id} className="flex items-end gap-2">
