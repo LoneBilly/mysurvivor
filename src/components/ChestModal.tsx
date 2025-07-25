@@ -16,7 +16,7 @@ interface ChestModalProps {
   onClose: () => void;
   construction: BaseConstruction | null;
   onDemolish: (construction: BaseConstruction) => void;
-  onUpdate: () => void;
+  onUpdate: () => Promise<void>;
 }
 
 const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {

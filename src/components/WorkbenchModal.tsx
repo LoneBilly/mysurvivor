@@ -22,7 +22,7 @@ interface WorkbenchModalProps {
   onClose: () => void;
   construction: BaseConstruction | null;
   onDemolish: (construction: BaseConstruction) => void;
-  onUpdate: (silent?: boolean) => void;
+  onUpdate: (silent?: boolean) => Promise<void>;
   onOpenInventory: () => void;
 }
 

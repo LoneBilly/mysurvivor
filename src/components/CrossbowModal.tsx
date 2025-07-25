@@ -12,6 +12,7 @@ interface CrossbowModalProps {
   onClose: () => void;
   construction: BaseConstruction | null;
   onUpdate: (silent?: boolean) => Promise<void>;
+  onDemolish: (construction: BaseConstruction) => void;
 }
 
 const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModalProps) => {

@@ -7,7 +7,7 @@ interface BuildingUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   construction: BaseConstruction | null;
-  onUpdate: (silent?: boolean) => void;
+  onUpdate: (silent?: boolean) => Promise<void>;
   onUpgradeComplete?: () => void;
 }
 

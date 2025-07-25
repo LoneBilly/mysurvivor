@@ -366,7 +366,8 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
           isOpen={isItemFormModalOpen}
           onClose={() => setIsItemFormModalOpen(false)}
           item={editingItem}
-          onSave={onBack}
+          onSave={() => onBack()}
+          allItems={allItems}
         />
       </Card>
       <ActionModal

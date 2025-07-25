@@ -94,11 +94,11 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
         for (const [effectKey, effectValue] of Object.entries(item.items.effects)) {
           if (effectKey.startsWith('bonus_recolte')) {
             const currentMax = maxBoosts[effectKey]?.total || 0;
-            const bonusValue = effectValue as number;
+            const bonusValue = Number(effectValue);
 
-            if (bonusValue > currentMax) {
+            if (!isNaN(bonusValue) && bonusValue > currentMax) {
               maxBoosts[effectKey] = { total: bonusValue, sources: [item.items.name] };
-            } else if (bonusValue === currentMax && bonusValue > 0) {
+            } else if (!isNaN(bonusValue) && bonusValue === currentMax && bonusValue > 0) {
               if (!maxBoosts[effectKey].sources.includes(item.items.name)) {
                 maxBoosts[effectKey].sources.push(item.items.name);
               }
