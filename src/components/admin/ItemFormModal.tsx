@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as LucideIcons from 'lucide-react';
+import { icons } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,13 +28,9 @@ interface ItemFormModalProps {
   item: Partial<Item> | null;
 }
 
-const iconNames = Object.keys(LucideIcons).filter(key => 
-  key !== 'createLucideIcon' && 
-  key !== 'icons' && 
-  key !== 'LucideIcon' &&
-  // Filter out internal or deprecated exports
-  /^[A-Z]/.test(key)
-);
+const toPascalCase = (str: string) => str.replace(/(^\w|-\w)/g, (text) => text.replace(/-/, "").toUpperCase());
+
+const iconNames = Object.keys(icons).map(toPascalCase).sort();
 
 const ItemFormModal: React.FC<ItemFormModalProps> = ({ isOpen, onClose, onSave, item }) => {
   const [name, setName] = useState('');
