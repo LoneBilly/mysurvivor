@@ -203,13 +203,6 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
     validateIcon();
   }, [debouncedName, debouncedIcon, item, isOpen]);
 
-  const handleTypeChange = (newType: string) => {
-    setType(newType);
-    if (newType === 'Blueprint') {
-      setIcon('blueprint.webp');
-    }
-  };
-
   const handleActionTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     if (value.length > 0) {
@@ -428,7 +421,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
               <select
                 id="type"
                 value={type}
-                onChange={(e) => handleTypeChange(e.target.value)}
+                onChange={(e) => setType(e.target.value)}
                 disabled={loading}
                 className="w-full mt-1 bg-white/5 border border-white/20 rounded-lg px-3 h-10 text-white focus:ring-white/30 focus:border-white/30"
               >
@@ -443,7 +436,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
                 <option value="Outils">Outils</option>
                 <option value="Équipements">Équipements</option>
                 <option value="Items divers">Items divers</option>
-                <option value="Blueprint">Blueprint</option>
+                <option value="Items craftés">Items craftés</option>
               </select>
             </div>
             
