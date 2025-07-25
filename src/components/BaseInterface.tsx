@@ -79,6 +79,25 @@ const getActionZonePosition = (x: number, y: number, rotation: number) => {
   return { x, y };
 };
 
+const formatBurnTime = (totalSeconds: number): string => {
+  if (totalSeconds <= 0) return "Éteint";
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (days > 0) {
+    return `${days}j ${String(hours).padStart(2, '0')}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h${String(minutes).padStart(2, '0')}`;
+  }
+  if (minutes > 0) {
+    const seconds = Math.floor(totalSeconds % 60);
+    return `${minutes}m${String(seconds).padStart(2, '0')}`;
+  }
+  return `${Math.floor(totalSeconds)}s`;
+};
+
 const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items, addConstructionJob } = useGame();
@@ -95,6 +114,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [campfireModalState, setCampfireModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
+  const [cookingProgress, setCookingProgress] = useState<number | null>(null);
   
   const isRefreshingData = useRef(false);
 
@@ -175,6 +195,25 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     return () => clearInterval(interval);
   }, [playerData?.craftingJobs]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+        const campfire = liveConstructions.find(c => c.type === 'campfire');
+        if (campfire && campfire.cooking_slot?.status === 'cooking') {
+            const start = new Date(campfire.cooking_slot.started_at).getTime();
+            const end = new Date(campfire.cooking_slot.ends_at).getTime();
+            const now = Date.now();
+            const duration = end - start;
+            if (duration > 0) {
+                const progress = Math.min(100, ((now - start) / duration) * 100);
+                setCookingProgress(progress);
+            }
+        } else {
+            setCookingProgress(null);
+        }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [liveConstructions]);
 
   const isDraggingRef = useRef(false);
   const panState = useRef<{
@@ -587,13 +626,18 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const construction = liveConstructions.find(c => c.x === cell.x && c.y === cell.y);
     
     if (cell.type === 'campfire' && construction) {
-        const progress = (construction.burn_time_remaining_seconds / MAX_BURN_TIME_SECONDS) * 100;
         const Icon = buildingIcons.campfire;
         const isCooked = construction.cooking_slot?.status === 'cooked';
+
         return (
             <>
+                {construction.burn_time_remaining_seconds > 0 && (
+                    <div className="absolute top-0.5 text-xs font-mono text-orange-300 bg-black/50 px-1 rounded">
+                        {formatBurnTime(construction.burn_time_remaining_seconds)}
+                    </div>
+                )}
                 <Icon className={cn("w-8 h-8", isCooked ? "text-green-400" : "text-orange-400")} />
-                {construction.burn_time_remaining_seconds > 0 && <CampfireProgressBar progress={progress} />}
+                {cookingProgress !== null && <CampfireProgressBar progress={cookingProgress} />}
             </>
         );
     }
