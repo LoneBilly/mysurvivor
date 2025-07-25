@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { BaseConstruction, InventoryItem } from "@/types/game";
+import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
 import { Target, Loader2, ArrowDownUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,7 +16,7 @@ interface CrossbowModalProps {
 
 const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModalProps) => {
   const { getIconUrl, playerData, items } = useGame();
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<'load' | 'unload' | null>(null);
   const [arrowItemId, setArrowItemId] = useState<number | null>(null);
   const [arrowItemIcon, setArrowItemIcon] = useState<string | null>(null);
 
@@ -33,13 +33,19 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     return playerData.inventory.filter(i => i.item_id === arrowItemId && i.slot_position !== null);
   }, [playerData.inventory, arrowItemId]);
 
+  const totalInventoryArrows = useMemo(() => {
+    return availableArrows.reduce((sum, item) => sum + item.quantity, 0);
+  }, [availableArrows]);
+
   const arrowCount = useMemo(() => {
     return construction?.building_state?.arrow_quantity || 0;
   }, [construction]);
 
-  const handleLoadArrow = async (inventoryItem: InventoryItem) => {
-    if (!construction || arrowCount >= 1) return;
-    setLoading(true);
+  const handleLoadArrow = async () => {
+    if (loadingAction || !construction || arrowCount >= 1 || availableArrows.length === 0) return;
+    
+    const inventoryItem = availableArrows[0];
+    setLoadingAction('load');
     
     const { error: loadError } = await supabase.rpc('load_crossbow', {
       p_construction_id: construction.id,
@@ -48,13 +54,13 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     });
 
     if (loadError) {
-      setLoading(false);
+      setLoadingAction(null);
       showError(loadError.message);
       return;
     }
 
     const { error: armError } = await supabase.rpc('arm_crossbow', { p_construction_id: construction.id });
-    setLoading(false);
+    setLoadingAction(null);
 
     if (armError) {
       showError(`Flèche chargée, mais l'armement a échoué: ${armError.message}`);
@@ -66,13 +72,13 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
   };
 
   const handleUnloadArrow = async () => {
-    if (!construction || arrowCount === 0) return;
-    setLoading(true);
+    if (loadingAction || !construction || arrowCount === 0) return;
+    setLoadingAction('unload');
     const { error } = await supabase.rpc('unload_crossbow', {
       p_construction_id: construction.id,
       p_quantity: 1,
     });
-    setLoading(false);
+    setLoadingAction(null);
     if (error) {
       showError(error.message);
     } else {
@@ -89,7 +95,7 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
         <DialogHeader className="text-center">
           <Target className="w-10 h-10 mx-auto text-blue-400 mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Arbalète</DialogTitle>
-          <DialogDescription>Cliquez sur un stock pour le transférer.</DialogDescription>
+          <DialogDescription>Cliquez sur un stock pour transférer une flèche.</DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
@@ -98,10 +104,10 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
               <h3 className="font-semibold text-gray-300 text-center text-sm">Dans l'arbalète</h3>
               <button 
                 onClick={handleUnloadArrow}
-                disabled={arrowCount === 0 || loading}
+                disabled={loadingAction !== null || arrowCount === 0}
                 className="relative w-24 h-24 mx-auto bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : arrowCount > 0 && arrowItemIcon ? (
+                {loadingAction === 'unload' ? <Loader2 className="w-6 h-6 animate-spin" /> : arrowCount > 0 && arrowItemIcon ? (
                   <>
                     <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
                     <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{arrowCount}</span>
@@ -118,25 +124,21 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
 
             <div className="w-full space-y-2">
               <h3 className="font-semibold text-gray-300 text-center text-sm">Dans l'inventaire</h3>
-              <div className="grid grid-cols-4 gap-2 w-full max-w-xs mx-auto min-h-[6.5rem] content-start p-2 bg-black/20 rounded-lg">
-                {availableArrows.map(item => (
-                  <button 
-                    key={item.id} 
-                    onClick={() => handleLoadArrow(item)} 
-                    disabled={loading || arrowCount >= 1}
-                    className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={arrowCount >= 1 ? "Arbalète déjà chargée" : item.items?.name}
-                  >
-                    <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
-                    <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
-                  </button>
-                ))}
-                {availableArrows.length === 0 && (
-                  <div className="col-span-full text-center text-xs text-gray-400 flex items-center justify-center h-full">
-                    <p>Aucune flèche.</p>
-                  </div>
+              <button 
+                onClick={handleLoadArrow}
+                disabled={loadingAction !== null || arrowCount >= 1 || totalInventoryArrows === 0}
+                className="relative w-24 h-24 mx-auto bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={arrowCount >= 1 ? "Arbalète déjà chargée" : totalInventoryArrows === 0 ? "Aucune flèche" : "Charger une flèche"}
+              >
+                {loadingAction === 'load' ? <Loader2 className="w-6 h-6 animate-spin" /> : totalInventoryArrows > 0 && arrowItemIcon ? (
+                  <>
+                    <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
+                    <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{totalInventoryArrows}</span>
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-500">Aucune</span>
                 )}
-              </div>
+              </button>
             </div>
           </div>
         </div>
