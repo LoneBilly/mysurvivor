@@ -66,7 +66,7 @@ const WallModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Wall
     );
   }, [construction, buildingLevels]);
 
-  const maxHp = currentLevelInfo?.stats?.max_hp || 100;
+  const maxHp = currentLevelInfo?.stats?.max_hp || 0;
   const currentHp = construction?.building_state?.hp ?? maxHp;
   const damage = maxHp - currentHp;
   const damagePercentage = maxHp > 0 ? damage / maxHp : 0;
@@ -128,14 +128,16 @@ const WallModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Wall
             <DialogDescription>Protège votre base des intrus.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            <div className="text-center mb-4 p-3 bg-black/20 rounded-lg">
-              <p className="text-sm text-gray-400">Points de vie</p>
-              <p className="text-2xl font-bold font-mono text-red-400 flex items-center justify-center gap-2">
-                <Heart className="w-5 h-5" />
-                {currentHp} / {maxHp}
-              </p>
-              <Progress value={(currentHp / maxHp) * 100} className="mt-2 h-3" indicatorClassName="bg-red-500" />
-            </div>
+            {maxHp > 0 && (
+              <div className="text-center mb-4 p-3 bg-black/20 rounded-lg">
+                <p className="text-sm text-gray-400">Points de vie</p>
+                <p className="text-2xl font-bold font-mono text-red-400 flex items-center justify-center gap-2">
+                  <Heart className="w-5 h-5" />
+                  {currentHp} / {maxHp}
+                </p>
+                <Progress value={(currentHp / maxHp) * 100} className="mt-2 h-3" indicatorClassName="bg-red-500" />
+              </div>
+            )}
             {damage > 0 && (
               <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
                 <h4 className="font-semibold text-center">Réparer le mur</h4>
