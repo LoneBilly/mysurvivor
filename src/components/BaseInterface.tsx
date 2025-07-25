@@ -34,8 +34,9 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   wall: BrickWall,
   turret: TowerControl,
   generator: Zap,
-  trap: AlertTriangle,
-  crossbow: TowerControl,
+  piège: AlertTriangle,
+  arbalete: TowerControl,
+  crossbow_trap: TowerControl,
   workbench: Hammer,
   furnace: CookingPot,
   foundation: Plus,
@@ -441,7 +442,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             return;
         } else if (constructionData) {
             if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
-            else if (['workbench', 'lit', 'trap', 'crossbow'].includes(constructionData.type)) onInspectWorkbench(constructionData);
+            else if (['workbench', 'lit', 'piège', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
             else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
             else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         } else {
@@ -454,7 +455,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         if (constructionData.type === 'foundation') setFoundationMenu({ isOpen: true, x, y });
         else if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
         else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
-        else if (['workbench', 'lit', 'trap', 'crossbow'].includes(constructionData.type)) onInspectWorkbench(constructionData);
+        else if (['workbench', 'lit', 'piège', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
         else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         return;
     }
@@ -548,12 +549,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
       case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'trap': {
+      case 'piège': {
         const hasLoot = construction && construction.output_item_id;
         if (hasLoot) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
         return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
       }
-      case 'crossbow': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'crossbow_trap': {
+        const hasLoot = construction && construction.output_item_id;
+        if (hasLoot) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
+        return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      }
+      case 'arbalete': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
@@ -644,7 +650,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
           </div>
         );
       }
-      if (cell.type === 'crossbow' && construction) {
+      if (cell.type === 'arbalete' && construction) {
         return <Icon className="w-8 h-8 text-gray-300 transition-transform" style={{ transform: `rotate(${construction.rotation * 90}deg)` }} />;
       }
       return <Icon className="w-6 h-6 text-gray-300" />;
@@ -685,7 +691,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
           }}
         >
-          {liveConstructions.filter(c => c.type === 'crossbow').map(construction => {
+          {liveConstructions.filter(c => c.type === 'arbalete').map(construction => {
             const { x, y, rotation } = construction;
             const actionZonePos = getActionZonePosition(x, y, rotation);
             return (
