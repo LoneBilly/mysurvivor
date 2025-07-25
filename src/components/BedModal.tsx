@@ -109,6 +109,13 @@ const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) 
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 text-center space-y-4">
+            <div className="text-center mb-4 p-3 bg-black/20 rounded-lg">
+              <p className="text-sm text-gray-400">Énergie actuelle</p>
+              <p className="text-2xl font-bold font-mono text-yellow-300 flex items-center justify-center gap-2">
+                <Zap className="w-5 h-5" />
+                {playerData.playerState.energie} / 100
+              </p>
+            </div>
             <p>Reposez-vous pour regagner de l'énergie.</p>
             <Button onClick={handleSleep} disabled={playerData.playerState.energie >= 100} className="w-full">
               {playerData.playerState.energie >= 100 ? "Énergie au maximum" : "Dormir"}

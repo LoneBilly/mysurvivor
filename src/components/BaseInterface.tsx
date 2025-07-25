@@ -736,6 +736,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
           </>
         );
       }
+      if (cell.type === 'lit') {
+        return (
+          <>
+            <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <Zap className="w-3 h-3 text-yellow-400" />
+              {playerData.playerState.energie}/100
+            </div>
+            <Icon className="w-8 h-8 text-purple-400" />
+          </>
+        );
+      }
       return <Icon className="w-6 h-6 text-gray-300" />;
     }
 
