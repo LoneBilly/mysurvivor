@@ -439,7 +439,7 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-3xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
           <DialogHeader className="text-center">
-            <Box className="w-10 h-10 mx-auto text-blue-400 mb-2" />
+            <Box className="w-8 h-8 text-white mx-auto mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
               Coffre - Niveau {currentConstruction.level}
             </DialogTitle>

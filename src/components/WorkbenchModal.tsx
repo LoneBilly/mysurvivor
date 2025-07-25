@@ -148,26 +148,22 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-sm bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <Hammer className="w-7 h-7 text-white" />
-              <div>
-                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
-                  Établi - Niveau {construction.level}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 flex items-center gap-4">
-                  {craftingSpeedModifier > 0 && (
-                    <span>Vitesse: +{craftingSpeedModifier}%</span>
-                  )}
-                  {maxHp > 0 && (
-                    <span className="inline-flex items-center gap-1">
-                      <Heart className="w-4 h-4 text-red-400" />
-                      <span>{currentHp} / {maxHp}</span>
-                    </span>
-                  )}
-                </DialogDescription>
-              </div>
-            </div>
+          <DialogHeader className="text-center">
+            <Hammer className="w-8 h-8 text-white mx-auto mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+              Établi - Niveau {construction.level}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 flex items-center justify-center gap-4">
+              {craftingSpeedModifier > 0 && (
+                <span>Vitesse: +{craftingSpeedModifier}%</span>
+              )}
+              {maxHp > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <Heart className="w-4 h-4 text-red-400" />
+                  <span>{currentHp} / {maxHp}</span>
+                </span>
+              )}
+            </DialogDescription>
           </DialogHeader>
           
           <div className="w-full max-w-sm mx-auto">
