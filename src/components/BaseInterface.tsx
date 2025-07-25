@@ -408,6 +408,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
     const cell = gridData[y][x];
     const buildingsThatOpenModals = ['chest', 'workbench', 'furnace', 'lit', 'campfire', 'piège', 'trap', 'arbalete', 'crossbow_trap'];
+    const otherInteractiveBuildings = ['trap', 'piège', 'arbalete', 'crossbow_trap', 'workbench', 'furnace', 'lit'];
 
     if (isJobRunning) {
         if (cell.type === 'in_progress') {
@@ -438,7 +439,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             if (constructionData) {
                 if (cell.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
                 else if (cell.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
-                else onInspectWorkbench(constructionData);
+                else if (otherInteractiveBuildings.includes(cell.type)) onInspectWorkbench(constructionData);
             }
         } else {
             showInfo("Une construction est déjà en cours.");
@@ -456,7 +457,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         if (constructionData) {
             if (cell.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
             else if (cell.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
-            else onInspectWorkbench(constructionData);
+            else if (otherInteractiveBuildings.includes(cell.type)) onInspectWorkbench(constructionData);
         }
         return;
     }
