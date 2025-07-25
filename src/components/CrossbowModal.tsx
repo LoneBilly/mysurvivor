@@ -40,6 +40,10 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     return playerData.inventory.filter(i => i.item_id === arrowItemId && i.slot_position !== null);
   }, [playerData.inventory, arrowItemId]);
 
+  const totalInventoryArrows = useMemo(() => {
+    return availableArrows.reduce((sum, item) => sum + item.quantity, 0);
+  }, [availableArrows]);
+
   const arrowCount = useMemo(() => {
     return construction?.building_state?.arrow_quantity || 0;
   }, [construction]);
@@ -53,6 +57,13 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
   useEffect(() => {
     setQuantity(1);
   }, [actionState]);
+
+  const handleStartLoading = () => {
+    if (availableArrows.length === 0) return;
+    // Find the largest stack to offer the most flexibility for quantity.
+    const largestStack = [...availableArrows].sort((a, b) => b.quantity - a.quantity)[0];
+    setActionState({ type: 'load', stack: largestStack });
+  };
 
   const handleConfirmAction = async () => {
     if (!actionState || !construction) return;
@@ -105,7 +116,7 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     const isLoad = actionState.type === 'load';
     const maxQuantity = isLoad ? actionState.stack.quantity : arrowCount;
     const item = isLoad ? actionState.stack.items : { name: 'Flèche', icon: arrowItemIcon };
-    const stockLabel = isLoad ? `En stock: ${actionState.stack.quantity}` : `Dans l'arbalète: ${arrowCount}`;
+    const stockLabel = isLoad ? `Du stock de ${actionState.stack.quantity}` : `Dans l'arbalète: ${arrowCount}`;
 
     return (
       <div className="space-y-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
@@ -143,7 +154,7 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
         <DialogHeader className="text-center">
           <Target className="w-10 h-10 mx-auto text-blue-400 mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Arbalète</DialogTitle>
-          <DialogDescription>Transférez les flèches entre l'arbalète et votre inventaire.</DialogDescription>
+          <DialogDescription>Cliquez sur un stock pour le transférer.</DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
@@ -173,25 +184,20 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
 
               <div className="w-full space-y-2">
                 <h3 className="font-semibold text-gray-300 text-center text-sm">Dans l'inventaire</h3>
-                <div className="grid grid-cols-4 gap-2 w-full max-w-xs mx-auto min-h-[6.5rem] content-start p-2 bg-black/20 rounded-lg">
-                  {availableArrows.map(item => (
-                    <button 
-                      key={item.id} 
-                      onClick={() => setActionState({ type: 'load', stack: item })} 
-                      disabled={loading}
-                      className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
-                      title={item.items?.name}
-                    >
-                      <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
-                      <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
-                    </button>
-                  ))}
-                  {availableArrows.length === 0 && (
-                    <div className="col-span-full text-center text-xs text-gray-400 flex items-center justify-center h-full">
-                      <p>Aucune flèche.</p>
-                    </div>
+                <button
+                  onClick={handleStartLoading}
+                  disabled={totalInventoryArrows === 0 || loading}
+                  className="relative w-24 h-24 mx-auto bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {totalInventoryArrows > 0 && arrowItemIcon ? (
+                    <>
+                      <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
+                      <span className="absolute bottom-1 right-1.5 text-lg font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{totalInventoryArrows}</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-gray-500">Aucune</span>
                   )}
-                </div>
+                </button>
               </div>
             </div>
           )}
