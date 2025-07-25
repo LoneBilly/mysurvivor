@@ -438,24 +438,20 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-3xl w-full h-[80vh] bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700 shadow-2xl rounded-2xl p-4 sm:p-6 flex flex-col">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <Box className="w-7 h-7 text-white" />
-              <div>
-                <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
-                  Coffre - Niveau {currentConstruction.level}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 space-x-4">
-                  <span>{chestSlots} slots de stockage</span>
-                  {maxHp > 0 && (
-                    <span className="inline-flex items-center gap-1">
-                      <Heart className="w-4 h-4 text-red-400" />
-                      <span>{currentHp} / {maxHp}</span>
-                    </span>
-                  )}
-                </DialogDescription>
-              </div>
-            </div>
+          <DialogHeader className="text-center">
+            <Box className="w-10 h-10 mx-auto text-blue-400 mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
+              Coffre - Niveau {currentConstruction.level}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 flex items-center justify-center gap-x-4">
+              <span>{chestSlots} slots de stockage</span>
+              {maxHp > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <Heart className="w-4 h-4 text-red-400" />
+                  <span>{currentHp} / {maxHp}</span>
+                </span>
+              )}
+            </DialogDescription>
           </DialogHeader>
           <div className="relative flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-0">
             {renderGrid("Contenu du coffre", chestItems, chestSlots, 'chest')}
