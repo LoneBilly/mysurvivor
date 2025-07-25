@@ -123,7 +123,13 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                     </div>
                     <div>
                       <p className="font-semibold text-gray-400">Stats:</p>
-                      <pre className="text-xs bg-black/20 p-2 rounded-md max-w-full overflow-x-auto"><code>{JSON.stringify(level.stats, null, 2)}</code></pre>
+                      <div className="pl-2 text-gray-300">
+                        <p><span className="font-semibold">Points de Vie:</span> {level.stats?.health ?? 'N/A'}</p>
+                      </div>
+                      <details className="text-xs mt-2">
+                        <summary className="cursor-pointer text-gray-400">Voir JSON complet</summary>
+                        <pre className="text-xs bg-black/20 p-2 rounded-md max-w-full overflow-x-auto mt-1"><code>{JSON.stringify(level.stats, null, 2)}</code></pre>
+                      </details>
                     </div>
                   </div>
                 </div>
@@ -136,7 +142,7 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                   <TableHead>Niveau</TableHead>
                   <TableHead>Coûts</TableHead>
                   <TableHead>Temps</TableHead>
-                  <TableHead>Stats (JSON)</TableHead>
+                  <TableHead>Stats</TableHead>
                   <TableHead className="w-[120px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -152,7 +158,13 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                       <p>Métal: {level.upgrade_cost_metal_ingots}</p>
                     </TableCell>
                     <TableCell>{level.upgrade_time_seconds}s</TableCell>
-                    <TableCell><pre className="text-xs bg-black/20 p-2 rounded-md max-w-xs overflow-x-auto"><code>{JSON.stringify(level.stats, null, 2)}</code></pre></TableCell>
+                    <TableCell>
+                      <p><span className="font-semibold">PV:</span> {level.stats?.health ?? 'N/A'}</p>
+                      <details className="text-xs mt-1">
+                        <summary className="cursor-pointer text-gray-400">Voir JSON</summary>
+                        <pre className="bg-black/20 p-2 rounded-md max-w-xs overflow-x-auto mt-1"><code>{JSON.stringify(level.stats, null, 2)}</code></pre>
+                      </details>
+                    </TableCell>
                     <TableCell className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => handleEditLevel(level)}><Edit className="w-4 h-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => handleDeleteLevel(level.id!)} disabled={level.level === 1}>
