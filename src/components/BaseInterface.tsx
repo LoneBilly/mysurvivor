@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble, Flame, RotateCw } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble, Flame, RotateCw, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -482,7 +482,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             return;
         } else if (constructionData) {
             if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
-            else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
+            else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap', 'wall'].includes(constructionData.type)) onInspectWorkbench(constructionData);
             else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
             else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         } else {
@@ -495,7 +495,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         if (constructionData.type === 'foundation') setFoundationMenu({ isOpen: true, x, y });
         else if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
         else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
-        else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
+        else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap', 'wall'].includes(constructionData.type)) onInspectWorkbench(constructionData);
         else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         return;
     }
@@ -686,6 +686,29 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       if (hasOutput) {
         return <Icon className="w-8 h-8 text-green-400" />;
       }
+    }
+
+    if (cell.type === 'wall' && construction) {
+        const Icon = buildingIcons.wall;
+        
+        const levelDef = buildingLevels.find(
+            level => level.building_type === 'wall' && level.level === construction.level
+        );
+        
+        const maxHp = levelDef?.stats?.max_hp || 0;
+        const currentHp = construction.building_state?.hp ?? maxHp;
+
+        return (
+            <>
+                {maxHp > 0 && (
+                    <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Heart size={12} className="text-red-400" />
+                        {currentHp}/{maxHp}
+                    </div>
+                )}
+                <Icon className="w-8 h-8 text-orange-500" />
+            </>
+        );
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
