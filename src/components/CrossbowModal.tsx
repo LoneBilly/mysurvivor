@@ -45,10 +45,6 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     return construction?.building_state?.arrow_quantity || 0;
   }, [construction]);
 
-  const isArmed = useMemo(() => {
-    return construction?.building_state?.is_armed || false;
-  }, [construction]);
-
   useEffect(() => {
     if (!isOpen) {
       setView('main');
@@ -66,19 +62,32 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
   const handleLoadArrows = async () => {
     if (!construction || !selectedArrowStack) return;
     setLoading(true);
-    const { error } = await supabase.rpc('load_crossbow', {
+    
+    const { error: loadError } = await supabase.rpc('load_crossbow', {
       p_construction_id: construction.id,
       p_inventory_id: selectedArrowStack.id,
       p_quantity: quantity,
     });
-    setLoading(false);
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess(`${quantity} flèche(s) chargée(s).`);
-      await onUpdate(true);
-      setView('main');
+
+    if (loadError) {
+      setLoading(false);
+      showError(loadError.message);
+      return;
     }
+
+    // Automatically arm the crossbow after loading arrows
+    const { error: armError } = await supabase.rpc('arm_crossbow', { p_construction_id: construction.id });
+
+    setLoading(false);
+
+    if (armError) {
+      showError(`Les flèches ont été chargées, mais l'armement automatique a échoué: ${armError.message}`);
+    } else {
+      showSuccess(`${quantity} flèche(s) chargée(s). L'arbalète est maintenant armée.`);
+    }
+    
+    await onUpdate(true);
+    setView('main');
   };
 
   const handleUnloadArrows = async () => {
@@ -98,19 +107,6 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     }
   };
 
-  const handleArm = async () => {
-    if (!construction) return;
-    setLoading(true);
-    const { error } = await supabase.rpc('arm_crossbow', { p_construction_id: construction.id });
-    setLoading(false);
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess('Arbalète armée.');
-      await onUpdate(true);
-    }
-  };
-
   const handleSelectStackToLoad = (item: InventoryItem) => {
     setSelectedArrowStack(item);
     setQuantity(1);
@@ -125,52 +121,44 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
   };
 
   const renderMainView = () => (
-    <div className="py-4 space-y-4 flex flex-col">
-      <div className="space-y-2">
-        <h3 className="font-semibold text-gray-300 text-center">Flèches dans l'arbalète</h3>
-        <div className="flex justify-center">
-          <button 
-            onClick={handleSelectToUnload}
-            disabled={arrowCount === 0}
-            className="relative w-20 h-20 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {arrowCount > 0 && arrowItemIcon && (
-              <>
-                <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
-                <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{arrowCount}</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+    <div className="py-4 space-y-4 flex flex-col items-center">
+      <button 
+        onClick={handleSelectToUnload}
+        disabled={arrowCount === 0}
+        className="relative w-20 h-20 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {arrowCount > 0 && arrowItemIcon ? (
+          <>
+            <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
+            <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{arrowCount}</span>
+          </>
+        ) : (
+          <div className="w-full h-full" />
+        )}
+      </button>
 
       <div className="flex justify-center items-center text-gray-500 py-2">
         <ArrowDownUp className="w-6 h-6" />
       </div>
 
-      <div className="space-y-2">
-        <h3 className="font-semibold text-gray-300 text-center">Flèches dans l'inventaire</h3>
-        <div className="grid grid-cols-4 gap-2 min-h-[88px]">
-          {availableArrows.map(item => (
-            <button 
-              key={item.id} 
-              onClick={() => handleSelectStackToLoad(item)} 
-              disabled={loading}
-              className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
-              title={item.items?.name}
-            >
-              <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
-              <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
-            </button>
-          ))}
-          {availableArrows.length === 0 && <p className="col-span-4 text-center text-xs text-gray-400 py-6">Aucune flèche.</p>}
-        </div>
-      </div>
-
-      <div className="pt-4">
-        <Button onClick={handleArm} disabled={loading || isArmed || arrowCount === 0} className="w-full">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isArmed ? 'Déjà armée' : 'Armer l\'arbalète'}
-        </Button>
+      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 w-full max-w-xs min-h-[88px] content-start">
+        {availableArrows.map(item => (
+          <button 
+            key={item.id} 
+            onClick={() => handleSelectStackToLoad(item)} 
+            disabled={loading}
+            className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
+            title={item.items?.name}
+          >
+            <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
+            <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
+          </button>
+        ))}
+        {availableArrows.length === 0 && (
+          <div className="col-span-full text-center text-xs text-gray-400 flex items-center justify-center h-full min-h-[88px]">
+            <p>Aucune flèche dans l'inventaire.</p>
+          </div>
+        )}
       </div>
     </div>
   );
