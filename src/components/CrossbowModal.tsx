@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { TowerControl, Trash2, ArrowUpCircle, RotateCw, Plus, ShieldCheck, Loader2 } from 'lucide-react';
+import { TowerControl, Trash2, ArrowUpCircle, Plus, ShieldCheck, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import BuildingUpgradeModal from './BuildingUpgradeModal';
@@ -53,19 +53,6 @@ const CrossbowModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: 
       setAmmoQuantity(1);
     }
   }, [selectedAmmo]);
-
-  const handleRotate = async () => {
-    if (!construction) return;
-    setLoading(true);
-    const newRotation = (construction.rotation + 1) % 4;
-    const { error } = await supabase.rpc('rotate_building', { p_construction_id: construction.id, p_direction: newRotation });
-    if (error) {
-      showError("Erreur de rotation.");
-    } else {
-      await onUpdate(true);
-    }
-    setLoading(false);
-  };
 
   const handleLoadAmmo = async () => {
     if (!construction || !selectedAmmo) return;
@@ -174,9 +161,6 @@ const CrossbowModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: 
             )}
           </div>
           <DialogFooter className="flex-col sm:flex-row sm:space-x-2 gap-2">
-            <Button onClick={handleRotate} disabled={loading} className="flex-1">
-              <RotateCw className="w-4 h-4 mr-2" /> Pivoter
-            </Button>
             {hasNextLevel ? (
               <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
                 <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer

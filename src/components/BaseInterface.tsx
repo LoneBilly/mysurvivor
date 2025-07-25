@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble, Flame } from "lucide-react";
+import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble, Flame, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -409,6 +409,30 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     panState.current = null;
   };
 
+  const handleRotate = async (e: React.MouseEvent, construction: BaseConstruction) => {
+    e.stopPropagation();
+    if (!construction) return;
+
+    const originalConstructions = [...playerData.baseConstructions];
+    const newRotation = (construction.rotation + 1) % 4;
+
+    setPlayerData(prev => {
+      const updatedConstructions = prev.baseConstructions.map(c => 
+        c.id === construction.id ? { ...c, rotation: newRotation } : c
+      );
+      return { ...prev, baseConstructions: updatedConstructions };
+    });
+
+    const { error } = await supabase.rpc('rotate_building', { p_construction_id: construction.id, p_direction: newRotation });
+    
+    if (error) {
+      showError("Erreur de rotation.");
+      setPlayerData(prev => ({ ...prev, baseConstructions: originalConstructions }));
+    } else {
+      refreshPlayerData(true);
+    }
+  };
+
   const handleCellClick = async (x: number, y: number) => {
     if (isDraggingRef.current) {
         return;
@@ -560,7 +584,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'crossbow':
       case 'arbalete':
       case 'crossbow_trap':
-        return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
+        return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer group";
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
@@ -652,7 +676,17 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         );
       }
       if (['crossbow', 'arbalete', 'crossbow_trap'].includes(cell.type) && construction) {
-        return <Icon className="w-8 h-8 text-gray-300 transition-transform" style={{ transform: `rotate(${construction.rotation * 90}deg)` }} />;
+        return (
+          <>
+            <Icon className="w-8 h-8 text-gray-300 transition-transform" style={{ transform: `rotate(${construction.rotation * 90}deg)` }} />
+            <button
+              onClick={(e) => handleRotate(e, construction)}
+              className="absolute top-0 right-0 p-1 bg-slate-700/50 rounded-bl-lg rounded-tr-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            >
+              <RotateCw className="w-4 h-4 text-white" />
+            </button>
+          </>
+        );
       }
       return <Icon className="w-6 h-6 text-gray-300" />;
     }

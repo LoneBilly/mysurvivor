@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { AlertTriangle, Trash2, ArrowUpCircle, Rabbit, UserX, Loader2 } from 'lucide-react';
+import { AlertTriangle, Trash2, ArrowUpCircle, UserX, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import BuildingUpgradeModal from './BuildingUpgradeModal';
@@ -68,13 +68,13 @@ const TrapModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Trap
     if (lootItem) {
       return (
         <div className="text-center space-y-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-          <Rabbit className="w-12 h-12 mx-auto text-green-400" />
           <h3 className="text-lg font-bold">Un animal a été attrapé !</h3>
-          <div className="flex items-center justify-center gap-2">
-            <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
+          <div className="bg-slate-900/50 border border-slate-700 rounded-md p-4 flex flex-col items-center gap-2 w-40 mx-auto">
+            <div className="w-16 h-16 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
               <ItemIcon iconName={getIconUrl(lootItem.icon)} alt={lootItem.name} />
             </div>
-            <p>Vous avez obtenu: {lootItem.name} x1</p>
+            <p className="text-sm font-semibold truncate w-full text-center">{lootItem.name}</p>
+            <p className="text-xs text-gray-400">Quantité: {construction.output_quantity || 1}</p>
           </div>
           <Button onClick={handleClaimLoot} disabled={loading} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Récupérer le butin"}
