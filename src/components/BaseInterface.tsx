@@ -636,7 +636,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const maxHp = levelDef?.stats?.health || 0;
     const currentHp = construction?.building_state?.hp ?? maxHp;
 
-    const hpDisplay = maxHp > 0 && (
+    const hpDisplay = maxHp > 0 && cell.type === 'wall' && (
       <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
         <Heart size={12} className="text-red-400" />
         {currentHp}/{maxHp}
