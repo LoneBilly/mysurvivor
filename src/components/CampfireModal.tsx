@@ -54,40 +54,25 @@ const formatDuration = (totalSeconds: number) => {
   return `${String(seconds).padStart(2, '0')}s`;
 };
 
-const CookingProgress = ({ cookingSlot, onComplete, allItems }: { cookingSlot: NonNullable<BaseConstruction['cooking_slot']>, onComplete: () => void, allItems: Item[] | null }) => {
+const CookingProgress = ({ cookingSlot, allItems }: { cookingSlot: NonNullable<BaseConstruction['cooking_slot']>, allItems: Item[] | null }) => {
   const { getIconUrl } = useGame();
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-  const completionFired = useRef(false);
-
-  useEffect(() => {
-    completionFired.current = false;
-  }, [cookingSlot.status, cookingSlot.ends_at]);
 
   useEffect(() => {
     const calculateState = () => {
       const now = Date.now();
       const end = new Date(cookingSlot.ends_at).getTime();
-      const newRemaining = Math.max(0, Math.floor((end - now) / 1000));
+      const newRemaining = Math.max(0, Math.ceil((end - now) / 1000));
       setRemainingSeconds(newRemaining);
 
       if (newRemaining <= 0) {
         if (cookingSlot.status === 'cooking') {
           setProgress(100);
           setStatusText('Finalisation...');
-          if (!completionFired.current) {
-            completionFired.current = true;
-            onCompleteRef.current();
-          }
         } else if (cookingSlot.status === 'cooked') {
           setProgress(0);
-          if (!completionFired.current) {
-            completionFired.current = true;
-            onCompleteRef.current();
-          }
         }
         return;
       }
@@ -164,6 +149,19 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
 
   const liveBurnTime = useAccurateCountdown(currentConstruction?.burn_time_remaining_seconds ?? 0);
   const cookingSlot = currentConstruction?.cooking_slot;
+
+  useEffect(() => {
+    if (cookingSlot?.status === 'cooking' && cookingSlot.ends_at) {
+      const endTime = new Date(cookingSlot.ends_at).getTime();
+      const delay = endTime - Date.now();
+      if (delay > 0) {
+        const timerId = setTimeout(() => {
+          onUpdate(true);
+        }, delay + 200); // 200ms buffer for server-side update
+        return () => clearTimeout(timerId);
+      }
+    }
+  }, [cookingSlot?.status, cookingSlot?.ends_at, onUpdate]);
 
   const availableFuels = useMemo(() => {
     const fuelItemIds = new Set(fuels.map(f => f.item_id));
@@ -333,7 +331,7 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
                   </div>
                 ) : cookingSlot ? (
                   <div className="space-y-2">
-                    <CookingProgress cookingSlot={cookingSlot} onComplete={() => onUpdate(true)} allItems={allItems} />
+                    <CookingProgress cookingSlot={cookingSlot} allItems={allItems} />
                     <div className="pt-2">
                       {cookingSlot.status === 'cooked' && <Button onClick={handleCollect} disabled={loading} className="w-full">Récupérer</Button>}
                       {cookingSlot.status === 'burnt' && <Button onClick={handleClearBurnt} disabled={loading} variant="destructive" className="w-full">Nettoyer</Button>}
