@@ -15,7 +15,6 @@ import CraftingProgressBar from "./CraftingProgressBar";
 import CampfireModal from "./CampfireModal";
 import CampfireProgressBar from "./CampfireProgressBar";
 import WallModal from "./WallModal";
-import BuildingInspectModal from "./BuildingInspectModal";
 
 interface BaseCell {
   x: number;
@@ -114,7 +113,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [campfireModalState, setCampfireModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [wallModalState, setWallModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [inspectModalState, setInspectModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
   const [cookingProgress, setCookingProgress] = useState<number | null>(null);
@@ -487,7 +485,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         } else if (constructionData) {
             if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
             else if (constructionData.type === 'wall') setWallModalState({ isOpen: true, construction: constructionData });
-            else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) setInspectModalState({ isOpen: true, construction: constructionData });
+            else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
             else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
             else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         } else {
@@ -501,7 +499,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         else if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
         else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
         else if (constructionData.type === 'wall') setWallModalState({ isOpen: true, construction: constructionData });
-        else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) setInspectModalState({ isOpen: true, construction: constructionData });
+        else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
         else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         return;
     }
@@ -896,14 +894,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         construction={wallModalState.construction}
         onDemolish={onDemolishBuilding}
         onUpdate={refreshPlayerData}
-      />
-      <BuildingInspectModal
-        isOpen={inspectModalState.isOpen}
-        onClose={() => setInspectModalState({ isOpen: false, construction: null })}
-        construction={inspectModalState.construction}
-        onDemolish={onDemolishBuilding}
-        onUpdate={refreshPlayerData}
-        onInspect={onInspectWorkbench}
       />
     </div>
   );
