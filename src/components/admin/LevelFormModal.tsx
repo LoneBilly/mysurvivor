@@ -42,8 +42,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
       } else {
         const nextLevel = Math.max(0, ...existingLevels.filter(l => l !== levelData?.level)) + 1;
         setLevel({ level: nextLevel, building_type: buildingType });
-        // Add health stat by default for new levels
-        setStatsList([{ id: Date.now(), key: 'health', value: 100 }]);
+        setStatsList([]);
       }
     }
   }, [isOpen, levelData, existingLevels, buildingType]);
