@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { BedDouble, Zap, Trash2, ArrowUpCircle } from 'lucide-react';
+import { BedDouble, Zap, Trash2, ArrowUpCircle, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { Progress } from './ui/progress';
@@ -22,6 +22,16 @@ const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) 
   const [optimisticEnergy, setOptimisticEnergy] = useState(0);
   const sleepInterval = useRef<NodeJS.Timeout | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  const currentLevelInfo = useMemo(() => {
+    if (!construction) return null;
+    return buildingLevels.find(
+        bl => bl.building_type === construction.type && bl.level === construction.level
+    );
+  }, [construction, buildingLevels]);
+
+  const maxHp = currentLevelInfo?.stats?.health || 0;
+  const currentHp = construction?.building_state?.hp ?? maxHp;
 
   const regenRate = useMemo(() => {
     if (!construction) return 1;
@@ -104,8 +114,14 @@ const BedModal = ({ isOpen, onClose, construction, onDemolish }: BedModalProps) 
           <DialogHeader className="text-center">
             <BedDouble className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Lit - Niveau {construction.level}</DialogTitle>
-            <DialogDescription>
-              Régénération: {regenRate} énergie/seconde
+            <DialogDescription className="space-y-1">
+              <span>Régénération: {regenRate} énergie/seconde</span>
+              {maxHp > 0 && (
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <Heart className="w-4 h-4 text-red-400" />
+                  <span>Points de vie: {currentHp} / {maxHp}</span>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 text-center space-y-4">

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
-import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, ArrowUpCircle, Clock } from "lucide-react";
+import { Hammer, Trash2, ArrowRight, Loader2, BookOpen, Square, ArrowUpCircle, Clock, Heart } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useGame } from "@/contexts/GameContext";
 import InventorySlot from "./InventorySlot";
@@ -69,6 +69,9 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
   const craftingSpeedModifier = useMemo(() => {
     return currentLevelInfo?.stats?.crafting_speed_modifier_percentage || 0;
   }, [currentLevelInfo]);
+
+  const maxHp = useMemo(() => currentLevelInfo?.stats?.health || 0, [currentLevelInfo]);
+  const currentHp = useMemo(() => construction?.building_state?.hp ?? maxHp, [construction, maxHp]);
 
   const hasNextLevel = useMemo(() => {
     if (!construction) return false;
@@ -152,11 +155,17 @@ const WorkbenchModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, o
                 <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
                   Établi - Niveau {construction.level}
                 </DialogTitle>
-                {craftingSpeedModifier > 0 && (
-                  <DialogDescription className="text-sm text-green-400 font-mono mt-1">
-                    Vitesse de fabrication: +{craftingSpeedModifier}%
-                  </DialogDescription>
-                )}
+                <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 flex items-center gap-4">
+                  {craftingSpeedModifier > 0 && (
+                    <span>Vitesse: +{craftingSpeedModifier}%</span>
+                  )}
+                  {maxHp > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <Heart className="w-4 h-4 text-red-400" />
+                      <span>{currentHp} / {maxHp}</span>
+                    </span>
+                  )}
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>

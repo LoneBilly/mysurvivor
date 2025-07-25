@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { AlertTriangle, Trash2, ArrowUpCircle, UserX, Loader2, Sword } from 'lucide-react';
+import { AlertTriangle, Trash2, ArrowUpCircle, UserX, Loader2, Sword, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import BuildingUpgradeModal from './BuildingUpgradeModal';
@@ -29,13 +29,16 @@ const TrapModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Trap
     );
   }, [construction, buildingLevels]);
 
-  const trapDamage = useMemo(() => {
+  const currentLevelInfo = useMemo(() => {
     if (!construction) return null;
-    const levelInfo = buildingLevels.find(
+    return buildingLevels.find(
       level => level.building_type === construction.type && level.level === construction.level
     );
-    return levelInfo?.stats?.damage || null;
   }, [construction, buildingLevels]);
+
+  const trapDamage = currentLevelInfo?.stats?.damage || null;
+  const maxHp = currentLevelInfo?.stats?.health || 0;
+  const currentHp = construction?.building_state?.hp ?? maxHp;
 
   const lootItem = useMemo(() => {
     if (!construction?.output_item_id) return null;
@@ -129,13 +132,16 @@ const TrapModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Trap
           <DialogHeader className="text-center">
             <AlertTriangle className="w-10 h-10 mx-auto text-white mb-2" />
             <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Piège - Niveau {construction.level}</DialogTitle>
-            <DialogDescription>
-              {trapDamage ? (
+            <DialogDescription className="flex items-center justify-center gap-4">
+              {trapDamage && (
                 <span className="flex items-center justify-center gap-2">
                   <Sword className="w-4 h-4 text-red-400" /> Dégâts: {trapDamage}
                 </span>
-              ) : (
-                "Un dispositif simple mais efficace."
+              )}
+              {maxHp > 0 && (
+                <span className="flex items-center justify-center gap-2">
+                  <Heart className="w-4 h-4 text-red-400" /> PV: {currentHp}/{maxHp}
+                </span>
               )}
             </DialogDescription>
           </DialogHeader>

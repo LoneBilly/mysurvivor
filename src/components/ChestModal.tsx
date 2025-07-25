@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, ChestItem as ChestItemType } from "@/types/game";
-import { Box, Trash2, ArrowUpCircle } from "lucide-react";
+import { Box, Trash2, ArrowUpCircle, Heart } from "lucide-react";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -44,6 +44,9 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   const chestSlots = useMemo(() => {
     return chestLevelInfo?.stats?.storage_slots || 10;
   }, [chestLevelInfo]);
+
+  const maxHp = chestLevelInfo?.stats?.health || 0;
+  const currentHp = currentConstruction?.building_state?.hp ?? maxHp;
 
   const hasNextLevel = useMemo(() => {
     if (!currentConstruction) return false;
@@ -442,8 +445,14 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
                 <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">
                   Coffre - Niveau {currentConstruction.level}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-neutral-400 font-mono mt-1">
-                  {chestSlots} slots de stockage
+                <DialogDescription className="text-sm text-neutral-400 font-mono mt-1 space-x-4">
+                  <span>{chestSlots} slots de stockage</span>
+                  {maxHp > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <Heart className="w-4 h-4 text-red-400" />
+                      <span>{currentHp} / {maxHp}</span>
+                    </span>
+                  )}
                 </DialogDescription>
               </div>
             </div>

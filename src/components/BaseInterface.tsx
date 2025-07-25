@@ -632,23 +632,28 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
   const getCellContent = (cell: BaseCell) => {
     const construction = liveConstructions.find(c => c.x === cell.x && c.y === cell.y);
-    
+    const levelDef = construction ? buildingLevels.find(level => level.building_type === construction.type && level.level === construction.level) : null;
+    const maxHp = levelDef?.stats?.health || 0;
+    const currentHp = construction?.building_state?.hp ?? maxHp;
+
+    const hpDisplay = maxHp > 0 && (
+      <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+        <Heart size={12} className="text-red-400" />
+        {currentHp}/{maxHp}
+      </div>
+    );
+
     if (cell.type === 'chest' && construction) {
         const Icon = buildingIcons.chest;
-        
-        const levelDef = buildingLevels.find(
-            level => level.building_type === 'chest' && level.level === construction.level
-        );
-        
         const totalSlots = levelDef?.stats?.storage_slots || 0;
-        
         const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === construction.id) || [];
         const usedSlots = new Set(itemsInChest.map(item => item.slot_position).filter(p => p !== null)).size;
 
         return (
             <>
+                {hpDisplay}
                 {totalSlots > 0 && (
-                    <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded">
+                    <div className="absolute bottom-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded">
                         {usedSlots}/{totalSlots}
                     </div>
                 )}
@@ -674,45 +679,26 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         );
     }
     
-    if (cell.type === 'workbench') {
-      const job = construction ? playerData.craftingJobs?.find(j => j.workbench_id === construction.id) : undefined;
-      const hasOutput = construction && construction.output_item_id;
+    if (cell.type === 'workbench' && construction) {
+      const job = playerData.craftingJobs?.find(j => j.workbench_id === construction.id);
+      const hasOutput = construction.output_item_id;
       const Icon = buildingIcons.workbench;
 
-      if (job) {
-        return (
-          <>
-            <Icon className="w-8 h-8 text-yellow-400" />
-            <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
-          </>
-        );
-      }
-      if (hasOutput) {
-        return <Icon className="w-8 h-8 text-green-400" />;
-      }
-    }
-
-    if (cell.type === 'wall' && construction) {
-        const Icon = buildingIcons.wall;
-        
-        const levelDef = buildingLevels.find(
-            level => level.building_type === 'wall' && level.level === construction.level
-        );
-        
-        const maxHp = levelDef?.stats?.health || 0;
-        const currentHp = construction.building_state?.hp ?? maxHp;
-
-        return (
+      return (
+        <>
+          {hpDisplay}
+          {job ? (
             <>
-                {maxHp > 0 && (
-                    <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Heart size={12} className="text-red-400" />
-                        {currentHp}/{maxHp}
-                    </div>
-                )}
-                <Icon className="w-8 h-8 text-orange-500" />
+              <Icon className="w-8 h-8 text-yellow-400" />
+              <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
             </>
-        );
+          ) : hasOutput ? (
+            <Icon className="w-8 h-8 text-green-400" />
+          ) : (
+            <Icon className="w-8 h-8 text-gray-300" />
+          )}
+        </>
+      );
     }
 
     if (cell.type === 'in_progress' && cell.ends_at) {
@@ -753,6 +739,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       if (['crossbow', 'arbalete', 'crossbow_trap'].includes(cell.type) && construction) {
         return (
           <>
+            {hpDisplay}
             <Icon className="w-8 h-8 text-gray-300 transition-transform" style={{ transform: `rotate(${construction.rotation * 90}deg)` }} />
             <button
               onClick={(e) => handleRotate(e, construction)}
@@ -766,14 +753,21 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       if (cell.type === 'lit') {
         return (
           <>
-            <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+            {hpDisplay}
+            <div className="absolute bottom-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <Zap size={12} className="text-yellow-400" />
               {playerData.playerState.energie}/100
             </div>
             <Icon className="w-8 h-8 text-purple-400" />
           </>
         );
       }
-      return <Icon className="w-6 h-6 text-gray-300" />;
+      return (
+        <>
+          {hpDisplay}
+          <Icon className="w-6 h-6 text-gray-300" />
+        </>
+      );
     }
 
     return "";

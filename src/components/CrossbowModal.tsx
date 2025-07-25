@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { BaseConstruction } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { Target, Loader2, ArrowDownUp, Sword } from 'lucide-react';
+import { Target, Loader2, ArrowDownUp, Sword, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import ItemIcon from './ItemIcon';
@@ -27,6 +27,16 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     );
     return levelInfo?.stats?.damage || null;
   }, [construction, buildingLevels]);
+
+  const currentLevelInfo = useMemo(() => {
+    if (!construction) return null;
+    return buildingLevels.find(
+      level => level.building_type === construction.type && level.level === construction.level
+    );
+  }, [construction, buildingLevels]);
+
+  const maxHp = currentLevelInfo?.stats?.health || 0;
+  const currentHp = construction?.building_state?.hp ?? maxHp;
 
   useEffect(() => {
     const arrow = items.find(i => i.name === 'Flèche');
@@ -103,13 +113,18 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
         <DialogHeader className="text-center">
           <Target className="w-10 h-10 mx-auto text-blue-400 mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Arbalète</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="flex items-center justify-center gap-4">
             {crossbowDamage ? (
               <span className="flex items-center justify-center gap-2">
                 <Sword className="w-4 h-4 text-red-400" /> Dégâts: {crossbowDamage}
               </span>
             ) : (
               "Cliquez sur un stock pour transférer une flèche."
+            )}
+            {maxHp > 0 && (
+              <span className="flex items-center justify-center gap-2">
+                <Heart className="w-4 h-4 text-red-400" /> PV: {currentHp}/{maxHp}
+              </span>
             )}
           </DialogDescription>
         </DialogHeader>

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem, ChestItem, Item } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { Flame, CookingPot, Loader2 } from 'lucide-react';
+import { Flame, CookingPot, Loader2, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Slider } from './ui/slider';
@@ -135,7 +135,7 @@ const CookingProgress = ({ cookingSlot, allItems }: { cookingSlot: NonNullable<B
 };
 
 const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModalProps) => {
-  const { getIconUrl, playerData, items: allItems } = useGame();
+  const { getIconUrl, playerData, items: allItems, buildingLevels } = useGame();
   const [fuels, setFuels] = useState<CampfireFuel[]>([]);
   const [config, setConfig] = useState<CampfireConfig | null>(null);
   const [selectedFuel, setSelectedFuel] = useState<CampfireFuelSource | null>(null);
@@ -146,6 +146,16 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
   const [isCookingLoading, setIsCookingLoading] = useState(false);
 
   const currentConstruction = construction;
+
+  const currentLevelInfo = useMemo(() => {
+    if (!currentConstruction) return null;
+    return buildingLevels.find(
+      level => level.building_type === currentConstruction.type && level.level === currentConstruction.level
+    );
+  }, [currentConstruction, buildingLevels]);
+
+  const maxHp = currentLevelInfo?.stats?.health || 0;
+  const currentHp = currentConstruction?.building_state?.hp ?? maxHp;
 
   const liveBurnTime = useAccurateCountdown(currentConstruction?.burn_time_remaining_seconds ?? 0);
   const cookingSlot = currentConstruction?.cooking_slot;
@@ -308,7 +318,14 @@ const CampfireModal = ({ isOpen, onClose, construction, onUpdate }: CampfireModa
         <DialogHeader className="text-center">
           <Flame className="w-10 h-10 mx-auto text-orange-400 mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Feu de Camp</DialogTitle>
-          <DialogDescription>Gardez le feu allumé pour survivre.</DialogDescription>
+          <DialogDescription>
+            {maxHp > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Heart className="w-4 h-4 text-red-400" />
+                <span>{currentHp} / {maxHp}</span>
+              </span>
+            )}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="text-center p-4 bg-black/20 rounded-lg">
