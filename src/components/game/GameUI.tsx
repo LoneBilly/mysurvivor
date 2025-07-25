@@ -80,6 +80,22 @@ const GameUI = () => {
     setIsViewReady(true);
   }, []);
 
+  // This effect will keep the data in the modal up to date.
+  useEffect(() => {
+    if (inspectedConstruction && playerData.baseConstructions) {
+      const updatedConstruction = playerData.baseConstructions.find(c => c.id === inspectedConstruction.id);
+      if (updatedConstruction) {
+        // Avoid re-rendering if the object is identical to prevent potential loops
+        if (JSON.stringify(updatedConstruction) !== JSON.stringify(inspectedConstruction)) {
+          setInspectedConstruction(updatedConstruction);
+        }
+      } else {
+        // If the construction is no longer in the list (e.g., demolished), close the modal.
+        setInspectedConstruction(null);
+      }
+    }
+  }, [playerData.baseConstructions, inspectedConstruction]);
+
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleExploreAction = (zone: MapCell) => {
