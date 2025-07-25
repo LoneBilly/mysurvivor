@@ -64,7 +64,7 @@ const CookingProgress = ({ cookingSlot, allItems }: { cookingSlot: NonNullable<B
     const calculateState = () => {
       const now = Date.now();
       const end = new Date(cookingSlot.ends_at).getTime();
-      const newRemaining = Math.max(0, Math.ceil((end - now) / 1000));
+      const newRemaining = Math.max(0, Math.floor((end - now) / 1000));
       setRemainingSeconds(newRemaining);
 
       if (newRemaining <= 0) {

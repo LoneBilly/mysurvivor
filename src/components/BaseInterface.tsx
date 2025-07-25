@@ -27,7 +27,6 @@ interface BaseCell {
 const GRID_SIZE = 31;
 const CELL_SIZE_PX = 60;
 const CELL_GAP = 4;
-const MAX_BURN_TIME_SECONDS = 72 * 60 * 60; // 72 hours
 
 const buildingIcons: { [key: string]: React.ElementType } = {
   chest: Box,
@@ -598,8 +597,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       }
       case 'crossbow':
       case 'arbalete':
-      case 'crossbow_trap':
-        return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer group";
+      case 'crossbow_trap': {
+        const hasArrows = construction?.building_state?.arrow_quantity > 0;
+        if (hasArrows) {
+          return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer group";
+        }
+        return "bg-red-600/20 border-red-500 hover:bg-red-600/30 cursor-pointer group";
+      }
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
@@ -701,7 +705,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             <Icon className="w-8 h-8 text-gray-300 transition-transform" style={{ transform: `rotate(${construction.rotation * 90}deg)` }} />
             <button
               onClick={(e) => handleRotate(e, construction)}
-              className="absolute top-0 right-0 p-1 bg-slate-700/50 rounded-bl-lg rounded-tr-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+              className="absolute top-0 right-0 p-1 bg-slate-700/50 rounded-bl-lg rounded-tr-lg z-10"
             >
               <RotateCw className="w-4 h-4 text-white" />
             </button>
