@@ -17,6 +17,7 @@ import { BuildingLevel } from '@/types/game';
 import { showError } from '@/utils/toast';
 import CampfireManager from './CampfireManager';
 import { Item } from '@/types/admin';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface BuildingDefinition {
   type: string;
@@ -104,25 +105,25 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
               const Icon = getIconComponent(building.icon);
               const level1 = levelsData[building.type];
               return (
-                <div key={building.type} onClick={() => handleManageLevels(building)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer">
-                  <div className="flex items-center justify-between">
+                <Card key={building.type} onClick={() => handleManageLevels(building)} className="bg-gray-800/60 border-gray-700 cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between p-3">
                     <div className="flex items-center gap-3">
                       <Icon className="w-6 h-6" />
-                      <p className="font-bold text-white">{building.name}</p>
+                      <CardTitle className="text-base">{building.name}</CardTitle>
                     </div>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleManageLevels(building); }}>
                       <Edit className="w-4 h-4" />
                     </Button>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-300">
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-300">
                     <p>Temps: {level1?.upgrade_time_seconds || 0}s</p>
                     <p>Énergie: {level1?.upgrade_cost_energy || 0}</p>
                     <p>Bois: {level1?.upgrade_cost_wood || 0}</p>
                     <p>Pierre: {level1?.upgrade_cost_metal || 0}</p>
                     <p>Composants: {level1?.upgrade_cost_components || 0}</p>
                     <p>Métal: {level1?.upgrade_cost_metal_ingots || 0}</p>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
