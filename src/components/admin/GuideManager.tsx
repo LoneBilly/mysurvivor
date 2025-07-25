@@ -5,10 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, FileText, ChevronDown, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, FileText, ChevronDown } from 'lucide-react';
 import MarkdownToolbar from './MarkdownToolbar';
 import DynamicIcon from '../DynamicIcon';
-import { useIsMobile } from '@/hooks/use-is-mobile';
 
 type Chapter = {
   id: number;
@@ -34,7 +33,6 @@ const GuideManager = () => {
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
   const [isLoading, setIsLoading] = useState(true);
   const articleContentRef = useRef<HTMLTextAreaElement>(null);
-  const isMobile = useIsMobile();
 
   const fetchChapters = useCallback(async () => {
     setIsLoading(true);
@@ -115,70 +113,6 @@ const GuideManager = () => {
       }
     }
   };
-
-  if (isMobile) {
-    if (selectedChapter) {
-      return (
-        <div className="h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
-          <div className="p-4 border-b border-gray-700 flex-shrink-0">
-            <Button onClick={() => setSelectedChapter(null)} variant="ghost">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux chapitres
-            </Button>
-          </div>
-          <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-            <h3 className="text-lg font-bold">{selectedChapter.title}</h3>
-            <Button onClick={() => { setCurrentArticle({ chapter_id: selectedChapter.id }); setIsArticleModalOpen(true); }}>
-              <PlusCircle className="w-4 h-4 mr-2" />Créer
-            </Button>
-          </div>
-          <div className="flex-grow overflow-y-auto no-scrollbar p-4 space-y-2">
-            {articles.map(a => (
-              <div key={a.id} className="p-3 rounded-lg border border-gray-700 bg-gray-900/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <DynamicIcon name={a.icon} fallback={FileText} className="w-5 h-5 text-gray-300" />
-                    <span>{a.title}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => { setCurrentArticle(a); setIsArticleModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => handleDelete('article', a.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {articles.length === 0 && <p className="text-gray-500 text-center mt-8">Aucun article dans ce chapitre.</p>}
-          </div>
-        </div>
-      );
-    } else {
-      return (
-        <div className="h-full flex flex-col bg-gray-800/50 border border-gray-700 rounded-lg min-h-0">
-          <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-            <h3 className="text-lg font-bold">Chapitres</h3>
-            <Button onClick={() => { setCurrentChapter({}); setIsChapterModalOpen(true); }}>
-              <PlusCircle className="w-4 h-4 mr-2" />Créer
-            </Button>
-          </div>
-          <div className="flex-grow overflow-y-auto no-scrollbar">
-            {chapters.map(c => (
-              <div key={c.id} onClick={() => setSelectedChapter(c)} className={`p-3 border-b border-gray-700 cursor-pointer hover:bg-gray-800/50 ${selectedChapter?.id === c.id ? 'bg-slate-700' : ''}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <DynamicIcon name={c.icon} className="w-5 h-5 text-gray-300" />
-                    <span>{c.title}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setCurrentChapter(c); setIsChapterModalOpen(true); }}><Edit className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); handleDelete('chapter', c.id); }}><Trash2 className="w-4 h-4 text-red-500" /></Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
