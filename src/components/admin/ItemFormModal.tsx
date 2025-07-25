@@ -151,7 +151,9 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
         if (storageRes.error) throw storageRes.error;
         if (itemsRes.error) throw itemsRes.error;
 
-        const allStorageIcons = storageRes.data.map(file => file.name).filter(name => name !== '.emptyfolderplaceholder');
+        const allStorageIcons = (storageRes.data || [])
+          .map(file => file.name)
+          .filter(name => name !== '.emptyfolderplaceholder');
         const usedIcons = new Set(itemsRes.data.map(i => i.icon).filter(Boolean) as string[]);
 
         if (item?.icon) {
@@ -385,7 +387,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
                     className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white focus:ring-white/30 focus:border-white/30"
                   >
                     <option value="">{fetchingIcons ? "Chargement..." : "Aucune icône"}</option>
-                    {item?.icon && !availableIcons.includes(item.icon) && (
+                    {item?.icon && !availableIcons.includes(item.icon) && item.icon !== '.emptyfolderplaceholder' && (
                       <option value={item.icon}>{item.icon}</option>
                     )}
                     {availableIcons.map((iconName) => (
