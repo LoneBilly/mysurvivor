@@ -38,7 +38,7 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   piège: AlertTriangle,
   crossbow: TowerControl,
   arbalete: TowerControl,
-  crossbow_trap: AlertTriangle,
+  crossbow_trap: TowerControl,
   workbench: Hammer,
   furnace: CookingPot,
   foundation: Plus,
@@ -552,14 +552,14 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
       case 'trap':
-      case 'piège':
-      case 'crossbow_trap': {
+      case 'piège': {
         const hasLoot = construction && construction.output_item_id;
         if (hasLoot) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
         return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
       }
       case 'crossbow':
       case 'arbalete':
+      case 'crossbow_trap':
         return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
@@ -651,7 +651,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
           </div>
         );
       }
-      if (['crossbow', 'arbalete'].includes(cell.type) && construction) {
+      if (['crossbow', 'arbalete', 'crossbow_trap'].includes(cell.type) && construction) {
         return <Icon className="w-8 h-8 text-gray-300 transition-transform" style={{ transform: `rotate(${construction.rotation * 90}deg)` }} />;
       }
       return <Icon className="w-6 h-6 text-gray-300" />;
@@ -692,7 +692,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
           }}
         >
-          {liveConstructions.filter(c => ['crossbow', 'arbalete'].includes(c.type)).map(construction => {
+          {liveConstructions.filter(c => ['crossbow', 'arbalete', 'crossbow_trap'].includes(c.type)).map(construction => {
             const { x, y, rotation } = construction;
             const actionZonePos = getActionZonePosition(x, y, rotation);
             return (
