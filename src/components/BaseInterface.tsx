@@ -14,6 +14,8 @@ import CountdownTimer from "./CountdownTimer";
 import CraftingProgressBar from "./CraftingProgressBar";
 import CampfireModal from "./CampfireModal";
 import CampfireProgressBar from "./CampfireProgressBar";
+import TrapModal from "./TrapModal";
+import CrossbowModal from "./CrossbowModal";
 
 interface BaseCell {
   x: number;
@@ -34,7 +36,8 @@ const buildingIcons: { [key: string]: React.ElementType } = {
   wall: BrickWall,
   turret: TowerControl,
   generator: Zap,
-  trap: AlertTriangle,
+  piège: AlertTriangle,
+  arbalete: TowerControl,
   workbench: Hammer,
   furnace: CookingPot,
   foundation: Plus,
@@ -67,6 +70,14 @@ const RESOURCE_IDS = {
   COMPONENTS: 38,
 };
 
+const getActionZonePosition = (x: number, y: number, rotation: number) => {
+  if (rotation === 0) return { x, y: y - 1 }; // Up
+  if (rotation === 1) return { x: x + 1, y }; // Right
+  if (rotation === 2) return { x, y: y + 1 }; // Down
+  if (rotation === 3) return { x: x - 1, y }; // Left
+  return { x, y };
+};
+
 const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
   const { user } = useAuth();
   const { playerData, setPlayerData, refreshPlayerData, items, addConstructionJob } = useGame();
@@ -81,6 +92,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [campfireModalState, setCampfireModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
+  const [trapModalState, setTrapModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
+  const [crossbowModalState, setCrossbowModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
   
@@ -404,6 +417,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
+    const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
 
     if (isJobRunning) {
         if (cell.type === 'in_progress') {
@@ -429,62 +443,27 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 handleCancelConstruction(x, y);
             }
             return;
-        } else if (cell.type === 'chest' || cell.type === 'workbench' || cell.type === 'furnace' || cell.type === 'lit' || cell.type === 'campfire') {
-            if (cell.type === 'chest') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    setChestModalState({ isOpen: true, construction: constructionData });
-                }
-            } else if (cell.type === 'workbench' || cell.type === 'lit') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    onInspectWorkbench(constructionData);
-                }
-            } else if (cell.type === 'campfire') {
-                const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-                if (constructionData) {
-                    setCampfireModalState({ isOpen: true, construction: constructionData });
-                }
-            } else {
-                showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
-            }
+        } else if (constructionData) {
+            if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
+            else if (constructionData.type === 'workbench' || constructionData.type === 'lit') onInspectWorkbench(constructionData);
+            else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
+            else if (constructionData.type === 'piège') setTrapModalState({ isOpen: true, construction: constructionData });
+            else if (constructionData.type === 'arbalete') setCrossbowModalState({ isOpen: true, construction: constructionData });
+            else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         } else {
             showInfo("Une construction est déjà en cours.");
         }
         return;
     }
     
-    if (cell.type === 'foundation') {
-        setFoundationMenu({ isOpen: true, x, y });
-        return;
-    }
-
-    if (cell.type === 'chest') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) {
-            setChestModalState({ isOpen: true, construction: constructionData });
-        }
-        return;
-    }
-
-    if (cell.type === 'campfire') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) {
-            setCampfireModalState({ isOpen: true, construction: constructionData });
-        }
-        return;
-    }
-
-    if (cell.type === 'workbench' || cell.type === 'lit') {
-        const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-        if (constructionData) {
-            onInspectWorkbench(constructionData);
-        }
-        return;
-    }
-
-    if (Object.keys(buildingIcons).includes(cell.type) && cell.type !== 'foundation' && cell.type !== 'campfire') {
-        showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
+    if (constructionData) {
+        if (constructionData.type === 'foundation') setFoundationMenu({ isOpen: true, x, y });
+        else if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
+        else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
+        else if (constructionData.type === 'workbench' || constructionData.type === 'lit') onInspectWorkbench(constructionData);
+        else if (constructionData.type === 'piège') setTrapModalState({ isOpen: true, construction: constructionData });
+        else if (constructionData.type === 'arbalete') setCrossbowModalState({ isOpen: true, construction: constructionData });
+        else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         return;
     }
 
@@ -577,7 +556,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
       case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'trap': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'piège': {
+        const hasLoot = construction && construction.output_item_id;
+        if (hasLoot) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
+        return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      }
+      case 'arbalete': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
         const hasOutput = construction && construction.output_item_id;
@@ -668,6 +652,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
           </div>
         );
       }
+      if (cell.type === 'arbalete' && construction) {
+        return <Icon className="w-8 h-8 text-gray-300 transition-transform" style={{ transform: `rotate(${construction.rotation * 90}deg)` }} />;
+      }
       return <Icon className="w-6 h-6 text-gray-300" />;
     }
 
@@ -706,6 +693,22 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
           }}
         >
+          {liveConstructions.filter(c => c.type === 'arbalete').map(construction => {
+            const { x, y, rotation } = construction;
+            const actionZonePos = getActionZonePosition(x, y, rotation);
+            return (
+              <div
+                key={`action-zone-${x}-${y}`}
+                className="absolute bg-red-500/10 border-2 border-dashed border-red-500/30 rounded-lg pointer-events-none"
+                style={{
+                  left: actionZonePos.x * (CELL_SIZE_PX + CELL_GAP),
+                  top: actionZonePos.y * (CELL_SIZE_PX + CELL_GAP),
+                  width: CELL_SIZE_PX,
+                  height: CELL_SIZE_PX,
+                }}
+              />
+            );
+          })}
           {gridData?.map((row, y) =>
             row.map((cell, x) => (
               <button
@@ -765,6 +768,20 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         isOpen={campfireModalState.isOpen}
         onClose={() => setCampfireModalState({ isOpen: false, construction: null })}
         construction={liveCampfireConstruction}
+        onUpdate={refreshPlayerData}
+      />
+      <TrapModal
+        isOpen={trapModalState.isOpen}
+        onClose={() => setTrapModalState({ isOpen: false, construction: null })}
+        construction={trapModalState.construction}
+        onDemolish={onDemolishBuilding}
+        onUpdate={refreshPlayerData}
+      />
+      <CrossbowModal
+        isOpen={crossbowModalState.isOpen}
+        onClose={() => setCrossbowModalState({ isOpen: false, construction: null })}
+        construction={crossbowModalState.construction}
+        onDemolish={onDemolishBuilding}
         onUpdate={refreshPlayerData}
       />
     </div>

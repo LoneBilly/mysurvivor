@@ -28,6 +28,8 @@ import CasinoModal from '../CasinoModal';
 import GuideModal from "../GuideModal";
 import PatchnoteModal from "../PatchnoteModal";
 import BedModal from "../BedModal";
+import TrapModal from "../TrapModal";
+import CrossbowModal from "../CrossbowModal";
 
 const formatZoneName = (name: string): string => {
   if (!name) return "Zone Inconnue";
@@ -345,6 +347,20 @@ const GameUI = () => {
         onClose={() => { setIsBedModalOpen(false); setInspectedConstruction(null); }}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
+      />
+      <TrapModal
+        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'piège'}
+        onClose={() => setInspectedConstruction(null)}
+        construction={inspectedConstruction}
+        onDemolish={handleDemolishBuilding}
+        onUpdate={refreshPlayerData}
+      />
+      <CrossbowModal
+        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'arbalete'}
+        onClose={() => setInspectedConstruction(null)}
+        construction={inspectedConstruction}
+        onDemolish={handleDemolishBuilding}
+        onUpdate={refreshPlayerData}
       />
       <HotelModal
         isOpen={isHotelOpen}
