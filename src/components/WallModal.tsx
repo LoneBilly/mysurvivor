@@ -1,145 +1,178 @@
-import { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useState, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BrickWall, Trash2, Heart, Shield, Wrench, Hammer, Zap } from "lucide-react";
-import { BaseConstruction, BuildingLevel } from "@/types/game";
-import { useGame } from "@/contexts/GameContext";
-import { showError, showSuccess } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
-import ResourceCost from "./ResourceCost";
+import { BaseConstruction, Item } from "@/types/game";
+import { useGame } from '@/contexts/GameContext';
+import { BrickWall, Trash2, ArrowUpCircle, Heart, Loader2, Wrench } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { showError, showSuccess } from '@/utils/toast';
+import BuildingUpgradeModal from './BuildingUpgradeModal';
+import { Progress } from './ui/progress';
+import { cn } from '@/lib/utils';
+import ItemIcon from './ItemIcon';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface WallModalProps {
   isOpen: boolean;
   onClose: () => void;
   construction: BaseConstruction | null;
   onDemolish: (construction: BaseConstruction) => void;
-  onUpdate: () => void;
+  onUpdate: (silent?: boolean) => Promise<void>;
 }
 
+const CostDisplay = ({ item, required, available }: { item?: Item, required: number, available: number }) => {
+  const { getIconUrl } = useGame();
+  if (!item || required === 0) return null;
+  const hasEnough = available >= required;
+  const iconUrl = getIconUrl(item.icon);
+
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn("relative w-12 h-12 bg-black/20 rounded-lg border flex items-center justify-center", hasEnough ? "border-white/10" : "border-red-500/50")}>
+            <div className="w-8 h-8 relative">
+              <ItemIcon iconName={iconUrl || item.icon} alt={item.name} />
+            </div>
+            <span className={cn("absolute -bottom-1 -right-1 text-xs font-bold px-1 rounded bg-gray-900", hasEnough ? "text-white" : "text-red-400")}>{required}</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="font-bold">{item.name}</p>
+          <p>Requis: {required}</p>
+          <p>En stock: {available}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
 const WallModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: WallModalProps) => {
-  const { buildingLevels, addConstructionJob, refreshPlayerData, playerData } = useGame();
-  const [isUpgrading, setIsUpgrading] = useState(false);
-  const [isRepairing, setIsRepairing] = useState(false);
+  const { playerData, items, buildingLevels } = useGame();
+  const [loading, setLoading] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
-  const levelDef: BuildingLevel | undefined = useMemo(() => {
-    if (!construction) return undefined;
-    return buildingLevels.find(level => level.building_type === construction.type && level.level === construction.level);
+  const currentLevelInfo = useMemo(() => {
+    if (!construction) return null;
+    return buildingLevels.find(
+      level => level.building_type === construction.type && level.level === construction.level
+    );
   }, [construction, buildingLevels]);
 
-  const nextLevelDef: BuildingLevel | undefined = useMemo(() => {
-    if (!construction) return undefined;
-    return buildingLevels.find(level => level.building_type === construction.type && level.level === construction.level + 1);
+  const hasNextLevel = useMemo(() => {
+    if (!construction) return false;
+    return buildingLevels.some(
+      level => level.building_type === construction.type && level.level === construction.level + 1
+    );
   }, [construction, buildingLevels]);
 
-  const handleUpgrade = async () => {
-    if (!construction || !nextLevelDef) return;
-    setIsUpgrading(true);
-    const { data, error } = await supabase.rpc('start_building_upgrade', { p_construction_id: construction.id });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Amélioration démarrée !");
-      if (data && data.length > 0) {
-        addConstructionJob(data[0]);
-      }
-      onClose();
-    }
-    setIsUpgrading(false);
-  };
+  const maxHp = currentLevelInfo?.stats?.health || 0;
+  const currentHp = construction?.building_state?.hp ?? maxHp;
+  const damage = maxHp - currentHp;
+  const damagePercentage = maxHp > 0 ? damage / maxHp : 0;
+
+  const totalResources = useMemo(() => {
+    const calculateTotal = (itemName: string) => {
+      const inventoryQty = playerData.inventory.find(i => i.items?.name === itemName)?.quantity || 0;
+      const chestQty = playerData.chestItems
+        .filter(i => i.items?.name === itemName)
+        .reduce((acc, i) => acc + i.quantity, 0);
+      return inventoryQty + chestQty;
+    };
+    return {
+      wood: calculateTotal('Bois'),
+      metal: calculateTotal('Pierre'),
+    };
+  }, [playerData.inventory, playerData.chestItems]);
+
+  const resourceItems = useMemo(() => ({
+    wood: items.find(i => i.name === 'Bois'),
+    metal: items.find(i => i.name === 'Pierre'),
+  }), [items]);
+
+  const repairCosts = useMemo(() => {
+    if (!currentLevelInfo || damagePercentage <= 0) return null;
+    return {
+      wood: Math.ceil((currentLevelInfo.upgrade_cost_wood || 0) * damagePercentage),
+      metal: Math.ceil((currentLevelInfo.upgrade_cost_metal || 0) * damagePercentage),
+    };
+  }, [currentLevelInfo, damagePercentage]);
+
+  const canAffordRepair = useMemo(() => {
+    if (!repairCosts) return false;
+    return totalResources.wood >= repairCosts.wood && totalResources.metal >= repairCosts.metal;
+  }, [repairCosts, totalResources]);
 
   const handleRepair = async () => {
     if (!construction) return;
-    setIsRepairing(true);
+    setLoading(true);
     const { error } = await supabase.rpc('repair_building', { p_construction_id: construction.id });
     if (error) {
       showError(error.message);
     } else {
-      showSuccess("Bâtiment réparé !");
-      refreshPlayerData(true);
+      showSuccess("Mur réparé !");
+      await onUpdate(true);
     }
-    setIsRepairing(false);
+    setLoading(false);
   };
 
-  if (!isOpen || !construction || !levelDef) return null;
-
-  const maxHp = levelDef.stats?.health || 0;
-  const currentHp = construction.building_state?.hp ?? maxHp;
-  const isDamaged = currentHp < maxHp;
-
-  const damagePercentage = maxHp > 0 ? (maxHp - currentHp) / maxHp : 0;
-  const repairCosts = {
-    wood: Math.ceil((levelDef.upgrade_cost_wood || 0) * damagePercentage),
-    metal: Math.ceil((levelDef.upgrade_cost_metal || 0) * damagePercentage),
-    components: Math.ceil((levelDef.upgrade_cost_components || 0) * damagePercentage),
-    metal_ingots: Math.ceil((levelDef.upgrade_cost_metal_ingots || 0) * damagePercentage),
-  };
+  if (!construction) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
-        <DialogHeader className="text-center">
-          <BrickWall className="w-10 h-10 mx-auto text-orange-500 mb-2" />
-          <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Mur - Niveau {construction.level}</DialogTitle>
-          <DialogDescription>
-            <div className="flex items-center justify-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-gray-300">
-                <Heart size={16} className="text-red-400" />
-                <span>PV: {currentHp}/{maxHp}</span>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
+          <DialogHeader className="text-center">
+            <BrickWall className="w-10 h-10 mx-auto text-white mb-2" />
+            <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Mur - Niveau {construction.level}</DialogTitle>
+            <DialogDescription>Protège votre base des intrus.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {maxHp > 0 && (
+              <div className="text-center mb-4 p-3 bg-black/20 rounded-lg">
+                <p className="text-sm text-gray-400">Points de vie</p>
+                <p className="text-2xl font-bold font-mono text-red-400 flex items-center justify-center gap-2">
+                  <Heart className="w-5 h-5" />
+                  {currentHp} / {maxHp}
+                </p>
+                <Progress value={(currentHp / maxHp) * 100} className="mt-2 h-3" indicatorClassName="bg-red-500" />
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-300">
-                <Shield size={16} className="text-blue-400" />
-                <span>Armure: {levelDef.stats?.armor || 0}</span>
+            )}
+            {damage > 0 && (
+              <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
+                <h4 className="font-semibold text-center">Réparer le mur</h4>
+                <div className="flex justify-center gap-2">
+                  <CostDisplay item={resourceItems.wood} required={repairCosts?.wood || 0} available={totalResources.wood} />
+                  <CostDisplay item={resourceItems.metal} required={repairCosts?.metal || 0} available={totalResources.metal} />
+                </div>
+                <Button onClick={handleRepair} disabled={loading || !canAffordRepair} className="w-full">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Wrench className="w-4 h-4 mr-2" />Réparer</>}
+                </Button>
               </div>
-            </div>
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4 my-4">
-          {isDamaged && (
-            <div className="p-4 bg-red-900/30 rounded-lg border border-red-500/50">
-              <h4 className="font-bold text-lg text-red-300 mb-2">Réparer le mur</h4>
-              <p className="text-sm text-red-200 mb-2">Le mur est endommagé. Réparez-le pour restaurer ses points de vie.</p>
-              <div className="flex flex-wrap gap-2 mb-2">
-                <ResourceCost type="wood" amount={repairCosts.wood} />
-                <ResourceCost type="metal" amount={repairCosts.metal} />
-                <ResourceCost type="components" amount={repairCosts.components} />
-                <ResourceCost type="metal_ingot" amount={repairCosts.metal_ingots} />
-              </div>
-              <Button onClick={handleRepair} disabled={isRepairing} className="w-full" variant="destructive">
-                <Wrench className="w-4 h-4 mr-2" />
-                {isRepairing ? "Réparation..." : "Réparer"}
+            )}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row sm:space-x-2 gap-2">
+            {hasNextLevel ? (
+              <Button onClick={() => setIsUpgradeModalOpen(true)} className="flex-1">
+                <ArrowUpCircle className="w-4 h-4 mr-2" /> Améliorer
               </Button>
-            </div>
-          )}
-
-          {nextLevelDef ? (
-            <div className="p-4 bg-slate-900/50 rounded-lg">
-              <h4 className="font-bold text-lg mb-2">Améliorer au niveau {nextLevelDef.level}</h4>
-              <div className="flex flex-wrap gap-2 mb-2">
-                <ResourceCost type="energy" amount={nextLevelDef.upgrade_cost_energy} />
-                <ResourceCost type="wood" amount={nextLevelDef.upgrade_cost_wood} />
-                <ResourceCost type="metal" amount={nextLevelDef.upgrade_cost_metal} />
-                <ResourceCost type="components" amount={nextLevelDef.upgrade_cost_components} />
-                <ResourceCost type="metal_ingot" amount={nextLevelDef.upgrade_cost_metal_ingots} />
-              </div>
-              <Button onClick={handleUpgrade} disabled={isUpgrading} className="w-full">
-                <Hammer className="w-4 h-4 mr-2" />
-                {isUpgrading ? "Amélioration..." : `Améliorer (${nextLevelDef.upgrade_time_seconds}s)`}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-center text-green-400">Niveau maximum atteint</p>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="destructive" onClick={() => onDemolish(construction)}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Démolir
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            ) : (
+              <Button disabled className="flex-1">Niv Max</Button>
+            )}
+            <Button variant="destructive" onClick={() => onDemolish(construction)} className="flex-1">
+              <Trash2 className="w-4 h-4 mr-2" /> Détruire
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <BuildingUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        construction={construction}
+        onUpdate={onUpdate}
+        onUpgradeComplete={onClose}
+      />
+    </>
   );
 };
 
