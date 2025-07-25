@@ -288,11 +288,16 @@ const ZoneItemEditor = ({ zone, onBack, allItems }: ZoneItemEditorProps) => {
                   <option value="all">Tous les types</option>
                   <option value="Ressources">Ressources</option>
                   <option value="Armes">Armes</option>
+                  <option value="Armure">Armure</option>
+                  <option value="Sac à dos">Sac à dos</option>
+                  <option value="Chaussures">Chaussures</option>
+                  <option value="Vehicule">Vehicule</option>
                   <option value="Nourriture">Nourriture</option>
                   <option value="Soins">Soins</option>
+                  <option value="Outils">Outils</option>
                   <option value="Équipements">Équipements</option>
                   <option value="Items divers">Items divers</option>
-                  <option value="Items craftés">Items craftés</option>
+                  <option value="Blueprint">Blueprint</option>
                 </select>
                 <Button onClick={handleCreateItem} className="flex-shrink-0">
                   <Plus className="w-4 h-4 sm:mr-2" />

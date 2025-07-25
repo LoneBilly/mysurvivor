@@ -128,7 +128,7 @@ const ItemManager = ({ items: initialItems, onItemsUpdate }: ItemManagerProps) =
               <option value="Outils">Outils</option>
               <option value="Équipements">Équipements</option>
               <option value="Items divers">Items divers</option>
-              <option value="Items craftés">Items craftés</option>
+              <option value="Blueprint">Blueprint</option>
             </select>
           </div>
           <Button onClick={handleCreate} className="w-full sm:w-auto">
@@ -211,6 +211,3 @@ const ItemManager = ({ items: initialItems, onItemsUpdate }: ItemManagerProps) =
       />
     </>
   );
-};
-
-export default ItemManager;
