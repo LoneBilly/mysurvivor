@@ -110,7 +110,6 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-semibold text-gray-400">Points de Vie:</span> {level.stats?.health ?? 0}</p>
                     <p><span className="font-semibold text-gray-400">Temps:</span> {level.upgrade_time_seconds}s</p>
                     <div>
                       <p className="font-semibold text-gray-400">Coûts:</p>
@@ -123,7 +122,10 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                       </ul>
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-400">Stats (JSON):</p>
+                      <p className="font-semibold text-gray-400">Stats:</p>
+                      <div className="pl-2 text-gray-300">
+                        <p><span className="font-semibold">Points de Vie:</span> {level.stats?.health ?? 'N/A'}</p>
+                      </div>
                       <details className="text-xs mt-2">
                         <summary className="cursor-pointer text-gray-400">Voir JSON complet</summary>
                         <pre className="text-xs bg-black/20 p-2 rounded-md max-w-full overflow-x-auto mt-1"><code>{JSON.stringify(level.stats, null, 2)}</code></pre>
@@ -138,10 +140,9 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
               <TableHeader>
                 <TableRow>
                   <TableHead>Niveau</TableHead>
-                  <TableHead>PV</TableHead>
                   <TableHead>Coûts</TableHead>
                   <TableHead>Temps</TableHead>
-                  <TableHead>Stats (JSON)</TableHead>
+                  <TableHead>Stats</TableHead>
                   <TableHead className="w-[120px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -149,7 +150,6 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                 {levels.map(level => (
                   <TableRow key={level.id}>
                     <TableCell className="font-bold text-lg">{level.level}</TableCell>
-                    <TableCell>{level.stats?.health ?? 0}</TableCell>
                     <TableCell className="text-xs">
                       <p>Énergie: {level.upgrade_cost_energy}</p>
                       <p>Bois: {level.upgrade_cost_wood}</p>
@@ -159,6 +159,7 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
                     </TableCell>
                     <TableCell>{level.upgrade_time_seconds}s</TableCell>
                     <TableCell>
+                      <p><span className="font-semibold">PV:</span> {level.stats?.health ?? 'N/A'}</p>
                       <details className="text-xs mt-1">
                         <summary className="cursor-pointer text-gray-400">Voir JSON</summary>
                         <pre className="bg-black/20 p-2 rounded-md max-w-xs overflow-x-auto mt-1"><code>{JSON.stringify(level.stats, null, 2)}</code></pre>
