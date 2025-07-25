@@ -1,228 +1,146 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { BuildingLevel } from "@/types/BuildingLevel";
-import { PlusCircle, Save, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, ArrowLeft, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
+import { BuildingLevel } from '@/types/game';
+import LevelFormModal from './LevelFormModal';
 
-interface BuildingLevelEditorProps {
-  buildingType: string;
+interface BuildingDefinition {
+  type: string;
+  name: string;
 }
 
-export const BuildingLevelEditor = ({ buildingType }: BuildingLevelEditorProps) => {
+interface BuildingLevelEditorProps {
+  building: BuildingDefinition;
+  onBack: () => void;
+}
+
+const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => {
   const [levels, setLevels] = useState<BuildingLevel[]>([]);
-  const [editedLevels, setEditedLevels] = useState<BuildingLevel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLevel, setEditingLevel] = useState<BuildingLevel | null>(null);
+
+  const fetchLevels = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('building_levels')
+      .select('*')
+      .eq('building_type', building.type)
+      .order('level');
+    
+    if (error) showError("Erreur de chargement des niveaux.");
+    else setLevels(data || []);
+    setLoading(false);
+  }, [building.type]);
 
   useEffect(() => {
-    const fetchLevels = async () => {
-      if (!buildingType) return;
-      const { data, error } = await supabase
-        .from("building_levels")
-        .select("*")
-        .eq("building_type", buildingType)
-        .order("level", { ascending: true });
-
-      if (error) {
-        toast.error("Erreur lors de la récupération des niveaux de bâtiment.");
-        console.error(error);
-      } else {
-        setLevels(data as BuildingLevel[]);
-        setEditedLevels(JSON.parse(JSON.stringify(data))); // Deep copy
-      }
-    };
-
     fetchLevels();
-  }, [buildingType]);
-
-  const handleLevelChange = (index: number, field: keyof Omit<BuildingLevel, 'stats' | 'id' | 'created_at' | 'building_type'>, value: string) => {
-    const newLevels = [...editedLevels];
-    const level = newLevels[index];
-    (level[field] as any) = value === '' ? null : (typeof level[field] === 'number' ? Number(value) : value);
-    setEditedLevels(newLevels);
-  };
-
-  const handleStatChange = (index: number, key: string, value: string) => {
-    const newLevels = [...editedLevels];
-    const currentStats = newLevels[index].stats || {};
-    newLevels[index] = {
-      ...newLevels[index],
-      stats: {
-        ...currentStats,
-        [key]: value === '' ? undefined : Number(value),
-      },
-    };
-    setEditedLevels(newLevels);
-  };
-
-  const handleSave = async () => {
-    const upsertLevels = editedLevels.map(level => {
-      const { id, created_at, ...rest } = level;
-      if (typeof id === 'string' && id.startsWith('new-')) {
-        return { ...rest, building_type: buildingType };
-      }
-      return { id, ...rest, building_type: buildingType };
-    });
-
-    const { error } = await supabase.from("building_levels").upsert(upsertLevels, { onConflict: 'id' });
-
-    if (error) {
-      toast.error("Erreur lors de la sauvegarde des niveaux.", { description: error.message });
-      console.error(error);
-    } else {
-      toast.success("Niveaux sauvegardés avec succès !");
-      const { data, error: fetchError } = await supabase
-        .from("building_levels")
-        .select("*")
-        .eq("building_type", buildingType)
-        .order("level", { ascending: true });
-      if (fetchError) {
-        toast.error("Erreur lors de la récupération des niveaux de bâtiment.");
-      } else {
-        setLevels(data as BuildingLevel[]);
-        setEditedLevels(JSON.parse(JSON.stringify(data)));
-      }
-    }
-  };
+  }, [fetchLevels]);
 
   const handleAddNewLevel = () => {
-    const newLevel: BuildingLevel = {
-      id: `new-${Date.now()}`, // Temporary ID
-      building_type: buildingType,
-      level: editedLevels.length > 0 ? Math.max(...editedLevels.map(l => l.level)) + 1 : 1,
-      upgrade_cost_wood: 0,
-      upgrade_cost_metal: 0,
-      upgrade_cost_components: 0,
-      upgrade_cost_metal_ingots: 0,
-      upgrade_cost_energy: 0,
-      upgrade_time_seconds: 0,
-      stats: { health: 100 },
-      created_at: new Date().toISOString(),
-    };
-    setEditedLevels([...editedLevels, newLevel]);
+    setEditingLevel(null);
+    setIsModalOpen(true);
   };
 
-  const handleDeleteLevel = async (id: number | string, index: number) => {
-    if (typeof id === 'string' && id.startsWith('new-')) {
-      const newLevels = editedLevels.filter((_, i) => i !== index);
-      setEditedLevels(newLevels);
-      return;
-    }
+  const handleEditLevel = (level: BuildingLevel) => {
+    setEditingLevel(level);
+    setIsModalOpen(true);
+  };
 
-    const { error } = await supabase.from("building_levels").delete().match({ id });
+  const handleSaveLevel = async (levelData: Partial<BuildingLevel>) => {
+    const { id, ...dataToSave } = levelData;
+    const query = id
+      ? supabase.from('building_levels').update(dataToSave).eq('id', id)
+      : supabase.from('building_levels').insert(dataToSave as any);
+
+    const { error } = await query;
     if (error) {
-      toast.error("Erreur lors de la suppression du niveau.", { description: error.message });
-      console.error(error);
+      showError(`Erreur: ${error.message}`);
     } else {
-      toast.success("Niveau supprimé.");
-      const newLevels = editedLevels.filter(l => l.id !== id);
-      setEditedLevels(newLevels);
-      setLevels(levels.filter(l => l.id !== id));
+      showSuccess(`Niveau ${id ? 'mis à jour' : 'créé'}.`);
+      setIsModalOpen(false);
+      fetchLevels();
+    }
+  };
+
+  const handleDeleteLevel = async (levelId: number) => {
+    if (window.confirm("Voulez-vous vraiment supprimer ce niveau ?")) {
+      const { error } = await supabase.from('building_levels').delete().eq('id', levelId);
+      if (error) showError("Erreur de suppression.");
+      else {
+        showSuccess("Niveau supprimé.");
+        fetchLevels();
+      }
     }
   };
 
   return (
-    <Card className="flex flex-col h-full">
-      <CardHeader>
-        <CardTitle>Éditeur de Niveaux pour: <span className="font-bold text-primary">{buildingType}</span></CardTitle>
-        <CardDescription>Modifiez les niveaux, les coûts et les statistiques pour ce type de bâtiment.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col sm:flex-row justify-end mb-4 gap-2">
-          <Button onClick={handleSave}><Save className="w-4 h-4 mr-2" /> Sauvegarder</Button>
-          <Button onClick={handleAddNewLevel}><PlusCircle className="w-4 h-4 mr-2" /> Ajouter un niveau</Button>
-        </div>
-        <div className="space-y-6">
-          {editedLevels.map((level, index) => (
-            <div key={level.id} className="border p-4 rounded-lg bg-background/50 relative">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Niveau {level.level}</h3>
-                <Button variant="destructive" size="icon" onClick={() => handleDeleteLevel(level.id, index)}>
-                  <Trash2 className="w-4 h-4" />
-                  <span className="sr-only">Supprimer le niveau</span>
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor={`level-${index}`}>Niveau</Label>
-                  <Input
-                    id={`level-${index}`}
-                    type="number"
-                    value={level.level || ''}
-                    onChange={(e) => handleLevelChange(index, 'level', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`health-${index}`}>Points de vie</Label>
-                  <Input
-                    id={`health-${index}`}
-                    type="number"
-                    value={level.stats?.health || ''}
-                    onChange={(e) => handleStatChange(index, 'health', e.target.value)}
-                    placeholder="Ex: 100"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`time-${index}`}>Temps d'amélioration (s)</Label>
-                  <Input
-                    id={`time-${index}`}
-                    type="number"
-                    value={level.upgrade_time_seconds || ''}
-                    onChange={(e) => handleLevelChange(index, 'upgrade_time_seconds', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`energy-${index}`}>Coût Énergie</Label>
-                  <Input
-                    id={`energy-${index}`}
-                    type="number"
-                    value={level.upgrade_cost_energy || ''}
-                    onChange={(e) => handleLevelChange(index, 'upgrade_cost_energy', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`wood-${index}`}>Coût Bois</Label>
-                  <Input
-                    id={`wood-${index}`}
-                    type="number"
-                    value={level.upgrade_cost_wood || ''}
-                    onChange={(e) => handleLevelChange(index, 'upgrade_cost_wood', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`metal-${index}`}>Coût Pierre</Label>
-                  <Input
-                    id={`metal-${index}`}
-                    type="number"
-                    value={level.upgrade_cost_metal || ''}
-                    onChange={(e) => handleLevelChange(index, 'upgrade_cost_metal', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`components-${index}`}>Coût Composants</Label>
-                  <Input
-                    id={`components-${index}`}
-                    type="number"
-                    value={level.upgrade_cost_components || ''}
-                    onChange={(e) => handleLevelChange(index, 'upgrade_cost_components', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`metal-ingots-${index}`}>Coût Lingots de métal</Label>
-                  <Input
-                    id={`metal-ingots-${index}`}
-                    type="number"
-                    value={level.upgrade_cost_metal_ingots || ''}
-                    onChange={(e) => handleLevelChange(index, 'upgrade_cost_metal_ingots', e.target.value)}
-                  />
-                </div>
-              </div>
+    <>
+      <Card className="w-full h-full flex flex-col bg-gray-800/50 border-gray-700 text-white">
+        <CardHeader className="flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <Button onClick={onBack} variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+            <div>
+              <CardTitle>Niveaux pour : {building.name}</CardTitle>
+              <CardDescription>Configurez les améliorations pour ce bâtiment.</CardDescription>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto p-4">
+          <div className="flex justify-end mb-4">
+            <Button onClick={handleAddNewLevel}><PlusCircle className="w-4 h-4 mr-2" /> Ajouter un niveau</Button>
+          </div>
+          {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Niveau</TableHead>
+                  <TableHead>Coûts</TableHead>
+                  <TableHead>Temps</TableHead>
+                  <TableHead>Stats (JSON)</TableHead>
+                  <TableHead className="w-[120px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {levels.map(level => (
+                  <TableRow key={level.id}>
+                    <TableCell className="font-bold text-lg">{level.level}</TableCell>
+                    <TableCell className="text-xs">
+                      <p>Énergie: {level.upgrade_cost_energy}</p>
+                      <p>Bois: {level.upgrade_cost_wood}</p>
+                      <p>Pierre: {level.upgrade_cost_metal}</p>
+                      <p>Composants: {level.upgrade_cost_components}</p>
+                      <p>Métal: {level.upgrade_cost_metal_ingots}</p>
+                    </TableCell>
+                    <TableCell>{level.upgrade_time_seconds}s</TableCell>
+                    <TableCell><pre className="text-xs bg-black/20 p-2 rounded-md max-w-xs overflow-x-auto"><code>{JSON.stringify(level.stats, null, 2)}</code></pre></TableCell>
+                    <TableCell className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => handleEditLevel(level)}><Edit className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDeleteLevel(level.id!)} disabled={level.level === 1}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      <LevelFormModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveLevel}
+        buildingType={building.type}
+        levelData={editingLevel}
+        existingLevels={levels.map(l => l.level)}
+      />
+    </>
   );
 };
+
+export default BuildingLevelEditor;
