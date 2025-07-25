@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { FullPlayerData, BaseConstruction } from '@/types/types';
+import { showError, showSuccess } from '@/utils/toast';
 
 interface LoadCrossbowModalProps {
   isOpen: boolean;
@@ -19,7 +19,6 @@ interface LoadCrossbowModalProps {
 export function LoadCrossbowModal({ isOpen, onClose, playerData, crossbow, refetchPlayerData }: LoadCrossbowModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const arrowItem = playerData?.inventory.find(item => item.items.name === 'Flèche');
 
@@ -33,11 +32,7 @@ export function LoadCrossbowModal({ isOpen, onClose, playerData, crossbow, refet
     if (!arrowItem || !crossbow) return;
 
     if (quantity <= 0 || quantity > arrowItem.quantity) {
-      toast({
-        title: 'Quantité invalide',
-        description: `Vous ne pouvez charger qu'entre 1 et ${arrowItem.quantity} flèches.`,
-        variant: 'destructive',
-      });
+      showError(`Vous ne pouvez charger qu'entre 1 et ${arrowItem.quantity} flèches.`);
       return;
     }
 
@@ -49,16 +44,9 @@ export function LoadCrossbowModal({ isOpen, onClose, playerData, crossbow, refet
     });
 
     if (error) {
-      toast({
-        title: 'Erreur',
-        description: error.message,
-        variant: 'destructive',
-      });
+      showError(error.message);
     } else {
-      toast({
-        title: 'Succès',
-        description: `${quantity} flèche(s) chargée(s) dans l'arbalète.`,
-      });
+      showSuccess(`${quantity} flèche(s) chargée(s) dans l'arbalète.`);
       refetchPlayerData();
       onClose();
     }

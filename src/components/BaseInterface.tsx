@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from 'react';
 import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LoadCrossbowModal } from './LoadCrossbowModal';
 import { FullPlayerData, BaseConstruction } from '@/types/types';
 import { RotateCcw, Trash2, ChevronsUp, Zap, Hammer, Shield, Package, HelpCircle } from 'lucide-react';
+import { showError, showSuccess } from '@/utils/toast';
 
 const BASE_GRID_SIZE = 10;
 
@@ -22,7 +22,6 @@ export function BaseInterface({ playerData, refetchPlayerData, isLoading }: Base
   const [selectedConstruction, setSelectedConstruction] = useState<{ x: number; y: number } | null>(null);
   const [highlightedCells, setHighlightedCells] = useState<{x: number, y: number}[]>([]);
   const [isLoadCrossbowModalOpen, setLoadCrossbowModalOpen] = useState(false);
-  const { toast } = useToast();
 
   const baseConstructions = playerData?.baseConstructions || [];
 
@@ -71,9 +70,9 @@ export function BaseInterface({ playerData, refetchPlayerData, isLoading }: Base
   const handleRpcCall = async (rpcName: string, params: any, successMessage: string) => {
     const { error } = await supabase.rpc(rpcName, params);
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      showError(error.message);
     } else {
-      toast({ title: 'Succès', description: successMessage });
+      showSuccess(successMessage);
       refetchPlayerData();
     }
   };
