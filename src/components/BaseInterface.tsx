@@ -406,6 +406,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     if (!gridData || !user) return;
 
     const cell = gridData[y][x];
+    const buildingsThatOpenModals = ['chest', 'workbench', 'furnace', 'lit', 'campfire', 'piège', 'trap', 'arbalete'];
 
     if (isJobRunning) {
         if (cell.type === 'in_progress') {
@@ -431,7 +432,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
                 handleCancelConstruction(x, y);
             }
             return;
-        } else if (['chest', 'workbench', 'furnace', 'lit', 'campfire', 'piège', 'arbalete'].includes(cell.type)) {
+        } else if (buildingsThatOpenModals.includes(cell.type)) {
             const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
             if (constructionData) {
                 if (cell.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
@@ -449,7 +450,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         return;
     }
 
-    if (['chest', 'campfire', 'workbench', 'lit', 'piège', 'arbalete'].includes(cell.type)) {
+    if (buildingsThatOpenModals.includes(cell.type)) {
         const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
         if (constructionData) {
             if (cell.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
@@ -575,7 +576,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
       case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
       case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'piège': return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
+      case 'piège':
+      case 'trap':
+        return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
       case 'arbalete': return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
       case 'workbench': {
         const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);

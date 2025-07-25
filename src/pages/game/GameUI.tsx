@@ -125,7 +125,7 @@ const GameUI = () => {
       // The WorkbenchModal is handled by the inspectedConstruction state
     } else if (construction.type === 'lit') {
       setIsBedModalOpen(true);
-    } else if (construction.type === 'piège') {
+    } else if (construction.type === 'piège' || construction.type === 'trap') {
       setIsTrapModalOpen(true);
     } else if (construction.type === 'arbalete') {
       setIsCrossbowModalOpen(true);
