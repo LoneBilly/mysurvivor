@@ -96,24 +96,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
   
-  const [now, setNow] = useState(Date.now());
-  const fetchTime = useRef(Date.now());
   const isRefreshingData = useRef(false);
 
   useEffect(() => {
     if (isActive) {
       refreshPlayerData(true);
     }
-  }, [isActive]);
-
-  useEffect(() => {
-    fetchTime.current = Date.now();
-  }, [initialConstructions]);
-
-  useEffect(() => {
-    if (!isActive) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
   }, [isActive]);
 
   useEffect(() => {
@@ -141,18 +129,9 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     return () => clearInterval(intervalId);
   }, [isActive, playerData.baseConstructions, refreshPlayerData]);
 
-  const elapsedSeconds = useMemo(() => Math.floor((now - fetchTime.current) / 1000), [now]);
-
   const liveConstructions = useMemo(() => {
-    if (!initialConstructions) return [];
-    return initialConstructions.map(c => {
-      if (c.type === 'campfire' && c.burn_time_remaining_seconds > 0) {
-        const newBurnTime = c.burn_time_remaining_seconds - elapsedSeconds;
-        return { ...c, burn_time_remaining_seconds: Math.max(0, newBurnTime) };
-      }
-      return c;
-    });
-  }, [initialConstructions, elapsedSeconds]);
+    return initialConstructions || [];
+  }, [initialConstructions]);
 
   const isJobRunning = useMemo(() => {
     if (!gridData) return initialConstructionJobs.length > 0;
