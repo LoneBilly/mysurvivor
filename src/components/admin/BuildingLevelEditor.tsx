@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { BuildingLevel } from '@/types/game';
 import LevelFormModal from './LevelFormModal';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 interface BuildingDefinition {
   type: string;
@@ -23,6 +24,7 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<BuildingLevel | null>(null);
+  const isMobile = useIsMobile();
 
   const fetchLevels = useCallback(async () => {
     setLoading(true);
@@ -94,7 +96,40 @@ const BuildingLevelEditor = ({ building, onBack }: BuildingLevelEditorProps) => 
           <div className="flex justify-end mb-4">
             <Button onClick={handleAddNewLevel}><PlusCircle className="w-4 h-4 mr-2" /> Ajouter un niveau</Button>
           </div>
-          {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (
+          {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : isMobile ? (
+            <div className="space-y-4">
+              {levels.map(level => (
+                <div key={level.id} className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-xl font-bold">Niveau {level.level}</h4>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => handleEditLevel(level)}><Edit className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDeleteLevel(level.id!)} disabled={level.level === 1}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-semibold text-gray-400">Temps:</span> {level.upgrade_time_seconds}s</p>
+                    <div>
+                      <p className="font-semibold text-gray-400">Coûts:</p>
+                      <ul className="list-disc list-inside pl-2 text-gray-300">
+                        <li>Énergie: {level.upgrade_cost_energy}</li>
+                        <li>Bois: {level.upgrade_cost_wood}</li>
+                        <li>Pierre: {level.upgrade_cost_metal}</li>
+                        <li>Composants: {level.upgrade_cost_components}</li>
+                        <li>Métal: {level.upgrade_cost_metal_ingots}</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-400">Stats:</p>
+                      <pre className="text-xs bg-black/20 p-2 rounded-md max-w-full overflow-x-auto"><code>{JSON.stringify(level.stats, null, 2)}</code></pre>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
