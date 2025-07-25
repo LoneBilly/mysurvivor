@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { Target, Loader2, ArrowLeft, ArrowDownUp } from 'lucide-react';
+import { Target, Loader2, ChevronsDownUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Slider } from './ui/slider';
@@ -17,8 +17,6 @@ interface CrossbowModalProps {
   onUpdate: (silent?: boolean) => Promise<void>;
 }
 
-type ModalView = 'main' | 'load' | 'unload';
-
 const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModalProps) => {
   const { getIconUrl, playerData, items } = useGame();
   const [loading, setLoading] = useState(false);
@@ -26,7 +24,7 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
   const [arrowItemIcon, setArrowItemIcon] = useState<string | null>(null);
   const [selectedArrowStack, setSelectedArrowStack] = useState<InventoryItem | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [view, setView] = useState<ModalView>('main');
+  const [mode, setMode] = useState<'load' | 'unload' | null>(null);
 
   useEffect(() => {
     const arrow = items.find(i => i.name === 'Flèche');
@@ -41,25 +39,23 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     return playerData.inventory.filter(i => i.item_id === arrowItemId && i.slot_position !== null);
   }, [playerData.inventory, arrowItemId]);
 
+  const totalInventoryArrows = useMemo(() => {
+    return availableArrows.reduce((sum, item) => sum + item.quantity, 0);
+  }, [availableArrows]);
+
   const arrowCount = useMemo(() => {
     return construction?.building_state?.arrow_quantity || 0;
   }, [construction]);
 
   useEffect(() => {
     if (!isOpen) {
-      setView('main');
+      setMode(null);
       setSelectedArrowStack(null);
       setQuantity(1);
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (selectedArrowStack) {
-      setQuantity(1);
-    }
-  }, [selectedArrowStack]);
-
-  const handleLoadArrows = async () => {
+  const handleLoad = async () => {
     if (!construction || !selectedArrowStack) return;
     setLoading(true);
     
@@ -75,22 +71,21 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
       return;
     }
 
-    // Automatically arm the crossbow after loading arrows
     const { error: armError } = await supabase.rpc('arm_crossbow', { p_construction_id: construction.id });
-
     setLoading(false);
 
     if (armError) {
-      showError(`Les flèches ont été chargées, mais l'armement automatique a échoué: ${armError.message}`);
+      showError(`Flèches chargées, mais l'armement a échoué: ${armError.message}`);
     } else {
-      showSuccess(`${quantity} flèche(s) chargée(s). L'arbalète est maintenant armée.`);
+      showSuccess(`${quantity} flèche(s) chargée(s). Arbalète armée.`);
     }
     
     await onUpdate(true);
-    setView('main');
+    setMode(null);
+    setSelectedArrowStack(null);
   };
 
-  const handleUnloadArrows = async () => {
+  const handleUnload = async () => {
     if (!construction || arrowCount === 0) return;
     setLoading(true);
     const { error } = await supabase.rpc('unload_crossbow', {
@@ -103,132 +98,48 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
     } else {
       showSuccess(`${quantity} flèche(s) déchargée(s).`);
       await onUpdate(true);
-      setView('main');
+      setMode(null);
     }
   };
 
-  const handleSelectStackToLoad = (item: InventoryItem) => {
-    setSelectedArrowStack(item);
-    setQuantity(1);
-    setView('load');
-  };
-
-  const handleSelectToUnload = () => {
-    if (arrowCount > 0) {
-      setQuantity(1);
-      setView('unload');
-    }
-  };
-
-  const renderMainView = () => (
-    <div className="py-4 space-y-4 flex flex-col items-center">
-      <button 
-        onClick={handleSelectToUnload}
-        disabled={arrowCount === 0}
-        className="relative w-20 h-20 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {arrowCount > 0 && arrowItemIcon ? (
-          <>
-            <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
-            <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{arrowCount}</span>
-          </>
-        ) : (
-          <div className="w-full h-full" />
-        )}
-      </button>
-
-      <div className="flex justify-center items-center text-gray-500 py-2">
-        <ArrowDownUp className="w-6 h-6" />
-      </div>
-
-      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 w-full max-w-xs min-h-[88px] content-start">
+  const renderLoadSelector = () => (
+    <div className="space-y-3">
+      <p className="text-sm text-center text-gray-300">Choisir un stock de flèches à charger :</p>
+      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 w-full max-w-xs mx-auto content-start">
         {availableArrows.map(item => (
           <button 
             key={item.id} 
-            onClick={() => handleSelectStackToLoad(item)} 
-            disabled={loading}
-            className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
-            title={item.items?.name}
+            onClick={() => {
+              setSelectedArrowStack(item);
+              setQuantity(1);
+            }} 
+            className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors"
           >
             <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
             <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
           </button>
         ))}
-        {availableArrows.length === 0 && (
-          <div className="col-span-full text-center text-xs text-gray-400 flex items-center justify-center h-full min-h-[88px]">
-            <p>Aucune flèche dans l'inventaire.</p>
-          </div>
-        )}
       </div>
     </div>
   );
 
-  const renderLoadView = () => {
-    if (!selectedArrowStack) return null;
-    return (
-      <div className="py-4 space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => setView('main')} className="flex items-center gap-2"><ArrowLeft size={16} /> Retour</Button>
-        <div className="space-y-4 p-4 bg-white/5 rounded-lg">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-              <ItemIcon iconName={getIconUrl(selectedArrowStack.items?.icon)} alt={selectedArrowStack.items?.name || ''} />
-            </div>
-            <div>
-              <p className="font-bold">{selectedArrowStack.items?.name}</p>
-              <p className="text-xs text-gray-400">En stock: {selectedArrowStack.quantity}</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="quantity-slider">Quantité à charger</Label>
-              <span className="font-mono text-lg font-bold">{quantity}</span>
-            </div>
-            <Slider value={[quantity]} onValueChange={([val]) => setQuantity(val)} min={1} max={selectedArrowStack.quantity} step={1} disabled={selectedArrowStack.quantity <= 1} />
-          </div>
-          <Button onClick={handleLoadArrows} disabled={loading} className="w-full">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Charger'}
-          </Button>
+  const renderQuantitySelector = (maxQuantity: number, action: 'load' | 'unload') => (
+    <div className="space-y-4 p-4 bg-slate-900/50 rounded-lg">
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <Label htmlFor="quantity-slider">Quantité à {action === 'load' ? 'charger' : 'décharger'}</Label>
+          <span className="font-mono text-lg font-bold">{quantity}</span>
         </div>
+        <Slider value={[quantity]} onValueChange={([val]) => setQuantity(val)} min={1} max={maxQuantity} step={1} disabled={maxQuantity <= 1} />
       </div>
-    );
-  };
-
-  const renderUnloadView = () => (
-    <div className="py-4 space-y-4">
-      <Button variant="ghost" size="sm" onClick={() => setView('main')} className="flex items-center gap-2"><ArrowLeft size={16} /> Retour</Button>
-      <div className="space-y-4 p-4 bg-white/5 rounded-lg">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-            {arrowItemIcon && <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />}
-          </div>
-          <div>
-            <p className="font-bold">Flèche</p>
-            <p className="text-xs text-gray-400">Dans l'arbalète: {arrowCount}</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <Label htmlFor="quantity-slider">Quantité à décharger</Label>
-            <span className="font-mono text-lg font-bold">{quantity}</span>
-          </div>
-          <Slider value={[quantity]} onValueChange={([val]) => setQuantity(val)} min={1} max={arrowCount} step={1} disabled={arrowCount <= 1} />
-        </div>
-        <Button onClick={handleUnloadArrows} disabled={loading} className="w-full">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Décharger'}
+      <div className="flex gap-2">
+        <Button variant="secondary" onClick={() => { setMode(null); setSelectedArrowStack(null); }}>Annuler</Button>
+        <Button onClick={action === 'load' ? handleLoad : handleUnload} disabled={loading} className="flex-1">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmer'}
         </Button>
       </div>
     </div>
   );
-
-  const renderContent = () => {
-    switch (view) {
-      case 'load': return renderLoadView();
-      case 'unload': return renderUnloadView();
-      case 'main':
-      default:
-        return renderMainView();
-    }
-  };
 
   if (!construction) return null;
 
@@ -238,9 +149,50 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
         <DialogHeader className="text-center">
           <Target className="w-10 h-10 mx-auto text-blue-400 mb-2" />
           <DialogTitle className="text-white font-mono tracking-wider uppercase text-xl">Arbalète</DialogTitle>
-          <DialogDescription>Défendez votre base contre les intrus.</DialogDescription>
+          <DialogDescription>Transférez les flèches entre l'arbalète et votre inventaire.</DialogDescription>
         </DialogHeader>
-        {renderContent()}
+
+        <div className="py-4 space-y-4">
+          <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-slate-900/70 border border-slate-700">
+            <h3 className="font-semibold text-gray-300">Dans l'arbalète</h3>
+            <div className="relative w-20 h-20 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600">
+              {arrowCount > 0 && arrowItemIcon ? (
+                <>
+                  <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
+                  <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{arrowCount}</span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Vide</span>
+              )}
+            </div>
+          </div>
+
+          {mode === null && (
+            <div className="flex justify-center items-center gap-4 px-4 py-2">
+              <Button onClick={() => { setMode('load'); setQuantity(1); }} disabled={totalInventoryArrows === 0} className="flex-1">Charger</Button>
+              <ChevronsDownUp className="w-6 h-6 text-gray-500 flex-shrink-0" />
+              <Button onClick={() => { setMode('unload'); setQuantity(1); }} disabled={arrowCount === 0} className="flex-1">Décharger</Button>
+            </div>
+          )}
+
+          {mode === 'load' && !selectedArrowStack && renderLoadSelector()}
+          {mode === 'load' && selectedArrowStack && renderQuantitySelector(selectedArrowStack.quantity, 'load')}
+          {mode === 'unload' && renderQuantitySelector(arrowCount, 'unload')}
+
+          <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-slate-900/70 border border-slate-700">
+            <h3 className="font-semibold text-gray-300">Flèches dans l'inventaire</h3>
+            <div className="relative w-20 h-20 bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600">
+              {totalInventoryArrows > 0 && arrowItemIcon ? (
+                <>
+                  <ItemIcon iconName={getIconUrl(arrowItemIcon)} alt="Flèche" />
+                  <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{totalInventoryArrows}</span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Aucune</span>
+              )}
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
