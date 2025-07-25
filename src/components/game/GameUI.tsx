@@ -65,7 +65,6 @@ const GameUI = () => {
   const [isPatchnoteOpen, setIsPatchnoteOpen] = useState(false);
   const [isHotelOpen, setIsHotelOpen] = useState(false);
   const [isCasinoOpen, setIsCasinoOpen] = useState(false);
-  const [isBedModalOpen, setIsBedModalOpen] = useState(false);
   const [selectedZoneForAction, setSelectedZoneForAction] = useState<MapCell | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const isInitialMount = useRef(true);
@@ -119,17 +118,11 @@ const GameUI = () => {
 
   const handleInspectBuilding = (construction: BaseConstruction) => {
     setInspectedConstruction(construction);
-    if (construction.type === 'workbench') {
-      // The WorkbenchModal is handled by the inspectedConstruction state
-    } else if (construction.type === 'lit') {
-      setIsBedModalOpen(true);
-    }
   };
 
   const handleDemolishBuilding = async (construction: BaseConstruction) => {
     const { x, y } = construction;
     setInspectedConstruction(null);
-    setIsBedModalOpen(false);
     const { error } = await supabase.rpc('demolish_building_to_foundation', { p_x: x, p_y: y });
     if (error) {
       showError(error.message || "Erreur de démolition.");
@@ -343,20 +336,20 @@ const GameUI = () => {
         onOpenInventory={() => setIsInventoryOpen(true)}
       />
       <BedModal
-        isOpen={isBedModalOpen}
-        onClose={() => { setIsBedModalOpen(false); setInspectedConstruction(null); }}
+        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'lit'}
+        onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
       />
       <TrapModal
-        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'piège'}
+        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'trap'}
         onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
         onUpdate={refreshPlayerData}
       />
       <CrossbowModal
-        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'arbalete'}
+        isOpen={!!inspectedConstruction && inspectedConstruction.type === 'crossbow'}
         onClose={() => setInspectedConstruction(null)}
         construction={inspectedConstruction}
         onDemolish={handleDemolishBuilding}
