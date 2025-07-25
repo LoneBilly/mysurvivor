@@ -14,7 +14,7 @@ import * as LucideIcons from "lucide-react";
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import BuildingLevelEditor from './BuildingLevelEditor';
 import { BuildingLevel } from '@/types/game';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import CampfireManager from './CampfireManager';
 import { Item } from '@/types/admin';
 
@@ -35,9 +35,6 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
   const isMobile = useIsMobile();
   const [levelsData, setLevelsData] = useState<Record<string, BuildingLevel>>({});
   const [loadingLevels, setLoadingLevels] = useState(true);
-  
-  const [editingLevels, setEditingLevels] = useState<BuildingLevel[]>([]);
-  const [loadingEditorLevels, setLoadingEditorLevels] = useState(false);
 
   useEffect(() => {
     const fetchLevel1Data = async () => {
@@ -61,28 +58,6 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
     fetchLevel1Data();
   }, []);
 
-  useEffect(() => {
-    if (selectedBuilding) {
-      const fetchAllLevels = async () => {
-        setLoadingEditorLevels(true);
-        const { data, error } = await supabase
-          .from('building_levels')
-          .select('*')
-          .eq('building_type', selectedBuilding.type)
-          .order('level', { ascending: true });
-        
-        if (error) {
-          showError(`Impossible de charger les niveaux pour ${selectedBuilding.name}.`);
-          setEditingLevels([]);
-        } else {
-          setEditingLevels(data || []);
-        }
-        setLoadingEditorLevels(false);
-      };
-      fetchAllLevels();
-    }
-  }, [selectedBuilding]);
-
   const handleManageLevels = (building: BuildingDefinition) => {
     setSelectedBuilding(building);
   };
@@ -90,60 +65,6 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
   const handleBackToList = () => {
     setSelectedBuilding(null);
     onBuildingsUpdate();
-  };
-
-  const handleLevelsChange = (newLevels: BuildingLevel[]) => {
-    setEditingLevels(newLevels);
-  };
-
-  const handleSaveLevels = async () => {
-    if (!selectedBuilding) return;
-
-    const { data: originalLevels, error: fetchError } = await supabase
-      .from('building_levels')
-      .select('id')
-      .eq('building_type', selectedBuilding.type);
-
-    if (fetchError) {
-      showError("Erreur lors de la vérification des niveaux existants.");
-      return;
-    }
-
-    const originalLevelIds = new Set(originalLevels.map(l => l.id));
-    const currentLevelIds = new Set(editingLevels.map(l => l.id).filter(id => id < 1000000000));
-
-    const levelsToInsert = editingLevels
-      .filter(l => l.id >= 1000000000)
-      .map(({ id, created_at, ...rest }) => rest);
-    
-    const levelsToUpdate = editingLevels.filter(l => originalLevelIds.has(l.id));
-    const levelIdsToDelete = [...originalLevelIds].filter(id => !currentLevelIds.has(id));
-
-    try {
-      const promises = [];
-      if (levelsToInsert.length > 0) {
-        promises.push(supabase.from('building_levels').insert(levelsToInsert as any));
-      }
-      if (levelsToUpdate.length > 0) {
-        promises.push(...levelsToUpdate.map(l => supabase.from('building_levels').update(l).eq('id', l.id)));
-      }
-      if (levelIdsToDelete.length > 0) {
-        promises.push(supabase.from('building_levels').delete().in('id', levelIdsToDelete));
-      }
-
-      const results = await Promise.all(promises);
-      const errors = results.map(r => r.error).filter(Boolean);
-
-      if (errors.length > 0) {
-        throw new Error(errors.map(e => e.message).join(', '));
-      }
-
-      showSuccess("Niveaux sauvegardés avec succès !");
-      handleBackToList();
-
-    } catch (error: any) {
-      showError(`Erreur lors de la sauvegarde : ${error.message}`);
-    }
   };
 
   const getIconComponent = (iconName: string | null) => {
@@ -167,18 +88,7 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
         </div>
       );
     }
-    if (loadingEditorLevels) {
-      return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
-    }
-    return (
-      <BuildingLevelEditor
-        levels={editingLevels}
-        onLevelsChange={handleLevelsChange}
-        onSave={handleSaveLevels}
-        onCancel={handleBackToList}
-        selectedBuildingType={selectedBuilding.type}
-      />
-    );
+    return <BuildingLevelEditor building={selectedBuilding} onBack={handleBackToList} />;
   }
 
   if (loadingLevels) {
