@@ -636,7 +636,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             level => level.building_type === 'chest' && level.level === construction.level
         );
         
-        const totalSlots = levelDef?.stats?.storage_capacity || 0;
+        const totalSlots = levelDef?.stats?.storage_slots || 0;
         
         const itemsInChest = playerData.chestItems?.filter(item => item.chest_id === construction.id) || [];
         const usedSlots = new Set(itemsInChest.map(item => item.slot_position).filter(p => p !== null)).size;
