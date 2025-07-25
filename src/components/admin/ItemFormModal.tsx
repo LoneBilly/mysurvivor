@@ -27,11 +27,13 @@ interface ItemFormModalProps {
   item: Partial<Item> | null;
 }
 
-const iconNames = Object.keys(LucideIcons).filter(key => {
-  const IconComponent = (LucideIcons as any)[key];
-  // This ensures we only get valid icon components from lucide-react
-  return IconComponent && typeof IconComponent.render === 'function' && IconComponent.displayName?.startsWith('Lucide');
-});
+const iconNames = Object.keys(LucideIcons).filter(key => 
+  key !== 'createLucideIcon' && 
+  key !== 'icons' && 
+  key !== 'LucideIcon' &&
+  // Filter out internal or deprecated exports
+  /^[A-Z]/.test(key)
+);
 
 const ItemFormModal: React.FC<ItemFormModalProps> = ({ isOpen, onClose, onSave, item }) => {
   const [name, setName] = useState('');
