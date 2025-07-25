@@ -4,16 +4,18 @@ import { Button } from "@/components/ui/button";
 import { BaseConstruction } from '@/types/game';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { AlertTriangle, Rabbit } from 'lucide-react';
+import { AlertTriangle, Rabbit, Hammer, Trash2 } from 'lucide-react';
 
 interface TrapModalProps {
     isOpen: boolean;
     onClose: () => void;
     construction: BaseConstruction | null;
     onUpdate: () => void;
+    onDemolish: (construction: BaseConstruction) => void;
+    onInspect: (construction: BaseConstruction) => void;
 }
 
-const TrapModal: React.FC<TrapModalProps> = ({ isOpen, onClose, construction, onUpdate }) => {
+const TrapModal: React.FC<TrapModalProps> = ({ isOpen, onClose, construction, onUpdate, onDemolish, onInspect }) => {
     if (!isOpen || !construction) return null;
 
     const status = construction.building_state?.status || 'disarmed';
@@ -40,6 +42,16 @@ const TrapModal: React.FC<TrapModalProps> = ({ isOpen, onClose, construction, on
             onClose();
         }
     };
+
+    const handleDemolishClick = () => {
+        onClose();
+        onDemolish(construction);
+    }
+
+    const handleInspectClick = () => {
+        onClose();
+        onInspect(construction);
+    }
 
     const renderContent = () => {
         if (hasLoot || status === 'triggered_animal') {
@@ -81,7 +93,11 @@ const TrapModal: React.FC<TrapModalProps> = ({ isOpen, onClose, construction, on
                 <div className="py-4">
                     {renderContent()}
                 </div>
-                <DialogFooter>
+                <DialogFooter className="sm:justify-between gap-2">
+                    <div>
+                        <Button variant="outline" size="icon" onClick={handleInspectClick}><Hammer className="w-4 h-4" /></Button>
+                        <Button variant="destructive" size="icon" className="ml-2" onClick={handleDemolishClick}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
                     <Button variant="outline" onClick={onClose}>
                         Fermer
                     </Button>
