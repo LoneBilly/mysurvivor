@@ -4,19 +4,20 @@ import { Button } from '@/components/ui/button';
 import { BaseConstruction } from '@/types/game';
 import { useGame } from '@/contexts/GameContext';
 import BuildingHealth from './BuildingHealth';
-import { Loader2, Wrench, Trash2 } from 'lucide-react';
+import { Loader2, Wrench, Trash2, Hammer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 
-interface ChestModalProps {
+interface BuildingInspectModalProps {
   isOpen: boolean;
   onClose: () => void;
   construction: BaseConstruction | null;
   onDemolish: (construction: BaseConstruction) => void;
   onUpdate: () => void;
+  onInspect: (construction: BaseConstruction) => void;
 }
 
-const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: ChestModalProps) => {
+const BuildingInspectModal = ({ isOpen, onClose, construction, onDemolish, onUpdate, onInspect }: BuildingInspectModalProps) => {
   const { buildingLevels } = useGame();
   const [isRepairing, setIsRepairing] = useState(false);
 
@@ -40,17 +41,19 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
     setIsRepairing(false);
   };
 
+  const buildingName = levelData?.name || construction.type;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-slate-800/70 backdrop-blur-lg text-white border border-slate-700">
         <DialogHeader>
-          <DialogTitle>Coffre (Niveau {construction.level})</DialogTitle>
+          <DialogTitle>{buildingName} (Niveau {construction.level})</DialogTitle>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-4 space-y-4">
           <BuildingHealth currentHp={currentHp} maxHp={maxHp} />
-          <div className="text-center text-slate-400 p-8 border border-dashed border-slate-600 rounded-lg">
-            La gestion de l'inventaire du coffre sera affichée ici.
-          </div>
+          <Button onClick={() => onInspect(construction)} className="w-full">
+              <Hammer className="w-4 h-4 mr-2" /> Interagir
+          </Button>
         </div>
         <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2">
           <Button variant="destructive" onClick={() => onDemolish(construction)}>
@@ -68,4 +71,4 @@ const ChestModal = ({ isOpen, onClose, construction, onDemolish, onUpdate }: Che
   );
 };
 
-export default ChestModal;
+export default BuildingInspectModal;
