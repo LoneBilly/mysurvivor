@@ -14,6 +14,7 @@ import CountdownTimer from "./CountdownTimer";
 import CraftingProgressBar from "./CraftingProgressBar";
 import CampfireModal from "./CampfireModal";
 import CampfireProgressBar from "./CampfireProgressBar";
+import WallModal from "./WallModal";
 
 interface BaseCell {
   x: number;
@@ -111,6 +112,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
   const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [campfireModalState, setCampfireModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
+  const [wallModalState, setWallModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
   const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
   const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
   const [cookingProgress, setCookingProgress] = useState<number | null>(null);
@@ -482,7 +484,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
             return;
         } else if (constructionData) {
             if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
-            else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap', 'wall'].includes(constructionData.type)) onInspectWorkbench(constructionData);
+            else if (constructionData.type === 'wall') setWallModalState({ isOpen: true, construction: constructionData });
+            else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
             else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
             else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         } else {
@@ -495,7 +498,8 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         if (constructionData.type === 'foundation') setFoundationMenu({ isOpen: true, x, y });
         else if (constructionData.type === 'chest') setChestModalState({ isOpen: true, construction: constructionData });
         else if (constructionData.type === 'campfire') setCampfireModalState({ isOpen: true, construction: constructionData });
-        else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap', 'wall'].includes(constructionData.type)) onInspectWorkbench(constructionData);
+        else if (constructionData.type === 'wall') setWallModalState({ isOpen: true, construction: constructionData });
+        else if (['workbench', 'lit', 'trap', 'piège', 'crossbow', 'arbalete', 'crossbow_trap'].includes(constructionData.type)) onInspectWorkbench(constructionData);
         else showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
         return;
     }
@@ -763,7 +767,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         return (
           <>
             <div className="absolute top-0.5 text-xs font-mono text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-1">
-              <Zap className="w-3 h-3 text-yellow-400" />
               {playerData.playerState.energie}/100
             </div>
             <Icon className="w-8 h-8 text-purple-400" />
@@ -883,6 +886,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         isOpen={campfireModalState.isOpen}
         onClose={() => setCampfireModalState({ isOpen: false, construction: null })}
         construction={liveCampfireConstruction}
+        onUpdate={refreshPlayerData}
+      />
+      <WallModal
+        isOpen={wallModalState.isOpen}
+        onClose={() => setWallModalState({ isOpen: false, construction: null })}
+        construction={wallModalState.construction}
+        onDemolish={onDemolishBuilding}
         onUpdate={refreshPlayerData}
       />
     </div>
