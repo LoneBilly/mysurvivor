@@ -81,7 +81,7 @@ export function BaseInterface() {
   return (
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} sensors={sensors}>
       <div
-        className="relative bg-zinc-200 p-4 rounded-lg"
+        className="relative bg-zinc-100 p-4 rounded-lg"
         style={{
           width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP) + 32,
           height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP) + 32
@@ -104,7 +104,7 @@ export function BaseInterface() {
             return (
               <div
                 key={`cell-${x}-${y}`}
-                className="absolute bg-zinc-300/50 rounded"
+                className="absolute bg-zinc-200/50 rounded"
                 style={{
                   left: x * (CELL_SIZE_PX + CELL_GAP),
                   top: y * (CELL_SIZE_PX + CELL_GAP),
