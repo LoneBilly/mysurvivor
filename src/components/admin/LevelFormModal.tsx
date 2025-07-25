@@ -20,6 +20,7 @@ const PREDEFINED_STATS = [
   { key: 'storage_slots', label: 'Slots de stockage (Coffre)', type: 'number' },
   { key: 'crafting_speed_modifier_percentage', label: 'Vitesse de fabrication % (Établi, Forge)', type: 'number' },
   { key: 'damage', label: 'Dégâts (Pièges, Tourelles)', type: 'number' },
+  { key: 'health', label: 'Points de vie (Murs, etc.)', type: 'number' },
   { key: 'energy_regen_per_second', label: 'Régénération d\'énergie/sec (Lit)', type: 'number' },
 ];
 
@@ -32,8 +33,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
       if (levelData) {
         setLevel(levelData);
         const initialStats = levelData.stats || {};
-        const { health, ...otherStats } = initialStats;
-        const statsArray = Object.entries(otherStats).map(([key, value], index) => ({
+        const statsArray = Object.entries(initialStats).map(([key, value], index) => ({
           id: index,
           key,
           value,
@@ -41,7 +41,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
         setStatsList(statsArray);
       } else {
         const nextLevel = Math.max(0, ...existingLevels.filter(l => l !== levelData?.level)) + 1;
-        setLevel({ level: nextLevel, building_type: buildingType, stats: { health: 100 } });
+        setLevel({ level: nextLevel, building_type: buildingType });
         setStatsList([]);
       }
     }
@@ -56,24 +56,11 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
     }
   };
 
-  const handleStatChange = (key: string, value: string) => {
-    const numValue = parseInt(value, 10);
-    setLevel(prev => {
-      const newStats = { ...(prev.stats || {}) };
-      if (!isNaN(numValue)) {
-        newStats[key] = numValue;
-      } else if (value === '') {
-        delete newStats[key];
-      }
-      return { ...prev, stats: newStats };
-    });
-  };
-
   const handleAddStat = () => {
     setStatsList(prev => [...prev, { id: Date.now(), key: '', value: '' }]);
   };
 
-  const handleDynamicStatChange = (id: number, field: 'key' | 'value', newValue: any) => {
+  const handleStatChange = (id: number, field: 'key' | 'value', newValue: any) => {
     setStatsList(prev => prev.map(stat => {
       if (stat.id === id) {
         const newStat = { ...stat, [field]: newValue };
@@ -97,7 +84,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
       return;
     }
     
-    const dynamicStats = statsList.reduce((acc, stat) => {
+    const finalStats = statsList.reduce((acc, stat) => {
       if (stat.key.trim() !== '') {
         const value = Number(stat.value);
         if (!isNaN(value)) {
@@ -106,11 +93,6 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
       }
       return acc;
     }, {} as Record<string, any>);
-
-    const finalStats = {
-      ...dynamicStats,
-      health: level.stats?.health || 0,
-    };
 
     const finalLevelData = { ...level, stats: finalStats };
     onSave(finalLevelData);
@@ -124,15 +106,9 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
           <DialogDescription>Définissez les coûts et les statistiques pour ce niveau.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Niveau</Label>
-              <Input type="number" value={level.level || ''} onChange={(e) => handleInputChange('level', e.target.value)} required min="1" disabled={levelData?.level === 1} />
-            </div>
-            <div>
-              <Label>Points de vie (HP)</Label>
-              <Input type="number" value={level.stats?.health || ''} onChange={(e) => handleStatChange('health', e.target.value)} placeholder="ex: 100" />
-            </div>
+          <div>
+            <Label>Niveau</Label>
+            <Input type="number" value={level.level || ''} onChange={(e) => handleInputChange('level', e.target.value)} required min="1" disabled={levelData?.level === 1} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><Label>Coût Énergie</Label><Input type="number" value={level.upgrade_cost_energy || ''} onChange={(e) => handleInputChange('upgrade_cost_energy', e.target.value)} placeholder="0" /></div>
@@ -143,7 +119,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
             <div><Label>Coût Métal (lingots)</Label><Input type="number" value={level.upgrade_cost_metal_ingots || ''} onChange={(e) => handleInputChange('upgrade_cost_metal_ingots', e.target.value)} placeholder="0" /></div>
           </div>
           <div>
-            <Label>Autres Statistiques</Label>
+            <Label>Statistiques</Label>
             <div className="space-y-2 rounded-lg border border-slate-700 p-3">
               {statsList.map((stat) => (
                 <div key={stat.id} className="flex items-end gap-2">
@@ -151,7 +127,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
                     <Label className="text-xs">Clé</Label>
                     <select
                       value={stat.key}
-                      onChange={(e) => handleDynamicStatChange(stat.id, 'key', e.target.value)}
+                      onChange={(e) => handleStatChange(stat.id, 'key', e.target.value)}
                       className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white text-sm"
                     >
                       <option value="" disabled>Choisir une stat...</option>
@@ -163,7 +139,7 @@ const LevelFormModal = ({ isOpen, onClose, onSave, buildingType, levelData, exis
                     <Input
                       type="number"
                       value={stat.value || ''}
-                      onChange={(e) => handleDynamicStatChange(stat.id, 'value', e.target.value)}
+                      onChange={(e) => handleStatChange(stat.id, 'value', e.target.value)}
                       className="bg-white/5 border-white/20"
                       disabled={!stat.key}
                     />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +14,7 @@ import * as LucideIcons from "lucide-react";
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import BuildingLevelEditor from './BuildingLevelEditor';
 import { BuildingLevel } from '@/types/game';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import CampfireManager from './CampfireManager';
 import { Item } from '@/types/admin';
 
@@ -32,8 +32,6 @@ interface BuildingManagerProps {
 
 const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingManagerProps) => {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingDefinition | null>(null);
-  const [selectedBuildingLevels, setSelectedBuildingLevels] = useState<BuildingLevel[]>([]);
-  const [loadingBuildingLevels, setLoadingBuildingLevels] = useState(false);
   const isMobile = useIsMobile();
   const [levelsData, setLevelsData] = useState<Record<string, BuildingLevel>>({});
   const [loadingLevels, setLoadingLevels] = useState(true);
@@ -60,74 +58,13 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
     fetchLevel1Data();
   }, []);
 
-  const handleManageLevels = async (building: BuildingDefinition) => {
+  const handleManageLevels = (building: BuildingDefinition) => {
     setSelectedBuilding(building);
-    setLoadingBuildingLevels(true);
-    const { data, error } = await supabase
-      .from('building_levels')
-      .select('*')
-      .eq('building_type', building.type)
-      .order('level', { ascending: true });
-    
-    if (error) {
-      showError(`Erreur lors du chargement des niveaux pour ${building.name}.`);
-      setSelectedBuildingLevels([]);
-    } else {
-      setSelectedBuildingLevels(data || []);
-    }
-    setLoadingBuildingLevels(false);
   };
 
   const handleBackToList = () => {
     setSelectedBuilding(null);
-    setSelectedBuildingLevels([]);
     onBuildingsUpdate();
-  };
-
-  const handleSaveLevels = async (updatedLevels: BuildingLevel[]) => {
-    if (!selectedBuilding) return;
-
-    const { data: originalLevels, error: fetchError } = await supabase
-      .from('building_levels')
-      .select('id')
-      .eq('building_type', selectedBuilding.type);
-
-    if (fetchError) {
-      showError("Erreur lors de la récupération des niveaux originaux.");
-      return;
-    }
-
-    const originalLevelIds = originalLevels.map(l => l.id);
-    const updatedLevelIds = updatedLevels.map(l => l.id).filter(id => id < 1000000000); // Filter out temporary new IDs
-
-    const levelsToDelete = originalLevelIds.filter(id => !updatedLevelIds.includes(id));
-
-    const levelsToUpsert = updatedLevels.map(({ id, created_at, ...rest }) => {
-      if (id > 1000000000) { // It's a temporary ID (timestamp)
-        const { id: tempId, ...restWithoutId } = rest;
-        return restWithoutId;
-      }
-      return { id, ...rest };
-    });
-
-    const promises = [];
-    if (levelsToDelete.length > 0) {
-      promises.push(supabase.from('building_levels').delete().in('id', levelsToDelete));
-    }
-    if (levelsToUpsert.length > 0) {
-      promises.push(supabase.from('building_levels').upsert(levelsToUpsert));
-    }
-
-    const results = await Promise.all(promises);
-    const errors = results.map(r => r.error).filter(Boolean);
-
-    if (errors.length > 0) {
-      showError("Une erreur est survenue lors de la sauvegarde des niveaux.");
-      console.error(errors);
-    } else {
-      showSuccess("Niveaux sauvegardés avec succès.");
-      handleBackToList();
-    }
   };
 
   const getIconComponent = (iconName: string | null) => {
@@ -151,16 +88,7 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
         </div>
       );
     }
-    if (loadingBuildingLevels) {
-      return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
-    }
-    return <BuildingLevelEditor 
-      building={selectedBuilding} 
-      levels={selectedBuildingLevels}
-      onLevelsChange={setSelectedBuildingLevels}
-      onSave={handleSaveLevels}
-      onCancel={handleBackToList}
-    />;
+    return <BuildingLevelEditor building={selectedBuilding} onBack={handleBackToList} />;
   }
 
   if (loadingLevels) {
@@ -187,7 +115,6 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
                     </Button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-300">
-                    <p>HP: {level1?.stats?.health || 100}</p>
                     <p>Temps: {level1?.upgrade_time_seconds || 0}s</p>
                     <p>Énergie: {level1?.upgrade_cost_energy || 0}</p>
                     <p>Bois: {level1?.upgrade_cost_wood || 0}</p>
@@ -204,7 +131,6 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
             <TableHeader>
               <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
                 <TableHead>Nom</TableHead>
-                <TableHead>HP (Lvl 1)</TableHead>
                 <TableHead>Temps</TableHead>
                 <TableHead>Énergie</TableHead>
                 <TableHead>Bois</TableHead>
@@ -223,7 +149,6 @@ const BuildingManager = ({ buildings, onBuildingsUpdate, allItems }: BuildingMan
                       {(() => { const Icon = getIconComponent(building.icon); return <Icon className="w-5 h-5" />; })()}
                       {building.name}
                     </TableCell>
-                    <TableCell>{level1?.stats?.health || 100}</TableCell>
                     <TableCell>{level1?.upgrade_time_seconds || 0}s</TableCell>
                     <TableCell>{level1?.upgrade_cost_energy || 0}</TableCell>
                     <TableCell>{level1?.upgrade_cost_wood || 0}</TableCell>
