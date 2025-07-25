@@ -16,7 +16,7 @@ interface CrossbowModalProps {
 }
 
 const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construction, onUpdate }) => {
-    const { playerData } = useGame();
+    const { playerData, items } = useGame();
     const [selectedArrowStack, setSelectedArrowStack] = useState<InventoryItem | null>(null);
     const [quantity, setQuantity] = useState(1);
 
@@ -24,8 +24,8 @@ const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construc
 
     const isArmed = construction.building_state?.is_armed || false;
     const arrowQuantity = construction.building_state?.arrow_quantity || 0;
-    const arrowItem = playerData.items.find(i => i.name === 'Flèche');
-    const playerArrows = playerData.inventory.filter(i => i.item_id === arrowItem?.id);
+    const arrowItem = items?.find(i => i.name === 'Flèche');
+    const playerArrows = playerData?.inventory?.filter(i => i.item_id === arrowItem?.id) || [];
 
     const handleLoad = async () => {
         if (!selectedArrowStack) {
