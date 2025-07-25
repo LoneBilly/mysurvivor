@@ -1,790 +1,196 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Loader2, LocateFixed, Zap, Clock, Hammer, Trash2, Box, BrickWall, TowerControl, AlertTriangle, CookingPot, X, BedDouble, Flame, Crosshair } from "lucide-react";
+"use client";
+
+import { useState, useMemo } from 'react';
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { showError, showInfo } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { BaseConstruction, ConstructionJob, CraftingJob } from "@/types/game";
-import FoundationMenuModal from "./FoundationMenuModal";
-import ChestModal from "./ChestModal";
-import { useIsMobile } from "@/hooks/use-is-mobile";
-import { useGame } from "@/contexts/GameContext";
-import CountdownTimer from "./CountdownTimer";
-import CraftingProgressBar from "./CraftingProgressBar";
-import CampfireModal from "./CampfireModal";
-import CampfireProgressBar from "./CampfireProgressBar";
-import TrapModal from "./TrapModal";
-import CrossbowModal from "./CrossbowModal";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { LoadCrossbowModal } from './LoadCrossbowModal';
+import { FullPlayerData, BaseConstruction } from '@/types/types';
+import { RotateCcw, Trash2, ChevronsUp, Zap, Hammer, Shield, Package, HelpCircle } from 'lucide-react';
 
-interface BaseCell {
-  x: number;
-  y: number;
-  type: string;
-  canBuild?: boolean;
-  ends_at?: string;
-  showTrash?: boolean;
-}
-
-const GRID_SIZE = 31;
-const CELL_SIZE_PX = 60;
-const CELL_GAP = 4;
-const MAX_BURN_TIME_SECONDS = 72 * 60 * 60; // 72 hours
-
-const buildingIcons: { [key: string]: React.ElementType } = {
-  chest: Box,
-  wall: BrickWall,
-  turret: TowerControl,
-  generator: Zap,
-  trap: AlertTriangle,
-  piège: AlertTriangle,
-  arbalete: Crosshair,
-  crossbow_trap: Crosshair,
-  workbench: Hammer,
-  furnace: CookingPot,
-  foundation: Plus,
-  lit: BedDouble,
-  campfire: Flame,
-};
-
-interface BuildingDefinition {
-  type: string;
-  name: string;
-  icon: string;
-  build_time_seconds: number;
-  cost_energy: number;
-  cost_wood: number;
-  cost_metal: number;
-  cost_components: number;
-  cost_metal_ingots: number;
-}
+const BASE_GRID_SIZE = 10;
 
 interface BaseInterfaceProps {
-  isActive: boolean;
-  onInspectWorkbench: (construction: BaseConstruction) => void;
-  onDemolishBuilding: (construction: BaseConstruction) => void;
+  playerData: FullPlayerData | null;
+  refetchPlayerData: () => void;
+  isLoading: boolean;
 }
 
-const RESOURCE_IDS = {
-  WOOD: 9,
-  STONE: 4,
-  METAL_INGOT: 12,
-  COMPONENTS: 38,
-};
+export function BaseInterface({ playerData, refetchPlayerData, isLoading }: BaseInterfaceProps) {
+  const [selectedConstruction, setSelectedConstruction] = useState<{ x: number; y: number } | null>(null);
+  const [highlightedCells, setHighlightedCells] = useState<{x: number, y: number}[]>([]);
+  const [isLoadCrossbowModalOpen, setLoadCrossbowModalOpen] = useState(false);
+  const { toast } = useToast();
 
-const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: BaseInterfaceProps) => {
-  const { user } = useAuth();
-  const { playerData, setPlayerData, refreshPlayerData, items, addConstructionJob } = useGame();
-  const { baseConstructions: initialConstructions, constructionJobs: initialConstructionJobs = [], craftingJobs } = playerData;
-  
-  const isMobile = useIsMobile();
-  const [gridData, setGridData] = useState<BaseCell[][] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const hasCentered = useRef(false);
-  const [campfirePosition, setCampfirePosition] = useState<{ x: number; y: number } | null>(null);
-  const [foundationMenu, setFoundationMenu] = useState<{isOpen: boolean, x: number, y: number} | null>(null);
-  const [chestModalState, setChestModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [campfireModalState, setCampfireModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [trapModalState, setTrapModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [crossbowModalState, setCrossbowModalState] = useState<{ isOpen: boolean; construction: BaseConstruction | null }>({ isOpen: false, construction: null });
-  const [hoveredConstruction, setHoveredConstruction] = useState<{x: number, y: number} | null>(null);
-  const [craftingProgress, setCraftingProgress] = useState<Record<number, number>>({});
-  
-  const [now, setNow] = useState(Date.now());
-  const fetchTime = useRef(Date.now());
-  const isRefreshingData = useRef(false);
+  const baseConstructions = playerData?.baseConstructions || [];
 
-  useEffect(() => {
-    if (isActive) {
-      refreshPlayerData(true);
-    }
-  }, [isActive]);
-
-  useEffect(() => {
-    fetchTime.current = Date.now();
-  }, [initialConstructions]);
-
-  useEffect(() => {
-    if (!isActive) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [isActive]);
-
-  useEffect(() => {
-    if (!isActive || !initialConstructions) return;
-
-    const checkCookingStatus = () => {
-      if (isRefreshingData.current) return;
-
-      const now = Date.now();
-      const needsUpdate = initialConstructions.some(c => 
-        c.type === 'campfire' && 
-        c.cooking_slot?.status === 'cooking' && 
-        new Date(c.cooking_slot.ends_at).getTime() <= now
-      );
-
-      if (needsUpdate) {
-        isRefreshingData.current = true;
-        refreshPlayerData(true).finally(() => {
-          setTimeout(() => {
-            isRefreshingData.current = false;
-          }, 2000);
-        });
+  const grid = useMemo(() => {
+    const newGrid: (BaseConstruction | null)[][] = Array(BASE_GRID_SIZE).fill(null).map(() => Array(BASE_GRID_SIZE).fill(null));
+    baseConstructions.forEach(c => {
+      if (c.x >= 0 && c.x < BASE_GRID_SIZE && c.y >= 0 && c.y < BASE_GRID_SIZE) {
+        newGrid[c.y][c.x] = c;
       }
-    };
-
-    const intervalId = setInterval(checkCookingStatus, 2000);
-
-    return () => clearInterval(intervalId);
-  }, [isActive, initialConstructions, refreshPlayerData]);
-
-  const elapsedSeconds = useMemo(() => Math.floor((now - fetchTime.current) / 1000), [now]);
-
-  const liveConstructions = useMemo(() => {
-    if (!initialConstructions) return [];
-    return initialConstructions.map(c => {
-      if (c.type === 'campfire' && c.burn_time_remaining_seconds > 0) {
-        const newBurnTime = c.burn_time_remaining_seconds - elapsedSeconds;
-        return { ...c, burn_time_remaining_seconds: Math.max(0, newBurnTime) };
-      }
-      return c;
     });
-  }, [initialConstructions, elapsedSeconds]);
-
-  const isJobRunning = useMemo(() => {
-    if (!gridData) return initialConstructionJobs.length > 0;
-    return gridData.some(row => row.some(cell => cell.type === 'in_progress'));
-  }, [gridData, initialConstructionJobs]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!playerData?.craftingJobs) {
-        setCraftingProgress({});
-        return;
-      }
-      const newProgress: Record<number, number> = {};
-      playerData.craftingJobs.forEach(job => {
-        if (!job.craft_time_seconds) {
-          newProgress[job.workbench_id] = 0;
-          return;
-        }
-
-        const totalBatchDuration = job.initial_quantity * job.craft_time_seconds * 1000;
-        if (totalBatchDuration <= 0) {
-          newProgress[job.workbench_id] = 100;
-          return;
-        }
-        
-        const itemsCompleted = job.initial_quantity - job.quantity;
-        const timeElapsedForCompletedItems = itemsCompleted * job.craft_time_seconds * 1000;
-        
-        const currentItemEndTime = new Date(job.ends_at).getTime();
-        const currentItemDuration = job.craft_time_seconds * 1000;
-        const currentItemStartTime = currentItemEndTime - currentItemDuration;
-        
-        const timeElapsedForCurrentItem = Math.max(0, Date.now() - currentItemStartTime);
-        
-        const totalTimeElapsed = timeElapsedForCompletedItems + timeElapsedForCurrentItem;
-        
-        newProgress[job.workbench_id] = Math.min(100, (totalTimeElapsed / totalBatchDuration) * 100);
-      });
-      setCraftingProgress(newProgress);
-    }, 200);
-
-    return () => clearInterval(interval);
-  }, [playerData?.craftingJobs]);
-
-  const isDraggingRef = useRef(false);
-  const panState = useRef<{
-    isPanning: boolean;
-    startX: number;
-    startY: number;
-    scrollLeft: number;
-    scrollTop: number;
-  } | null>(null);
-
-  const totalResources = useMemo(() => {
-    const resourceCounter = (itemId: number) => {
-      const inventoryQty = playerData.inventory
-        .filter(i => i.item_id === itemId)
-        .reduce((sum, i) => sum + i.quantity, 0);
-      const chestQty = playerData.chestItems
-        ?.filter(i => i.item_id === itemId)
-        .reduce((sum, i) => sum + i.quantity, 0) || 0;
-      return inventoryQty + chestQty;
-    };
-    
-    return {
-      energie: playerData.playerState.energie,
-      wood: resourceCounter(RESOURCE_IDS.WOOD),
-      metal: resourceCounter(RESOURCE_IDS.STONE),
-      components: resourceCounter(RESOURCE_IDS.COMPONENTS),
-      metal_ingots: resourceCounter(RESOURCE_IDS.METAL_INGOT),
-    };
-  }, [playerData.playerState.energie, playerData.inventory, playerData.chestItems]);
-
-  const updateCanBuild = (grid: BaseCell[][]): BaseCell[][] => {
-    const newGrid = grid.map(row => row.map(cell => ({ ...cell, canBuild: false })));
-    for (let y = 0; y < GRID_SIZE; y++) {
-      for (let x = 0; x < GRID_SIZE; x++) {
-        if (newGrid[y][x].type !== 'empty' && newGrid[y][x].type !== 'in_progress') {
-          const adjacentPositions = [
-            { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
-          ];
-          adjacentPositions.forEach(pos => {
-            if (newGrid[pos.y]?.[pos.x]?.type === 'empty') {
-              newGrid[pos.y][pos.x].canBuild = true;
-            }
-          });
-        }
-      }
-    }
     return newGrid;
+  }, [baseConstructions]);
+
+  const getConstructionAt = (x: number, y: number) => {
+    return baseConstructions.find(c => c.x === x && c.y === y);
   };
 
-  const initializeGrid = useCallback(async (constructions: BaseConstruction[], jobs: ConstructionJob[]) => {
-    if (!user) return;
-    setLoading(true);
-    
-    let currentConstructions = [...constructions];
-    const campfire = currentConstructions.find(c => c.type === 'campfire');
-    const isCampfireInvalid = !campfire || campfire.x >= GRID_SIZE || campfire.y >= GRID_SIZE;
+  const handleCellClick = (x: number, y: number) => {
+    const construction = getConstructionAt(x, y);
+    setSelectedConstruction(construction ? { x, y } : null);
 
-    if (isCampfireInvalid && currentConstructions.length > 0) {
-      await supabase.from('base_constructions').delete().eq('player_id', user.id);
-      currentConstructions = [];
-    }
-
-    if (currentConstructions.length === 0 && jobs.length === 0) {
-      const newCampX = Math.floor(GRID_SIZE / 2);
-      const newCampY = Math.floor(GRID_SIZE / 2);
+    if (construction?.type === 'arbalete') {
+      const newHighlighted: {x: number, y: number}[] = [];
+      const { rotation } = construction;
+      const range = 3;
       
-      const { error: insertError } = await supabase
-        .from('base_constructions')
-        .insert({ player_id: user.id, x: newCampX, y: newCampY, type: 'campfire' });
-      
-      if (insertError) {
-        showError("Impossible de créer le campement initial.");
-        setLoading(false);
-        return;
-      }
-      
-      await refreshPlayerData();
-      return;
-    }
+      let dx = 0, dy = 0;
+      if (rotation === 0) dy = -1; // Up
+      else if (rotation === 1) dx = 1; // Right
+      else if (rotation === 2) dy = 1; // Down
+      else if (rotation === 3) dx = -1; // Left
 
-    let newGrid: BaseCell[][] = Array.from({ length: GRID_SIZE }, (_, y) =>
-      Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y, type: 'empty', canBuild: false, showTrash: false }))
-    );
-
-    let campPos: { x: number; y: number } | null = null;
-
-    currentConstructions.forEach((c: BaseConstruction) => {
-      if (newGrid[c.y]?.[c.x]) {
-        newGrid[c.y][c.x].type = c.type;
-        if (c.type === 'campfire') {
-          campPos = { x: c.x, y: c.y };
+      for (let i = 1; i <= range; i++) {
+        const hx = x + i * dx;
+        const hy = y + i * dy;
+        if (hx >= 0 && hx < BASE_GRID_SIZE && hy >= 0 && hy < BASE_GRID_SIZE) {
+          newHighlighted.push({ x: hx, y: hy });
         }
       }
-    });
-    jobs.forEach((job: ConstructionJob) => {
-      if (newGrid[job.y]?.[job.x]) {
-        newGrid[job.y][job.x].type = 'in_progress';
-        newGrid[job.y][job.x].ends_at = job.ends_at;
-      }
-    });
-
-    const finalGrid = updateCanBuild(newGrid);
-    setGridData(finalGrid);
-    setCampfirePosition(campPos);
-    setLoading(false);
-  }, [user, refreshPlayerData]);
-
-  useEffect(() => {
-    if (initialConstructions) {
-      initializeGrid(initialConstructions, initialConstructionJobs);
-    }
-  }, [initialConstructions, initialConstructionJobs, initializeGrid]);
-
-  const centerViewport = useCallback((x: number, y: number, smooth: boolean = true) => {
-    if (!viewportRef.current) return;
-    
-    const viewport = viewportRef.current;
-    const cellCenterX = x * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    const cellCenterY = y * (CELL_SIZE_PX + CELL_GAP) + CELL_SIZE_PX / 2;
-    
-    const scrollLeft = cellCenterX - viewport.clientWidth / 2;
-    const scrollTop = cellCenterY - viewport.clientHeight / 2;
-
-    viewport.scrollTo({
-      left: scrollLeft,
-      top: scrollTop,
-      behavior: smooth ? 'smooth' : 'auto',
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isActive) {
-      hasCentered.current = false;
-    }
-  }, [isActive]);
-
-  useLayoutEffect(() => {
-    if (isActive && !loading && gridData && campfirePosition && viewportRef.current && !hasCentered.current) {
-      centerViewport(campfirePosition.x, campfirePosition.y, false);
-      hasCentered.current = true;
-    }
-  }, [isActive, loading, gridData, campfirePosition, centerViewport]);
-
-  const handleCancelConstruction = async (x: number, y: number) => {
-    if (!gridData || !user) return;
-    const originalGridData = JSON.parse(JSON.stringify(gridData));
-    const originalJobs = [...(playerData.constructionJobs || [])];
-
-    const newGrid = JSON.parse(JSON.stringify(gridData));
-    newGrid[y][x].type = 'empty';
-    newGrid[y][x].ends_at = undefined;
-    newGrid[y][x].showTrash = false;
-    setGridData(updateCanBuild(newGrid));
-
-    setPlayerData(prev => ({
-        ...prev,
-        constructionJobs: prev.constructionJobs?.filter(job => !(job.x === x && job.y === y))
-    }));
-
-    const { error } = await supabase.rpc('cancel_construction_job', { p_x: x, p_y: y });
-
-    if (error) {
-        showError(error.message || "Erreur lors de l'annulation.");
-        setGridData(originalGridData);
-        setPlayerData(prev => ({ ...prev, constructionJobs: originalJobs }));
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || !viewportRef.current) return;
-    
-    isDraggingRef.current = false;
-    
-    panState.current = {
-      isPanning: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      scrollLeft: viewportRef.current.scrollLeft,
-      scrollTop: viewportRef.current.scrollTop,
-    };
-    
-    viewportRef.current.style.cursor = 'grabbing';
-    viewportRef.current.style.userSelect = 'none';
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!panState.current?.isPanning || !viewportRef.current) return;
-    
-    const dx = e.clientX - panState.current.startX;
-    const dy = e.clientY - panState.current.startY;
-
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-      isDraggingRef.current = true;
-    }
-    
-    if (isDraggingRef.current) {
-      e.preventDefault();
-      viewportRef.current.scrollLeft = panState.current.scrollLeft - dx;
-      viewportRef.current.scrollTop = panState.current.scrollTop - dy;
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (viewportRef.current) {
-      viewportRef.current.style.cursor = 'grab';
-      viewportRef.current.style.userSelect = 'auto';
-    }
-    panState.current = null;
-  };
-
-  const handleCellClick = async (x: number, y: number) => {
-    if (isDraggingRef.current) return;
-    if (!gridData || !user) return;
-
-    const cell = gridData[y][x];
-    const constructionData = initialConstructions.find(c => c.x === x && c.y === y);
-
-    if (isJobRunning) {
-        if (cell.type === 'in_progress') {
-            if (isMobile) {
-                if (cell.showTrash) {
-                    handleCancelConstruction(x, y);
-                } else {
-                    const newGrid = JSON.parse(JSON.stringify(gridData));
-                    newGrid[y][x].showTrash = true;
-                    setGridData(newGrid);
-                    setTimeout(() => {
-                        setGridData(currentGrid => {
-                            if (currentGrid && currentGrid[y][x].showTrash) {
-                                const finalGrid = JSON.parse(JSON.stringify(currentGrid));
-                                finalGrid[y][x].showTrash = false;
-                                return finalGrid;
-                            }
-                            return currentGrid;
-                        });
-                    }, 2000);
-                }
-            } else {
-                handleCancelConstruction(x, y);
-            }
-            return;
-        }
-        if (constructionData) {
-            if (constructionData.type === 'chest') return setChestModalState({ isOpen: true, construction: constructionData });
-            if (constructionData.type === 'campfire') return setCampfireModalState({ isOpen: true, construction: constructionData });
-            if (constructionData.type === 'trap' || constructionData.type === 'piège') return setTrapModalState({ isOpen: true, construction: constructionData });
-            if (constructionData.type === 'arbalete' || constructionData.type === 'crossbow_trap') return setCrossbowModalState({ isOpen: true, construction: constructionData });
-            if (['workbench', 'lit'].includes(constructionData.type)) return onInspectWorkbench(constructionData);
-        }
-        showInfo("Une construction est déjà en cours.");
-        return;
-    }
-
-    if (constructionData) {
-        switch(constructionData.type) {
-            case 'chest': return setChestModalState({ isOpen: true, construction: constructionData });
-            case 'campfire': return setCampfireModalState({ isOpen: true, construction: constructionData });
-            case 'trap':
-            case 'piège': return setTrapModalState({ isOpen: true, construction: constructionData });
-            case 'arbalete':
-            case 'crossbow_trap': return setCrossbowModalState({ isOpen: true, construction: constructionData });
-            case 'foundation': return setFoundationMenu({ isOpen: true, x, y });
-            case 'workbench':
-            case 'lit':
-                return onInspectWorkbench(constructionData);
-            default:
-                showError(`L'interaction avec le bâtiment '${cell.type}' n'est pas encore disponible.`);
-                return;
-        }
-    }
-
-    if (cell.canBuild && cell.type === 'empty') {
-        const energyCost = 90;
-        if (playerData.playerState.energie < energyCost) {
-            showError("Énergie insuffisante.");
-            return;
-        }
-
-        const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-        
-        const newPlayerData = JSON.parse(JSON.stringify(playerData));
-        newPlayerData.playerState.energie -= energyCost;
-        setPlayerData(newPlayerData);
-
-        const { data, error } = await supabase.rpc('start_foundation_construction', { p_x: x, p_y: y });
-
-        if (error) {
-            showError(error.message || "Erreur lors de la construction.");
-            setPlayerData(originalPlayerData);
-        } else {
-            if (data && data.length > 0) {
-                addConstructionJob(data[0]);
-            } else {
-                refreshPlayerData(true);
-            }
-        }
-    }
-  };
-
-  const handleDemolishFoundation = async (x: number, y: number) => {
-    const originalGridData = gridData;
-    const newGrid = JSON.parse(JSON.stringify(gridData));
-    newGrid[y][x].type = 'empty';
-    setGridData(updateCanBuild(newGrid));
-
-    const { error } = await supabase.rpc('demolish_foundation', { p_x: x, p_y: y });
-
-    if (error) {
-      showError(error.message);
-      setGridData(originalGridData);
+      setHighlightedCells(newHighlighted);
     } else {
-      refreshPlayerData();
+      setHighlightedCells([]);
     }
   };
 
-  const handleBuildOnFoundation = async (x: number, y: number, building: BuildingDefinition) => {
-    if (playerData.playerState.energie < building.cost_energy || totalResources.wood < building.cost_wood || totalResources.metal < building.cost_metal || totalResources.components < building.cost_components || totalResources.metal_ingots < building.cost_metal_ingots) {
-      showError("Ressources insuffisantes.");
-      return;
-    }
-
-    const originalPlayerData = JSON.parse(JSON.stringify(playerData));
-
-    const newPlayerData = JSON.parse(JSON.stringify(playerData));
-    newPlayerData.playerState.energie -= building.cost_energy;
-    setPlayerData(newPlayerData);
-
-    const { data, error } = await supabase.rpc('start_building_on_foundation', { p_x: x, p_y: y, p_building_type: building.type });
-
+  const handleRpcCall = async (rpcName: string, params: any, successMessage: string) => {
+    const { error } = await supabase.rpc(rpcName, params);
     if (error) {
-      showError(error.message);
-      setPlayerData(originalPlayerData);
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     } else {
-      if (data && data.length > 0) {
-        addConstructionJob(data[0]);
-        refreshPlayerData(true); // Refresh resources
-      } else {
-        refreshPlayerData(true);
-      }
+      toast({ title: 'Succès', description: successMessage });
+      refetchPlayerData();
     }
   };
 
-  const crossbowActionZones = useMemo(() => {
-    const zones = new Set<string>();
-    if (!liveConstructions) return zones;
-    liveConstructions.forEach(c => {
-        if (c.type === 'arbalete' || c.type === 'crossbow_trap') {
-            let targetX = c.x;
-            let targetY = c.y;
-            switch (c.rotation) {
-                case 0: targetY++; break; // Down
-                case 1: targetX--; break; // Left
-                case 2: targetY--; break; // Up
-                case 3: targetX++; break; // Right
-            }
-            zones.add(`${targetX},${targetY}`);
-        }
-    });
-    return zones;
-  }, [liveConstructions]);
+  const handleRotate = (c: BaseConstruction) => handleRpcCall('rotate_building', { p_construction_id: c.id, p_direction: (c.rotation + 1) % 4 }, 'Rotation effectuée.');
+  const handleDemolish = (c: BaseConstruction) => handleRpcCall('demolish_building_to_foundation', { p_x: c.x, p_y: c.y }, 'Bâtiment démoli.');
+  const handleUpgrade = (c: BaseConstruction) => handleRpcCall('start_building_upgrade', { p_construction_id: c.id }, 'Amélioration démarrée.');
+  const handleArmCrossbow = (c: BaseConstruction) => handleRpcCall('arm_crossbow', { p_construction_id: c.id }, 'Arbalète armée.');
+  const handleArmTrap = (c: BaseConstruction) => handleRpcCall('arm_trap', { p_construction_id: c.id }, 'Piège armé.');
+  const handleClaimTrapLoot = (c: BaseConstruction) => handleRpcCall('claim_trap_loot', { p_construction_id: c.id }, 'Butin récupéré.');
 
-  const getCellStyle = (cell: BaseCell) => {
-    const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
-    const isActionZone = crossbowActionZones.has(`${cell.x},${cell.y}`);
-    if (isActionZone) return "bg-red-500/20 border-red-500/30 cursor-default";
+  const selectedConstructionData = selectedConstruction ? getConstructionAt(selectedConstruction.x, selectedConstruction.y) : null;
 
-    switch (cell.type) {
-      case 'campfire':
-        if (construction?.cooking_slot?.status === 'cooked') {
-          return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
-        }
-        return "bg-orange-400/20 border-orange-400/30 cursor-pointer";
-      case 'foundation':
-        if (isJobRunning) {
-          return "bg-white/20 border-white/30 cursor-not-allowed opacity-60";
-        }
-        return "bg-white/20 border-white/30 hover:bg-white/25 cursor-pointer";
-      case 'in_progress': return "bg-yellow-500/20 border-yellow-500/30 animate-pulse cursor-pointer hover:border-red-500/50";
-      case 'chest': return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
-      case 'wall': return "bg-gray-600/20 border-orange-500 hover:bg-gray-600/30 cursor-pointer";
-      case 'turret': return "bg-gray-600/20 border-blue-500 hover:bg-gray-600/30 cursor-pointer";
-      case 'generator': return "bg-gray-600/20 border-yellow-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'piège':
-      case 'trap':
-        return "bg-gray-600/20 border-red-500 hover:bg-gray-600/30 cursor-pointer";
-      case 'arbalete':
-      case 'crossbow_trap':
-        return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'workbench': {
-        const isCrafting = construction && playerData.craftingJobs?.some(job => job.workbench_id === construction.id);
-        const hasOutput = construction && construction.output_item_id;
-        if (isCrafting) return "bg-yellow-600/20 border-yellow-500 hover:bg-yellow-600/30 cursor-pointer";
-        if (hasOutput) return "bg-green-600/20 border-green-500 hover:bg-green-600/30 cursor-pointer animate-pulse";
-        return "bg-gray-600/20 border-amber-700 hover:bg-gray-600/30 cursor-pointer";
+  const getBuildingIcon = (type: string) => {
+      switch(type) {
+          case 'foundation': return <div className="w-8 h-8 bg-gray-500 rounded-sm" />;
+          case 'workbench': return <Hammer className="w-8 h-8 text-yellow-600" />;
+          case 'chest': return <Package className="w-8 h-8 text-amber-700" />;
+          case 'campfire': return <Zap className="w-8 h-8 text-orange-500" />;
+          case 'arbalete': return <Shield className="w-8 h-8 text-red-600" />;
+          case 'piège': return <div className="w-8 h-8 text-green-600">T</div>;
+          default: return <HelpCircle className="w-8 h-8 text-gray-400" />;
       }
-      case 'furnace': return "bg-gray-600/20 border-gray-300 hover:bg-gray-600/30 cursor-pointer";
-      case 'lit': return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
-      case 'empty':
-        if (cell.canBuild) {
-          const baseStyle = "bg-white/5 border-white/10 border-dashed";
-          if (isJobRunning) {
-            return `${baseStyle} cursor-not-allowed`;
-          }
-          return `${baseStyle} hover:bg-white/10 cursor-pointer`;
-        }
-        return "bg-black/20 border-white/10";
-      default: return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
-    }
-  };
-
-  const getCellContent = (cell: BaseCell) => {
-    const construction = liveConstructions.find(c => c.x === cell.x && c.y === cell.y);
-    
-    if (cell.type === 'campfire' && construction) {
-        const progress = (construction.burn_time_remaining_seconds / MAX_BURN_TIME_SECONDS) * 100;
-        const Icon = buildingIcons.campfire;
-        const isCooked = construction.cooking_slot?.status === 'cooked';
-        return (
-            <>
-                <Icon className={cn("w-8 h-8", isCooked ? "text-green-400" : "text-orange-400")} />
-                {construction.burn_time_remaining_seconds > 0 && <CampfireProgressBar progress={progress} />}
-            </>
-        );
-    }
-    
-    if (cell.type === 'workbench') {
-      const job = construction ? playerData.craftingJobs?.find(j => j.workbench_id === construction.id) : undefined;
-      const hasOutput = construction && construction.output_item_id;
-      const Icon = buildingIcons.workbench;
-
-      if (job) {
-        return (
-          <>
-            <Icon className="w-8 h-8 text-yellow-400" />
-            <CraftingProgressBar progress={craftingProgress[job.workbench_id] || 0} />
-          </>
-        );
-      }
-      if (hasOutput) {
-        return <Icon className="w-8 h-8 text-green-400" />;
-      }
-    }
-
-    if (cell.type === 'in_progress' && cell.ends_at) {
-      const isHovered = hoveredConstruction && hoveredConstruction.x === cell.x && hoveredConstruction.y === cell.y;
-      if ((!isMobile && isHovered) || (isMobile && cell.showTrash)) {
-        return <X className="w-8 h-8 text-red-500" />;
-      }
-      return <CountdownTimer endTime={cell.ends_at} onComplete={refreshPlayerData} />;
-    }
-    if (cell.canBuild) {
-      if (isJobRunning) {
-        return (
-          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
-            <Clock className="w-6 h-6 text-gray-400" />
-          </div>
-        );
-      }
-      return (
-        <div className="relative w-full h-full flex items-center justify-center group">
-          <Plus className="w-8 h-8 text-gray-500 group-hover:text-white group-hover:scale-110 transition-all duration-200" />
-          <div className="absolute bottom-1 right-1 flex items-center gap-1 text-xs font-mono">
-            <Zap size={12} className="text-yellow-400" />
-            <span className="text-white">90</span>
-          </div>
-        </div>
-      );
-    }
-
-    const Icon = buildingIcons[cell.type];
-    if (Icon) {
-      if (cell.type === 'foundation' && isJobRunning) {
-        return (
-          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
-            <Clock className="w-6 h-6 text-gray-400" />
-          </div>
-        );
-      }
-      return <Icon className="w-6 h-6 text-gray-300" />;
-    }
-
-    return "";
-  };
-
-  const liveCampfireConstruction = useMemo(() => {
-    if (!campfireModalState.construction) return null;
-    return liveConstructions.find(c => c.id === campfireModalState.construction!.id) || null;
-  }, [campfireModalState.construction, liveConstructions]);
-
-  if (loading) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-white">
-        <Loader2 className="w-8 h-8 animate-spin mb-4" />
-        <p>Chargement de la base...</p>
-      </div>
-    );
   }
 
   return (
-    <div className="relative w-full h-full">
-      <div
-        ref={viewportRef}
-        className="w-full h-full overflow-auto no-scrollbar cursor-grab"
-        style={{ opacity: gridData ? 1 : 0, transition: 'opacity 0.5s' }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <div
-          className="relative"
-          style={{
-            width: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
-            height: GRID_SIZE * (CELL_SIZE_PX + CELL_GAP),
-          }}
-        >
-          {gridData?.map((row, y) =>
-            row.map((cell, x) => (
-              <button
-                key={`${x}-${y}`}
-                onClick={() => handleCellClick(x, y)}
-                onMouseEnter={() => !isMobile && cell.type === 'in_progress' && setHoveredConstruction({x, y})}
-                onMouseLeave={() => !isMobile && setHoveredConstruction(null)}
-                className={cn(
-                  "absolute flex items-center justify-center text-2xl font-bold rounded-lg border transition-colors",
-                  getCellStyle(cell)
-                )}
-                style={{
-                  left: x * (CELL_SIZE_PX + CELL_GAP),
-                  top: y * (CELL_SIZE_PX + CELL_GAP),
-                  width: CELL_SIZE_PX,
-                  height: CELL_SIZE_PX,
-                }}
-              >
-                {getCellContent(cell)}
-              </button>
-            ))
-          )}
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="md:col-span-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Votre Base</CardTitle>
+            <CardDescription>Cliquez sur une case pour interagir avec une construction.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center">
+              {grid.map((row, y) => (
+                <div key={y} className="flex">
+                  {row.map((cell, x) => {
+                    const isHighlighted = highlightedCells.some(hCell => hCell.x === x && hCell.y === y);
+                    const isSelected = selectedConstruction?.x === x && selectedConstruction?.y === y;
+                    return (
+                      <button
+                        key={`${x}-${y}`}
+                        onClick={() => handleCellClick(x, y)}
+                        className={cn(
+                          "w-12 h-12 sm:w-16 sm:h-16 border border-gray-700 flex items-center justify-center bg-gray-800/50 hover:bg-gray-700/50 transition-colors",
+                          isHighlighted && 'bg-red-500/30',
+                          isSelected && 'ring-2 ring-blue-400 z-10'
+                        )}
+                      >
+                        {cell && (
+                            <div style={{ transform: `rotate(${cell.rotation * 90}deg)` }}>
+                                {getBuildingIcon(cell.type)}
+                            </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      <Button
-        onClick={() => {
-          if (campfirePosition) {
-            centerViewport(campfirePosition.x, campfirePosition.y);
-          } else {
-            showError("Impossible de localiser le centre de la base.");
-          }
-        }}
-        variant="secondary"
-        size="icon"
-        className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
-      >
-        <LocateFixed className="w-5 h-5" />
-      </Button>
-      <FoundationMenuModal
-        isOpen={foundationMenu?.isOpen || false}
-        onClose={() => setFoundationMenu(null)}
-        x={foundationMenu?.x ?? null}
-        y={foundationMenu?.y ?? null}
-        onBuild={handleBuildOnFoundation}
-        onDemolish={handleDemolishFoundation}
-        playerResources={totalResources}
-        items={items}
-      />
-      <ChestModal
-        isOpen={chestModalState.isOpen}
-        onClose={() => setChestModalState({ isOpen: false, construction: null })}
-        construction={chestModalState.construction}
-        onDemolish={onDemolishBuilding}
-        onUpdate={refreshPlayerData}
-      />
-      <CampfireModal
-        isOpen={campfireModalState.isOpen}
-        onClose={() => setCampfireModalState({ isOpen: false, construction: null })}
-        construction={liveCampfireConstruction}
-        onUpdate={refreshPlayerData}
-      />
-      <TrapModal
-        isOpen={trapModalState.isOpen}
-        onClose={() => setTrapModalState({ isOpen: false, construction: null })}
-        construction={trapModalState.construction}
-        onUpdate={refreshPlayerData}
-      />
-      <CrossbowModal
-        isOpen={crossbowModalState.isOpen}
-        onClose={() => setCrossbowModalState({ isOpen: false, construction: null })}
-        construction={crossbowModalState.construction}
-        onUpdate={refreshPlayerData}
+
+      <div className="md:col-span-1">
+        <Card>
+          <CardHeader>
+            <CardTitle>Détails</CardTitle>
+            <CardDescription>Informations sur la construction sélectionnée.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {selectedConstructionData ? (
+              <div>
+                <h3 className="font-bold text-lg capitalize">{selectedConstructionData.type} (Niv. {selectedConstructionData.level})</h3>
+                
+                {selectedConstructionData.type === 'arbalete' && (
+                  <div className="mt-2 space-y-3">
+                    <p>Flèches: <span className="font-bold">{selectedConstructionData.building_state?.arrow_quantity || 0}</span></p>
+                    <p>Statut: <span className="font-bold">{selectedConstructionData.building_state?.is_armed ? 'Armée' : 'Désarmée'}</span></p>
+                    <div className="flex flex-col gap-2">
+                      <Button onClick={() => setLoadCrossbowModalOpen(true)}>Charger des flèches</Button>
+                      <Button onClick={() => handleArmCrossbow(selectedConstructionData)} disabled={(selectedConstructionData.building_state?.arrow_quantity || 0) === 0 || selectedConstructionData.building_state?.is_armed}>Armer</Button>
+                      <Button onClick={() => handleRotate(selectedConstructionData)}><RotateCcw className="w-4 h-4 mr-2" />Pivoter</Button>
+                      <Button onClick={() => handleUpgrade(selectedConstructionData)}><ChevronsUp className="w-4 h-4 mr-2" />Améliorer</Button>
+                      <Button variant="destructive" onClick={() => handleDemolish(selectedConstructionData)}><Trash2 className="w-4 h-4 mr-2" />Détruire</Button>
+                    </div>
+                  </div>
+                )}
+
+                {selectedConstructionData.type === 'piège' && (
+                  <div className="mt-2 space-y-3">
+                    <p>Statut: <span className="font-bold capitalize">{selectedConstructionData.building_state?.status || 'Prêt'}</span></p>
+                    {selectedConstructionData.output_item_id && <p>Butin: <span className="font-bold">Prêt à être collecté</span></p>}
+                    <div className="flex flex-col gap-2">
+                      {(!selectedConstructionData.building_state || selectedConstructionData.building_state?.status === 'disarmed') && <Button onClick={() => handleArmTrap(selectedConstructionData)}>Armer le piège</Button>}
+                      {selectedConstructionData.output_item_id && <Button onClick={() => handleClaimTrapLoot(selectedConstructionData)}>Récupérer le butin</Button>}
+                      <Button onClick={() => handleUpgrade(selectedConstructionData)}><ChevronsUp className="w-4 h-4 mr-2" />Améliorer</Button>
+                      <Button variant="destructive" onClick={() => handleDemolish(selectedConstructionData)}><Trash2 className="w-4 h-4 mr-2" />Détruire</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p>Aucune construction sélectionnée.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <LoadCrossbowModal
+        isOpen={isLoadCrossbowModalOpen}
+        onClose={() => setLoadCrossbowModalOpen(false)}
+        playerData={playerData}
+        crossbow={selectedConstructionData}
+        refetchPlayerData={refetchPlayerData}
       />
     </div>
   );
-};
-
-export default BaseInterface;
+}
