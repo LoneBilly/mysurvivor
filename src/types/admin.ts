@@ -12,6 +12,8 @@ export interface Item {
     ammo_item_id?: number;
     [key: string]: any;
   };
+  created_at: string; // Added missing created_at
+  recipe_id?: number | null; // Added missing recipe_id
 }
 
 export interface ZoneItem {

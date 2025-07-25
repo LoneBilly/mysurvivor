@@ -173,7 +173,7 @@ const ExplorationModal = ({ isOpen, onClose, zone, onUpdate, onOpenInventory }: 
     if (!zone) return;
     const { data, error } = await supabase.rpc('finish_exploration', { p_zone_id: zone.id });
     if (error) {
-      showError("Une erreur est survenue lors de la récupération du butin.");
+      showError((error as any).message || "Une erreur est survenue lors de la récupération du butin."); // Cast error to any
     } else {
       const { loot, event_result } = data;
       

@@ -4,7 +4,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { useGame } from "@/contexts/GameContext";
 import { BaseConstruction, CraftingRecipe, InventoryItem, CraftingJob } from "@/types/game";
 
-export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (silent?: boolean) => void) => {
+export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (silent?: boolean) => Promise<void>) => {
   const { playerData, setPlayerData, items, refreshPlayerData } = useGame();
   const [recipes, setRecipes] = useState<CraftingRecipe[]>([]);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
@@ -267,7 +267,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       setPlayerData(originalPlayerData);
     } else {
       showSuccess("Fabrication annulée.");
-      onUpdate(true);
+      await onUpdate(true);
     }
   };
 
@@ -289,7 +289,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       showError(error.message);
     } else {
       showSuccess("Objet récupéré !");
-      onUpdate(true);
+      await onUpdate(true);
     }
     return { inventoryFull: false };
   };
@@ -309,7 +309,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       setPlayerData(originalPlayerData);
     } else {
       showSuccess("Objet jeté.");
-      onUpdate(true);
+      await onUpdate(true);
     }
   };
 
@@ -376,7 +376,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       setPlayerData(originalPlayerData);
     } else {
       showSuccess("Objet retourné à l'inventaire.");
-      onUpdate(true);
+      await onUpdate(true);
     }
   };
 
@@ -440,7 +440,7 @@ export const useWorkbench = (construction: BaseConstruction | null, onUpdate: (s
       setPlayerData(originalPlayerData);
     } else {
       showSuccess("Objet transféré.");
-      onUpdate(true);
+      await onUpdate(true);
     }
   };
 

@@ -50,7 +50,10 @@ export interface BaseConstruction {
     status: 'cooking' | 'cooked' | 'burnt';
     started_at: string;
     ends_at: string;
+    quantity?: number; // Added missing quantity
   } | null;
+  building_state?: Record<string, any> | null; // Added missing building_state
+  rotation: number; // Added missing rotation
 }
 
 export interface ScoutingMission {
@@ -162,6 +165,7 @@ export interface MapCell {
   type: string | null;
   icon: string | null;
   interaction_type: 'Ressource' | 'Action' | 'Non défini';
+  id_name?: string | null; // Added missing id_name
 }
 
 export interface Item {
@@ -174,6 +178,7 @@ export interface Item {
   type: string;
   use_action_text: string;
   effects?: Record<string, any>;
+  recipe_id?: number | null; // Added missing recipe_id
 }
 
 export interface MarketListing {
@@ -205,4 +210,6 @@ export interface BuildingLevel {
     storage_slots?: number;
     [key: string]: any;
   } | null;
+  upgrade_cost_energy: number; // Added missing upgrade_cost_energy
+  upgrade_cost_metal_ingots: number; // Added missing upgrade_cost_metal_ingots
 }
