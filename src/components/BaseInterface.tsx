@@ -540,7 +540,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     const zones = new Set<string>();
     if (!liveConstructions) return zones;
     liveConstructions.forEach(c => {
-        if ((c.type === 'arbalete' || c.type === 'crossbow_trap') && c.building_state?.is_armed) {
+        if (c.type === 'arbalete' || c.type === 'crossbow_trap') {
             let targetX = c.x;
             let targetY = c.y;
             switch (c.rotation) {
@@ -558,7 +558,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
   const getCellStyle = (cell: BaseCell) => {
     const construction = initialConstructions.find(c => c.x === cell.x && c.y === cell.y);
     const isActionZone = crossbowActionZones.has(`${cell.x},${cell.y}`);
-    if (isActionZone) return "bg-red-700/40 border-red-500/60 cursor-default";
+    if (isActionZone) return "bg-red-500/20 border-red-500/30 cursor-default";
 
     switch (cell.type) {
       case 'campfire':
@@ -606,10 +606,6 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
 
   const getCellContent = (cell: BaseCell) => {
     const construction = liveConstructions.find(c => c.x === cell.x && c.y === cell.y);
-    const isActionZone = crossbowActionZones.has(`${cell.x},${cell.y}`);
-    if (isActionZone) {
-        return <Crosshair className="w-8 h-8 text-red-400/70" />;
-    }
     
     if (cell.type === 'campfire' && construction) {
         const progress = (construction.burn_time_remaining_seconds / MAX_BURN_TIME_SECONDS) * 100;
@@ -780,16 +776,12 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
         onClose={() => setTrapModalState({ isOpen: false, construction: null })}
         construction={trapModalState.construction}
         onUpdate={refreshPlayerData}
-        onDemolish={onDemolishBuilding}
-        onInspect={onInspectWorkbench}
       />
       <CrossbowModal
         isOpen={crossbowModalState.isOpen}
         onClose={() => setCrossbowModalState({ isOpen: false, construction: null })}
         construction={crossbowModalState.construction}
         onUpdate={refreshPlayerData}
-        onDemolish={onDemolishBuilding}
-        onInspect={onInspectWorkbench}
       />
     </div>
   );

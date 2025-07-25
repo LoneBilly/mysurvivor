@@ -5,24 +5,20 @@ import { Input } from "@/components/ui/input";
 import { BaseConstruction, InventoryItem } from '@/types/game';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { Crosshair, ArrowRight, RotateCw, Hammer, Trash2 } from 'lucide-react';
+import { Crosshair, ArrowRight } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface CrossbowModalProps {
     isOpen: boolean;
     onClose: () => void;
     construction: BaseConstruction | null;
     onUpdate: () => void;
-    onDemolish: (construction: BaseConstruction) => void;
-    onInspect: (construction: BaseConstruction) => void;
 }
 
-const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construction, onUpdate, onDemolish, onInspect }) => {
+const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construction, onUpdate }) => {
     const { playerData, items } = useGame();
     const [selectedArrowStack, setSelectedArrowStack] = useState<InventoryItem | null>(null);
     const [quantity, setQuantity] = useState(1);
-    const [popoverOpen, setPopoverOpen] = useState(false);
 
     if (!isOpen || !construction) return null;
 
@@ -64,33 +60,6 @@ const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construc
     const handleSelectStack = (item: InventoryItem) => {
         setSelectedArrowStack(item);
         setQuantity(1);
-        setPopoverOpen(false);
-    }
-
-    const handleRotate = async () => {
-        const currentRotation = construction.rotation || 0;
-        const newRotation = (currentRotation + 1) % 4;
-        const { error } = await supabase.rpc('rotate_building', {
-            p_construction_id: construction.id,
-            p_direction: newRotation,
-        });
-
-        if (error) {
-            showError(error.message);
-        } else {
-            showSuccess("Rotation effectuée.");
-            onUpdate();
-        }
-    };
-
-    const handleDemolishClick = () => {
-        onClose();
-        onDemolish(construction);
-    }
-
-    const handleInspectClick = () => {
-        onClose();
-        onInspect(construction);
     }
 
     return (
@@ -104,12 +73,7 @@ const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construc
                 </DialogHeader>
                 <div className="py-4 space-y-6">
                     <div className="text-center flex flex-col items-center">
-                        <div className="relative">
-                            <Crosshair className="w-16 h-16 text-purple-400" />
-                            <Button size="icon" variant="outline" className="absolute -top-2 -right-2 w-8 h-8 rounded-full" onClick={handleRotate}>
-                                <RotateCw className="w-4 h-4" />
-                            </Button>
-                        </div>
+                        <Crosshair className="w-16 h-16 text-purple-400" />
                         <p className="mt-4 font-bold text-lg">Flèches chargées: {arrowQuantity}</p>
                         <p className="mt-1 text-sm">{isArmed ? "Statut: Armée" : "Statut: Non armée"}</p>
                     </div>
@@ -118,23 +82,13 @@ const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construc
                         <h3 className="font-semibold mb-2">Charger des flèches</h3>
                         {playerArrows.length > 0 ? (
                             <div className="space-y-2">
-                                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start">
-                                            {selectedArrowStack ? `Pile de ${selectedArrowStack.quantity} flèches` : "Sélectionner des flèches"}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {playerArrows.map(item => (
+                                        <Button key={item.id} variant={selectedArrowStack?.id === item.id ? "default" : "outline"} onClick={() => handleSelectStack(item)}>
+                                            Pile de {item.quantity}
                                         </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width]">
-                                        <div className="space-y-1">
-                                            {playerArrows.map(item => (
-                                                <Button key={item.id} variant="ghost" className="w-full justify-start" onClick={() => handleSelectStack(item)}>
-                                                    Pile de {item.quantity} flèches
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-
+                                    ))}
+                                </div>
                                 {selectedArrowStack && (
                                     <div className="flex items-center gap-2 pt-2">
                                         <Input 
@@ -155,21 +109,15 @@ const CrossbowModal: React.FC<CrossbowModalProps> = ({ isOpen, onClose, construc
                         )}
                     </div>
                 </div>
-                <DialogFooter className="sm:justify-between gap-2">
-                    <div>
-                        <Button variant="outline" size="icon" onClick={handleInspectClick}><Hammer className="w-4 h-4" /></Button>
-                        <Button variant="destructive" size="icon" className="ml-2" onClick={handleDemolishClick}><Trash2 className="w-4 h-4" /></Button>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={onClose}>
-                            Fermer
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>
+                        Fermer
+                    </Button>
+                    {!isArmed && arrowQuantity > 0 && (
+                         <Button onClick={handleArm}>
+                            Armer
                         </Button>
-                        {!isArmed && arrowQuantity > 0 && (
-                             <Button onClick={handleArm}>
-                                Armer
-                            </Button>
-                        )}
-                    </div>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
