@@ -1,30 +1,70 @@
-export interface GameStats {
+// src/types/game.ts
+
+// A placeholder for a single item definition
+export interface Item {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  stackable: boolean;
+  type: string;
+  use_action_text?: string;
+  effects?: any; // JSONB
+  recipe_id?: number;
+}
+
+// A placeholder for a single map cell
+export interface MapLayout {
+  id: number;
+  x: number;
+  y: number;
+  type: string | null;
+  icon: string | null;
+  interaction_type: string;
+  id_name: string | null;
+}
+
+// Data that is static for the game session
+export interface GameData {
+  mapLayout: MapLayout[];
+  items: Item[];
+}
+
+// Player-specific data structures
+export interface PlayerState {
+  id: string;
+  username: string;
+  spawn_date: string;
   vie: number;
   faim: number;
   soif: number;
   energie: number;
-}
-
-export interface ItemDetails {
-  name: string;
-  description: string | null;
-  icon: string | null;
-  type?: string;
-  use_action_text: string;
-  stackable: boolean;
-  effects?: {
-    ammo_item_id?: number;
-    [key: string]: any;
-  };
+  current_zone_id: number;
+  base_zone_id: number;
+  created_at: string;
+  updated_at: string;
+  jours_survecus: number;
+  zones_decouvertes: number[];
+  exploration_x: number | null;
+  exploration_y: number | null;
+  unlocked_slots: number;
+  credits: number;
+  sale_slots: number;
+  position_x: number;
+  position_y: number;
+  current_zone_type: string;
+  base_position_x: number;
+  base_position_y: number;
+  base_zone_type: string;
+  bank_balance: number | null;
 }
 
 export interface InventoryItem {
   id: number;
   item_id: number;
   quantity: number;
-  slot_position: number | null;
-  items: ItemDetails | null;
-  workbench_id?: number;
+  slot_position: number | null; // null for equipped items
+  items: Item; // Joined from items table
 }
 
 export interface Equipment {
@@ -44,16 +84,9 @@ export interface BaseConstruction {
   level: number;
   burn_time_remaining_seconds: number;
   fuel_last_updated_at: string;
-  cooking_slot?: {
-    input_item_id: number;
-    cooked_item_id: number;
-    status: 'cooking' | 'cooked' | 'burnt';
-    started_at: string;
-    ends_at: string;
-    quantity?: number; // Added missing quantity
-  } | null;
-  building_state?: Record<string, any> | null; // Added missing building_state
-  rotation: number; // Added missing rotation
+  cooking_slot: any | null; // JSONB
+  building_state: any | null; // JSONB
+  rotation: number;
 }
 
 export interface ScoutingMission {
@@ -61,38 +94,28 @@ export interface ScoutingMission {
   target_player_id: string;
   target_username: string;
   started_at: string;
-  status: 'in_progress' | 'completed';
-  report_data: {
-    target_username: string;
-    base_zone_type: string;
-  } | null;
+  status: 'in_progress' | 'completed' | 'failed';
+  report_data: any | null; // JSONB
   is_favorite: boolean;
 }
 
-export interface PlayerState {
-  id:string;
-  username: string | null;
-  jours_survecus: number;
-  vie: number;
-  faim: number;
-  soif: number;
-  energie: number;
-  current_zone_id: number | null;
-  base_zone_id: number | null;
-  created_at: string;
-  updated_at: string;
-  zones_decouvertes: number[];
-  exploration_x: number | null;
-  exploration_y: number | null;
-  unlocked_slots: number;
-  credits: number;
-  sale_slots: number;
-  spawn_date: string;
-  position_x: number;
-  position_y: number;
-  base_position_x: number | null;
-  base_position_y: number | null;
-  bank_balance: number | null;
+export interface ChestItem extends InventoryItem {
+  chest_id: number;
+}
+
+export interface CraftingJob {
+  id: number;
+  workbench_id: number;
+  recipe_id: number;
+  started_at: string;
+  ends_at: string;
+  quantity: number;
+  initial_quantity: number;
+  result_item_id: number;
+  result_quantity: number;
+  craft_time_seconds: number;
+  result_item_name: string;
+  result_item_icon: string;
 }
 
 export interface ConstructionJob {
@@ -107,109 +130,19 @@ export interface ConstructionJob {
   target_level: number | null;
 }
 
-export interface CraftingRecipe {
-  id: number;
-  result_item_id: number;
-  result_quantity: number;
-  slot1_item_id: number;
-  slot1_quantity: number;
-  slot2_item_id: number | null;
-  slot2_quantity: number | null;
-  slot3_item_id: number | null;
-  slot3_quantity: number | null;
-  craft_time_seconds: number;
-}
-
-export interface CraftingJob {
-  id: number;
+export interface WorkbenchItem extends InventoryItem {
   workbench_id: number;
-  player_id: string;
-  recipe_id: number;
-  started_at: string;
-  ends_at: string;
-  status: 'in_progress' | 'completed';
-  result_item_id: number;
-  result_quantity: number;
-  result_item_name: string;
-  result_item_icon: string;
-  quantity: number;
-  initial_quantity: number;
-  craft_time_seconds: number;
 }
 
-export interface ChestItem {
-  id: number;
-  chest_id: number;
-  item_id: number;
-  quantity: number;
-  slot_position: number | null;
-  items: ItemDetails | null;
-}
-
+// The full player data object returned by get_full_player_data
 export interface FullPlayerData {
   playerState: PlayerState;
   inventory: InventoryItem[];
   equipment: Equipment;
   baseConstructions: BaseConstruction[];
   scoutingMissions: ScoutingMission[];
-  constructionJobs?: ConstructionJob[];
-  craftingJobs?: CraftingJob[];
-  chestItems?: ChestItem[];
-  workbenchItems: InventoryItem[];
-}
-
-export interface MapCell {
-  id: number;
-  x: number;
-  y: number;
-  type: string | null;
-  icon: string | null;
-  interaction_type: 'Ressource' | 'Action' | 'Non défini';
-  id_name?: string | null; // Added missing id_name
-}
-
-export interface Item {
-  id: number;
-  name: string;
-  description: string | null;
-  stackable: boolean;
-  created_at: string;
-  icon: string | null;
-  type: string;
-  use_action_text: string;
-  effects?: Record<string, any>;
-  recipe_id?: number | null; // Added missing recipe_id
-}
-
-export interface MarketListing {
-  listing_id: number;
-  seller_id: string;
-  seller_username: string;
-  item_id: number;
-  item_name: string;
-  item_icon: string | null;
-  quantity: number;
-  price: number;
-  created_at: string;
-  views: number;
-}
-
-export interface DiscoverableZone extends MapCell {
-  is_discovered: boolean;
-}
-
-export interface BuildingLevel {
-  id?: number;
-  building_type: string;
-  level: number;
-  upgrade_cost_wood: number;
-  upgrade_cost_metal: number;
-  upgrade_cost_components: number;
-  upgrade_time_seconds: number;
-  stats: {
-    storage_slots?: number;
-    [key: string]: any;
-  } | null;
-  upgrade_cost_energy: number; // Added missing upgrade_cost_energy
-  upgrade_cost_metal_ingots: number; // Added missing upgrade_cost_metal_ingots
+  chestItems: ChestItem[];
+  craftingJobs: CraftingJob[];
+  constructionJobs: ConstructionJob[];
+  workbenchItems: WorkbenchItem[];
 }

@@ -1,142 +1,151 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { FullPlayerData, MapCell, Item, ConstructionJob, BuildingLevel } from '@/types/game';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError } from '@/utils/toast';
+import { useAuth } from './AuthContext';
+import { FullPlayerData, Item, MapLayout, GameData } from '@/types/game';
+import { toast } from '@/utils/toast';
 
-interface GameContextType {
-  playerData: FullPlayerData;
-  mapLayout: MapCell[];
-  items: Item[];
-  buildingLevels: BuildingLevel[];
-  refreshPlayerData: (silent?: boolean) => Promise<void>;
-  refreshResources: () => Promise<void>;
-  refreshInventoryAndChests: () => Promise<void>;
-  refreshBaseState: () => Promise<void>;
-  addConstructionJob: (job: ConstructionJob) => void;
-  setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData>>;
-  getIconUrl: (iconName: string | null) => string | undefined;
-}
+type GameContextType = {
+  playerData: FullPlayerData | null;
+  gameData: GameData | null;
+  isLoading: boolean;
+  setPlayerData: React.Dispatch<React.SetStateAction<FullPlayerData | null>>;
+  refreshAllData: () => Promise<void>;
+  refreshBase: () => Promise<void>;
+  refreshInventory: () => Promise<void>;
+  refreshVitals: () => Promise<void>;
+};
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
+export const GameProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  const [playerData, setPlayerData] = useState<FullPlayerData | null>(null);
+  const [gameData, setGameData] = useState<GameData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchInitialData = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const playerRes = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
+
+      if (playerRes.error) throw playerRes.error;
+      
+      setPlayerData(playerRes.data);
+
+    } catch (error: any) {
+      console.error('Error fetching initial game data:', error);
+      toast.error("Erreur lors du chargement des données du jeu.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+        fetchInitialData();
+    }
+  }, [user, fetchInitialData]);
+
+  const refreshAllData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
+      if (error) throw error;
+      if (data) {
+        setPlayerData(data);
+      }
+    } catch (error: any) {
+      console.error('Error refreshing all player data:', error);
+      toast.error("Erreur lors de la mise à jour des données.");
+    }
+  }, [user]);
+
+  const refreshBase = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.rpc('get_base_state', { p_user_id: user.id });
+      if (error) throw error;
+      if (data) {
+        setPlayerData(prevData => {
+          if (!prevData) return null;
+          return {
+            ...prevData,
+            baseConstructions: data.baseConstructions,
+            constructionJobs: data.constructionJobs,
+            craftingJobs: data.craftingJobs,
+            workbenchItems: data.workbenchItems,
+          };
+        });
+      }
+    } catch (error: any) {
+      console.error('Error refreshing base state:', error);
+      toast.error("Erreur lors de la mise à jour de la base.");
+    }
+  }, [user]);
+
+  const refreshInventory = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.rpc('get_inventory_and_chests', { p_user_id: user.id });
+      if (error) throw error;
+      if (data) {
+        setPlayerData(prevData => {
+          if (!prevData) return null;
+          return {
+            ...prevData,
+            inventory: data.inventory,
+            chestItems: data.chestItems,
+          };
+        });
+      }
+    } catch (error: any) {
+      console.error('Error refreshing inventory:', error);
+      toast.error("Erreur lors de la mise à jour de l'inventaire.");
+    }
+  }, [user]);
+
+  const refreshVitals = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.rpc('get_player_vitals', { p_user_id: user.id });
+      if (error) throw error;
+      if (data && data.playerState) {
+        setPlayerData(prevData => {
+          if (!prevData || !prevData.playerState) return prevData;
+          return {
+            ...prevData,
+            playerState: {
+              ...prevData.playerState,
+              ...data.playerState,
+            },
+          };
+        });
+      }
+    } catch (error: any) {
+      console.error('Error refreshing player vitals:', error);
+      toast.error("Erreur lors de la mise à jour des statistiques.");
+    }
+  }, [user]);
+
+  const value = {
+    playerData,
+    gameData,
+    isLoading,
+    setPlayerData,
+    refreshAllData,
+    refreshBase,
+    refreshInventory,
+    refreshVitals,
+  };
+
+  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+};
+
 export const useGame = () => {
   const context = useContext(GameContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useGame must be used within a GameProvider');
   }
   return context;
-};
-
-interface GameProviderProps {
-  children: ReactNode;
-  initialData: {
-    playerData: FullPlayerData;
-    mapLayout: MapCell[];
-    items: Item[];
-    buildingLevels: BuildingLevel[];
-  };
-  iconUrlMap: Map<string, string>;
-}
-
-export const GameProvider = ({ children, initialData, iconUrlMap }: GameProviderProps) => {
-  const [playerData, setPlayerData] = useState<FullPlayerData>(initialData.playerData);
-  const { user } = useAuth();
-
-  const refreshPlayerData = useCallback(async (silent = false) => {
-    if (!user) return;
-    const { data: fullPlayerData, error: playerDataError } = await supabase.rpc('get_full_player_data', { p_user_id: user.id });
-
-    if (playerDataError) {
-      if (!silent) showError("Erreur lors de la mise à jour des données.");
-      console.error(playerDataError);
-    } else {
-      setPlayerData(fullPlayerData);
-    }
-  }, [user]);
-
-  const refreshResources = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase.rpc('get_player_resources', { p_user_id: user.id });
-    if (error) {
-      showError("Erreur de mise à jour des ressources.");
-    } else {
-      setPlayerData(prev => ({ ...prev, playerState: { ...prev.playerState, ...data.playerState } }));
-    }
-  }, [user]);
-
-  const refreshInventoryAndChests = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase.rpc('get_inventory_and_chests', { p_user_id: user.id });
-    if (error) {
-      showError("Erreur de mise à jour de l'inventaire.");
-    } else {
-      setPlayerData(prev => ({ ...prev, ...data }));
-    }
-  }, [user]);
-
-  const refreshBaseState = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase.rpc('get_base_state', { p_user_id: user.id });
-    if (error) {
-      showError("Erreur de mise à jour de la base.");
-    } else {
-      setPlayerData(prev => ({ ...prev, ...data }));
-    }
-  }, [user]);
-
-  const addConstructionJob = (job: ConstructionJob) => {
-    setPlayerData(prev => ({
-      ...prev,
-      constructionJobs: [...(prev.constructionJobs || []), job],
-    }));
-  };
-
-  useEffect(() => {
-    setPlayerData(initialData.playerData);
-  }, [initialData.playerData]);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      const now = new Date().getTime();
-      
-      const hasCompletedCraftingJob = playerData.craftingJobs && playerData.craftingJobs.some(job => new Date(job.ends_at).getTime() < now);
-      if (hasCompletedCraftingJob) {
-        refreshBaseState();
-      }
-
-      const hasCompletedConstructionJob = playerData.constructionJobs && playerData.constructionJobs.some(job => new Date(job.ends_at).getTime() < now);
-      if (hasCompletedConstructionJob) {
-        refreshBaseState();
-      }
-    }, 2000);
-
-    return () => clearInterval(intervalId);
-  }, [playerData.craftingJobs, playerData.constructionJobs, refreshBaseState]);
-
-
-  const getIconUrl = useCallback((iconName: string | null): string | undefined => {
-    if (!iconName) return undefined;
-    return iconUrlMap.get(iconName);
-  }, [iconUrlMap]);
-
-  const value = useMemo(() => ({
-    playerData,
-    mapLayout: initialData.mapLayout,
-    items: initialData.items,
-    buildingLevels: initialData.buildingLevels,
-    refreshPlayerData,
-    refreshResources,
-    refreshInventoryAndChests,
-    refreshBaseState,
-    addConstructionJob,
-    setPlayerData,
-    getIconUrl,
-  }), [playerData, initialData.mapLayout, initialData.items, initialData.buildingLevels, refreshPlayerData, refreshResources, refreshInventoryAndChests, refreshBaseState, addConstructionJob, getIconUrl]);
-
-  return (
-    <GameContext.Provider value={value}>
-      {children}
-    </GameContext.Provider>
-  );
 };
