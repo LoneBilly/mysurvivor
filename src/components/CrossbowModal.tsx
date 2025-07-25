@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { BaseConstruction, InventoryItem } from "@/types/game";
 import { useGame } from '@/contexts/GameContext';
-import { Target, Loader2, ArrowLeft } from 'lucide-react';
+import { Target, Loader2, ArrowLeft, ArrowDownUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { Slider } from './ui/slider';
@@ -125,15 +125,40 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
   };
 
   const renderMainView = () => (
-    <div className="py-4 space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <h3 className="text-center font-semibold text-gray-300">Arbalète</h3>
-          <div className="p-2 bg-black/20 rounded-lg h-full">
+    <div className="py-4 space-y-4 flex flex-col">
+      <div className="space-y-2">
+        <h3 className="font-semibold text-gray-300">Flèches dans l'inventaire</h3>
+        <div className="p-2 bg-black/20 rounded-lg min-h-[88px]">
+          <div className="grid grid-cols-4 gap-2">
+            {availableArrows.map(item => (
+              <button 
+                key={item.id} 
+                onClick={() => handleSelectStackToLoad(item)} 
+                disabled={loading}
+                className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
+                title={item.items?.name}
+              >
+                <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
+                <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
+              </button>
+            ))}
+            {availableArrows.length === 0 && <p className="col-span-4 text-center text-xs text-gray-400 py-6">Aucune flèche.</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-center items-center text-gray-500 py-2">
+        <ArrowDownUp className="w-6 h-6" />
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold text-gray-300">Flèches dans l'arbalète</h3>
+        <div className="p-2 bg-black/20 rounded-lg">
+          <div className="grid grid-cols-4 gap-2">
             <button 
               onClick={handleSelectToUnload}
               disabled={arrowCount === 0}
-              className="relative w-full aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {arrowCount > 0 && arrowItemIcon && (
                 <>
@@ -144,31 +169,13 @@ const CrossbowModal = ({ isOpen, onClose, construction, onUpdate }: CrossbowModa
             </button>
           </div>
         </div>
-
-        <div className="space-y-2">
-          <h3 className="text-center font-semibold text-gray-300">Inventaire</h3>
-          <div className="p-2 bg-black/20 rounded-lg max-h-48 overflow-y-auto">
-            <div className="grid grid-cols-2 gap-2">
-              {availableArrows.map(item => (
-                <button 
-                  key={item.id} 
-                  onClick={() => handleSelectStackToLoad(item)} 
-                  disabled={loading}
-                  className="relative aspect-square bg-slate-700/50 rounded-md flex items-center justify-center border border-slate-600 hover:border-slate-400 transition-colors disabled:opacity-50"
-                  title={item.items?.name}
-                >
-                  <ItemIcon iconName={getIconUrl(item.items?.icon)} alt={item.items?.name || ''} />
-                  <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white" style={{ textShadow: '1px 1px 2px black' }}>{item.quantity}</span>
-                </button>
-              ))}
-              {availableArrows.length === 0 && <p className="col-span-full text-center text-xs text-gray-400 py-4">Aucune flèche.</p>}
-            </div>
-          </div>
-        </div>
       </div>
-      <Button onClick={handleArm} disabled={loading || isArmed || arrowCount === 0} className="w-full">
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isArmed ? 'Déjà armée' : 'Armer l\'arbalète'}
-      </Button>
+
+      <div className="pt-4">
+        <Button onClick={handleArm} disabled={loading || isArmed || arrowCount === 0} className="w-full">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isArmed ? 'Déjà armée' : 'Armer l\'arbalète'}
+        </Button>
+      </div>
     </div>
   );
 
