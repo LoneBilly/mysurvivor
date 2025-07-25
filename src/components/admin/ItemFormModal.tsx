@@ -151,7 +151,7 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
         if (storageRes.error) throw storageRes.error;
         if (itemsRes.error) throw itemsRes.error;
 
-        const allStorageIcons = storageRes.data.map(file => file.name).filter(name => name !== '.emptyfolderplaceholder');
+        const allStorageIcons = storageRes.data.map(file => file.name).filter(name => name !== '.emptyFolderPlaceholder');
         const usedIcons = new Set(itemsRes.data.map(i => i.icon).filter(Boolean) as string[]);
 
         if (item?.icon) {
