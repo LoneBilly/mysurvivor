@@ -619,13 +619,13 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
       case 'lit': return "bg-gray-600/20 border-purple-400 hover:bg-gray-600/30 cursor-pointer";
       case 'empty':
         if (cell.canBuild) {
-          const baseStyle = "bg-white/5 border-white/10 border-dashed";
+          const baseStyle = "bg-white/10 border-white/20 border-dashed";
           if (isJobRunning) {
             return `${baseStyle} cursor-not-allowed`;
           }
-          return `${baseStyle} hover:bg-white/10 cursor-pointer`;
+          return `${baseStyle} hover:bg-white/20 cursor-pointer`;
         }
-        return "bg-black/20 border-white/10";
+        return "bg-white/5 border-white/10";
       default: return "bg-gray-600/20 border-gray-500/30 cursor-pointer hover:bg-gray-600/30";
     }
   };
@@ -797,7 +797,7 @@ const BaseInterface = ({ isActive, onInspectWorkbench, onDemolishBuilding }: Bas
     <div className="relative w-full h-full">
       <div
         ref={viewportRef}
-        className="w-full h-full overflow-auto no-scrollbar cursor-grab"
+        className="w-full h-full overflow-auto no-scrollbar cursor-grab bg-slate-900/50 rounded-lg"
         style={{ opacity: gridData ? 1 : 0, transition: 'opacity 0.5s' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
