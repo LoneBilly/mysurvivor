@@ -1,116 +1,91 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Loader2, Search, PlusCircle, Check, X } from 'lucide-react';
-import { Item } from '@/types/admin';
+import { Item } from '@/types/game';
+import { showSuccess, showError } from '@/utils/toast';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Loader2 } from 'lucide-react';
 import ItemFormModal from './ItemFormModal';
-import ItemIcon from '@/components/ItemIcon';
 import { getPublicIconUrl } from '@/utils/imageUrls';
-import { useIsMobile } from '@/hooks/use-is-mobile';
 
-interface ItemManagerProps {
-  items: Item[];
-  onItemsUpdate: () => void; // This will now be called only for full refresh (e.g., delete)
-}
-
-const ItemManager = ({ items: initialItems, onItemsUpdate }: ItemManagerProps) => {
-  const [localItems, setLocalItems] = useState<Item[]>(initialItems);
-  const [craftableItemIds, setCraftableItemIds] = useState<Set<number>>(new Set());
+const ItemManager = () => {
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const isMobile = useIsMobile();
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   useEffect(() => {
-    setLocalItems(initialItems);
-  }, [initialItems]);
-
-  const fetchRecipes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: recipesRes, error: recipesError } = await supabase.from('crafting_recipes').select('result_item_id');
-      if (recipesError) throw recipesError;
-      const craftableIds = new Set(recipesRes.map(r => r.result_item_id));
-      setCraftableItemIds(craftableIds);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+    fetchItems();
   }, []);
 
-  useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
-
-  const handleCreate = () => {
-    setEditingItem(null);
-    setIsModalOpen(true);
+  const fetchItems = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('items').select('*').order('name', { ascending: true });
+    if (error) {
+      showError("Erreur lors de la récupération des objets.");
+      console.error(error);
+    } else {
+      setItems(data || []);
+    }
+    setLoading(false);
   };
 
-  const handleEdit = (item: Item) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
-  };
-
-  const handleItemSave = (savedItem?: Item) => {
+  const handleSave = (savedItem?: Item) => {
     if (savedItem) {
-      setLocalItems(prevItems => {
-        const existingIndex = prevItems.findIndex(item => item.id === savedItem.id);
-        if (existingIndex > -1) {
-          // Update existing item
-          return prevItems.map(item => (item.id === savedItem.id ? savedItem : item));
-        } else {
-          // Add new item
-          return [...prevItems, savedItem].sort((a, b) => a.name.localeCompare(b.name));
-        }
-      });
-      // If a new craftable item was added, refresh recipes
-      if (savedItem.recipe_id && !craftableItemIds.has(savedItem.id)) {
-        fetchRecipes();
+      const index = items.findIndex(i => i.id === savedItem.id);
+      if (index !== -1) {
+        // Update
+        const newItems = [...items];
+        newItems[index] = savedItem;
+        setItems(newItems);
+      } else {
+        // Create
+        setItems([...items, savedItem].sort((a, b) => a.name.localeCompare(b.name)));
       }
     } else {
-      // Item was deleted, trigger full refresh
-      onItemsUpdate();
+      // Delete
+      if (selectedItem) {
+        setItems(items.filter(i => i.id !== selectedItem.id));
+      }
     }
-    setIsModalOpen(false);
+    setSelectedItem(null);
   };
 
-  const filteredItems = localItems.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (typeFilter === 'all' || item.type === typeFilter)
-  );
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = typeFilter === 'all' || item.type === typeFilter;
+      return matchesSearch && matchesType;
+    });
+  }, [items, searchTerm, typeFilter]);
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>;
-  }
+  const openModal = (item: Item | null = null) => {
+    setSelectedItem(item);
+    setIsModalOpen(true);
+  };
 
   return (
-    <>
-      <div className="flex flex-col h-full bg-gray-800/50 border border-gray-700 rounded-lg">
-        <div className="p-4 border-b border-gray-700 flex-shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Rechercher un objet..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-900 border-gray-700"
-              />
-            </div>
+    <div className="p-4 text-white">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Gestion des Objets</h1>
+        <Button onClick={() => openModal()} className="flex items-center gap-2">
+          <PlusCircle className="w-5 h-5" />
+          Créer un objet
+        </Button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <Input
+          type="text"
+          placeholder="Rechercher un objet..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:w-auto flex-grow bg-gray-900 border-gray-700"
+        />
+        <div className="flex gap-4">
+          <div className="relative w-full sm:w-auto">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -128,88 +103,46 @@ const ItemManager = ({ items: initialItems, onItemsUpdate }: ItemManagerProps) =
               <option value="Outils">Outils</option>
               <option value="Équipements">Équipements</option>
               <option value="Items divers">Items divers</option>
-              <option value="Items craftés">Items craftés</option>
+              <option value="Blueprint">Blueprint</option>
             </select>
           </div>
-          <Button onClick={handleCreate} className="w-full sm:w-auto">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Créer un objet
-          </Button>
-        </div>
-        <div className="flex-grow overflow-y-auto">
-          {isMobile ? (
-            <div className="p-4 space-y-3">
-              {filteredItems.map(item => (
-                <div key={item.id} onClick={() => handleEdit(item)} className="bg-gray-800/60 p-3 rounded-lg border border-gray-700 cursor-pointer flex items-start gap-4">
-                  <div className="w-12 h-12 bg-slate-700/50 rounded-md flex items-center justify-center relative flex-shrink-0">
-                    <ItemIcon iconName={getPublicIconUrl(item.icon)} alt={item.name} />
-                  </div>
-                  <div className="flex-grow min-w-0">
-                    <p className="font-bold text-white truncate">{item.name}</p>
-                    <p className="text-sm text-gray-400 truncate mt-1">{item.description || 'Aucune description'}</p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 mt-2">
-                      <div className="flex items-center gap-2">
-                        {item.stackable ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
-                        <span>Empilable</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {craftableItemIds.has(item.id) ? <Check className="w-4 h-4 text-green-400" /> : <X className="w-4 h-4 text-red-400" />}
-                        <span>Craftable</span>
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">{item.type}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Table className="table-fixed w-full">
-              <TableHeader>
-                <TableRow className="hover:bg-gray-800/80 sticky top-0 bg-gray-800/95 backdrop-blur-sm">
-                  <TableHead className="w-[80px]">Icône</TableHead>
-                  <TableHead className="w-[200px]">Nom</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-[150px]">Type</TableHead>
-                  <TableHead className="w-[120px] text-center">Empilable</TableHead>
-                  <TableHead className="w-[120px] text-center">Craftable</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map(item => (
-                  <TableRow
-                    key={item.id}
-                    className="border-gray-700 hover:bg-gray-800/60 cursor-pointer"
-                    onClick={() => handleEdit(item)}
-                  >
-                    <TableCell>
-                      <div className="w-10 h-10 bg-slate-700/50 rounded-md flex items-center justify-center relative">
-                        <ItemIcon iconName={getPublicIconUrl(item.icon)} alt={item.name} />
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium truncate">{item.name}</TableCell>
-                    <TableCell className="text-gray-400 truncate">{item.description}</TableCell>
-                    <TableCell>
-                      <span className="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span>
-                    </TableCell>
-                    <TableCell className="text-center">{item.stackable ? 'Oui' : 'Non'}</TableCell>
-                    <TableCell className="text-center">{craftableItemIds.has(item.id) ? 'Oui' : 'Non'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
         </div>
       </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {filteredItems.map(item => (
+            <div
+              key={item.id}
+              onClick={() => openModal(item)}
+              className="bg-slate-800/50 p-3 rounded-lg cursor-pointer hover:bg-slate-700/70 transition-colors flex flex-col items-center text-center"
+            >
+              <div className="w-16 h-16 mb-2 bg-slate-900/50 rounded-md flex items-center justify-center">
+                {item.icon ? (
+                  <img src={getPublicIconUrl(item.icon)} alt={item.name} className="w-12 h-12 object-contain" />
+                ) : (
+                  <span className="text-gray-500 text-xs">Pas d'icône</span>
+                )}
+              </div>
+              <p className="font-semibold text-sm">{item.name}</p>
+              <p className="text-xs text-gray-400">{item.type}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <ItemFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        item={editingItem}
-        onSave={handleItemSave}
-        allItems={localItems}
+        item={selectedItem}
+        onSave={handleSave}
+        allItems={items}
       />
-    </>
+    </div>
   );
 };
 
