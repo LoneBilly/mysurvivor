@@ -211,3 +211,6 @@ const ItemManager = ({ items: initialItems, onItemsUpdate }: ItemManagerProps) =
       />
     </>
   );
+};
+
+export default ItemManager;
