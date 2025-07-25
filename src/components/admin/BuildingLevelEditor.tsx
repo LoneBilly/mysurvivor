@@ -17,7 +17,7 @@ interface BuildingLevelEditorProps {
 const BuildingLevelEditor: React.FC<BuildingLevelEditorProps> = ({ levels, onLevelsChange, onSave, onCancel, selectedBuildingType }) => {
 
   const handleLevelChange = (id: number, field: keyof BuildingLevel, value: any) => {
-    const updatedLevels = levels.map(level => {
+    const updatedLevels = (levels || []).map(level => {
       if (level.id === id) {
         return { ...level, [field]: value };
       }
@@ -27,7 +27,7 @@ const BuildingLevelEditor: React.FC<BuildingLevelEditorProps> = ({ levels, onLev
   };
 
   const handleStatChange = (id: number, stat: string, value: any) => {
-    const updatedLevels = levels.map(level => {
+    const updatedLevels = (levels || []).map(level => {
       if (level.id === id) {
         const newStats = { ...(level.stats || {}), [stat]: value ? parseInt(value, 10) : undefined };
         // Remove stat if value is empty
@@ -42,7 +42,8 @@ const BuildingLevelEditor: React.FC<BuildingLevelEditorProps> = ({ levels, onLev
   };
 
   const handleAddNewLevel = () => {
-    const newLevelNumber = levels.length > 0 ? Math.max(...levels.map(l => l.level)) + 1 : 1;
+    const currentLevels = levels || [];
+    const newLevelNumber = currentLevels.length > 0 ? Math.max(...currentLevels.map(l => l.level)) + 1 : 1;
     const newLevel: BuildingLevel = {
       id: Date.now(), // Temporary ID
       building_type: selectedBuildingType,
@@ -56,11 +57,11 @@ const BuildingLevelEditor: React.FC<BuildingLevelEditorProps> = ({ levels, onLev
       stats: { health: 100 }, // HP par défaut pour les nouveaux niveaux
       created_at: new Date().toISOString(),
     };
-    onLevelsChange([...levels, newLevel]);
+    onLevelsChange([...currentLevels, newLevel]);
   };
 
   const handleRemoveLevel = (id: number) => {
-    onLevelsChange(levels.filter(level => level.id !== id));
+    onLevelsChange((levels || []).filter(level => level.id !== id));
   };
 
   return (
@@ -74,7 +75,7 @@ const BuildingLevelEditor: React.FC<BuildingLevelEditorProps> = ({ levels, onLev
           <div className="flex justify-end mb-4">
             <Button onClick={handleAddNewLevel}><PlusCircle className="w-4 h-4 mr-2" /> Ajouter un niveau</Button>
           </div>
-          {levels.sort((a, b) => a.level - b.level).map(level => (
+          {[...(levels || [])].sort((a, b) => a.level - b.level).map(level => (
             <div key={level.id} className="border p-4 rounded-lg mb-4 relative">
               <Button variant="destructive" size="icon" className="absolute top-2 right-2 w-6 h-6" onClick={() => handleRemoveLevel(level.id)}>
                 <Trash2 className="w-4 h-4" />
