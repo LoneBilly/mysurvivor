@@ -368,6 +368,40 @@ const ItemFormModal = ({ isOpen, onClose, item, onSave, allItems }: ItemFormModa
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div>
+              <Label htmlFor="icon" className="text-gray-300 font-mono">Icône (nom de fichier)</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-12 h-12 bg-white/5 border border-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  {isValidatingIcon ? <Loader2 className="w-5 h-5 animate-spin" /> :
+                  previewUrl ? <img src={previewUrl} alt="Prévisualisation" className="w-full h-full object-contain p-1" onError={() => setIconExists(false)} onLoad={() => setIconExists(true)} /> :
+                  <AlertCircle className="w-5 h-5 text-gray-500" />}
+                </div>
+                <div className="relative w-full">
+                  <select
+                    id="icon"
+                    value={icon}
+                    onChange={(e) => setIcon(e.target.value)}
+                    disabled={loading || fetchingIcons}
+                    className="w-full bg-white/5 border-white/20 px-3 h-10 rounded-lg text-white focus:ring-white/30 focus:border-white/30"
+                  >
+                    <option value="">{fetchingIcons ? "Chargement..." : "Aucune icône"}</option>
+                    {item?.icon && !availableIcons.includes(item.icon) && (
+                      <option value={item.icon}>{item.icon}</option>
+                    )}
+                    {availableIcons.map((iconName) => (
+                      <option key={iconName} value={iconName}>
+                        {iconName}
+                      </option>
+                    ))}
+                  </select>
+                  {!isValidatingIcon && icon && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 transform-gpu">
+                      {iconExists ? <CheckCircle className="w-5 h-5 text-green-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             <div>
               <Label htmlFor="name" className="text-gray-300 font-mono">Nom</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white/5 border border-white/20 rounded-lg" required disabled={loading} />
